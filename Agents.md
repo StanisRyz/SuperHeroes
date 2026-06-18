@@ -4,13 +4,15 @@
 
 SuperHeroes is a Godot 4.x GDScript project for Web / HTML5, with Yandex Games integration planned later.
 
-The game is an original superhero survivors-like: the player moves around an arena, enemies chase the player, and future milestones will add XP, upgrades, and active abilities.
+The game is an original superhero survivors-like: the player moves around an arena, enemies chase the player, defeated enemies drop XP gems, and future milestones will add upgrades and active abilities.
 
 ## Important Files
 
 - `scenes/main/Main.tscn` - project entry scene.
 - `scenes/game/Arena.tscn` - arena composition.
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup.
+- `scenes/pickups/ExperienceGem.tscn` - XP pickup scene.
+- `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
 - `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, and enemy hit damage.
 - `scenes/ui/GameHUD.tscn` - player HP HUD scene.
@@ -36,12 +38,17 @@ The game is an original superhero survivors-like: the player moves around an are
 - Player HP HUD.
 - Enemy HP bars.
 - Hit flash feedback.
+- XP gem drops.
+- XP pickup.
+- XP HUD bar.
 
 ## Not Implemented Yet
 
-- XP drops, pickups, level-up, or upgrades.
+- Level-up overlay or upgrade cards.
+- Upgrades.
 - Active abilities.
 - Projectile upgrades.
+- XP magnet/vacuum.
 - Floating damage numbers.
 - Game over screen.
 - Mobile joystick.
@@ -84,4 +91,7 @@ Manual playtest checklist:
 - Player HP HUD updates when player health changes.
 - Enemy HP bars update when enemies take damage.
 - Player and enemies briefly flash when damaged.
+- Dead enemies drop XP gems.
+- Player collects XP gems by touching them.
+- XP HUD updates after pickup.
 - No script errors appear.

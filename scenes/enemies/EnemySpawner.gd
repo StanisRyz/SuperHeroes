@@ -3,6 +3,7 @@ extends Node
 const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 
 @export var enemy_scene: PackedScene
+@export var experience_gem_scene: PackedScene
 @export var spawn_interval: float = 1.5
 @export var max_alive_enemies: int = 12
 @export var min_spawn_distance_from_player: float = 500.0
@@ -11,6 +12,7 @@ const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 var player: Node2D
 var playable_rect: Rect2
 var enemy_container: Node
+var pickup_container: Node
 
 @onready var spawn_timer: Timer = $SpawnTimer
 
@@ -20,10 +22,11 @@ func _ready() -> void:
 	spawn_timer.one_shot = false
 
 
-func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node) -> void:
+func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null) -> void:
 	player = new_player
 	playable_rect = new_playable_rect
 	enemy_container = new_enemy_container
+	pickup_container = new_pickup_container
 
 	spawn_timer.wait_time = spawn_interval
 	if _can_spawn():
@@ -56,6 +59,28 @@ func _on_spawn_timer_timeout() -> void:
 		enemy.set_target(player)
 	else:
 		push_warning("Spawned enemy does not implement set_target(new_target).")
+
+	if enemy.has_signal("died"):
+		enemy.died.connect(_on_enemy_died)
+
+
+func _on_enemy_died(enemy: Node) -> void:
+	if experience_gem_scene == null or not is_instance_valid(pickup_container):
+		return
+
+	var enemy_node := enemy as Node2D
+	if enemy_node == null:
+		return
+
+	var gem_node := experience_gem_scene.instantiate()
+	if not gem_node is Node2D:
+		push_warning("EnemySpawner experience_gem_scene root must be Node2D.")
+		gem_node.queue_free()
+		return
+
+	var gem := gem_node as Node2D
+	pickup_container.add_child(gem)
+	gem.global_position = enemy_node.global_position
 
 
 func _can_spawn() -> bool:

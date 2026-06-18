@@ -1,13 +1,17 @@
 extends CharacterBody2D
 
 signal health_changed(current_health: int, max_health: int)
+signal experience_changed(current_xp: int, xp_to_next_level: int, level: int)
 signal died
 
 @export var speed: float = 260.0
 @export var bounds_margin: float = 24.0
 @export var max_health: int = 100
+@export var xp_to_next_level: int = 10
 
 var current_health: int
+var current_xp: int = 0
+var level: int = 1
 var _playable_rect: Rect2
 var _has_playable_rect := false
 var _hit_flash_tween: Tween
@@ -44,6 +48,19 @@ func take_damage(amount: int) -> void:
 
 func is_dead() -> bool:
 	return current_health <= 0
+
+
+func add_experience(amount: int) -> void:
+	if amount <= 0:
+		return
+
+	current_xp += amount
+	while current_xp >= xp_to_next_level:
+		current_xp -= xp_to_next_level
+		level += 1
+		xp_to_next_level += 5
+
+	experience_changed.emit(current_xp, xp_to_next_level, level)
 
 
 func set_playable_rect(rect: Rect2) -> void:

@@ -5,6 +5,7 @@ extends Node2D
 @onready var player: Node = get_node_or_null("Player")
 @onready var enemy_container: Node = get_node_or_null("EnemyContainer")
 @onready var projectile_container: Node = get_node_or_null("ProjectileContainer")
+@onready var pickup_container: Node = get_node_or_null("PickupContainer")
 @onready var enemy_spawner: Node = get_node_or_null("EnemySpawner")
 @onready var hud: Node = get_node_or_null("GameHUD")
 
@@ -44,12 +45,14 @@ func _ready() -> void:
 
 	if enemy_container == null:
 		push_warning("Arena could not find EnemyContainer node for spawned enemies.")
+	elif pickup_container == null:
+		push_warning("Arena could not find PickupContainer node for pickup drops.")
 	elif enemy_spawner == null:
 		push_warning("Arena could not find EnemySpawner node.")
 	elif enemy_spawner.has_method("setup"):
-		enemy_spawner.setup(player, playable_rect, enemy_container)
+		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container)
 	else:
-		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container).")
+		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container).")
 
 
 func get_playable_rect() -> Rect2:

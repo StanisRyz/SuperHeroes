@@ -1,6 +1,6 @@
 # SuperHeroes
 
-SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game with an original superhero theme. The player will move through a large arena, survive enemy waves, collect XP, level up, and use active abilities in later gameplay milestones.
+SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game with an original superhero theme. The player moves through a large arena, fights chasing enemies, collects XP gems, and will later choose upgrades and use active abilities.
 
 ## Target Platform
 
@@ -23,7 +23,7 @@ SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game 
 
 ## Development Status
 
-The project is currently in the foundation stage. It has the first playable loop pieces, projectile-based player autoattack, and health feedback, but no manual abilities, XP, upgrades, mobile controls, or Yandex SDK integration yet.
+The project is currently in the foundation stage. It has the first playable loop pieces, projectile-based player autoattack, health feedback, and a basic XP pickup loop, but no level-up overlay, upgrades, manual abilities, mobile controls, or Yandex SDK integration yet.
 
 Implemented foundation:
 
@@ -39,14 +39,18 @@ Implemented foundation:
 - Player HP HUD.
 - Enemy HP bars.
 - Hit flash feedback when player or enemies take damage.
+- XP gem drops after enemy death.
+- XP pickup by the player.
+- XP bar in the HUD.
 
 Not implemented yet:
 
 - Manual active abilities or ability buttons.
 - Active abilities.
-- XP drops or pickups.
-- Level-up upgrade screen.
+- Level-up overlay.
+- Upgrade cards.
 - Upgrade system.
+- XP magnet/vacuum.
 - Projectile upgrades such as pierce, bounce, or spread.
 - Floating damage numbers.
 - Game over screen.
