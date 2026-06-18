@@ -13,6 +13,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup.
 - `scenes/player/Player.tscn` - player scene with camera.
 - `scenes/player/Player.gd` - movement, bounds clamp, health state.
+- `scenes/player/PlayerAutoAttack.gd` - autoattack range tracking and periodic enemy damage.
 - `scenes/enemies/Enemy.tscn` - enemy scene and contact damage area.
 - `scenes/enemies/Enemy.gd` - chase movement, enemy health, contact damage.
 - `scenes/enemies/EnemySpawner.tscn` - timer-based spawner scene.
@@ -27,10 +28,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - Timer-based enemy spawning.
 - Basic player/enemy HP.
 - Enemy contact damage to player.
+- Basic player autoattack.
 
 ## Not Implemented Yet
 
-- Player attacks or autoattack.
+- Projectiles.
 - XP drops, pickups, level-up, or upgrades.
 - Active abilities.
 - HUD.
@@ -43,6 +45,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Inspect the current project before changing files.
 - Do not duplicate existing systems.
 - Keep patches small and focused.
+- Update `README.md` and `Agents.md` on every task.
 - Do not add monetization unless explicitly requested.
 - Do not use copyrighted superhero names, brands, logos, or specific existing characters.
 - Keep desktop browser and mobile landscape browser in mind.
@@ -67,4 +70,6 @@ Manual playtest checklist:
 - Enemies do not spawn directly on top of the player.
 - Enemy count respects `max_alive_enemies`.
 - Enemy contact reduces player health at the configured interval.
+- Player autoattack damages the nearest valid enemy in range.
+- Enemies eventually die and disappear after enough autoattack damage.
 - No script errors appear.
