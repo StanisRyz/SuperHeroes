@@ -28,6 +28,8 @@ polygon = PackedVector2Array(-8, -2000, 8, -2000, 8, 2000, -8, 2000)
 
 [node name="EnemyContainer" type="Node" parent="."]
 
+[node name="ProjectileContainer" type="Node" parent="."]
+
 [node name="EnemySpawner" parent="." instance=ExtResource("2_enemy_spawner")]
 
 [node name="GameHUD" parent="." instance=ExtResource("3_game_hud")]

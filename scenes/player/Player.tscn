@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://player_scene_superheroes"]
+[gd_scene load_steps=6 format=3 uid="uid://player_scene_superheroes"]
 
 [ext_resource type="Script" path="res://scenes/player/Player.gd" id="1_player_script"]
 [ext_resource type="Script" path="res://scenes/player/PlayerAutoAttack.gd" id="2_auto_attack_script"]
+[ext_resource type="PackedScene" path="res://scenes/projectiles/PlayerProjectile.tscn" id="3_player_projectile"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
 radius = 22.0
@@ -28,6 +29,7 @@ enabled = true
 
 [node name="AutoAttack" type="Node" parent="."]
 script = ExtResource("2_auto_attack_script")
+projectile_scene = ExtResource("3_player_projectile")
 
 [node name="AttackRangeArea" type="Area2D" parent="AutoAttack"]
 

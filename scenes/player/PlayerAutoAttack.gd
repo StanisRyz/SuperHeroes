@@ -3,9 +3,12 @@ extends Node
 @export var attack_damage: int = 5
 @export var attack_interval: float = 0.6
 @export var attack_range: float = 260.0
+@export var projectile_scene: PackedScene
 
+var projectile_container: Node
 var _cooldown := 0.0
 var _enemies_in_range: Array[Node2D] = []
+var _missing_projectile_warning_shown := false
 
 @onready var attack_range_area: Area2D = get_node_or_null("AttackRangeArea")
 @onready var attack_shape: CollisionShape2D = get_node_or_null("AttackRangeArea/CollisionShape2D")
@@ -37,8 +40,12 @@ func _physics_process(delta: float) -> void:
 	if enemy == null:
 		return
 
-	enemy.take_damage(attack_damage)
-	_cooldown = attack_interval
+	if _spawn_projectile(enemy):
+		_cooldown = attack_interval
+
+
+func setup_projectile_container(container: Node) -> void:
+	projectile_container = container
 
 
 func _on_attack_range_area_body_entered(body: Node2D) -> void:
@@ -73,13 +80,40 @@ func _is_valid_enemy(body: Node) -> bool:
 		body is Node2D
 		and is_instance_valid(body)
 		and not body.is_queued_for_deletion()
-		and (body.is_in_group("enemies") or body.has_method("take_damage"))
+		and (body.is_in_group("enemies") or body.has_method("die"))
 		and body.has_method("take_damage")
 	)
 
 
 func _cleanup_invalid_enemies() -> void:
 	_enemies_in_range = _enemies_in_range.filter(_is_valid_enemy)
+
+
+func _spawn_projectile(enemy: Node2D) -> bool:
+	if projectile_scene == null or projectile_container == null:
+		if not _missing_projectile_warning_shown:
+			push_warning("PlayerAutoAttack is missing projectile_scene or projectile_container.")
+			_missing_projectile_warning_shown = true
+		return false
+
+	var projectile_node := projectile_scene.instantiate()
+	if not projectile_node is Node2D:
+		push_warning("PlayerAutoAttack projectile_scene root must be Node2D.")
+		projectile_node.queue_free()
+		return false
+
+	var projectile := projectile_node as Node2D
+	var direction := (enemy.global_position - owner_body.global_position).normalized()
+	var spawn_position := owner_body.global_position + direction * 24.0
+
+	projectile_container.add_child(projectile)
+	if projectile.has_method("setup"):
+		projectile.setup(spawn_position, enemy, attack_damage)
+	else:
+		push_warning("Player projectile does not implement setup(origin, target, damage).")
+		projectile.global_position = spawn_position
+
+	return true
 
 
 func _update_attack_range_shape() -> void:

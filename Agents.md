@@ -11,6 +11,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/main/Main.tscn` - project entry scene.
 - `scenes/game/Arena.tscn` - arena composition.
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup.
+- `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
+- `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, and enemy hit damage.
 - `scenes/ui/GameHUD.tscn` - player HP HUD scene.
 - `scenes/ui/GameHUD.gd` - player HP HUD binding.
 - `scenes/player/Player.tscn` - player scene with camera.
@@ -30,16 +32,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - Timer-based enemy spawning.
 - Basic player/enemy HP.
 - Enemy contact damage to player.
-- Basic player autoattack.
+- Projectile-based player autoattack.
 - Player HP HUD.
 - Enemy HP bars.
 - Hit flash feedback.
 
 ## Not Implemented Yet
 
-- Projectiles.
 - XP drops, pickups, level-up, or upgrades.
 - Active abilities.
+- Projectile upgrades.
 - Floating damage numbers.
 - Game over screen.
 - Mobile joystick.
@@ -76,8 +78,9 @@ Manual playtest checklist:
 - Enemies do not spawn directly on top of the player.
 - Enemy count respects `max_alive_enemies`.
 - Enemy contact reduces player health at the configured interval.
-- Player autoattack damages the nearest valid enemy in range.
-- Enemies eventually die and disappear after enough autoattack damage.
+- Player autoattack fires visible projectiles toward the nearest valid enemy in range.
+- Projectiles damage enemies on hit and expire after `max_lifetime` if they miss.
+- Enemies eventually die and disappear after enough projectile hits.
 - Player HP HUD updates when player health changes.
 - Enemy HP bars update when enemies take damage.
 - Player and enemies briefly flash when damaged.

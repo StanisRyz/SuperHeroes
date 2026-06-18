@@ -4,6 +4,7 @@ extends Node2D
 
 @onready var player: Node = get_node_or_null("Player")
 @onready var enemy_container: Node = get_node_or_null("EnemyContainer")
+@onready var projectile_container: Node = get_node_or_null("ProjectileContainer")
 @onready var enemy_spawner: Node = get_node_or_null("EnemySpawner")
 @onready var hud: Node = get_node_or_null("GameHUD")
 
@@ -30,6 +31,16 @@ func _ready() -> void:
 		hud.setup(player)
 	else:
 		push_warning("GameHUD does not implement setup(player).")
+
+	var auto_attack := player.get_node_or_null("AutoAttack")
+	if projectile_container == null:
+		push_warning("Arena could not find ProjectileContainer node.")
+	elif auto_attack == null:
+		push_warning("Arena could not find Player/AutoAttack node.")
+	elif auto_attack.has_method("setup_projectile_container"):
+		auto_attack.setup_projectile_container(projectile_container)
+	else:
+		push_warning("AutoAttack does not implement setup_projectile_container(container).")
 
 	if enemy_container == null:
 		push_warning("Arena could not find EnemyContainer node for spawned enemies.")
