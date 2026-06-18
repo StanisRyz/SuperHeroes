@@ -30,8 +30,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/player/PlayerAutoAttack.gd` - autoattack range tracking and periodic enemy damage.
 - `scenes/enemies/Enemy.tscn` - enemy scene and contact damage area.
 - `scenes/enemies/Enemy.gd` - chase movement, enemy health, contact damage.
+- `scenes/enemies/SpawnDirector.tscn` - time-based spawn progression scene.
+- `scenes/enemies/SpawnDirector.gd` - dynamic spawn settings and enemy variant selection.
 - `scenes/enemies/EnemySpawner.tscn` - timer-based spawner scene.
-- `scenes/enemies/EnemySpawner.gd` - spawn loop, spawn distance checks, max alive enemy limit.
+- `scenes/enemies/EnemySpawner.gd` - spawn loop, spawn distance checks, max alive enemy limit, XP drops.
 
 ## Implemented Systems
 
@@ -54,6 +56,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - Player death handling.
 - Game over screen with current run stats.
 - Current run restart from game over.
+- Time-based spawn difficulty.
+- SpawnDirector-owned spawn scaling and variant selection.
+- Dynamic spawn interval and max alive enemy scaling.
+- Enemy variants: Grunt, Runner, and Tank.
+- Variant-based XP values.
 - Level-up pause screen.
 - Three-option upgrade selection.
 - Basic run upgrades.
@@ -77,6 +84,15 @@ The game is an original superhero survivors-like: the player moves around an are
 - `GameOverScreen` displays time survived, enemies defeated, and level reached.
 - Restart reloads the current scene and does not write saves, high scores, or meta-progression.
 
+## Spawn Progression
+
+- `SpawnDirector` owns time-based spawn scaling and variant selection.
+- `EnemySpawner` spawns enemies and drops XP, but should not own long-term difficulty design.
+- Enemy variants are currently hardcoded dictionaries, not Resources.
+- Spawn interval and max alive enemy limits scale from run time.
+- Grunt is available from run start, Runner opens after about 30 seconds, and Tank opens after about 60 seconds.
+- Variant XP values are copied onto the dropped `ExperienceGem`.
+
 ## Collision Notes
 
 - Player body uses the Player layer and should not physically collide with Enemy bodies.
@@ -94,7 +110,12 @@ The game is an original superhero survivors-like: the player moves around an are
 - Projectile upgrades.
 - XP magnet/vacuum.
 - Floating damage numbers.
+- Bosses.
+- Elite modifiers.
+- Wave announcements.
+- Biome or arena progression.
 - Pause menu.
+- Persistent records.
 - Persistent high scores or saved run history.
 - Meta-progression.
 - Mobile joystick.
@@ -107,6 +128,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not duplicate existing systems.
 - Keep patches small and focused.
 - Update `README.md` and `Agents.md` on every task.
+- Enemy variants are currently dictionaries, not Resource assets.
+- Keep long-term difficulty formulas in `SpawnDirector`, not `EnemySpawner`.
 - Do not add monetization unless explicitly requested.
 - Do not use copyrighted superhero names, brands, logos, or specific existing characters.
 - Keep desktop browser and mobile landscape browser in mind.
@@ -130,6 +153,8 @@ Manual playtest checklist:
 - Enemies spawn over time and chase the player.
 - Enemies do not spawn directly on top of the player.
 - Enemy count respects `max_alive_enemies`.
+- Spawn interval and max alive enemy pressure increase over time.
+- Runner and Tank variants appear only after their unlock time.
 - Enemy contact reduces player health at the configured interval.
 - Player autoattack fires visible projectiles toward the nearest valid enemy in range.
 - Projectiles damage enemies on hit and expire after `max_lifetime` if they miss.
@@ -138,6 +163,7 @@ Manual playtest checklist:
 - Enemy HP bars update when enemies take damage.
 - Player and enemies briefly flash when damaged.
 - Dead enemies drop XP gems.
+- Tank XP gems grant more XP than Grunt and Runner gems.
 - Player collects XP gems by touching them.
 - XP HUD updates after pickup.
 - Run timer advances during gameplay.

@@ -9,6 +9,7 @@ signal died(enemy: Node)
 @export var contact_damage_interval: float = 1.0
 
 var current_health: int
+var experience_value: int = 1
 var target: Node2D
 var _target_in_contact := false
 var _contact_damage_cooldown := 0.0
@@ -33,6 +34,28 @@ func _ready() -> void:
 
 func set_target(new_target: Node2D) -> void:
 	target = new_target
+
+
+func apply_variant(variant: Dictionary) -> void:
+	if variant.has("speed"):
+		speed = float(variant["speed"])
+	if variant.has("max_health"):
+		max_health = int(variant["max_health"])
+	if variant.has("contact_damage"):
+		contact_damage = int(variant["contact_damage"])
+	if variant.has("experience_value"):
+		experience_value = int(variant["experience_value"])
+	if variant.has("body_color") and body_visual != null:
+		body_visual.set("color", variant["body_color"])
+	if variant.has("core_color") and core_visual != null:
+		core_visual.set("color", variant["core_color"])
+
+	current_health = max_health
+	_update_health_bar()
+
+
+func get_experience_value() -> int:
+	return experience_value
 
 
 func _physics_process(delta: float) -> void:

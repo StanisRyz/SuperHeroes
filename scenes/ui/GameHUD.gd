@@ -9,6 +9,7 @@ var player: Node
 @onready var experience_label: Label = get_node_or_null("Root/ExperiencePanel/ExperienceLabel")
 @onready var run_time_label: Label = get_node_or_null("Root/RunPanel/RunTimeLabel")
 @onready var kill_count_label: Label = get_node_or_null("Root/RunPanel/KillCountLabel")
+@onready var threat_label: Label = get_node_or_null("Root/RunPanel/ThreatLabel")
 
 func setup(new_player: Node, run_manager: Node = null) -> void:
 	player = new_player
@@ -83,6 +84,8 @@ func _setup_run_manager(run_manager: Node) -> void:
 func _update_run_time(seconds: float) -> void:
 	if run_time_label != null:
 		run_time_label.text = "Time %s" % _format_time(seconds)
+	if threat_label != null:
+		threat_label.text = "Threat %d" % _get_threat_level(seconds)
 
 
 func _update_kill_count(kills: int) -> void:
@@ -95,3 +98,7 @@ func _format_time(seconds: float) -> String:
 	var minutes := total_seconds / 60
 	var remaining_seconds := total_seconds % 60
 	return "%02d:%02d" % [minutes, remaining_seconds]
+
+
+func _get_threat_level(seconds: float) -> int:
+	return int(clampf(floor(seconds / 30.0) + 1.0, 1.0, 10.0))

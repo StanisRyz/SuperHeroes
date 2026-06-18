@@ -14,6 +14,7 @@ var playable_rect: Rect2
 var enemy_container: Node
 var pickup_container: Node
 var run_manager: Node
+var spawn_director: Node
 
 @onready var spawn_timer: Timer = $SpawnTimer
 
@@ -23,14 +24,15 @@ func _ready() -> void:
 	spawn_timer.one_shot = false
 
 
-func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null) -> void:
+func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null) -> void:
 	player = new_player
 	playable_rect = new_playable_rect
 	enemy_container = new_enemy_container
 	pickup_container = new_pickup_container
 	run_manager = new_run_manager
+	spawn_director = new_spawn_director
 
-	spawn_timer.wait_time = spawn_interval
+	spawn_timer.wait_time = _get_current_spawn_interval()
 	if _can_spawn():
 		spawn_timer.start()
 
@@ -39,7 +41,8 @@ func _on_spawn_timer_timeout() -> void:
 	if not _can_spawn():
 		return
 
-	if enemy_container.get_child_count() >= max_alive_enemies:
+	spawn_timer.wait_time = _get_current_spawn_interval()
+	if enemy_container.get_child_count() >= _get_current_max_alive_enemies():
 		return
 
 	var spawn_position: Vector2 = _find_spawn_position()
@@ -57,6 +60,10 @@ func _on_spawn_timer_timeout() -> void:
 	enemy.global_position = spawn_position
 	enemy.add_to_group("enemies")
 
+	var variant := _get_enemy_variant()
+	if not variant.is_empty() and enemy.has_method("apply_variant"):
+		enemy.apply_variant(variant)
+
 	if enemy.has_method("set_target"):
 		enemy.set_target(player)
 	else:
@@ -69,6 +76,10 @@ func _on_spawn_timer_timeout() -> void:
 func _on_enemy_died(enemy: Node) -> void:
 	if run_manager != null and run_manager.has_method("register_enemy_kill"):
 		run_manager.register_enemy_kill()
+
+	var dropped_experience := 1
+	if enemy != null and enemy.has_method("get_experience_value"):
+		dropped_experience = int(enemy.get_experience_value())
 
 	if experience_gem_scene == null or not is_instance_valid(pickup_container):
 		return
@@ -84,6 +95,9 @@ func _on_enemy_died(enemy: Node) -> void:
 		return
 
 	var gem := gem_node as Node2D
+	if "experience_value" in gem:
+		gem.experience_value = dropped_experience
+
 	pickup_container.add_child(gem)
 	gem.global_position = enemy_node.global_position
 
@@ -106,3 +120,26 @@ func _find_spawn_position() -> Vector2:
 			return point
 
 	return NO_SPAWN_POSITION
+
+
+func _get_current_spawn_interval() -> float:
+	if spawn_director != null and spawn_director.has_method("get_spawn_interval"):
+		return maxf(float(spawn_director.get_spawn_interval()), 0.05)
+
+	return spawn_interval
+
+
+func _get_current_max_alive_enemies() -> int:
+	if spawn_director != null and spawn_director.has_method("get_max_alive_enemies"):
+		return maxi(int(spawn_director.get_max_alive_enemies()), 0)
+
+	return max_alive_enemies
+
+
+func _get_enemy_variant() -> Dictionary:
+	if spawn_director != null and spawn_director.has_method("get_enemy_variant"):
+		var variant = spawn_director.get_enemy_variant()
+		if variant is Dictionary:
+			return variant
+
+	return {}

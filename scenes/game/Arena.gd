@@ -8,6 +8,7 @@ extends Node2D
 @onready var pickup_container: Node = get_node_or_null("PickupContainer")
 @onready var enemy_spawner: Node = get_node_or_null("EnemySpawner")
 @onready var run_manager: Node = get_node_or_null("RunManager")
+@onready var spawn_director: Node = get_node_or_null("SpawnDirector")
 @onready var hud: Node = get_node_or_null("GameHUD")
 @onready var upgrade_manager: Node = get_node_or_null("UpgradeManager")
 @onready var level_up_screen: Node = get_node_or_null("LevelUpScreen")
@@ -38,6 +39,7 @@ func _ready() -> void:
 		push_warning("GameHUD does not implement setup(player, run_manager).")
 
 	var auto_attack := player.get_node_or_null("AutoAttack")
+	_setup_spawn_director()
 	_setup_level_up_flow(auto_attack)
 	_setup_run_lifecycle()
 
@@ -57,9 +59,9 @@ func _ready() -> void:
 	elif enemy_spawner == null:
 		push_warning("Arena could not find EnemySpawner node.")
 	elif enemy_spawner.has_method("setup"):
-		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager)
+		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director)
 	else:
-		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager).")
+		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director).")
 
 
 func get_playable_rect() -> Rect2:
@@ -81,6 +83,15 @@ func _setup_level_up_flow(auto_attack: Node) -> void:
 		push_warning("Arena could not find LevelUpScreen node.")
 	elif level_up_screen.has_signal("upgrade_selected") and not level_up_screen.upgrade_selected.is_connected(_on_upgrade_selected):
 		level_up_screen.upgrade_selected.connect(_on_upgrade_selected)
+
+
+func _setup_spawn_director() -> void:
+	if spawn_director == null:
+		push_warning("Arena could not find SpawnDirector node.")
+	elif spawn_director.has_method("setup"):
+		spawn_director.setup(run_manager)
+	else:
+		push_warning("SpawnDirector does not implement setup(run_manager).")
 
 
 func _on_player_level_up_available(_level: int) -> void:
