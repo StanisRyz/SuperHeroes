@@ -41,6 +41,17 @@ The game is an original superhero survivors-like: the player moves around an are
 - XP gem drops.
 - XP pickup.
 - XP HUD bar.
+- Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
+
+## Collision Notes
+
+- Player body uses the Player layer and should not physically collide with Enemy bodies.
+- Enemy bodies use the Enemies layer and should not physically collide with Player or other Enemy bodies.
+- Enemy contact damage is handled by `ContactDamageArea`, which detects Player bodies.
+- Player autoattack range detects Enemy bodies through `Area2D`.
+- Player projectiles detect Enemy bodies through `Area2D`.
+- Experience gems detect Player bodies through `Area2D`.
+- Do not re-enable Player/Enemy physical body collisions unless explicitly requested.
 
 ## Not Implemented Yet
 

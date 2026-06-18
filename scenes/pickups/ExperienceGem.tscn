@@ -6,6 +6,7 @@
 radius = 16.0
 
 [node name="ExperienceGem" type="Area2D"]
+collision_layer = 0
 script = ExtResource("1_experience_gem_script")
 
 [node name="Body" type="Polygon2D" parent="."]

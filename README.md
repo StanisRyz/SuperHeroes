@@ -42,6 +42,8 @@ Implemented foundation:
 - XP gem drops after enemy death.
 - XP pickup by the player.
 - XP bar in the HUD.
+- Player/enemy physical body collisions are separated so enemies do not push or displace the player.
+- Enemy contact damage, projectiles, and XP pickups use Area2D detection.
 
 Not implemented yet:
 

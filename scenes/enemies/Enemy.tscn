@@ -9,6 +9,8 @@ radius = 20.0
 radius = 28.0
 
 [node name="Enemy" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 0
 script = ExtResource("1_enemy_script")
 
 [node name="Body" type="Polygon2D" parent="."]
@@ -23,6 +25,7 @@ polygon = PackedVector2Array(0, -9, 8, 0, 0, 9, -8, 0)
 shape = SubResource("CircleShape2D_enemy")
 
 [node name="ContactDamageArea" type="Area2D" parent="."]
+collision_layer = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="ContactDamageArea"]
 shape = SubResource("CircleShape2D_contact_damage")
