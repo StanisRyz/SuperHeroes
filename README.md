@@ -23,7 +23,29 @@ SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game 
 
 ## Development Status
 
-The project is currently in the foundation stage only. No gameplay has been implemented yet.
+The project is currently in the foundation stage. It has the first playable loop pieces, but no attacks, XP, upgrades, HUD, mobile controls, or Yandex SDK integration yet.
+
+Implemented foundation:
+
+- Main scene.
+- Arena scene with a large placeholder field.
+- Player movement with WASD and arrow keys.
+- Camera follow with arena limits.
+- Arena bounds and player clamping.
+- Enemy scene with simple chase behavior.
+- EnemySpawner with timer-based spawning, spawn distance checks, an enemy container, and a max alive enemy limit.
+- Basic HP/contact damage foundation for player and enemies.
+
+Not implemented yet:
+
+- Player attacks or autoattack.
+- Active abilities.
+- XP drops or pickups.
+- Level-up upgrade screen.
+- HUD.
+- Mobile joystick.
+- Yandex SDK integration.
+- Ads, payments, or monetization.
 
 ## Architecture Principles
 
