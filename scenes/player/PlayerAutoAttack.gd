@@ -3,6 +3,7 @@ extends Node
 @export var attack_damage: int = 5
 @export var attack_interval: float = 0.6
 @export var attack_range: float = 260.0
+@export var projectile_speed: float = 520.0
 @export var projectile_scene: PackedScene
 
 var projectile_container: Node
@@ -107,6 +108,9 @@ func _spawn_projectile(enemy: Node2D) -> bool:
 	var spawn_position := owner_body.global_position + direction * 24.0
 
 	projectile_container.add_child(projectile)
+	if "speed" in projectile:
+		projectile.speed = projectile_speed
+
 	if projectile.has_method("setup"):
 		projectile.setup(spawn_position, enemy, attack_damage)
 	else:
@@ -127,6 +131,10 @@ func _update_attack_range_shape() -> void:
 		return
 
 	circle.radius = attack_range
+
+
+func refresh_attack_range() -> void:
+	_update_attack_range_shape()
 
 
 func _sync_attack_range_area() -> void:

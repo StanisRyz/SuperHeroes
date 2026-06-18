@@ -8,6 +8,8 @@ extends Node2D
 @onready var pickup_container: Node = get_node_or_null("PickupContainer")
 @onready var enemy_spawner: Node = get_node_or_null("EnemySpawner")
 @onready var hud: Node = get_node_or_null("GameHUD")
+@onready var upgrade_manager: Node = get_node_or_null("UpgradeManager")
+@onready var level_up_screen: Node = get_node_or_null("LevelUpScreen")
 
 func _ready() -> void:
 	var playable_rect := get_playable_rect()
@@ -34,6 +36,8 @@ func _ready() -> void:
 		push_warning("GameHUD does not implement setup(player).")
 
 	var auto_attack := player.get_node_or_null("AutoAttack")
+	_setup_level_up_flow(auto_attack)
+
 	if projectile_container == null:
 		push_warning("Arena could not find ProjectileContainer node.")
 	elif auto_attack == null:
@@ -57,3 +61,42 @@ func _ready() -> void:
 
 func get_playable_rect() -> Rect2:
 	return Rect2(-arena_size * 0.5, arena_size)
+
+
+func _setup_level_up_flow(auto_attack: Node) -> void:
+	if upgrade_manager == null:
+		push_warning("Arena could not find UpgradeManager node.")
+	elif upgrade_manager.has_method("setup"):
+		upgrade_manager.setup(player, auto_attack)
+	else:
+		push_warning("UpgradeManager does not implement setup(player, auto_attack).")
+
+	if player.has_signal("level_up_available") and not player.level_up_available.is_connected(_on_player_level_up_available):
+		player.level_up_available.connect(_on_player_level_up_available)
+
+	if level_up_screen == null:
+		push_warning("Arena could not find LevelUpScreen node.")
+	elif level_up_screen.has_signal("upgrade_selected") and not level_up_screen.upgrade_selected.is_connected(_on_upgrade_selected):
+		level_up_screen.upgrade_selected.connect(_on_upgrade_selected)
+
+
+func _on_player_level_up_available(_level: int) -> void:
+	if upgrade_manager == null or level_up_screen == null:
+		push_warning("Level-up flow is missing UpgradeManager or LevelUpScreen.")
+		return
+
+	if not upgrade_manager.has_method("get_upgrade_options") or not level_up_screen.has_method("show_options"):
+		push_warning("Level-up flow nodes are missing required methods.")
+		return
+
+	get_tree().paused = true
+	level_up_screen.show_options(upgrade_manager.get_upgrade_options(3))
+
+
+func _on_upgrade_selected(upgrade_id: String) -> void:
+	if upgrade_manager != null and upgrade_manager.has_method("apply_upgrade"):
+		upgrade_manager.apply_upgrade(upgrade_id)
+	else:
+		push_warning("UpgradeManager cannot apply selected upgrade.")
+
+	get_tree().paused = false

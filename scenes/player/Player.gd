@@ -2,6 +2,7 @@ extends CharacterBody2D
 
 signal health_changed(current_health: int, max_health: int)
 signal experience_changed(current_xp: int, xp_to_next_level: int, level: int)
+signal level_up_available(level: int)
 signal died
 
 @export var speed: float = 260.0
@@ -55,12 +56,16 @@ func add_experience(amount: int) -> void:
 		return
 
 	current_xp += amount
+	var gained_levels: Array[int] = []
 	while current_xp >= xp_to_next_level:
 		current_xp -= xp_to_next_level
 		level += 1
+		gained_levels.append(level)
 		xp_to_next_level += 5
 
 	experience_changed.emit(current_xp, xp_to_next_level, level)
+	for gained_level in gained_levels:
+		level_up_available.emit(gained_level)
 
 
 func set_playable_rect(rect: Rect2) -> void:

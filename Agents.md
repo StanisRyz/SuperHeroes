@@ -15,8 +15,12 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
 - `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, and enemy hit damage.
+- `scenes/upgrades/UpgradeManager.tscn` - runtime upgrade manager scene.
+- `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade options and application logic.
 - `scenes/ui/GameHUD.tscn` - player HP HUD scene.
 - `scenes/ui/GameHUD.gd` - player HP HUD binding.
+- `scenes/ui/LevelUpScreen.tscn` - pause-time upgrade selection UI.
+- `scenes/ui/LevelUpScreen.gd` - displays options and emits selected upgrade IDs.
 - `scenes/player/Player.tscn` - player scene with camera.
 - `scenes/player/Player.gd` - movement, bounds clamp, health state.
 - `scenes/player/PlayerAutoAttack.gd` - autoattack range tracking and periodic enemy damage.
@@ -41,7 +45,19 @@ The game is an original superhero survivors-like: the player moves around an are
 - XP gem drops.
 - XP pickup.
 - XP HUD bar.
+- Level-up pause screen.
+- Three-option upgrade selection.
+- Basic run upgrades.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
+
+## Level-Up Flow
+
+- Player emits `level_up_available(level)` after XP crosses a threshold.
+- Arena pauses the tree.
+- Arena asks `UpgradeManager` for three options.
+- `LevelUpScreen` displays options while paused.
+- Arena applies the selected upgrade through `UpgradeManager`.
+- Arena unpauses gameplay.
 
 ## Collision Notes
 
@@ -55,8 +71,7 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Not Implemented Yet
 
-- Level-up overlay or upgrade cards.
-- Upgrades.
+- Upgrade icons, rarities, weights, or Resource-backed data.
 - Active abilities.
 - Projectile upgrades.
 - XP magnet/vacuum.
