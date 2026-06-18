@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3 uid="uid://player_scene_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/player/Player.gd" id="1_player_script"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_player"]
+radius = 22.0
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_player_script")
+
+[node name="Body" type="Polygon2D" parent="."]
+color = Color(0.14, 0.52, 0.96, 1)
+polygon = PackedVector2Array(0, -28, 23, -8, 15, 24, -15, 24, -23, -8)
+
+[node name="Core" type="Polygon2D" parent="."]
+color = Color(1, 0.86, 0.25, 1)
+polygon = PackedVector2Array(0, -10, 9, 0, 0, 10, -9, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_player")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+enabled = true

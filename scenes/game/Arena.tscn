@@ -1,0 +1,23 @@
+[gd_scene load_steps=2 format=3 uid="uid://arena_scene_superheroes"]
+
+[ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="1_player"]
+
+[node name="Arena" type="Node2D"]
+
+[node name="Ground" type="Polygon2D" parent="."]
+color = Color(0.08, 0.105, 0.12, 1)
+polygon = PackedVector2Array(-2000, -2000, 2000, -2000, 2000, 2000, -2000, 2000)
+
+[node name="CenterGuide" type="Polygon2D" parent="."]
+color = Color(0.16, 0.2, 0.23, 1)
+polygon = PackedVector2Array(-80, -80, 80, -80, 80, 80, -80, 80)
+
+[node name="HorizontalGuide" type="Polygon2D" parent="."]
+color = Color(0.12, 0.15, 0.17, 1)
+polygon = PackedVector2Array(-2000, -8, 2000, -8, 2000, 8, -2000, 8)
+
+[node name="VerticalGuide" type="Polygon2D" parent="."]
+color = Color(0.12, 0.15, 0.17, 1)
+polygon = PackedVector2Array(-8, -2000, 8, -2000, 8, 2000, -8, 2000)
+
+[node name="Player" parent="." instance=ExtResource("1_player")]
