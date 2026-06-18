@@ -10,8 +10,11 @@ signal died
 var current_health: int
 var _playable_rect: Rect2
 var _has_playable_rect := false
+var _hit_flash_tween: Tween
 
 @onready var camera: Camera2D = $Camera2D
+@onready var body_visual: CanvasItem = get_node_or_null("Body")
+@onready var core_visual: CanvasItem = get_node_or_null("Core")
 
 func _ready() -> void:
 	current_health = max_health
@@ -33,6 +36,7 @@ func take_damage(amount: int) -> void:
 
 	if current_health != previous_health:
 		health_changed.emit(current_health, max_health)
+		_play_hit_flash()
 
 	if current_health == 0:
 		died.emit()
@@ -62,3 +66,36 @@ func _clamp_to_playable_rect() -> void:
 		clampf(global_position.x, _playable_rect.position.x + bounds_margin, _playable_rect.end.x - bounds_margin),
 		clampf(global_position.y, _playable_rect.position.y + bounds_margin, _playable_rect.end.y - bounds_margin)
 	)
+
+
+func _play_hit_flash() -> void:
+	if _hit_flash_tween != null:
+		_hit_flash_tween.kill()
+
+	var visuals := _get_flash_visuals()
+	if visuals.is_empty():
+		return
+
+	for visual in visuals:
+		visual.modulate = Color(1.0, 1.0, 1.0, 1.0)
+
+	_hit_flash_tween = create_tween()
+	for visual in visuals:
+		_hit_flash_tween.parallel().tween_property(visual, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.04)
+	for visual in visuals:
+		_hit_flash_tween.parallel().tween_property(visual, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.08).from(Color(1.0, 0.45, 0.45, 1.0))
+	_hit_flash_tween.finished.connect(_reset_hit_flash)
+
+
+func _reset_hit_flash() -> void:
+	for visual in _get_flash_visuals():
+		visual.modulate = Color(1.0, 1.0, 1.0, 1.0)
+
+
+func _get_flash_visuals() -> Array[CanvasItem]:
+	var visuals: Array[CanvasItem] = []
+	if body_visual != null:
+		visuals.append(body_visual)
+	if core_visual != null:
+		visuals.append(core_visual)
+	return visuals

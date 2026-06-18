@@ -5,6 +5,7 @@ extends Node2D
 @onready var player: Node = get_node_or_null("Player")
 @onready var enemy_container: Node = get_node_or_null("EnemyContainer")
 @onready var enemy_spawner: Node = get_node_or_null("EnemySpawner")
+@onready var hud: Node = get_node_or_null("GameHUD")
 
 func _ready() -> void:
 	var playable_rect := get_playable_rect()
@@ -22,6 +23,13 @@ func _ready() -> void:
 		player.set_camera_limits(playable_rect)
 	else:
 		push_warning("Player does not implement set_camera_limits(rect).")
+
+	if hud == null:
+		push_warning("Arena could not find GameHUD node.")
+	elif hud.has_method("setup"):
+		hud.setup(player)
+	else:
+		push_warning("GameHUD does not implement setup(player).")
 
 	if enemy_container == null:
 		push_warning("Arena could not find EnemyContainer node for spawned enemies.")

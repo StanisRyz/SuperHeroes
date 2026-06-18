@@ -11,6 +11,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/main/Main.tscn` - project entry scene.
 - `scenes/game/Arena.tscn` - arena composition.
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup.
+- `scenes/ui/GameHUD.tscn` - player HP HUD scene.
+- `scenes/ui/GameHUD.gd` - player HP HUD binding.
 - `scenes/player/Player.tscn` - player scene with camera.
 - `scenes/player/Player.gd` - movement, bounds clamp, health state.
 - `scenes/player/PlayerAutoAttack.gd` - autoattack range tracking and periodic enemy damage.
@@ -29,13 +31,17 @@ The game is an original superhero survivors-like: the player moves around an are
 - Basic player/enemy HP.
 - Enemy contact damage to player.
 - Basic player autoattack.
+- Player HP HUD.
+- Enemy HP bars.
+- Hit flash feedback.
 
 ## Not Implemented Yet
 
 - Projectiles.
 - XP drops, pickups, level-up, or upgrades.
 - Active abilities.
-- HUD.
+- Floating damage numbers.
+- Game over screen.
 - Mobile joystick.
 - Yandex SDK integration.
 - Ads, payments, monetization, leaderboards, saves, or meta-progression.
@@ -72,4 +78,7 @@ Manual playtest checklist:
 - Enemy contact reduces player health at the configured interval.
 - Player autoattack damages the nearest valid enemy in range.
 - Enemies eventually die and disappear after enough autoattack damage.
+- Player HP HUD updates when player health changes.
+- Enemy HP bars update when enemies take damage.
+- Player and enemies briefly flash when damaged.
 - No script errors appear.
