@@ -1,8 +1,10 @@
-[gd_scene load_steps=2 format=3 uid="uid://arena_scene_superheroes"]
+[gd_scene load_steps=3 format=3 uid="uid://arena_scene_superheroes"]
 
 [ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="1_player"]
+[ext_resource type="Script" path="res://scenes/game/Arena.gd" id="1_arena_script"]
 
 [node name="Arena" type="Node2D"]
+script = ExtResource("1_arena_script")
 
 [node name="Ground" type="Polygon2D" parent="."]
 color = Color(0.08, 0.105, 0.12, 1)
