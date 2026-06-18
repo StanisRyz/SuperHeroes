@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://run_manager_scene_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/game/RunManager.gd" id="1_run_manager_script"]
+
+[node name="RunManager" type="Node"]
+script = ExtResource("1_run_manager_script")

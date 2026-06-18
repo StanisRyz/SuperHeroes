@@ -13,6 +13,7 @@ var player: Node2D
 var playable_rect: Rect2
 var enemy_container: Node
 var pickup_container: Node
+var run_manager: Node
 
 @onready var spawn_timer: Timer = $SpawnTimer
 
@@ -22,11 +23,12 @@ func _ready() -> void:
 	spawn_timer.one_shot = false
 
 
-func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null) -> void:
+func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null) -> void:
 	player = new_player
 	playable_rect = new_playable_rect
 	enemy_container = new_enemy_container
 	pickup_container = new_pickup_container
+	run_manager = new_run_manager
 
 	spawn_timer.wait_time = spawn_interval
 	if _can_spawn():
@@ -65,6 +67,9 @@ func _on_spawn_timer_timeout() -> void:
 
 
 func _on_enemy_died(enemy: Node) -> void:
+	if run_manager != null and run_manager.has_method("register_enemy_kill"):
+		run_manager.register_enemy_kill()
+
 	if experience_gem_scene == null or not is_instance_valid(pickup_container):
 		return
 
@@ -84,6 +89,9 @@ func _on_enemy_died(enemy: Node) -> void:
 
 
 func _can_spawn() -> bool:
+	if run_manager != null and run_manager.get("is_run_active") == false:
+		return false
+
 	return enemy_scene != null and is_instance_valid(player) and is_instance_valid(enemy_container)
 
 

@@ -7,9 +7,11 @@ extends Node2D
 @onready var projectile_container: Node = get_node_or_null("ProjectileContainer")
 @onready var pickup_container: Node = get_node_or_null("PickupContainer")
 @onready var enemy_spawner: Node = get_node_or_null("EnemySpawner")
+@onready var run_manager: Node = get_node_or_null("RunManager")
 @onready var hud: Node = get_node_or_null("GameHUD")
 @onready var upgrade_manager: Node = get_node_or_null("UpgradeManager")
 @onready var level_up_screen: Node = get_node_or_null("LevelUpScreen")
+@onready var game_over_screen: Node = get_node_or_null("GameOverScreen")
 
 func _ready() -> void:
 	var playable_rect := get_playable_rect()
@@ -31,12 +33,13 @@ func _ready() -> void:
 	if hud == null:
 		push_warning("Arena could not find GameHUD node.")
 	elif hud.has_method("setup"):
-		hud.setup(player)
+		hud.setup(player, run_manager)
 	else:
-		push_warning("GameHUD does not implement setup(player).")
+		push_warning("GameHUD does not implement setup(player, run_manager).")
 
 	var auto_attack := player.get_node_or_null("AutoAttack")
 	_setup_level_up_flow(auto_attack)
+	_setup_run_lifecycle()
 
 	if projectile_container == null:
 		push_warning("Arena could not find ProjectileContainer node.")
@@ -54,9 +57,9 @@ func _ready() -> void:
 	elif enemy_spawner == null:
 		push_warning("Arena could not find EnemySpawner node.")
 	elif enemy_spawner.has_method("setup"):
-		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container)
+		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager)
 	else:
-		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container).")
+		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager).")
 
 
 func get_playable_rect() -> Rect2:
@@ -81,6 +84,9 @@ func _setup_level_up_flow(auto_attack: Node) -> void:
 
 
 func _on_player_level_up_available(_level: int) -> void:
+	if _is_player_dead() or _is_game_over_visible():
+		return
+
 	if upgrade_manager == null or level_up_screen == null:
 		push_warning("Level-up flow is missing UpgradeManager or LevelUpScreen.")
 		return
@@ -94,9 +100,57 @@ func _on_player_level_up_available(_level: int) -> void:
 
 
 func _on_upgrade_selected(upgrade_id: String) -> void:
+	if _is_player_dead() or _is_game_over_visible():
+		return
+
 	if upgrade_manager != null and upgrade_manager.has_method("apply_upgrade"):
 		upgrade_manager.apply_upgrade(upgrade_id)
 	else:
 		push_warning("UpgradeManager cannot apply selected upgrade.")
 
 	get_tree().paused = false
+
+
+func _setup_run_lifecycle() -> void:
+	if player.has_signal("died") and not player.died.is_connected(_on_player_died):
+		player.died.connect(_on_player_died)
+
+	if run_manager == null:
+		push_warning("Arena could not find RunManager node.")
+
+	if game_over_screen == null:
+		push_warning("Arena could not find GameOverScreen node.")
+	elif game_over_screen.has_signal("restart_requested") and not game_over_screen.restart_requested.is_connected(_on_restart_requested):
+		game_over_screen.restart_requested.connect(_on_restart_requested)
+
+
+func _on_player_died() -> void:
+	var stats := {}
+	if run_manager != null and run_manager.has_method("end_run"):
+		run_manager.end_run()
+	if run_manager != null and run_manager.has_method("get_stats"):
+		stats = run_manager.get_stats()
+
+	stats["level"] = int(player.get("level")) if player.get("level") != null else 1
+
+	if level_up_screen != null:
+		level_up_screen.hide()
+
+	get_tree().paused = true
+	if game_over_screen != null and game_over_screen.has_method("show_stats"):
+		game_over_screen.show_stats(stats)
+	else:
+		push_warning("GameOverScreen does not implement show_stats(stats).")
+
+
+func _on_restart_requested() -> void:
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+
+func _is_player_dead() -> bool:
+	return player != null and player.has_method("is_dead") and player.is_dead()
+
+
+func _is_game_over_visible() -> bool:
+	return game_over_screen != null and game_over_screen.visible

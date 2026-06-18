@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://arena_scene_superheroes"]
+[gd_scene load_steps=9 format=3 uid="uid://arena_scene_superheroes"]
 
 [ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="1_player"]
 [ext_resource type="Script" path="res://scenes/game/Arena.gd" id="1_arena_script"]
@@ -6,6 +6,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/GameHUD.tscn" id="3_game_hud"]
 [ext_resource type="PackedScene" path="res://scenes/upgrades/UpgradeManager.tscn" id="4_upgrade_manager"]
 [ext_resource type="PackedScene" path="res://scenes/ui/LevelUpScreen.tscn" id="5_level_up_screen"]
+[ext_resource type="PackedScene" path="res://scenes/game/RunManager.tscn" id="6_run_manager"]
+[ext_resource type="PackedScene" path="res://scenes/ui/GameOverScreen.tscn" id="7_game_over_screen"]
 
 [node name="Arena" type="Node2D"]
 script = ExtResource("1_arena_script")
@@ -36,8 +38,12 @@ polygon = PackedVector2Array(-8, -2000, 8, -2000, 8, 2000, -8, 2000)
 
 [node name="EnemySpawner" parent="." instance=ExtResource("2_enemy_spawner")]
 
+[node name="RunManager" parent="." instance=ExtResource("6_run_manager")]
+
 [node name="GameHUD" parent="." instance=ExtResource("3_game_hud")]
 
 [node name="UpgradeManager" parent="." instance=ExtResource("4_upgrade_manager")]
 
 [node name="LevelUpScreen" parent="." instance=ExtResource("5_level_up_screen")]
+
+[node name="GameOverScreen" parent="." instance=ExtResource("7_game_over_screen")]

@@ -7,8 +7,10 @@ var player: Node
 @onready var experience_bar: ProgressBar = get_node_or_null("Root/ExperiencePanel/ExperienceBar")
 @onready var experience_title: Label = get_node_or_null("Root/ExperiencePanel/ExperienceTitle")
 @onready var experience_label: Label = get_node_or_null("Root/ExperiencePanel/ExperienceLabel")
+@onready var run_time_label: Label = get_node_or_null("Root/RunPanel/RunTimeLabel")
+@onready var kill_count_label: Label = get_node_or_null("Root/RunPanel/KillCountLabel")
 
-func setup(new_player: Node) -> void:
+func setup(new_player: Node, run_manager: Node = null) -> void:
 	player = new_player
 
 	if player == null:
@@ -37,6 +39,8 @@ func setup(new_player: Node) -> void:
 	if player.has_signal("experience_changed") and not player.experience_changed.is_connected(_update_player_experience):
 		player.experience_changed.connect(_update_player_experience)
 
+	_setup_run_manager(run_manager)
+
 
 func _update_player_health(current_health: int, max_health: int) -> void:
 	if health_bar != null:
@@ -57,3 +61,37 @@ func _update_player_experience(current_xp: int, xp_to_next_level: int, level: in
 
 	if experience_label != null:
 		experience_label.text = "XP %d / %d" % [current_xp, xp_to_next_level]
+
+
+func _setup_run_manager(run_manager: Node) -> void:
+	if run_manager == null:
+		_update_run_time(0.0)
+		_update_kill_count(0)
+		return
+
+	var run_time = run_manager.get("run_time")
+	var kill_count = run_manager.get("kill_count")
+	_update_run_time(float(run_time) if run_time != null else 0.0)
+	_update_kill_count(int(kill_count) if kill_count != null else 0)
+
+	if run_manager.has_signal("run_time_changed") and not run_manager.run_time_changed.is_connected(_update_run_time):
+		run_manager.run_time_changed.connect(_update_run_time)
+	if run_manager.has_signal("kill_count_changed") and not run_manager.kill_count_changed.is_connected(_update_kill_count):
+		run_manager.kill_count_changed.connect(_update_kill_count)
+
+
+func _update_run_time(seconds: float) -> void:
+	if run_time_label != null:
+		run_time_label.text = "Time %s" % _format_time(seconds)
+
+
+func _update_kill_count(kills: int) -> void:
+	if kill_count_label != null:
+		kill_count_label.text = "Enemies defeated %d" % kills
+
+
+func _format_time(seconds: float) -> String:
+	var total_seconds := int(floor(seconds))
+	var minutes := total_seconds / 60
+	var remaining_seconds := total_seconds % 60
+	return "%02d:%02d" % [minutes, remaining_seconds]

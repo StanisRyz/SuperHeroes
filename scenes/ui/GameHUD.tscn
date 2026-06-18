@@ -52,3 +52,18 @@ show_percentage = false
 [node name="ExperienceLabel" type="Label" parent="Root/ExperiencePanel"]
 layout_mode = 2
 text = "XP 0 / 10"
+
+[node name="RunPanel" type="VBoxContainer" parent="Root"]
+layout_mode = 0
+offset_left = 64.0
+offset_top = 164.0
+offset_right = 344.0
+offset_bottom = 218.0
+
+[node name="RunTimeLabel" type="Label" parent="Root/RunPanel"]
+layout_mode = 2
+text = "Time 00:00"
+
+[node name="KillCountLabel" type="Label" parent="Root/RunPanel"]
+layout_mode = 2
+text = "Enemies defeated 0"

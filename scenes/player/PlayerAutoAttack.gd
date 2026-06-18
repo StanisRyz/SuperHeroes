@@ -36,6 +36,8 @@ func _physics_process(delta: float) -> void:
 
 	if owner_body == null:
 		return
+	if owner_body.has_method("is_dead") and owner_body.is_dead():
+		return
 
 	var enemy := _find_nearest_enemy()
 	if enemy == null:

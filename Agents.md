@@ -10,17 +10,21 @@ The game is an original superhero survivors-like: the player moves around an are
 
 - `scenes/main/Main.tscn` - project entry scene.
 - `scenes/game/Arena.tscn` - arena composition.
-- `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup.
+- `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup, level-up flow, run lifecycle.
+- `scenes/game/RunManager.tscn` - runtime run state manager scene.
+- `scenes/game/RunManager.gd` - run timer, kill counter, and run end signal.
 - `scenes/pickups/ExperienceGem.tscn` - XP pickup scene.
 - `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
 - `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, and enemy hit damage.
 - `scenes/upgrades/UpgradeManager.tscn` - runtime upgrade manager scene.
 - `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade options and application logic.
-- `scenes/ui/GameHUD.tscn` - player HP HUD scene.
-- `scenes/ui/GameHUD.gd` - player HP HUD binding.
+- `scenes/ui/GameHUD.tscn` - player HP, XP, time, and kill counter HUD scene.
+- `scenes/ui/GameHUD.gd` - player and run HUD binding.
 - `scenes/ui/LevelUpScreen.tscn` - pause-time upgrade selection UI.
 - `scenes/ui/LevelUpScreen.gd` - displays options and emits selected upgrade IDs.
+- `scenes/ui/GameOverScreen.tscn` - pause-time game over UI.
+- `scenes/ui/GameOverScreen.gd` - displays run stats and emits restart requests.
 - `scenes/player/Player.tscn` - player scene with camera.
 - `scenes/player/Player.gd` - movement, bounds clamp, health state.
 - `scenes/player/PlayerAutoAttack.gd` - autoattack range tracking and periodic enemy damage.
@@ -45,6 +49,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - XP gem drops.
 - XP pickup.
 - XP HUD bar.
+- Run timer.
+- Enemy kill counter.
+- Player death handling.
+- Game over screen with current run stats.
+- Current run restart from game over.
 - Level-up pause screen.
 - Three-option upgrade selection.
 - Basic run upgrades.
@@ -58,6 +67,15 @@ The game is an original superhero survivors-like: the player moves around an are
 - `LevelUpScreen` displays options while paused.
 - Arena applies the selected upgrade through `UpgradeManager`.
 - Arena unpauses gameplay.
+
+## Run Lifecycle
+
+- `RunManager` tracks active run time and enemy kills.
+- `EnemySpawner` reports enemy deaths to `RunManager`.
+- Player emits `died` when health reaches zero.
+- Arena ends the run, pauses the tree, hides level-up UI if needed, and shows `GameOverScreen`.
+- `GameOverScreen` displays time survived, enemies defeated, and level reached.
+- Restart reloads the current scene and does not write saves, high scores, or meta-progression.
 
 ## Collision Notes
 
@@ -76,10 +94,12 @@ The game is an original superhero survivors-like: the player moves around an are
 - Projectile upgrades.
 - XP magnet/vacuum.
 - Floating damage numbers.
-- Game over screen.
+- Pause menu.
+- Persistent high scores or saved run history.
+- Meta-progression.
 - Mobile joystick.
 - Yandex SDK integration.
-- Ads, payments, monetization, leaderboards, saves, or meta-progression.
+- Ads, payments, monetization, leaderboards, or saves.
 
 ## Development Rules
 
@@ -120,4 +140,9 @@ Manual playtest checklist:
 - Dead enemies drop XP gems.
 - Player collects XP gems by touching them.
 - XP HUD updates after pickup.
+- Run timer advances during gameplay.
+- Enemy kill counter increases when enemies die.
+- Player death pauses gameplay and shows the game over screen.
+- Game over screen displays time survived, enemies defeated, and player level.
+- Restart button reloads the current run.
 - No script errors appear.
