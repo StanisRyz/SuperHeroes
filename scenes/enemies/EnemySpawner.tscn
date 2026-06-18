@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://enemy_spawner_scene_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/enemies/EnemySpawner.gd" id="1_spawner_script"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/Enemy.tscn" id="2_enemy"]
+
+[node name="EnemySpawner" type="Node"]
+script = ExtResource("1_spawner_script")
+enemy_scene = ExtResource("2_enemy")
+
+[node name="SpawnTimer" type="Timer" parent="."]
