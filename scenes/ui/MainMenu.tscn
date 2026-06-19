@@ -22,63 +22,102 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.06, 0.08, 0.1, 1)
 
-[node name="Panel" type="PanelContainer" parent="Root"]
+[node name="TopBar" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 88.0
+grow_horizontal = 2
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_bottom = 0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Root/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SettingsButton" type="Button" parent="Root/TopBar/HBoxContainer"]
+custom_minimum_size = Vector2(180, 48)
+layout_mode = 2
+text = "Settings"
+
+[node name="TopSpacer" type="Control" parent="Root/TopBar/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HelpButton" type="Button" parent="Root/TopBar/HBoxContainer"]
+custom_minimum_size = Vector2(220, 48)
+layout_mode = 2
+text = "Help / Controls"
+
+[node name="HeaderPanel" type="PanelContainer" parent="Root"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -220.0
-offset_top = -145.0
-offset_right = 220.0
-offset_bottom = 145.0
+offset_left = -260.0
+offset_top = -120.0
+offset_right = 260.0
+offset_bottom = 90.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Root/Panel"]
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/HeaderPanel"]
 layout_mode = 2
+theme_override_constants/separation = 10
 alignment = 1
 
-[node name="TitleLabel" type="Label" parent="Root/Panel/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="Root/HeaderPanel/VBoxContainer"]
 layout_mode = 2
 text = "SuperHeroes"
 horizontal_alignment = 1
 
-[node name="SubtitleLabel" type="Label" parent="Root/Panel/VBoxContainer"]
+[node name="SubtitleLabel" type="Label" parent="Root/HeaderPanel/VBoxContainer"]
 layout_mode = 2
 text = "Hero survivor arena"
 horizontal_alignment = 1
 
-[node name="LastChoiceLabel" type="Label" parent="Root/Panel/VBoxContainer"]
+[node name="LastChoiceLabel" type="Label" parent="Root/HeaderPanel/VBoxContainer"]
 visible = false
 layout_mode = 2
 text = "Last: Guardian / City Rooftop"
 horizontal_alignment = 1
 
-[node name="StartButton" type="Button" parent="Root/Panel/VBoxContainer"]
-custom_minimum_size = Vector2(320, 56)
+[node name="BottomBar" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -116.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_bottom = 32
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Root/BottomBar"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="StartButton" type="Button" parent="Root/BottomBar/HBoxContainer"]
+custom_minimum_size = Vector2(260, 56)
 layout_mode = 2
 text = "Select Hero"
 
-[node name="SettingsButton" type="Button" parent="Root/Panel/VBoxContainer"]
-custom_minimum_size = Vector2(320, 48)
-layout_mode = 2
-text = "Settings"
-
-[node name="HelpButton" type="Button" parent="Root/Panel/VBoxContainer"]
-custom_minimum_size = Vector2(320, 48)
-layout_mode = 2
-text = "Help / Controls"
-
-[node name="TrainingButton" type="Button" parent="Root/Panel/VBoxContainer"]
-custom_minimum_size = Vector2(320, 48)
+[node name="TrainingButton" type="Button" parent="Root/BottomBar/HBoxContainer"]
+custom_minimum_size = Vector2(260, 56)
 layout_mode = 2
 text = "Training"
 
-[node name="QuitButton" type="Button" parent="Root/Panel/VBoxContainer"]
-custom_minimum_size = Vector2(320, 48)
+[node name="QuitButton" type="Button" parent="Root"]
+custom_minimum_size = Vector2(180, 48)
 visible = false
-layout_mode = 2
+layout_mode = 1
 disabled = true
 text = "Quit"

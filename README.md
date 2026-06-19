@@ -250,6 +250,7 @@ Implemented foundation:
 - **Improved StageSelect** — Selected stage button turns green.
 - **Help overlay section titles** — Section titles are uppercase amber with horizontal separators between sections.
 - **Pause / Restart / Exit Safety QoL** — active-run Restart and Main Menu actions now use a reusable confirmation dialog, Escape / Back behavior is centralized across pause/settings/help overlays, and duplicate transition guards prevent repeated restarts, exits, reward screens, or Arena creation from rapid clicks.
+- **Main Menu Rework** — Settings now sits top-left, Help / Controls top-right, and Select Hero plus Training are grouped as a bottom horizontal interface. Existing menu, training, settings, help, hero/stage select, and run flows are preserved.
 
 Not implemented yet (UI):
 - Custom art UI theme.

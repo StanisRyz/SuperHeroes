@@ -481,6 +481,15 @@ The game is an original superhero survivors-like: the player moves around an are
 - PauseMenu only emits UI intents.
 - GameOver restart goes through Arena/Main, not direct scene reload.
 
+## Main Menu Layout
+
+- MainMenu layout is UI-only and must preserve existing flow signals.
+- Current layout: Settings button is top-left; Help / Controls button is top-right; Select Hero and Training are horizontal neighbors in the bottom interface.
+- The centered header panel keeps the SuperHeroes title, subtitle, and remembered `Last: Hero / Stage` hint.
+- MainMenu reworks must not rename existing button signals or change Main's navigation ownership without a specific flow reason.
+- Layout-only patches must not change gameplay balance, hero/stage data, rewards, runtime persistence, debug behavior, or add arena hazards.
+- Do not directly copy DC/Marvel names, characters, brands, or logos.
+
 ## Settings And Audio Flow
 
 - SettingsMenu edits SettingsManager.

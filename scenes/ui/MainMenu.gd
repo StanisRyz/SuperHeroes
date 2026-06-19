@@ -9,12 +9,12 @@ signal help_requested
 var settings_manager: Node
 var audio_manager: Node
 
-@onready var start_button: Button = get_node_or_null("Root/Panel/VBoxContainer/StartButton")
-@onready var last_choice_label: Label = get_node_or_null("Root/Panel/VBoxContainer/LastChoiceLabel")
-@onready var settings_button: Button = get_node_or_null("Root/Panel/VBoxContainer/SettingsButton")
-@onready var help_button: Button = get_node_or_null("Root/Panel/VBoxContainer/HelpButton")
-@onready var training_button: Button = get_node_or_null("Root/Panel/VBoxContainer/TrainingButton")
-@onready var quit_button: Button = get_node_or_null("Root/Panel/VBoxContainer/QuitButton")
+@onready var start_button: Button = get_node_or_null("Root/BottomBar/HBoxContainer/StartButton")
+@onready var last_choice_label: Label = get_node_or_null("Root/HeaderPanel/VBoxContainer/LastChoiceLabel")
+@onready var settings_button: Button = get_node_or_null("Root/TopBar/HBoxContainer/SettingsButton")
+@onready var help_button: Button = get_node_or_null("Root/TopBar/HBoxContainer/HelpButton")
+@onready var training_button: Button = get_node_or_null("Root/BottomBar/HBoxContainer/TrainingButton")
+@onready var quit_button: Button = get_node_or_null("Root/QuitButton")
 
 
 func _ready() -> void:

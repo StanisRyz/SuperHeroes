@@ -85,6 +85,35 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Main Menu Rework
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open the game | MainMenu appears with title/subtitle centered |
+| 2 | Inspect top-left corner | Settings button is located top-left and does not overlap the title |
+| 3 | Inspect top-right corner | Help / Controls button is located top-right and does not overlap the title |
+| 4 | Inspect bottom interface | Select Hero and Training are horizontal neighbors with consistent spacing |
+| 5 | Click Select Hero | CharacterSelect opens |
+| 6 | Click Back from CharacterSelect | Returns to MainMenu |
+| 7 | Select a hero | StageSelect opens normally |
+| 8 | Complete StageSelect | Arena starts normally |
+| 9 | Click Training from MainMenu | MetaUpgradeShop opens from the bottom Training button |
+| 10 | Click Back from Training | Returns to MainMenu |
+| 11 | Click Settings from top-left | SettingsMenu opens |
+| 12 | Close Settings | Returns to MainMenu |
+| 13 | Click Help / Controls from top-right | ControlsHelpOverlay opens |
+| 14 | Close Help / Controls | MainMenu remains usable |
+| 15 | Return to MainMenu after remembered choices exist | `Last: Hero / Stage` hint remains readable in the center panel |
+| 16 | Start/run flow after menu rework | MainMenu -> CharacterSelect -> StageSelect -> Arena still works |
+| 17 | Pause during Arena | Pause menu still works |
+| 18 | Restart from run/result flow | Current hero/stage restart behavior is unchanged |
+| 19 | Exit to MainMenu from run/result flow | Returns safely to the reworked MainMenu |
+| 20 | Victory/GameOver/Post-run rewards flow | Existing reward transition remains unchanged |
+| 21 | Enable Debug Mode during a run | Debug tools still work |
+| 22 | Inspect git diff | No gameplay balance values, new content, or persistence changes are present |
+
+---
+
 ## Weapon Upgrades
 
 | # | Test | Expected |
