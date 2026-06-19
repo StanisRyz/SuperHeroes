@@ -247,6 +247,7 @@ Implemented foundation:
 - **Improved PostRunRewardsScreen** — Reward rows colored green for non-zero values, gray for zero. Total and currency labels colored.
 - **Improved Training shop** — Buy button green when affordable, gray when not affordable or maxed.
 - **Improved CharacterSelect** — Selected hero button turns green; locked hero buttons are gray.
+- **CharacterSelect hero detail cards** — hero cards now show display name, playstyle, and compact state markers; the selected hero detail card shows subtitle, description, ability names, strengths, and read-only per-hero Training summary.
 - **Improved StageSelect** — Selected stage button turns green.
 - **Help overlay section titles** — Section titles are uppercase amber with horizontal separators between sections.
 - **Pause / Restart / Exit Safety QoL** — active-run Restart and Main Menu actions now use a reusable confirmation dialog, Escape / Back behavior is centralized across pause/settings/help overlays, and duplicate transition guards prevent repeated restarts, exits, reward screens, or Arena creation from rapid clicks.
@@ -330,6 +331,8 @@ Not implemented yet (feedback):
 - **Solar Guardian** is an original solar/flying powerhouse archetype: durable, strong, and focused on radiant burst, beam, and impact abilities.
 - **Night Tactician** keeps the `blaster` hero id and is an original dark gadget tactician: 90 HP, 275 speed, +2 attack damage, +1 starting projectile, slightly faster attacks, faster tool cooldowns, and precise controlled ability tuning.
 - **Fury Vanguard** keeps the `vanguard` hero id and is an original rage bruiser: 125 HP, 245 speed, +2 attack damage, heavier attack timing, and stronger close-range impact tuning.
+- CharacterSelect hero detail cards list the current identities: `guardian` = Solar Guardian, `blaster` = Night Tactician, `vanguard` = Fury Vanguard.
+- CharacterSelect remains UI-only and display-only: it reads hero data and Training summaries, but does not change hero stats, balance, Training levels, rewards, saves, stages, enemies, arena logic, or persistence.
 - **HeroApplier** applies run-only starting stats to Player, AutoAttack, and AbilityManager before gameplay systems start.
 - Solar Guardian, Night Tactician, and Fury Vanguard use hero-specific ability presentation names while preserving the global ability slots and ids.
 - Final integrated hero ability names:

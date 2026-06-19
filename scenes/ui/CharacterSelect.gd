@@ -5,6 +5,14 @@ signal back_requested
 
 const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
 
+const TRAINING_TITLES := {
+	"meta_max_health": "Vitality",
+	"meta_attack_damage": "Power",
+	"meta_pickup_radius": "Awareness",
+	"meta_move_speed": "Mobility",
+	"meta_starting_currency_bonus": "Rewards",
+}
+
 var hero_data_provider: Node
 var meta_progression_manager: Node = null
 var user_preferences_manager: Node = null
@@ -19,7 +27,9 @@ var _subtitle_label: Label
 var _description_label: Label
 var _last_selected_label: Label
 var _playstyle_label: Label
-var _stats_label: Label
+var _ability_label: Label
+var _traits_label: Label
+var _training_label: Label
 var _start_button: Button
 var _back_button: Button
 var _color_swatch: ColorRect
@@ -97,11 +107,23 @@ func _build_ui() -> void:
 	content.add_theme_constant_override("separation", 20)
 	main.add_child(content)
 
+	var list_panel := PanelContainer.new()
+	list_panel.name = "HeroListPanel"
+	list_panel.custom_minimum_size = Vector2(380, 0)
+	list_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(list_panel)
+
+	var list_margin := MarginContainer.new()
+	list_margin.add_theme_constant_override("margin_left", 12)
+	list_margin.add_theme_constant_override("margin_top", 12)
+	list_margin.add_theme_constant_override("margin_right", 12)
+	list_margin.add_theme_constant_override("margin_bottom", 12)
+	list_panel.add_child(list_margin)
+
 	_cards_box = VBoxContainer.new()
 	_cards_box.name = "HeroList"
-	_cards_box.custom_minimum_size = Vector2(360, 0)
-	_cards_box.add_theme_constant_override("separation", 12)
-	content.add_child(_cards_box)
+	_cards_box.add_theme_constant_override("separation", 10)
+	list_margin.add_child(_cards_box)
 
 	var details_panel := PanelContainer.new()
 	details_panel.name = "DetailsPanel"
@@ -109,10 +131,17 @@ func _build_ui() -> void:
 	details_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(details_panel)
 
+	var details_margin := MarginContainer.new()
+	details_margin.add_theme_constant_override("margin_left", 16)
+	details_margin.add_theme_constant_override("margin_top", 14)
+	details_margin.add_theme_constant_override("margin_right", 16)
+	details_margin.add_theme_constant_override("margin_bottom", 14)
+	details_panel.add_child(details_margin)
+
 	var details := VBoxContainer.new()
 	details.name = "Details"
-	details.add_theme_constant_override("separation", 12)
-	details_panel.add_child(details)
+	details.add_theme_constant_override("separation", 10)
+	details_margin.add_child(details)
 
 	_color_swatch = ColorRect.new()
 	_color_swatch.custom_minimum_size = Vector2(0, 18)
@@ -137,9 +166,9 @@ func _build_ui() -> void:
 	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	details.add_child(_description_label)
 
-	_stats_label = Label.new()
-	_stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	details.add_child(_stats_label)
+	_ability_label = _create_section_label(details, "Abilities")
+	_traits_label = _create_section_label(details, "Strengths")
+	_training_label = _create_section_label(details, "Training")
 
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -167,6 +196,15 @@ func _build_ui() -> void:
 	buttons.add_child(_start_button)
 
 
+func _create_section_label(parent: Control, title: String) -> Label:
+	var label := Label.new()
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.text = "%s\n-" % title
+	label.add_theme_font_size_override("font_size", 16)
+	parent.add_child(label)
+	return label
+
+
 func _reload_heroes() -> void:
 	if _cards_box == null:
 		return
@@ -183,14 +221,9 @@ func _reload_heroes() -> void:
 		var button := Button.new()
 		var hero_id := str(hero.get("id", ""))
 		var locked := _is_hero_locked(hero)
-		button.custom_minimum_size = Vector2(320, 72)
-		if locked:
-			var unlock_cost := int(hero.get("unlock_cost", 0))
-			button.text = "%s\n[LOCKED — %d currency]" % [hero.get("display_name", "Hero"), unlock_cost]
-			button.modulate = UIStateColors.muted_color()
-		else:
-			button.text = "%s\n%s" % [hero.get("display_name", "Hero"), hero.get("playstyle", "")]
-			button.modulate = Color.WHITE
+		button.custom_minimum_size = Vector2(340, 88)
+		button.text = _build_hero_card_text(hero, locked)
+		button.modulate = UIStateColors.muted_color() if locked else Color.WHITE
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.pressed.connect(_select_hero.bind(hero_id))
 		_cards_box.add_child(button)
@@ -199,6 +232,20 @@ func _reload_heroes() -> void:
 	_selected_hero_id = _get_initial_hero_id()
 
 	_select_hero(_selected_hero_id)
+
+
+func _build_hero_card_text(hero: Dictionary, locked: bool) -> String:
+	var title: String = str(hero.get("display_name", "Hero"))
+	var role: String = str(hero.get("playstyle", ""))
+	var tags: PackedStringArray = []
+	if not _preferred_hero_id.is_empty() and str(hero.get("id", "")) == _preferred_hero_id:
+		tags.append("Last")
+	if locked:
+		tags.append("Locked: %d" % int(hero.get("unlock_cost", 0)))
+	var state_text: String = ""
+	if not tags.is_empty():
+		state_text = "\n[%s]" % " | ".join(tags)
+	return "%s\n%s%s" % [title, role, state_text]
 
 
 func _select_hero(hero_id: String) -> void:
@@ -222,31 +269,10 @@ func _refresh_details() -> void:
 	_color_swatch.color = hero.get("color", Color.WHITE)
 
 	var stats: Dictionary = hero.get("stats", {})
-	var lines: PackedStringArray = []
-	lines.append("HP: %s" % stats.get("max_health", "-"))
-	lines.append("Speed: %s" % stats.get("speed", "-"))
 	var ability_names: Dictionary = hero.get("ability_names", {})
-	if not ability_names.is_empty():
-		lines.append("Abilities: %s / %s / %s" % [
-			_get_ability_display_name(ability_names, 1, "Ability 1"),
-			_get_ability_display_name(ability_names, 2, "Ability 2"),
-			_get_ability_display_name(ability_names, 3, "Ability 3"),
-		])
-	if int(stats.get("attack_damage_bonus", 0)) != 0:
-		lines.append("Attack damage: +%d" % int(stats.get("attack_damage_bonus", 0)))
-	if int(stats.get("projectile_count_bonus", 0)) != 0:
-		lines.append("Projectiles: +%d" % int(stats.get("projectile_count_bonus", 0)))
-	if stats.has("attack_interval_multiplier"):
-		lines.append("Attack interval: x%.2f" % float(stats["attack_interval_multiplier"]))
-	if stats.has("ability_cooldown_multiplier"):
-		lines.append("Ability cooldowns: x%.2f" % float(stats["ability_cooldown_multiplier"]))
-	if int(stats.get("nova_damage_bonus", 0)) != 0:
-		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 1, "Ability 1"), int(stats.get("nova_damage_bonus", 0))])
-	if int(stats.get("laser_damage_bonus", 0)) != 0:
-		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 2, "Ability 2"), int(stats.get("laser_damage_bonus", 0))])
-	if int(stats.get("slam_damage_bonus", 0)) != 0:
-		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 3, "Ability 3"), int(stats.get("slam_damage_bonus", 0))])
-	_stats_label.text = "\n".join(lines)
+	_ability_label.text = "Abilities\n%s" % "\n".join(_build_ability_lines(ability_names))
+	_traits_label.text = "Strengths\n%s" % "\n".join(_build_trait_lines(stats, ability_names))
+	_training_label.text = "Training\n%s" % _build_training_summary(str(hero.get("id", "")))
 
 	var selected_locked := _is_hero_locked(hero)
 	if _start_button != null:
@@ -278,6 +304,70 @@ func _get_selected_hero() -> Dictionary:
 func _get_ability_display_name(ability_names: Dictionary, slot: int, fallback: String) -> String:
 	var data: Dictionary = ability_names.get(slot, {})
 	return str(data.get("display_name", fallback))
+
+
+func _build_ability_lines(ability_names: Dictionary) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	lines.append("1. %s" % _get_ability_display_name(ability_names, 1, "Ability 1"))
+	lines.append("2. %s" % _get_ability_display_name(ability_names, 2, "Ability 2"))
+	lines.append("3. %s" % _get_ability_display_name(ability_names, 3, "Ability 3"))
+	return lines
+
+
+func _build_trait_lines(stats: Dictionary, ability_names: Dictionary) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	lines.append("HP %s  |  Speed %s" % [stats.get("max_health", "-"), stats.get("speed", "-")])
+	var modifiers: PackedStringArray = []
+	if int(stats.get("attack_damage_bonus", 0)) != 0:
+		modifiers.append("Attack +%d" % int(stats.get("attack_damage_bonus", 0)))
+	if int(stats.get("projectile_count_bonus", 0)) != 0:
+		modifiers.append("Projectiles +%d" % int(stats.get("projectile_count_bonus", 0)))
+	if stats.has("attack_interval_multiplier"):
+		modifiers.append("Attack interval x%.2f" % float(stats["attack_interval_multiplier"]))
+	if stats.has("ability_cooldown_multiplier"):
+		modifiers.append("Ability cooldowns x%.2f" % float(stats["ability_cooldown_multiplier"]))
+	if not modifiers.is_empty():
+		lines.append("Traits: %s" % " | ".join(modifiers))
+
+	var ability_modifiers: PackedStringArray = []
+	if int(stats.get("nova_damage_bonus", 0)) != 0:
+		ability_modifiers.append("%s damage +%d" % [_get_ability_display_name(ability_names, 1, "Ability 1"), int(stats.get("nova_damage_bonus", 0))])
+	if int(stats.get("laser_damage_bonus", 0)) != 0:
+		ability_modifiers.append("%s damage +%d" % [_get_ability_display_name(ability_names, 2, "Ability 2"), int(stats.get("laser_damage_bonus", 0))])
+	if int(stats.get("slam_damage_bonus", 0)) != 0:
+		ability_modifiers.append("%s damage +%d" % [_get_ability_display_name(ability_names, 3, "Ability 3"), int(stats.get("slam_damage_bonus", 0))])
+	if not ability_modifiers.is_empty():
+		lines.append("Ability focus: %s" % " | ".join(ability_modifiers))
+	var bonus_text: String = _get_starting_bonus_text(stats)
+	if not bonus_text.is_empty():
+		lines.append(bonus_text)
+	return lines
+
+
+func _get_starting_bonus_text(_stats: Dictionary) -> String:
+	var hero: Dictionary = _get_selected_hero()
+	var modifiers: Dictionary = hero.get("starting_modifiers", {})
+	var bonus: String = str(modifiers.get("bonus", ""))
+	return bonus
+
+
+func _build_training_summary(hero_id: String) -> String:
+	if meta_progression_manager == null or not meta_progression_manager.has_method("get_training_levels_for_hero"):
+		return "Training data unavailable on this screen."
+	var levels: Dictionary = meta_progression_manager.get_training_levels_for_hero(hero_id)
+	var total: int = 0
+	var strongest_id: String = ""
+	var strongest_level: int = 0
+	for upgrade_id in levels.keys():
+		var level: int = int(levels[upgrade_id])
+		total += level
+		if level > strongest_level:
+			strongest_level = level
+			strongest_id = str(upgrade_id)
+	if total <= 0:
+		return "Training: 0 total levels\nNo purchased Training for this hero yet."
+	var strongest_name: String = str(TRAINING_TITLES.get(strongest_id, strongest_id))
+	return "Training: %d total levels\nStrongest: %s %d" % [total, strongest_name, strongest_level]
 
 
 func _has_hero(hero_id: String) -> bool:

@@ -221,6 +221,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - Main owns the frontend flow: MainMenu -> CharacterSelect -> Arena.
 - MainMenu only emits `start_requested`; it does not know Arena or hero details.
 - CharacterSelect is display-only: it reads HeroDataProvider, displays heroes, and emits `hero_confirmed(hero_id)`.
+- CharacterSelect hero cards must show display name, playstyle, and compact locked/last-selected state without owning navigation or persistence.
+- CharacterSelect selected hero detail cards must show name, subtitle, description, playstyle, hero-specific ability display names from hero data, compact stat traits, and a read-only per-hero Training summary when MetaProgressionManager is available.
+- CharacterSelect must never mutate Training/meta data, buy upgrades, write saves, change hero stats, or change balance values.
 - HeroDataProvider owns hardcoded hero dictionaries for now; do not migrate to Resources until explicitly requested.
 - Guardian is an original solar/flying powerhouse fantasy with strength, beam, durability, and aerial-impact presentation.
 - Guardian may override ability display names through hero data, but global input slots and ability ids must stay stable.
@@ -230,6 +233,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Vanguard may override ability display names through hero data as Rage Burst, Crushing Leap, and Titan Slam, but global input slots and ability ids must stay stable.
 - Final hero roster ids and display names: `guardian` = Solar Guardian, `blaster` = Night Tactician, `vanguard` = Fury Vanguard.
 - Final hero ability display names: Solar Guardian = Solar Burst / Solar Beam / Aerial Impact; Night Tactician = Smoke Charge / Grapnel Shot / Shock Trap; Fury Vanguard = Rage Burst / Crushing Leap / Titan Slam.
+- Hero-specific ability display names must come from hero data and flow through HeroApplier/AbilityManager or direct hero data reads in display-only roster UI.
 - UI, HUD, mobile controls, debug overlays, and debug logs must prefer hero-specific ability display names from AbilityManager state instead of hardcoded global ability labels.
 - Level-up option descriptions may substitute hero-specific ability display names at presentation time, but upgrade ids, archetypes, effects, weights, and save-facing data must stay stable.
 - HeroApplier applies run-only selected hero stats to Player, AutoAttack, and AbilityManager.

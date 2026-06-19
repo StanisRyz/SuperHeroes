@@ -191,6 +191,23 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Character Select Hero Detail Cards
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open CharacterSelect from MainMenu | Three hero cards appear in the left panel with display name, playstyle, and compact state markers |
+| 2 | Select Solar Guardian | Detail card shows Solar Guardian, skyborne subtitle, description, Solar Burst / Solar Beam / Aerial Impact, strengths, and Training summary |
+| 3 | Select Night Tactician | Detail card shows Night Tactician, gadget subtitle, description, Smoke Charge / Grapnel Shot / Shock Trap, strengths, and Training summary |
+| 4 | Select Fury Vanguard | Detail card shows Fury Vanguard, rage bruiser subtitle, description, Rage Burst / Crushing Leap / Titan Slam, strengths, and Training summary |
+| 5 | Return to CharacterSelect after a remembered hero exists | Remembered hero preselects and the matching card shows a compact Last marker |
+| 6 | Test a locked hero configuration | Locked card shows compact locked state, selected detail is readable, and Start Run is disabled |
+| 7 | Inspect Training summary | Summary is read-only, shows total levels and strongest upgraded stat when available, and does not purchase or mutate Training |
+| 8 | Press Start Run | Existing MainMenu -> CharacterSelect -> StageSelect/Arena flow remains unchanged |
+| 9 | Press Back | Returns to MainMenu without changing hero stats, Training, saves, rewards, stage values, enemy values, or persistence |
+| 10 | Inspect at 16:9 landscape | Hero cards and detail sections fit without text overlap |
+
+---
+
 ## Guardian Ability Rework
 
 | # | Test | Expected |
