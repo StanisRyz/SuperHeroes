@@ -119,10 +119,13 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ability_1"):
 		cast_ability_1()
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ability_2"):
 		cast_ability_2()
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ability_3"):
 		cast_ability_3()
+		get_viewport().set_input_as_handled()
 
 
 func cast_ability_1() -> void:
@@ -251,9 +254,8 @@ func _try_cast_nova_pulse() -> void:
 		return
 	var cast_position := player.global_position
 	var hits := _damage_enemies_in_radius_at(cast_position, nova_damage, nova_radius)
-	if hits <= 0:
-		return
 	_spawn_pulse_feedback_at(cast_position, nova_radius)
+	_status("PULSE" if hits > 0 else "PULSE MISS", cast_position + Vector2.UP * 42.0)
 	if nova_aftershock_enabled:
 		_schedule_nova_aftershock(cast_position)
 	_shake(5.0, 0.14)
@@ -266,9 +268,8 @@ func _try_cast_laser_beam() -> void:
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
 	var hits := _damage_enemies_in_laser(origin, direction, laser_damage, laser_range, laser_width)
-	if hits <= 0:
-		return
 	_spawn_laser_feedback_at(origin, direction, laser_range, laser_width)
+	_status("BEAM" if hits > 0 else "BEAM MISS", origin + Vector2.UP * 42.0)
 	if laser_double_pulse_enabled:
 		_schedule_laser_second_pulse(origin, direction)
 	_finish_cast(2, "laser_beam", laser_cooldown)
@@ -279,9 +280,8 @@ func _try_cast_hero_slam() -> void:
 		return
 	var cast_position := player.global_position
 	var hits := _damage_enemies_in_radius_at(cast_position, slam_damage, slam_radius)
-	if hits <= 0:
-		return
 	_spawn_slam_feedback_at(cast_position, slam_radius)
+	_status("SLAM" if hits > 0 else "SLAM MISS", cast_position + Vector2.UP * 42.0)
 	if slam_second_wave_enabled:
 		_schedule_slam_second_wave(cast_position)
 	_shake(7.0, 0.18)
@@ -295,12 +295,10 @@ func _try_cast_solar_burst() -> void:
 	var damage := _scale_int(nova_damage, solar_empower_damage_multiplier if empowered else 1.0)
 	var radius := nova_radius * (solar_empower_radius_multiplier if empowered else 1.0)
 	var hits := _damage_enemies_in_radius_at(player.global_position, damage, radius)
-	if hits <= 0:
-		return
-	if not empowered:
+	if hits > 0 and not empowered:
 		_add_solar_charge(hits * solar_charge_per_hit)
 	_spawn_pulse_feedback_at(player.global_position, radius)
-	_status("CHARGE BURST" if empowered else "SOLAR", player.global_position + Vector2.UP * 42.0)
+	_status("CHARGE BURST" if empowered else ("SOLAR +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "SOLAR MISS"), player.global_position + Vector2.UP * 42.0)
 	if nova_aftershock_enabled:
 		_schedule_nova_aftershock(player.global_position)
 	_shake(5.5, 0.14)
@@ -316,12 +314,10 @@ func _try_cast_solar_beam() -> void:
 	var damage := _scale_int(laser_damage, solar_empower_damage_multiplier if empowered else 1.0)
 	var beam_width := laser_width * (1.1 if empowered else 0.92)
 	var hits := _damage_enemies_in_laser(origin, direction, damage, laser_range, beam_width)
-	if hits <= 0:
-		return
-	if not empowered:
+	if hits > 0 and not empowered:
 		_add_solar_charge(hits * solar_charge_per_hit)
 	_spawn_laser_feedback_at(origin, direction, laser_range, beam_width)
-	_status("CHARGED BEAM" if empowered else "BEAM", origin + Vector2.UP * 42.0)
+	_status("CHARGED BEAM" if empowered else ("BEAM +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "BEAM MISS"), origin + Vector2.UP * 42.0)
 	if laser_double_pulse_enabled:
 		_schedule_laser_second_pulse(origin, direction)
 	_finish_cast(2, "solar_beam", laser_cooldown)
@@ -336,15 +332,13 @@ func _try_cast_aerial_impact() -> void:
 	var damage := _scale_int(slam_damage, 1.25 if empowered else 0.95)
 	var radius := slam_radius * (1.25 if empowered else 0.85)
 	var hits := _damage_enemies_in_radius_at(impact_position, damage, radius)
-	if hits <= 0:
-		return
-	if not empowered:
+	if hits > 0 and not empowered:
 		_add_solar_charge(hits * solar_charge_per_hit)
 	_grant_brief_invulnerability(aerial_impact_invulnerability)
 	_spawn_slam_feedback_at(impact_position, radius)
 	if slam_second_wave_enabled:
 		_schedule_slam_second_wave(impact_position)
-	_status("AERIAL GUARD" if empowered else "IMPACT", player.global_position + Vector2.UP * 42.0)
+	_status("AERIAL GUARD" if empowered else ("IMPACT +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "IMPACT MISS"), player.global_position + Vector2.UP * 42.0)
 	_shake(7.5, 0.18)
 	_finish_cast(3, "aerial_impact", slam_cooldown)
 
@@ -354,11 +348,9 @@ func _try_cast_smoke_charge() -> void:
 		return
 	_refresh_tactical_mark()
 	var hits := _damage_enemies_in_radius_at(player.global_position, nova_damage, nova_radius * 0.9)
-	if hits <= 0:
-		return
 	_apply_enemy_modifier_in_radius(player.global_position, nova_radius, "smoke_slow", {"speed_multiplier": smoke_slow_multiplier}, smoke_slow_duration)
 	_spawn_pulse_feedback_at(player.global_position, nova_radius * 0.9)
-	_status("SMOKE", player.global_position + Vector2.UP * 42.0)
+	_status("SMOKE" if hits > 0 else "SMOKE COVER", player.global_position + Vector2.UP * 42.0)
 	if nova_aftershock_enabled:
 		_schedule_nova_aftershock(player.global_position)
 	_shake(4.0, 0.12)
@@ -372,10 +364,8 @@ func _try_cast_grapnel_shot() -> void:
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
 	var hits := _damage_enemies_in_laser(origin, direction, laser_damage, laser_range * 1.08, maxf(laser_width * 0.55, 24.0), tactical_mark_target, tactical_mark_damage_multiplier)
-	if hits <= 0:
-		return
 	_spawn_laser_feedback_at(origin, direction, laser_range * 1.08, maxf(laser_width * 0.55, 24.0))
-	_status("MARK HIT" if _is_valid_enemy(tactical_mark_target) else "GRAPNEL", origin + Vector2.UP * 42.0)
+	_status("MARK HIT" if hits > 0 and _is_valid_enemy(tactical_mark_target) else ("GRAPNEL" if hits > 0 else "GRAPNEL MISS"), origin + Vector2.UP * 42.0)
 	if laser_double_pulse_enabled:
 		_schedule_laser_second_pulse(origin, direction)
 	_finish_cast(2, "grapnel_shot", laser_cooldown)
@@ -406,11 +396,10 @@ func _try_cast_rage_burst() -> void:
 		return
 	var multiplier := _get_rage_damage_multiplier()
 	var hits := _damage_enemies_in_radius_at(player.global_position, _scale_int(nova_damage, multiplier), nova_radius * (1.0 + 0.12 * _rage_ratio()))
-	if hits <= 0:
-		return
-	_add_rage(hits * rage_per_hit)
+	if hits > 0:
+		_add_rage(hits * rage_per_hit)
 	_spawn_pulse_feedback_at(player.global_position, nova_radius * (1.0 + 0.12 * _rage_ratio()))
-	_status("RAGE %.0f" % rage, player.global_position + Vector2.UP * 42.0)
+	_status("RAGE %.0f" % rage if hits > 0 else "RAGE ROAR", player.global_position + Vector2.UP * 42.0)
 	if nova_aftershock_enabled:
 		_schedule_nova_aftershock(player.global_position)
 	_shake(6.0, 0.16)
@@ -426,12 +415,11 @@ func _try_cast_crushing_leap() -> void:
 	var impact_width := maxf(laser_width * 0.9, 60.0)
 	var hits := _damage_enemies_in_laser(origin, direction, _scale_int(laser_damage, _get_rage_damage_multiplier()), laser_range * 0.72, impact_width)
 	hits += _damage_enemies_in_radius_at(impact_position, maxi(roundi(float(laser_damage) * 0.55), 1), slam_radius * 0.55)
-	if hits <= 0:
-		return
-	_add_rage(hits * rage_per_hit)
+	if hits > 0:
+		_add_rage(hits * rage_per_hit)
 	_spawn_laser_feedback_at(origin, direction, laser_range * 0.72, impact_width)
 	_spawn_slam_feedback_at(impact_position, slam_radius * 0.55)
-	_status("LEAP", origin + Vector2.UP * 42.0)
+	_status("LEAP" if hits > 0 else "LEAP MISS", origin + Vector2.UP * 42.0)
 	if laser_double_pulse_enabled:
 		_schedule_laser_second_pulse(origin, direction)
 	_shake(6.0, 0.14)
@@ -444,14 +432,13 @@ func _try_cast_titan_slam() -> void:
 	var multiplier := _get_rage_damage_multiplier()
 	var radius := slam_radius * (1.0 + 0.25 * _rage_ratio())
 	var hits := _damage_enemies_in_radius_at(player.global_position, _scale_int(slam_damage, multiplier), radius)
-	if hits <= 0:
-		return
-	_add_rage(hits * rage_per_hit)
+	if hits > 0:
+		_add_rage(hits * rage_per_hit)
 	_spend_rage_fraction()
 	_spawn_slam_feedback_at(player.global_position, radius)
 	if slam_second_wave_enabled:
 		_schedule_slam_second_wave(player.global_position)
-	_status("TITAN SLAM", player.global_position + Vector2.UP * 42.0)
+	_status("TITAN SLAM" if hits > 0 else "TITAN SLAM MISS", player.global_position + Vector2.UP * 42.0)
 	_shake(8.5, 0.2)
 	_finish_cast(3, "titan_slam", slam_cooldown)
 
@@ -475,7 +462,7 @@ func _damage_enemies_in_radius(damage: int, radius: float) -> int:
 	return _damage_enemies_in_radius_at(player.global_position, damage, radius)
 
 
-func _damage_enemies_in_radius_at(world_position: Vector2, damage: int, radius: float, bonus_target: Node = null, bonus_multiplier: float = 1.0) -> int:
+func _damage_enemies_in_radius_at(world_position: Vector2, damage: int, radius: float, bonus_target = null, bonus_multiplier: float = 1.0) -> int:
 	if enemy_container == null or not is_instance_valid(enemy_container):
 		push_warning("AbilityManager is missing EnemyContainer reference.")
 		return 0
@@ -487,7 +474,7 @@ func _damage_enemies_in_radius_at(world_position: Vector2, damage: int, radius: 
 	return hit_count
 
 
-func _damage_enemies_in_laser(origin: Vector2, direction: Vector2, damage: int, beam_range: float, beam_width: float, bonus_target: Node = null, bonus_multiplier: float = 1.0) -> int:
+func _damage_enemies_in_laser(origin: Vector2, direction: Vector2, damage: int, beam_range: float, beam_width: float, bonus_target = null, bonus_multiplier: float = 1.0) -> int:
 	if enemy_container == null or not is_instance_valid(enemy_container):
 		push_warning("AbilityManager is missing EnemyContainer reference.")
 		return 0
@@ -507,7 +494,7 @@ func _damage_enemies_in_laser(origin: Vector2, direction: Vector2, damage: int, 
 	return hit_count
 
 
-func _get_damage_for_target(enemy: Node, base_damage: int, bonus_target: Node, bonus_multiplier: float) -> int:
+func _get_damage_for_target(enemy: Node, base_damage: int, bonus_target, bonus_multiplier: float) -> int:
 	if bonus_target != null and is_instance_valid(bonus_target) and enemy == bonus_target:
 		return _scale_int(base_damage, bonus_multiplier)
 	return base_damage
@@ -639,7 +626,7 @@ func _get_feedback_parent() -> Node:
 	return get_tree().current_scene
 
 
-func _is_valid_enemy(node: Node) -> bool:
+func _is_valid_enemy(node) -> bool:
 	return (
 		node is Node2D
 		and is_instance_valid(node)

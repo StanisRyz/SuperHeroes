@@ -88,6 +88,23 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Ability Button & Level-Up Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a run and press J/K/L immediately before enemies are in range | Each ready ability casts once, shows available feedback/status, enters cooldown, and updates HUD labels |
+| 2 | Enable forced mobile controls and press each ability button once at run start | Each mobile button emits the same slot cast path and does not require repeated presses |
+| 3 | Cast any ready ability with no enemies hit | Ability does not silently return; cooldown and `ability_cast` still happen |
+| 4 | Cast Solar Guardian abilities with and without nearby enemies | Solar Charge feedback appears on hits; miss casts still show feedback/cooldown |
+| 5 | Cast Night Tactician Shock Trap with no enemies present | Trap places, enters cooldown, and delayed trigger runs safely |
+| 6 | Cast Fury Vanguard abilities with no enemies present | Rage/status feedback appears where applicable and cooldowns update |
+| 7 | Trigger LevelUpScreen, then choose any upgrade | LevelUpScreen hides and the game unpauses automatically if no other blocking modal is open |
+| 8 | Open PauseMenu after the level-up resume | PauseMenu opens/closes normally and does not need to be used to unstick the run |
+| 9 | Trigger EvolutionRewardScreen and choose an evolution | Evolution reward still hides and resumes normally |
+| 10 | Inspect diff | No enemy, stage, reward, save, meta economy, arena hazard, primary autoattack, or Build Evolution changes |
+
+---
+
 ## Controls Help Overlay
 
 | # | Test | Expected |

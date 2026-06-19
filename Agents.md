@@ -249,10 +249,12 @@ The game is an original superhero survivors-like: the player moves around an are
 - Global input slots and public methods remain stable: `ability_1`/`cast_ability_1`, `ability_2`/`cast_ability_2`, `ability_3`/`cast_ability_3`.
 - AbilityManager must keep `nova_*`, `laser_*`, and `slam_*` properties as shared slot 1/2/3 tuning hooks so UpgradeManager effects remain compatible.
 - Solar Guardian uses Solar Charge; Night Tactician uses Tactical Mark; Fury Vanguard uses Rage. These runtime passive resources reset naturally with each Arena.
+- Ready ability casts must not silently fail because zero enemies were hit. If `_guard_cast(slot)` allows the cast, AbilityManager should provide available feedback/status, start cooldown, emit `ability_cast`, and emit `ability_cooldown_changed`.
 - UI, HUD, mobile controls, debug overlays, and debug logs must prefer hero-specific ability display names from AbilityManager state instead of hardcoded global ability labels.
 - Level-up option descriptions may substitute hero-specific ability display names at presentation time, but upgrade ids, archetypes, effects, weights, and save-facing data must stay stable.
 - Hero-specific upgrade flavor is display-only. Upgrade ids, effects, weights, rarity, max levels, prerequisites, archetype points, synergies, build-defining logic, and selected upgrade history remain shared and stable.
 - LevelUpScreen must always store and emit the original `upgrade_id`; flavored titles/descriptions must never become gameplay identifiers.
+- LevelUpScreen selection must hide the level-up UI before or during signal handling so Arena can resume gameplay when no other blocking modal remains.
 - HeroApplier applies run-only selected hero stats to Player, AutoAttack, and AbilityManager.
 - Arena stores selected hero data for the active run summary and HUD display.
 - Restart from GameOver/Victory should reuse the same selected hero id; Quit to Menu should allow choosing a different hero next run.
@@ -639,6 +641,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Ability synergy delayed hits are owned by AbilityManager and stay anchored to their original cast origin/direction.
 - Nova Aftershock uses `NovaAftershockFeedback`; Laser Double Pulse and Slam Second Wave reuse the existing Laser/Slam feedback scenes at the delayed cast position.
 - Hero-kit routing must not change enemies, stages, reward formulas, meta economy, save format, arena hazards, primary autoattack identity, or Build Evolution unless explicitly requested.
+- In hotfixes for ability reliability, keep the scope to AbilityManager/input/UI pause flow; do not add arena hazards, Build Evolution, or primary autoattack reworks.
 
 ## Build Synergy v4 Notes
 

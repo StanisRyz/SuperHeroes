@@ -365,6 +365,8 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 	else:
 		push_warning("UpgradeManager cannot apply selected upgrade.")
 
+	if level_up_screen != null and level_up_screen.visible:
+		level_up_screen.hide()
 	_resume_game_if_safe()
 
 

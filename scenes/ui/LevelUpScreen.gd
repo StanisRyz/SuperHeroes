@@ -86,5 +86,5 @@ func _on_option_pressed(index: int) -> void:
 
 	if audio_manager != null and audio_manager.has_method("play_ui_click"):
 		audio_manager.play_ui_click()
-	upgrade_selected.emit(upgrade_id)
 	hide()
+	upgrade_selected.emit(upgrade_id)

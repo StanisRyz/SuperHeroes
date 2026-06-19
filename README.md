@@ -236,11 +236,13 @@ Implemented foundation:
 ### Hero Signature Kits Rework Foundation
 
 - **AbilityManager hero-kit routing** - active ability inputs and public cast methods remain `ability_1` / `ability_2` / `ability_3`, but casts now route by the selected hero's `kit_id`.
+- **Regression hotfix** - ready ability casts no longer silently fail when they hit zero enemies. A valid press now plays available feedback/status, enters cooldown, emits `ability_cast`, and updates cooldown UI immediately.
 - **Solar Guardian kit** - passive Solar Charge builds from ability hits. Solar Burst, Solar Beam, and Aerial Impact can spend high charge for stronger damage/radius, and Aerial Impact grants a brief invulnerability window.
 - **Night Tactician kit** - passive Tactical Mark selects a priority enemy when ability logic runs. Smoke Charge damages and slows nearby enemies, Grapnel Shot is a narrower precision line with mark bonus damage, and Shock Trap places a delayed close-range trap.
 - **Fury Vanguard kit** - passive Rage builds from real damage taken and ability hits, then decays slowly. Rage Burst, Crushing Leap, and Titan Slam scale as bruiser impact abilities, with Titan Slam spending part of Rage after use.
 - Existing upgrade hooks remain stable: `nova_*`, `laser_*`, and `slam_*` properties still tune slot 1/2/3, so current UpgradeManager effects and hero-flavored upgrade text keep working.
 - DebugStatsOverlay shows current kit and passive resource/mark state when Debug Mode is enabled.
+- Level-up upgrade selection now hides the LevelUpScreen before Arena resumes, fixing a paused-with-no-modal regression after choosing an upgrade.
 - This foundation does not add Build Evolution, a primary weapon rework, arena hazards, enemy changes, stage changes, reward changes, meta economy changes, or save-format changes.
 
 ### UI Readability Polish
