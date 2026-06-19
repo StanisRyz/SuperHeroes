@@ -96,7 +96,7 @@ Run these before adding new gameplay systems.
 | 5 | Click Select Hero | CharacterSelect opens |
 | 6 | Click Back from CharacterSelect | Returns to MainMenu |
 | 7 | Select a hero | StageSelect opens normally |
-| 8 | Complete StageSelect | Arena starts normally |
+| 8 | Complete StageSelect | RunBriefingScreen opens, then Start Run starts Arena normally |
 | 9 | Click Training from MainMenu | MetaUpgradeShop opens from the bottom Training button |
 | 10 | Click Back from Training | Returns to MainMenu |
 | 11 | Click Settings from top-left | SettingsMenu opens |
@@ -104,7 +104,7 @@ Run these before adding new gameplay systems.
 | 13 | Click Help / Controls from top-right | ControlsHelpOverlay opens |
 | 14 | Close Help / Controls | MainMenu remains usable |
 | 15 | Return to MainMenu after remembered choices exist | `Last: Hero / Stage` hint remains readable in the center panel |
-| 16 | Start/run flow after menu rework | MainMenu -> CharacterSelect -> StageSelect -> Arena still works |
+| 16 | Start/run flow after menu rework | MainMenu -> CharacterSelect -> StageSelect -> RunBriefingScreen -> Arena still works |
 | 17 | Pause during Arena | Pause menu still works |
 | 18 | Restart from run/result flow | Current hero/stage restart behavior is unchanged |
 | 19 | Exit to MainMenu from run/result flow | Returns safely to the reworked MainMenu |
@@ -202,7 +202,7 @@ Run these before adding new gameplay systems.
 | 5 | Return to CharacterSelect after a remembered hero exists | Remembered hero preselects and the matching card shows a compact Last marker |
 | 6 | Test a locked hero configuration | Locked card shows compact locked state, selected detail is readable, and Start Run is disabled |
 | 7 | Inspect Training summary | Summary is read-only, shows total levels and strongest upgraded stat when available, and does not purchase or mutate Training |
-| 8 | Press Start Run | Existing MainMenu -> CharacterSelect -> StageSelect/Arena flow remains unchanged |
+| 8 | Press Start Run | Existing MainMenu -> CharacterSelect -> StageSelect -> RunBriefingScreen/Arena flow remains stable |
 | 9 | Press Back | Returns to MainMenu without changing hero stats, Training, saves, rewards, stage values, enemy values, or persistence |
 | 10 | Inspect at 16:9 landscape | Hero cards and detail sections fit without text overlap |
 | 11 | Select each hero with the window at 16:9 landscape | Detail content remains bounded inside the right panel and Back / Start Run stay visible |
@@ -284,7 +284,7 @@ Run these before adding new gameplay systems.
 | 11 | Buy Training for Blaster, then run Night Tactician | Only Blaster Training affects the run |
 | 12 | Buy Training for Vanguard, then run Fury Vanguard | Only Vanguard Training affects the run |
 | 13 | Restart a run after choosing each hero/stage pair | Same hero, same stage, and same hero-specific Training remain active |
-| 14 | Return to MainMenu, CharacterSelect, StageSelect, Settings, Help, Pause, Victory/GameOver, and PostRunRewards | Existing flow remains unchanged |
+| 14 | Return to MainMenu, CharacterSelect, StageSelect, RunBriefingScreen, Settings, Help, Pause, Victory/GameOver, and PostRunRewards | Existing flow remains unchanged |
 | 15 | Inspect diff | No balance values, enemy values, stage values, rewards, meta economy, save format, persistence, or arena hazards were changed |
 | 16 | Inspect changed text | No licensed superhero names or protected character identities are used |
 
@@ -524,12 +524,13 @@ Do NOT bind a key to reset_progress in gameplay code; this could cause accidenta
 | 3 | StageSelect: 3 stages listed | City Rooftop, Neon Lab, Wasteland Gate visible |
 | 4 | Click a stage | Detail panel updates: name, subtitle, difficulty, description, final boss name |
 | 5 | Click Back in StageSelect | Returns to CharacterSelect; same hero still shown |
-| 6 | Confirm a stage | Arena starts with the correct background colors and stage name in HUD |
+| 6 | Confirm a stage | RunBriefingScreen opens with selected hero/stage summary |
+| 6a | Press Start Run from RunBriefingScreen | Arena starts with the correct background colors and stage name in HUD |
 | 7 | HUD during run | "Stage: City Rooftop" label visible in RunPanel |
 | 8 | Victory/GameOver screen | "Stage: City Rooftop" row visible below hero name |
 | 9 | Restart from VictoryScreen | Same hero AND same stage; StageSelect does not re-open |
 | 10 | Quit to MainMenu | Both hero and stage selection are cleared |
-| 11 | Start again from MainMenu | Goes through CharacterSelect → StageSelect before starting run |
+| 11 | Start again from MainMenu | Goes through CharacterSelect → StageSelect → RunBriefingScreen before starting run |
 | 12 | Select Neon Lab | Background is visually different from City Rooftop |
 | 13 | Select Wasteland Gate | Background is visually different from Neon Lab |
 
@@ -547,9 +548,28 @@ Do NOT bind a key to reset_progress in gameplay code; this could cause accidenta
 | 6 | Resize to 16:9 landscape or add long detail text | Detail content stays inside the right ScrollContainer; Back and Start Run remain visible |
 | 7 | Scroll the selected stage details | Vertical scrolling works when content exceeds the panel; horizontal scrolling is not needed |
 | 8 | Press Back | Returns to CharacterSelect exactly as before |
-| 9 | Press Start Run | Emits the original selected stage id and starts Arena normally |
+| 9 | Press Start Run | Emits the original selected stage id and opens RunBriefingScreen normally |
 | 10 | Restart from Victory/GameOver | Same hero and same stage restart without reopening StageSelect |
 | 11 | Inspect stage data diff | `run_settings`, `event_profile`, `final_boss_id`, enemy values, rewards, persistence, and arena hazards are unchanged |
+
+---
+
+## Run Briefing Screen
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | MainMenu -> CharacterSelect -> StageSelect -> confirm a stage | RunBriefingScreen opens before Arena |
+| 2 | Inspect hero block | Shows selected hero display name, subtitle/playstyle, and correct hero ability names |
+| 3 | Inspect Training block | Shows selected hero total Training levels and strongest upgraded Training stat when available |
+| 4 | Inspect stage block | Shows selected stage display name and difficulty |
+| 5 | Inspect objective block | Shows `stage_goal` or default 10:00 objective without changing run settings |
+| 6 | Inspect final boss block | Shows formatted final boss name and boss preview text |
+| 7 | Press Back | Returns to StageSelect with the same selected/remembered stage flow intact |
+| 8 | Press Start Run | Starts Arena with the selected hero and selected stage |
+| 9 | Restart from Victory/GameOver | Restarts current hero/stage directly without showing RunBriefingScreen |
+| 10 | Quit to MainMenu after a run | Existing reward/menu flow remains unchanged |
+| 11 | Inspect Training/meta data after opening briefing | Briefing did not purchase, mutate, save, or reset Training/meta data |
+| 12 | Inspect git diff | No gameplay balance, stage settings, enemy values, rewards, upgrade values, persistence, or arena hazards changed |
 
 ---
 

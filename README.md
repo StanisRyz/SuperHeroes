@@ -251,6 +251,7 @@ Implemented foundation:
 - **CharacterSelect hero detail cards** — hero cards now show display name, playstyle, and compact state markers; the selected hero detail card shows subtitle, description, ability names, strengths, and read-only per-hero Training summary.
 - **CharacterSelect scrollable details** — hero detail cards stay inside a bounded right-side scroll panel so Back and Start Run remain visible.
 - **Improved StageSelect** — stage cards now show display name, difficulty, threat identity, and remembered-stage state; selected stage details are bounded in a scrollable right panel so Back / Start Run remain visible.
+- **Run Briefing Screen** — after confirming a stage, a compact display-only briefing shows selected hero, stage, ability names, per-hero Training summary, objective, and final boss preview before Arena starts.
 - **Help overlay section titles** — Section titles are uppercase amber with horizontal separators between sections.
 - **Pause / Restart / Exit Safety QoL** — active-run Restart and Main Menu actions now use a reusable confirmation dialog, Escape / Back behavior is centralized across pause/settings/help overlays, and duplicate transition guards prevent repeated restarts, exits, reward screens, or Arena creation from rapid clicks.
 - **Main Menu Rework** — Settings now sits top-left, Help / Controls top-right, and Select Hero plus Training are grouped as a bottom horizontal interface. Existing menu, training, settings, help, hero/stage select, and run flows are preserved.
@@ -292,6 +293,7 @@ Not implemented yet (UI):
 - Last confirmed hero and stage are saved to `user://superheroes_user_preferences.json`.
 - CharacterSelect preselects the remembered hero when it is valid and playable; otherwise it falls back to the default hero.
 - StageSelect preselects the remembered stage when it is valid; otherwise it falls back to the default stage.
+- RunBriefingScreen appears after StageSelect confirmation and before Arena start, using the remembered/confirmed hero and stage.
 - MainMenu shows a compact `Last: Hero / Stage` hint when remembered choices are available.
 - Restart keeps the current run hero/stage, while returning to MainMenu and starting a new flow uses the remembered choices.
 - Preference reset is available through `UserPreferencesManager.reset_preferences()` and does not reset meta progression or settings.
@@ -389,7 +391,9 @@ Not implemented yet (meta):
 
 ### Bosses, Stages & Content Expansion v1
 
-- **StageSelect** screen between CharacterSelect and Arena; shows stage list cards (left) and a scrollable detail panel (right: color swatch, name, subtitle, difficulty, description, threat summary, run objective, recommended playstyle, and final boss preview). Back returns to CharacterSelect; Start Run advances to Arena with the original stage id.
+- **StageSelect** screen between CharacterSelect and RunBriefingScreen; shows stage list cards (left) and a scrollable detail panel (right: color swatch, name, subtitle, difficulty, description, threat summary, run objective, recommended playstyle, and final boss preview). Back returns to CharacterSelect; Start Run advances to briefing with the original stage id.
+- **RunBriefingScreen** is a display-only confirmation screen before Arena. It shows selected hero, selected stage, hero ability names, compact per-hero Training summary, stage objective, and final boss preview. Start Run advances to Arena; Back returns to StageSelect.
+- The briefing screen is UI-only and does not change gameplay balance, hero stats, stage settings, enemy values, rewards, upgrade values, save format, persistence, or arena hazards.
 - **StageDataProvider** owns 3 hardcoded stage presets:
   - **City Rooftop** - balanced rooftop pressure, Normal difficulty, `balanced` event profile, final boss: Titan Guardian, 10 min run.
   - **Neon Lab** - ranged support pressure, Hard difficulty, `ranged_support` event profile, final boss: Prism Overlord, 10 min run.

@@ -12,6 +12,7 @@ var hero_data_provider: Node
 var character_select: Node
 var stage_data_provider: Node
 var stage_select: Node
+var run_briefing_screen: Node
 var meta_progression_manager: Node
 var post_run_rewards_screen: Node
 var meta_upgrade_shop: Node
@@ -60,6 +61,7 @@ func _ready() -> void:
 			controls_help_overlay.closed.connect(_on_controls_help_closed)
 
 	_init_meta_progression_manager()
+	_init_run_briefing_screen()
 	_init_post_run_rewards_screen()
 	_init_meta_upgrade_shop()
 
@@ -102,6 +104,19 @@ func _init_post_run_rewards_screen() -> void:
 		post_run_rewards_screen.continue_requested.connect(_on_post_run_continue)
 
 
+func _init_run_briefing_screen() -> void:
+	var scene: PackedScene = load("res://scenes/ui/RunBriefingScreen.tscn")
+	if scene == null:
+		push_warning("Main: RunBriefingScreen.tscn not found.")
+		return
+	run_briefing_screen = scene.instantiate()
+	add_child(run_briefing_screen)
+	if run_briefing_screen.has_signal("start_requested") and not run_briefing_screen.start_requested.is_connected(_on_run_briefing_start_requested):
+		run_briefing_screen.start_requested.connect(_on_run_briefing_start_requested)
+	if run_briefing_screen.has_signal("back_requested") and not run_briefing_screen.back_requested.is_connected(_on_run_briefing_back_requested):
+		run_briefing_screen.back_requested.connect(_on_run_briefing_back_requested)
+
+
 func _init_meta_upgrade_shop() -> void:
 	var scene: PackedScene = load("res://scenes/ui/MetaUpgradeShop.tscn")
 	if scene == null:
@@ -125,6 +140,8 @@ func _show_main_menu() -> void:
 		character_select.close()
 	if stage_select != null and stage_select.has_method("close"):
 		stage_select.close()
+	if run_briefing_screen != null and run_briefing_screen.has_method("close"):
+		run_briefing_screen.close()
 
 	if main_menu_scene == null:
 		push_warning("Main is missing main_menu_scene.")
@@ -208,10 +225,12 @@ func _on_hero_confirmed(hero_id: String) -> void:
 
 func _show_stage_select() -> void:
 	_refresh_selection_preferences()
+	if run_briefing_screen != null and run_briefing_screen.has_method("close"):
+		run_briefing_screen.close()
 	if stage_select != null and stage_select.has_method("open"):
 		stage_select.open()
 	else:
-		_start_run_with_hero_and_stage(selected_hero_id, selected_stage_id)
+		_show_run_briefing_or_start()
 
 
 func _on_stage_confirmed(stage_id: String) -> void:
@@ -223,7 +242,37 @@ func _on_stage_confirmed(stage_id: String) -> void:
 		user_preferences_manager.set_last_stage_id(stage_id)
 	if stage_select != null and stage_select.has_method("close"):
 		stage_select.close()
+	_show_run_briefing_or_start()
+	_selection_transition_in_progress = false
+
+
+func _show_run_briefing_or_start() -> void:
+	if run_briefing_screen == null or not run_briefing_screen.has_method("setup") or not run_briefing_screen.has_method("open"):
+		_start_run_with_hero_and_stage(selected_hero_id, selected_stage_id)
+		return
+	var selected_hero := _get_hero_data(selected_hero_id)
+	selected_hero_id = str(selected_hero.get("id", selected_hero_id))
+	var selected_stage := _get_stage_data(selected_stage_id)
+	selected_stage_id = str(selected_stage.get("id", selected_stage_id))
+	run_briefing_screen.setup(selected_hero, selected_stage, meta_progression_manager)
+	run_briefing_screen.open()
+
+
+func _on_run_briefing_start_requested() -> void:
+	if _selection_transition_in_progress:
+		return
+	_selection_transition_in_progress = true
+	if run_briefing_screen != null and run_briefing_screen.has_method("close"):
+		run_briefing_screen.close()
 	_start_run_with_hero_and_stage(selected_hero_id, selected_stage_id)
+
+
+func _on_run_briefing_back_requested() -> void:
+	if _selection_transition_in_progress:
+		return
+	if run_briefing_screen != null and run_briefing_screen.has_method("close"):
+		run_briefing_screen.close()
+	_show_stage_select()
 
 
 func _on_stage_select_back_requested() -> void:
@@ -409,6 +458,9 @@ func _handle_menu_back_requested() -> void:
 		return
 	if _is_meta_shop_open():
 		_close_meta_shop()
+		return
+	if run_briefing_screen != null and run_briefing_screen.visible:
+		_on_run_briefing_back_requested()
 		return
 	if stage_select != null and stage_select.visible:
 		_on_stage_select_back_requested()

@@ -71,6 +71,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/ConfirmDialog.gd` - display-only confirmation dialog API (`open`, `close`, `is_open`, `get_action_id`) and confirmed/cancelled action-id signals.
 - `scenes/ui/CharacterSelect.tscn` - hero selection screen between MainMenu and Arena.
 - `scenes/ui/CharacterSelect.gd` - display-only hero list/details UI; emits selected hero id.
+- `scenes/ui/RunBriefingScreen.tscn` - display-only run briefing screen between StageSelect and Arena.
+- `scenes/ui/RunBriefingScreen.gd` - shows selected hero/stage, ability names, Training summary, objective, and final boss preview; emits start_requested/back_requested only.
 - `scenes/ui/EvolutionRewardScreen.tscn` - paused evolution reward choice screen.
 - `scenes/ui/EvolutionRewardScreen.gd` - display-only evolution option UI; emits selected evolution id.
 - `scenes/ui/PauseMenu.tscn` - pause-time run menu scene.
@@ -183,12 +185,14 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Stage & Final Boss Architecture
 
-- `Main` owns the navigation flow: MainMenu → CharacterSelect → StageSelect → Arena. Back from StageSelect returns to CharacterSelect. Restart keeps same hero + stage. Quit to menu clears both.
+- `Main` owns the navigation flow: MainMenu → CharacterSelect → StageSelect → RunBriefingScreen → Arena. Back from StageSelect returns to CharacterSelect. Back from RunBriefingScreen returns to StageSelect. Restart keeps same hero + stage and bypasses briefing. Quit to menu clears both.
 - `StageDataProvider` is a persistent Node in Main (child of Main.tscn). It owns stage definitions and is passed to StageSelect.setup().
 - `StageApplier` (static) is called by Arena._ready() after GameplayTuning.apply_to() when stage_data is non-empty. It applies background colors, run settings, and event/spawn profiles.
 - StageSelect is display-only: it may show stage cards, remembered-stage markers, color swatches, threat summaries, run objectives, recommended playstyle, and boss previews, but it must not mutate stage data or gameplay state.
 - Stage identity metadata in StageDataProvider is for UI presentation only. Do not wire `threat_summary`, `stage_goal`, `recommended_playstyle`, `enemy_pressure`, or `boss_preview` into spawn logic, run settings, rewards, persistence, or final boss behavior.
 - StageSelect must emit the original stable stage id (`city_rooftop`, `neon_lab`, or `wasteland_gate`) when Start Run is pressed.
+- RunBriefingScreen is display-only: it may read hero data, stage data, and Training summaries, but it must not mutate meta/training data, saves, gameplay state, or persistence.
+- RunBriefingScreen Start emits intent only and Main starts the current selected hero/stage flow. RunBriefingScreen Back returns to StageSelect.
 - Do not add arena hazards unless the user explicitly requests hazards.
 - `EventDirector.set_event_profile(profile)` appends profile-specific extra events to the schedule. "balanced" adds nothing. "ranged_support" adds early shooter and support surge events. "swarm_exploder" adds early exploder and swarm rush events.
 - `SpawnDirector.set_stage_profile(profile)` stores the profile and applies per-variant weight bonuses in `_get_modified_weight()`.
