@@ -6,6 +6,7 @@ extends Area2D
 @export var magnet_speed: float = 420.0
 
 var target_player: Node2D
+var audio_manager: Node
 var _picked_up := false
 
 @onready var collision_shape: CollisionShape2D = get_node_or_null("CollisionShape2D")
@@ -39,8 +40,14 @@ func _on_body_entered(body: Node2D) -> void:
 		return
 
 	_picked_up = true
+	if audio_manager != null and audio_manager.has_method("play_pickup"):
+		audio_manager.play_pickup()
 	body.add_experience(experience_value)
 	queue_free()
+
+
+func setup_audio_manager(new_audio_manager: Node) -> void:
+	audio_manager = new_audio_manager
 
 
 func _update_target_player() -> void:

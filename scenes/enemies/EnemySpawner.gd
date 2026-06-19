@@ -17,6 +17,7 @@ var pickup_container: Node
 var run_manager: Node
 var spawn_director: Node
 var floating_text_spawner: Node
+var audio_manager: Node
 
 @onready var spawn_timer: Timer = $SpawnTimer
 
@@ -26,7 +27,7 @@ func _ready() -> void:
 	spawn_timer.one_shot = false
 
 
-func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null) -> void:
+func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null, new_audio_manager: Node = null) -> void:
 	player = new_player
 	playable_rect = new_playable_rect
 	enemy_container = new_enemy_container
@@ -34,6 +35,7 @@ func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: No
 	run_manager = new_run_manager
 	spawn_director = new_spawn_director
 	floating_text_spawner = new_floating_text_spawner
+	audio_manager = new_audio_manager
 
 	spawn_timer.wait_time = _get_current_spawn_interval()
 	if _can_spawn():
@@ -82,6 +84,9 @@ func _on_spawn_timer_timeout() -> void:
 
 
 func _on_enemy_died(enemy: Node) -> void:
+	if audio_manager != null and audio_manager.has_method("play_enemy_death"):
+		audio_manager.play_enemy_death()
+
 	if run_manager != null and run_manager.has_method("register_enemy_kill"):
 		run_manager.register_enemy_kill()
 
@@ -107,6 +112,8 @@ func _on_enemy_died(enemy: Node) -> void:
 	var gem := gem_node as Node2D
 	if "experience_value" in gem:
 		gem.experience_value = dropped_experience
+	if gem.has_method("setup_audio_manager"):
+		gem.setup_audio_manager(audio_manager)
 
 	pickup_container.add_child(gem)
 	gem.global_position = enemy_node.global_position
@@ -123,7 +130,12 @@ func _spawn_death_burst(world_position: Vector2) -> void:
 		return
 
 	var burst := burst_node as Node2D
-	get_tree().current_scene.add_child(burst)
+	var effect_parent := enemy_container.get_parent() if enemy_container != null else null
+	if effect_parent == null:
+		burst.queue_free()
+		return
+
+	effect_parent.add_child(burst)
 	if burst.has_method("play"):
 		burst.play(world_position, Color(1.0, 0.35, 0.28, 1.0))
 	else:

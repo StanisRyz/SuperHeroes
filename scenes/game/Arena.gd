@@ -5,6 +5,9 @@ signal quit_to_menu_requested
 
 @export var arena_size: Vector2 = Vector2(4000.0, 4000.0)
 
+var settings_manager: Node
+var audio_manager: Node
+
 @onready var player: Node = get_node_or_null("Player")
 @onready var enemy_container: Node = get_node_or_null("EnemyContainer")
 @onready var projectile_container: Node = get_node_or_null("ProjectileContainer")
@@ -19,6 +22,12 @@ signal quit_to_menu_requested
 @onready var mobile_controls: Node = get_node_or_null("MobileControls")
 @onready var floating_text_spawner: Node = get_node_or_null("FloatingTextSpawner")
 @onready var pause_menu: Node = get_node_or_null("PauseMenu")
+@onready var settings_menu: Node = get_node_or_null("SettingsMenu")
+
+
+func setup(new_settings_manager: Node = null, new_audio_manager: Node = null) -> void:
+	settings_manager = new_settings_manager
+	audio_manager = new_audio_manager
 
 func _ready() -> void:
 	var playable_rect := get_playable_rect()
@@ -36,6 +45,9 @@ func _ready() -> void:
 		player.set_camera_limits(playable_rect)
 	else:
 		push_warning("Player does not implement set_camera_limits(rect).")
+	_apply_settings()
+	if settings_manager != null and settings_manager.has_signal("settings_changed") and not settings_manager.settings_changed.is_connected(_apply_settings):
+		settings_manager.settings_changed.connect(_apply_settings)
 
 	var ability_manager := player.get_node_or_null("AbilityManager")
 	if ability_manager == null:
@@ -59,6 +71,7 @@ func _ready() -> void:
 	_setup_level_up_flow(auto_attack, ability_manager)
 	_setup_run_lifecycle()
 	_setup_pause_menu()
+	_setup_settings_menu()
 
 	if projectile_container == null:
 		push_warning("Arena could not find ProjectileContainer node.")
@@ -66,6 +79,8 @@ func _ready() -> void:
 		push_warning("Arena could not find Player/AutoAttack node.")
 	elif auto_attack.has_method("setup_projectile_container"):
 		auto_attack.setup_projectile_container(projectile_container)
+		if auto_attack.has_method("setup_audio_manager"):
+			auto_attack.setup_audio_manager(audio_manager)
 	else:
 		push_warning("AutoAttack does not implement setup_projectile_container(container).")
 
@@ -76,7 +91,7 @@ func _ready() -> void:
 	elif enemy_spawner == null:
 		push_warning("Arena could not find EnemySpawner node.")
 	elif enemy_spawner.has_method("setup"):
-		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner)
+		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner, audio_manager)
 	else:
 		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner).")
 
@@ -100,6 +115,8 @@ func _setup_level_up_flow(auto_attack: Node, ability_manager: Node) -> void:
 		push_warning("Arena could not find LevelUpScreen node.")
 	elif level_up_screen.has_signal("upgrade_selected") and not level_up_screen.upgrade_selected.is_connected(_on_upgrade_selected):
 		level_up_screen.upgrade_selected.connect(_on_upgrade_selected)
+		if level_up_screen.has_method("setup_audio_manager"):
+			level_up_screen.setup_audio_manager(audio_manager)
 
 
 func _setup_spawn_director() -> void:
@@ -136,6 +153,8 @@ func _setup_mobile_controls(ability_manager: Node) -> void:
 
 	if mobile_controls.has_method("setup_ability_manager"):
 		mobile_controls.setup_ability_manager(ability_manager)
+	if mobile_controls.has_method("apply_settings"):
+		mobile_controls.apply_settings(settings_manager)
 
 	if mobile_controls.has_signal("pause_pressed"):
 		if not mobile_controls.pause_pressed.is_connected(_request_pause_menu):
@@ -156,6 +175,8 @@ func _on_player_level_up_available(_level: int) -> void:
 
 	get_tree().paused = true
 	_reset_mobile_controls()
+	if audio_manager != null and audio_manager.has_method("play_level_up"):
+		audio_manager.play_level_up()
 	level_up_screen.show_options(upgrade_manager.get_upgrade_options(3))
 
 
@@ -195,6 +216,19 @@ func _setup_pause_menu() -> void:
 		pause_menu.restart_requested.connect(_on_pause_restart_requested)
 	if pause_menu.has_signal("quit_to_menu_requested") and not pause_menu.quit_to_menu_requested.is_connected(_on_pause_quit_to_menu_requested):
 		pause_menu.quit_to_menu_requested.connect(_on_pause_quit_to_menu_requested)
+	if pause_menu.has_signal("settings_requested") and not pause_menu.settings_requested.is_connected(_on_pause_settings_requested):
+		pause_menu.settings_requested.connect(_on_pause_settings_requested)
+	if pause_menu.has_method("setup_audio_manager"):
+		pause_menu.setup_audio_manager(audio_manager)
+
+
+func _setup_settings_menu() -> void:
+	if settings_menu == null:
+		push_warning("Arena could not find SettingsMenu node.")
+		return
+
+	if settings_menu.has_method("setup"):
+		settings_menu.setup(settings_manager, audio_manager)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -217,6 +251,10 @@ func _on_player_died() -> void:
 
 	get_tree().paused = true
 	_reset_mobile_controls()
+	if audio_manager != null and audio_manager.has_method("play_game_over"):
+		audio_manager.play_game_over()
+	if game_over_screen != null and game_over_screen.has_method("setup_audio_manager"):
+		game_over_screen.setup_audio_manager(audio_manager)
 	if game_over_screen != null and game_over_screen.has_method("show_stats"):
 		game_over_screen.show_stats(stats)
 	else:
@@ -258,6 +296,11 @@ func _on_pause_quit_to_menu_requested() -> void:
 	quit_to_menu_requested.emit()
 
 
+func _on_pause_settings_requested() -> void:
+	if settings_menu != null and settings_menu.has_method("open"):
+		settings_menu.open()
+
+
 func _is_player_dead() -> bool:
 	return player != null and player.has_method("is_dead") and player.is_dead()
 
@@ -273,3 +316,10 @@ func _is_level_up_visible() -> bool:
 func _reset_mobile_controls() -> void:
 	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
 		mobile_controls.reset_controls()
+
+
+func _apply_settings() -> void:
+	if player != null and player.has_method("set_screen_shake_enabled") and settings_manager != null:
+		player.set_screen_shake_enabled(bool(settings_manager.get_setting("screen_shake_enabled", true)))
+	if mobile_controls != null and mobile_controls.has_method("apply_settings"):
+		mobile_controls.apply_settings(settings_manager)

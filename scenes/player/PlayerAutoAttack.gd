@@ -7,6 +7,7 @@ extends Node
 @export var projectile_scene: PackedScene
 
 var projectile_container: Node
+var audio_manager: Node
 var _cooldown := 0.0
 var _enemies_in_range: Array[Node2D] = []
 var _missing_projectile_warning_shown := false
@@ -49,6 +50,10 @@ func _physics_process(delta: float) -> void:
 
 func setup_projectile_container(container: Node) -> void:
 	projectile_container = container
+
+
+func setup_audio_manager(new_audio_manager: Node) -> void:
+	audio_manager = new_audio_manager
 
 
 func _on_attack_range_area_body_entered(body: Node2D) -> void:
@@ -112,6 +117,8 @@ func _spawn_projectile(enemy: Node2D) -> bool:
 	projectile_container.add_child(projectile)
 	if "speed" in projectile:
 		projectile.speed = projectile_speed
+	if projectile.has_method("setup_audio_manager"):
+		projectile.setup_audio_manager(audio_manager)
 
 	if projectile.has_method("setup"):
 		projectile.setup(spawn_position, enemy, attack_damage)

@@ -18,6 +18,7 @@ var _playable_rect: Rect2
 var _has_playable_rect := false
 var _hit_flash_tween: Tween
 var _camera_shake_tween: Tween
+var _screen_shake_enabled := true
 
 @onready var camera: Camera2D = $Camera2D
 @onready var body_visual: CanvasItem = get_node_or_null("Body")
@@ -94,7 +95,7 @@ func set_camera_limits(rect: Rect2) -> void:
 
 
 func shake_camera(strength: float = 6.0, duration: float = 0.12) -> void:
-	if camera == null:
+	if camera == null or not _screen_shake_enabled:
 		return
 
 	if _camera_shake_tween != null:
@@ -103,6 +104,14 @@ func shake_camera(strength: float = 6.0, duration: float = 0.12) -> void:
 	camera.offset = Vector2(randf_range(-strength, strength), randf_range(-strength, strength))
 	_camera_shake_tween = create_tween()
 	_camera_shake_tween.tween_property(camera, "offset", Vector2.ZERO, duration)
+
+
+func set_screen_shake_enabled(enabled: bool) -> void:
+	_screen_shake_enabled = enabled
+	if not _screen_shake_enabled and camera != null:
+		if _camera_shake_tween != null:
+			_camera_shake_tween.kill()
+		camera.offset = Vector2.ZERO
 
 
 func _clamp_to_playable_rect() -> void:

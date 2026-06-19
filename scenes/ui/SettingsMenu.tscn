@@ -1,0 +1,110 @@
+[gd_scene load_steps=2 format=3 uid="uid://settings_menu_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/ui/SettingsMenu.gd" id="1_settings_menu_script"]
+
+[node name="SettingsMenu" type="CanvasLayer"]
+process_mode = 3
+visible = false
+script = ExtResource("1_settings_menu_script")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Overlay" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.62)
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -225.0
+offset_right = 280.0
+offset_bottom = 225.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/Panel"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="MasterRow" type="HBoxContainer" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+
+[node name="MasterLabel" type="Label" parent="Root/Panel/VBoxContainer/MasterRow"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "Master"
+
+[node name="MasterSlider" type="HSlider" parent="Root/Panel/VBoxContainer/MasterRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="MusicRow" type="HBoxContainer" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+
+[node name="MusicLabel" type="Label" parent="Root/Panel/VBoxContainer/MusicRow"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "Music"
+
+[node name="MusicSlider" type="HSlider" parent="Root/Panel/VBoxContainer/MusicRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.8
+
+[node name="SfxRow" type="HBoxContainer" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+
+[node name="SfxLabel" type="Label" parent="Root/Panel/VBoxContainer/SfxRow"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "SFX"
+
+[node name="SfxSlider" type="HSlider" parent="Root/Panel/VBoxContainer/SfxRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="MuteCheckbox" type="CheckBox" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+text = "Mute all"
+
+[node name="MobileCheckbox" type="CheckBox" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+text = "Force mobile controls"
+
+[node name="ShakeCheckbox" type="CheckBox" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+button_pressed = true
+text = "Screen shake"
+
+[node name="BackButton" type="Button" parent="Root/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(320, 48)
+layout_mode = 2
+text = "Back"

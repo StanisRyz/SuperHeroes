@@ -3,8 +3,12 @@ extends CanvasLayer
 signal resume_requested
 signal restart_requested
 signal quit_to_menu_requested
+signal settings_requested
+
+var audio_manager: Node
 
 @onready var resume_button: Button = get_node_or_null("Root/Panel/VBoxContainer/ResumeButton")
+@onready var settings_button: Button = get_node_or_null("Root/Panel/VBoxContainer/SettingsButton")
 @onready var restart_button: Button = get_node_or_null("Root/Panel/VBoxContainer/RestartButton")
 @onready var quit_button: Button = get_node_or_null("Root/Panel/VBoxContainer/QuitButton")
 
@@ -17,6 +21,11 @@ func _ready() -> void:
 		push_warning("PauseMenu could not find ResumeButton.")
 	elif not resume_button.pressed.is_connected(_on_resume_button_pressed):
 		resume_button.pressed.connect(_on_resume_button_pressed)
+
+	if settings_button == null:
+		push_warning("PauseMenu could not find SettingsButton.")
+	elif not settings_button.pressed.is_connected(_on_settings_button_pressed):
+		settings_button.pressed.connect(_on_settings_button_pressed)
 
 	if restart_button == null:
 		push_warning("PauseMenu could not find RestartButton.")
@@ -39,13 +48,30 @@ func close() -> void:
 	hide()
 
 
+func setup_audio_manager(new_audio_manager: Node = null) -> void:
+	audio_manager = new_audio_manager
+
+
 func _on_resume_button_pressed() -> void:
+	_play_ui_click()
 	resume_requested.emit()
 
 
+func _on_settings_button_pressed() -> void:
+	_play_ui_click()
+	settings_requested.emit()
+
+
 func _on_restart_button_pressed() -> void:
+	_play_ui_click()
 	restart_requested.emit()
 
 
 func _on_quit_button_pressed() -> void:
+	_play_ui_click()
 	quit_to_menu_requested.emit()
+
+
+func _play_ui_click() -> void:
+	if audio_manager != null and audio_manager.has_method("play_ui_click"):
+		audio_manager.play_ui_click()

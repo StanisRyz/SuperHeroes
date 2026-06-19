@@ -1,10 +1,19 @@
-[gd_scene load_steps=4 format=3 uid="uid://main_scene_superheroes"]
+[gd_scene load_steps=7 format=3 uid="uid://main_scene_superheroes"]
 
 [ext_resource type="PackedScene" path="res://scenes/game/Arena.tscn" id="1_arena"]
 [ext_resource type="Script" path="res://scenes/main/Main.gd" id="1_main_script"]
 [ext_resource type="PackedScene" path="res://scenes/ui/MainMenu.tscn" id="2_main_menu"]
+[ext_resource type="PackedScene" path="res://scenes/settings/SettingsManager.tscn" id="3_settings_manager"]
+[ext_resource type="PackedScene" path="res://scenes/audio/AudioManager.tscn" id="4_audio_manager"]
+[ext_resource type="PackedScene" path="res://scenes/ui/SettingsMenu.tscn" id="5_settings_menu"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main_script")
 arena_scene = ExtResource("1_arena")
 main_menu_scene = ExtResource("2_main_menu")
+
+[node name="SettingsManager" parent="." instance=ExtResource("3_settings_manager")]
+
+[node name="AudioManager" parent="." instance=ExtResource("4_audio_manager")]
+
+[node name="SettingsMenu" parent="." instance=ExtResource("5_settings_menu")]

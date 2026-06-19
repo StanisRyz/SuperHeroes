@@ -55,6 +55,11 @@ custom_minimum_size = Vector2(320, 56)
 layout_mode = 2
 text = "Start Run"
 
+[node name="SettingsButton" type="Button" parent="Root/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(320, 48)
+layout_mode = 2
+text = "Settings"
+
 [node name="QuitButton" type="Button" parent="Root/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(320, 48)
 visible = false

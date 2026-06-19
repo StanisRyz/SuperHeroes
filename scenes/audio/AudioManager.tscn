@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://audio_manager_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/audio/AudioManager.gd" id="1_audio_manager_script"]
+
+[node name="AudioManager" type="Node"]
+script = ExtResource("1_audio_manager_script")
+
+[node name="UiClickPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="ProjectileHitPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="EnemyDeathPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="PickupPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="LevelUpPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="GameOverPlayer" type="AudioStreamPlayer" parent="."]

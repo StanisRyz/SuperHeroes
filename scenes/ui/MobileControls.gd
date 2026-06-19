@@ -10,6 +10,7 @@ signal pause_pressed
 
 var _active_pointer_id := -999
 var _movement_direction := Vector2.ZERO
+var _settings_manager: Node
 
 @onready var joystick_touch_area: Control = get_node_or_null("Root/JoystickArea")
 @onready var joystick_base: Control = get_node_or_null("Root/JoystickArea/Base")
@@ -54,6 +55,14 @@ func setup_ability_manager(ability_manager: Node) -> void:
 
 	if ability_manager.has_signal("ability_cooldown_changed") and not ability_manager.ability_cooldown_changed.is_connected(_on_ability_cooldown_changed):
 		ability_manager.ability_cooldown_changed.connect(_on_ability_cooldown_changed)
+
+
+func apply_settings(settings_manager: Node) -> void:
+	_settings_manager = settings_manager
+	if _settings_manager != null and _settings_manager.has_signal("settings_changed") and not _settings_manager.settings_changed.is_connected(_update_visibility_from_settings):
+		_settings_manager.settings_changed.connect(_update_visibility_from_settings)
+
+	_update_visibility_from_settings()
 
 
 func reset_controls() -> void:
@@ -192,3 +201,11 @@ func _update_ability_button(cooldown_remaining: float) -> void:
 		ability_button.text = "Nova"
 	else:
 		ability_button.text = "%.1f" % cooldown_remaining
+
+
+func _update_visibility_from_settings() -> void:
+	var forced := force_visible
+	if _settings_manager != null:
+		forced = forced or bool(_settings_manager.get_setting("force_mobile_controls", false))
+
+	visible = forced or DisplayServer.is_touchscreen_available()

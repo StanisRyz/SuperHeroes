@@ -2,6 +2,8 @@ extends CanvasLayer
 
 signal upgrade_selected(upgrade_id: String)
 
+var audio_manager: Node
+
 @onready var option_buttons: Array[Button] = [
 	$Root/Panel/VBoxContainer/OptionButton1,
 	$Root/Panel/VBoxContainer/OptionButton2,
@@ -31,6 +33,10 @@ func show_options(options: Array[Dictionary]) -> void:
 	show()
 
 
+func setup_audio_manager(new_audio_manager: Node) -> void:
+	audio_manager = new_audio_manager
+
+
 func _format_option_text(option: Dictionary) -> String:
 	var rarity := str(option.get("rarity", "common")).to_upper()
 	var title := str(option.get("title", "Upgrade"))
@@ -54,5 +60,7 @@ func _on_option_pressed(index: int) -> void:
 	if upgrade_id.is_empty():
 		return
 
+	if audio_manager != null and audio_manager.has_method("play_ui_click"):
+		audio_manager.play_ui_click()
 	upgrade_selected.emit(upgrade_id)
 	hide()

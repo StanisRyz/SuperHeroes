@@ -8,6 +8,7 @@ extends Area2D
 var damage: int
 var target: Node2D
 var direction := Vector2.RIGHT
+var audio_manager: Node
 var _lifetime := 0.0
 var _has_hit := false
 
@@ -33,6 +34,10 @@ func setup(origin: Vector2, new_target: Node2D, new_damage: int) -> void:
 			direction = offset.normalized()
 
 
+func setup_audio_manager(new_audio_manager: Node) -> void:
+	audio_manager = new_audio_manager
+
+
 func _physics_process(delta: float) -> void:
 	_lifetime += delta
 	if _lifetime >= max_lifetime:
@@ -55,6 +60,8 @@ func _on_body_entered(body: Node2D) -> void:
 
 	_has_hit = true
 	body.take_damage(damage)
+	if audio_manager != null and audio_manager.has_method("play_projectile_hit"):
+		audio_manager.play_projectile_hit()
 	_spawn_hit_spark(body.global_position)
 	queue_free()
 
@@ -70,7 +77,12 @@ func _spawn_hit_spark(world_position: Vector2) -> void:
 		return
 
 	var spark := spark_node as Node2D
-	get_tree().current_scene.add_child(spark)
+	var effect_parent := get_parent()
+	if effect_parent == null:
+		spark.queue_free()
+		return
+
+	effect_parent.add_child(spark)
 	if spark.has_method("play"):
 		spark.play(world_position)
 	else:

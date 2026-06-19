@@ -2,6 +2,8 @@ extends CanvasLayer
 
 signal restart_requested
 
+var audio_manager: Node
+
 @onready var time_label: Label = get_node_or_null("Root/Panel/VBoxContainer/TimeLabel")
 @onready var kills_label: Label = get_node_or_null("Root/Panel/VBoxContainer/KillsLabel")
 @onready var level_label: Label = get_node_or_null("Root/Panel/VBoxContainer/LevelLabel")
@@ -34,6 +36,10 @@ func show_stats(stats: Dictionary) -> void:
 		restart_button.grab_focus()
 
 
+func setup_audio_manager(new_audio_manager: Node) -> void:
+	audio_manager = new_audio_manager
+
+
 func _format_time(seconds: float) -> String:
 	var total_seconds := int(floor(seconds))
 	var minutes := int(total_seconds / 60.0)
@@ -42,4 +48,6 @@ func _format_time(seconds: float) -> String:
 
 
 func _on_restart_button_pressed() -> void:
+	if audio_manager != null and audio_manager.has_method("play_ui_click"):
+		audio_manager.play_ui_click()
 	restart_requested.emit()

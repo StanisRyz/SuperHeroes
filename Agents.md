@@ -10,6 +10,10 @@ The game is an original superhero survivors-like: the player moves around an are
 
 - `scenes/main/Main.tscn` - project entry scene.
 - `scenes/main/Main.gd` - frontend flow coordinator and run scene replacement.
+- `scenes/settings/SettingsManager.tscn` - local settings manager scene.
+- `scenes/settings/SettingsManager.gd` - `user://settings.cfg` load/save helper for settings only.
+- `scenes/audio/AudioManager.tscn` - audio playback manager scene.
+- `scenes/audio/AudioManager.gd` - volume/mute application and optional SFX playback hooks.
 - `scenes/game/Arena.tscn` - arena composition.
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup, level-up flow, run lifecycle.
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
@@ -40,6 +44,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MainMenu.gd` - main menu start and quit intent signals.
 - `scenes/ui/PauseMenu.tscn` - pause-time run menu scene.
 - `scenes/ui/PauseMenu.gd` - pause menu resume, restart, and quit intent signals.
+- `scenes/ui/SettingsMenu.tscn` - pause-capable settings menu scene.
+- `scenes/ui/SettingsMenu.gd` - settings UI binding for volume, mobile controls, and screen shake.
 - `scenes/ui/LevelUpScreen.tscn` - pause-time upgrade selection UI.
 - `scenes/ui/LevelUpScreen.gd` - displays options and emits selected upgrade IDs.
 - `scenes/ui/GameOverScreen.tscn` - pause-time game over UI.
@@ -107,15 +113,29 @@ The game is an original superhero survivors-like: the player moves around an are
 - Restart Run through Main.
 - Quit to Menu.
 - Mobile pause button.
+- Settings menu.
+- Persistent local settings through `user://settings.cfg`.
+- Volume settings.
+- Force mobile controls setting.
+- Screen shake setting.
+- AudioManager foundation.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
 
 ## Frontend Flow
 
 - Main owns frontend flow and run scene replacement.
+- Main owns SettingsManager and AudioManager.
 - MainMenu emits `start_requested`; it does not start Arena directly.
 - Arena emits `restart_run_requested` and `quit_to_menu_requested`.
 - PauseMenu only emits UI intents.
 - GameOver restart goes through Arena/Main, not direct scene reload.
+
+## Settings And Audio Flow
+
+- SettingsMenu edits SettingsManager.
+- AudioManager applies volume and mute settings from SettingsManager.
+- Arena applies mobile controls and screen shake settings during runs.
+- Audio streams are optional; no real audio assets are included yet.
 
 ## Level-Up Flow
 
@@ -190,6 +210,9 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Not Implemented Yet
 
 - Upgrade icons or Resource-backed data.
+- Real audio assets.
+- Music playback.
+- Yandex/cloud save integration.
 - Reroll, skip, or banish upgrade actions.
 - Sound effects.
 - Advanced particles.
@@ -198,8 +221,6 @@ The game is an original superhero survivors-like: the player moves around an are
 - Pickup magnet upgrades.
 - Mobile ability buttons for multiple abilities.
 - Input rebinding.
-- Settings menu.
-- Audio settings.
 - Character select.
 - Multiple active abilities.
 - Ability icons.
@@ -234,6 +255,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not add additional mobile ability buttons unless explicitly requested.
 - Do not make `MobileControls` directly mutate gameplay except through signals.
 - Do not add persistence unless explicitly requested.
+- Do not use Yandex storage until explicitly requested.
+- Do not add real audio assets unless explicitly requested.
+- Do not add persistence for gameplay progression unless explicitly requested.
 
 ## Validation
 

@@ -81,9 +81,18 @@ Implemented foundation:
 - Restart Run through Main.
 - Quit to Menu.
 - Mobile pause button.
+- Settings menu.
+- Persistent local settings through `user://settings.cfg`.
+- Master, music, and SFX volume settings.
+- Force mobile controls setting.
+- Screen shake setting.
+- AudioManager foundation.
 
 Not implemented yet:
 
+- Real audio assets.
+- Music playback.
+- Yandex/cloud save integration.
 - Sound effects.
 - Advanced particles.
 - Crit text.
@@ -91,8 +100,6 @@ Not implemented yet:
 - Pickup magnet upgrades.
 - Mobile ability buttons for multiple abilities.
 - Input rebinding.
-- Settings menu.
-- Audio settings.
 - Character select.
 - Multiple active abilities.
 - Ability icons.
