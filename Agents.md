@@ -222,10 +222,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - MainMenu only emits `start_requested`; it does not know Arena or hero details.
 - CharacterSelect is display-only: it reads HeroDataProvider, displays heroes, and emits `hero_confirmed(hero_id)`.
 - HeroDataProvider owns hardcoded hero dictionaries for now; do not migrate to Resources until explicitly requested.
+- Guardian is an original solar/flying powerhouse fantasy with strength, beam, durability, and aerial-impact presentation.
+- Guardian may override ability display names through hero data, but global input slots and ability ids must stay stable.
+- Blaster and Vanguard keep the existing global Nova/Laser/Slam presentation unless explicitly reworked.
 - HeroApplier applies run-only selected hero stats to Player, AutoAttack, and AbilityManager.
 - Arena stores selected hero data for the active run summary and HUD display.
 - Restart from GameOver/Victory should reuse the same selected hero id; Quit to Menu should allow choosing a different hero next run.
 - Do not persist selected hero or add hero unlocks/meta-progression unless explicitly requested.
+- Do not use licensed superhero names, characters, brands, or logos in code, UI text, docs, comments, or commit text.
 
 ## Evolution System Architecture
 
@@ -500,7 +504,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - The centered header panel keeps the SuperHeroes title, subtitle, and remembered `Last: Hero / Stage` hint.
 - MainMenu reworks must not rename existing button signals or change Main's navigation ownership without a specific flow reason.
 - Layout-only patches must not change gameplay balance, hero/stage data, rewards, runtime persistence, debug behavior, or add arena hazards.
-- Do not directly copy DC/Marvel names, characters, brands, or logos.
+- Do not directly copy licensed superhero names, characters, brands, or logos.
 
 ## Settings And Audio Flow
 

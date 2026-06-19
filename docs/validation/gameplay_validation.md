@@ -179,7 +179,7 @@ Run these before adding new gameplay systems.
 |---|------|----------|
 | 1 | Press **Select Hero** in MainMenu | CharacterSelect opens instead of starting Arena directly |
 | 2 | Press **Back** from CharacterSelect | Returns to MainMenu |
-| 3 | Select **Guardian**, then Start Run | Run starts with Guardian color and 120 max HP |
+| 3 | Select **Solar Guardian**, then Start Run | Run starts with Guardian id, solar color, and 130 max HP |
 | 4 | Select **Blaster**, then Start Run | Run starts with 90 max HP and +1 projectile in weapon stats |
 | 5 | Select **Vanguard**, then Start Run | Run starts with faster ability cooldowns and stronger Nova/Slam damage |
 | 6 | Start any hero | HUD shows `Hero: <name>` |
@@ -188,6 +188,25 @@ Run these before adding new gameplay systems.
 | 9 | Quit to MainMenu, then start another run | CharacterSelect opens and allows choosing a different hero |
 | 10 | Enable Debug Mode for each hero | F1-F8 debug tools still work |
 | 11 | Pick weapon/ability/synergy upgrades | Upgrades stack on top of hero starting stats |
+
+---
+
+## Guardian Ability Rework
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open CharacterSelect | Guardian appears as Solar Guardian with solar/sky powerhouse role text |
+| 2 | Select Guardian and start a run | Run starts normally with Guardian selected |
+| 3 | Check GameHUD ability panel | Slot labels show Solar Burst, Solar Beam, and Aerial Impact presentation |
+| 4 | Press ability_1 / J as Guardian near enemies | Radiant close-area pulse casts, damages enemies, and cooldown updates |
+| 5 | Press ability_2 / K as Guardian with enemies ahead | Focused forward beam casts, damages enemies, and cooldown updates |
+| 6 | Press ability_3 / L as Guardian near enemies | Impact burst casts, damages enemies, and cooldown updates |
+| 7 | Enable mobile controls while Guardian is selected | Ability buttons use Guardian-specific labels and still cast slots 1/2/3 |
+| 8 | Open DebugStatsOverlay during Guardian run | Ability stats still display without errors |
+| 9 | Start a Blaster run | Blaster keeps existing Nova/Laser/Slam behavior and labels |
+| 10 | Start a Vanguard run | Vanguard keeps existing Nova/Laser/Slam behavior and labels |
+| 11 | Check Training with Guardian selected | Per-Hero Training still applies only Guardian Training |
+| 12 | Inspect changed text | No licensed superhero names or protected character identities are used |
 
 ---
 

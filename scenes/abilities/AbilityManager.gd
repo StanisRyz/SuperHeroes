@@ -40,6 +40,7 @@ var _feedback_manager: Node = null
 
 var _cooldowns := {1: 0.0, 2: 0.0, 3: 0.0}
 var _last_emitted := {1: -1.0, 2: -1.0, 3: -1.0}
+var _ability_display_names: Dictionary = {}
 
 
 func setup(new_player: Node2D, new_enemy_container: Node) -> void:
@@ -49,6 +50,13 @@ func setup(new_player: Node2D, new_enemy_container: Node) -> void:
 
 func setup_feedback_manager(fm: Node) -> void:
 	_feedback_manager = fm
+	_emit_cooldown_changed(1, true)
+	_emit_cooldown_changed(2, true)
+	_emit_cooldown_changed(3, true)
+
+
+func set_ability_display_names(names: Dictionary) -> void:
+	_ability_display_names = names.duplicate(true)
 	_emit_cooldown_changed(1, true)
 	_emit_cooldown_changed(2, true)
 	_emit_cooldown_changed(3, true)
@@ -87,7 +95,8 @@ func get_ability_state(slot: int) -> Dictionary:
 		1:
 			return {
 				"id": "nova_pulse",
-				"display_name": "Nova Pulse",
+				"display_name": _get_ability_display_name(1, "Nova Pulse"),
+				"short_name": _get_ability_short_name(1, "Nova"),
 				"input_action": "ability_1",
 				"cooldown_remaining": _cooldowns[1],
 				"cooldown_total": nova_cooldown
@@ -95,7 +104,8 @@ func get_ability_state(slot: int) -> Dictionary:
 		2:
 			return {
 				"id": "laser_beam",
-				"display_name": "Laser Beam",
+				"display_name": _get_ability_display_name(2, "Laser Beam"),
+				"short_name": _get_ability_short_name(2, "Beam"),
 				"input_action": "ability_2",
 				"cooldown_remaining": _cooldowns[2],
 				"cooldown_total": laser_cooldown
@@ -103,7 +113,8 @@ func get_ability_state(slot: int) -> Dictionary:
 		3:
 			return {
 				"id": "hero_slam",
-				"display_name": "Hero Slam",
+				"display_name": _get_ability_display_name(3, "Hero Slam"),
+				"short_name": _get_ability_short_name(3, "Slam"),
 				"input_action": "ability_3",
 				"cooldown_remaining": _cooldowns[3],
 				"cooldown_total": slam_cooldown
@@ -367,3 +378,13 @@ func _get_cooldown_total(slot: int) -> float:
 		2: return laser_cooldown
 		3: return slam_cooldown
 	return 0.0
+
+
+func _get_ability_display_name(slot: int, fallback: String) -> String:
+	var data: Dictionary = _ability_display_names.get(slot, {})
+	return str(data.get("display_name", fallback))
+
+
+func _get_ability_short_name(slot: int, fallback: String) -> String:
+	var data: Dictionary = _ability_display_names.get(slot, {})
+	return str(data.get("short_name", data.get("display_name", fallback)))

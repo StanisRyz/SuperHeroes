@@ -28,14 +28,19 @@ static func apply_hero(hero: Dictionary, player: Node, auto_attack: Node, abilit
 			auto_attack.set("attack_interval", maxf(float(auto_attack.get("attack_interval")) * float(stats["attack_interval_multiplier"]), 0.05))
 
 	if ability_manager != null:
+		if hero.has("ability_names") and ability_manager.has_method("set_ability_display_names"):
+			ability_manager.set_ability_display_names(hero.get("ability_names", {}))
 		var cooldown_multiplier := float(stats.get("ability_cooldown_multiplier", 1.0))
 		if not is_equal_approx(cooldown_multiplier, 1.0):
 			_apply_cooldown_multiplier(ability_manager, "nova_cooldown", cooldown_multiplier)
 			_apply_cooldown_multiplier(ability_manager, "laser_cooldown", cooldown_multiplier)
 			_apply_cooldown_multiplier(ability_manager, "slam_cooldown", cooldown_multiplier)
 		_add_number(ability_manager, "nova_damage", stats.get("nova_damage_bonus", 0))
+		_add_number(ability_manager, "nova_radius", stats.get("nova_radius_bonus", 0.0))
 		_add_number(ability_manager, "laser_damage", stats.get("laser_damage_bonus", 0))
+		_add_number(ability_manager, "laser_width", stats.get("laser_width_bonus", 0.0))
 		_add_number(ability_manager, "slam_damage", stats.get("slam_damage_bonus", 0))
+		_add_number(ability_manager, "slam_radius", stats.get("slam_radius_bonus", 0.0))
 
 
 static func _apply_cooldown_multiplier(target: Node, property_name: String, multiplier: float) -> void:
@@ -45,6 +50,10 @@ static func _apply_cooldown_multiplier(target: Node, property_name: String, mult
 
 
 static func _add_number(target: Node, property_name: String, amount) -> void:
-	if int(amount) == 0 or target.get(property_name) == null:
+	if is_zero_approx(float(amount)) or target.get(property_name) == null:
 		return
-	target.set(property_name, int(target.get(property_name)) + int(amount))
+	var current = target.get(property_name)
+	if current is int:
+		target.set(property_name, int(current) + int(amount))
+	else:
+		target.set(property_name, float(current) + float(amount))

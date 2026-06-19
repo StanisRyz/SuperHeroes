@@ -15,6 +15,11 @@ var _active_pointer_id := -999
 var _movement_direction := Vector2.ZERO
 var _settings_manager: Node
 var _input_blocker: Callable
+var _ability_button_labels: Dictionary = {
+	1: "Nova",
+	2: "Beam",
+	3: "Slam",
+}
 
 @onready var joystick_touch_area: Control = get_node_or_null("Root/JoystickArea")
 @onready var joystick_base: Control = get_node_or_null("Root/JoystickArea/Base")
@@ -73,6 +78,7 @@ func _process(_delta: float) -> void:
 
 
 func setup_ability_manager(ability_manager: Node) -> void:
+	_read_ability_button_labels(ability_manager)
 	_update_ability_button(0.0)
 	_update_beam_button(0.0)
 	_update_slam_button(0.0)
@@ -261,19 +267,19 @@ func _on_dash_cooldown_changed(cooldown_remaining: float, _cooldown_total: float
 func _update_ability_button(cooldown_remaining: float) -> void:
 	if ability_button == null:
 		return
-	ability_button.text = "Nova" if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
+	ability_button.text = str(_ability_button_labels.get(1, "Nova")) if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
 
 
 func _update_beam_button(cooldown_remaining: float) -> void:
 	if beam_button == null:
 		return
-	beam_button.text = "Beam" if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
+	beam_button.text = str(_ability_button_labels.get(2, "Beam")) if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
 
 
 func _update_slam_button(cooldown_remaining: float) -> void:
 	if slam_button == null:
 		return
-	slam_button.text = "Slam" if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
+	slam_button.text = str(_ability_button_labels.get(3, "Slam")) if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
 
 
 func _update_dash_button(cooldown_remaining: float) -> void:
@@ -288,3 +294,12 @@ func _update_visibility_from_settings() -> void:
 		forced = forced or bool(_settings_manager.get_setting("force_mobile_controls", false))
 
 	visible = forced or DisplayServer.is_touchscreen_available()
+
+
+func _read_ability_button_labels(ability_manager: Node) -> void:
+	if ability_manager == null or not ability_manager.has_method("get_all_ability_states"):
+		return
+	var states: Dictionary = ability_manager.get_all_ability_states()
+	for slot in states:
+		var state: Dictionary = states[slot]
+		_ability_button_labels[int(slot)] = str(state.get("short_name", state.get("display_name", _ability_button_labels.get(int(slot), "Ability"))))
