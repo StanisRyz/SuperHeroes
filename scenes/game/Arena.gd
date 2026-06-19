@@ -1,5 +1,8 @@
 extends Node2D
 
+signal restart_run_requested
+signal quit_to_menu_requested
+
 @export var arena_size: Vector2 = Vector2(4000.0, 4000.0)
 
 @onready var player: Node = get_node_or_null("Player")
@@ -15,6 +18,7 @@ extends Node2D
 @onready var game_over_screen: Node = get_node_or_null("GameOverScreen")
 @onready var mobile_controls: Node = get_node_or_null("MobileControls")
 @onready var floating_text_spawner: Node = get_node_or_null("FloatingTextSpawner")
+@onready var pause_menu: Node = get_node_or_null("PauseMenu")
 
 func _ready() -> void:
 	var playable_rect := get_playable_rect()
@@ -54,6 +58,7 @@ func _ready() -> void:
 	_setup_spawn_director()
 	_setup_level_up_flow(auto_attack, ability_manager)
 	_setup_run_lifecycle()
+	_setup_pause_menu()
 
 	if projectile_container == null:
 		push_warning("Arena could not find ProjectileContainer node.")
@@ -132,6 +137,10 @@ func _setup_mobile_controls(ability_manager: Node) -> void:
 	if mobile_controls.has_method("setup_ability_manager"):
 		mobile_controls.setup_ability_manager(ability_manager)
 
+	if mobile_controls.has_signal("pause_pressed"):
+		if not mobile_controls.pause_pressed.is_connected(_request_pause_menu):
+			mobile_controls.pause_pressed.connect(_request_pause_menu)
+
 
 func _on_player_level_up_available(_level: int) -> void:
 	if _is_player_dead() or _is_game_over_visible():
@@ -175,6 +184,25 @@ func _setup_run_lifecycle() -> void:
 		game_over_screen.restart_requested.connect(_on_restart_requested)
 
 
+func _setup_pause_menu() -> void:
+	if pause_menu == null:
+		push_warning("Arena could not find PauseMenu node.")
+		return
+
+	if pause_menu.has_signal("resume_requested") and not pause_menu.resume_requested.is_connected(_on_pause_resume_requested):
+		pause_menu.resume_requested.connect(_on_pause_resume_requested)
+	if pause_menu.has_signal("restart_requested") and not pause_menu.restart_requested.is_connected(_on_pause_restart_requested):
+		pause_menu.restart_requested.connect(_on_pause_restart_requested)
+	if pause_menu.has_signal("quit_to_menu_requested") and not pause_menu.quit_to_menu_requested.is_connected(_on_pause_quit_to_menu_requested):
+		pause_menu.quit_to_menu_requested.connect(_on_pause_quit_to_menu_requested)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause"):
+		_request_pause_menu()
+		get_viewport().set_input_as_handled()
+
+
 func _on_player_died() -> void:
 	var stats := {}
 	if run_manager != null and run_manager.has_method("end_run"):
@@ -197,7 +225,37 @@ func _on_player_died() -> void:
 
 func _on_restart_requested() -> void:
 	get_tree().paused = false
-	get_tree().reload_current_scene()
+	restart_run_requested.emit()
+
+
+func _request_pause_menu() -> void:
+	if get_tree().paused or _is_player_dead() or _is_level_up_visible() or _is_game_over_visible():
+		return
+
+	get_tree().paused = true
+	_reset_mobile_controls()
+	if pause_menu != null and pause_menu.has_method("open"):
+		pause_menu.open()
+
+
+func _on_pause_resume_requested() -> void:
+	if pause_menu != null and pause_menu.has_method("close"):
+		pause_menu.close()
+	get_tree().paused = false
+
+
+func _on_pause_restart_requested() -> void:
+	if pause_menu != null and pause_menu.has_method("close"):
+		pause_menu.close()
+	get_tree().paused = false
+	restart_run_requested.emit()
+
+
+func _on_pause_quit_to_menu_requested() -> void:
+	if pause_menu != null and pause_menu.has_method("close"):
+		pause_menu.close()
+	get_tree().paused = false
+	quit_to_menu_requested.emit()
 
 
 func _is_player_dead() -> bool:
@@ -206,6 +264,10 @@ func _is_player_dead() -> bool:
 
 func _is_game_over_visible() -> bool:
 	return game_over_screen != null and game_over_screen.visible
+
+
+func _is_level_up_visible() -> bool:
+	return level_up_screen != null and level_up_screen.visible
 
 
 func _reset_mobile_controls() -> void:

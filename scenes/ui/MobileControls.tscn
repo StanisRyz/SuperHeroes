@@ -67,3 +67,16 @@ offset_bottom = 24.0
 grow_horizontal = 0
 grow_vertical = 2
 text = "Nova"
+
+[node name="PauseButton" type="Button" parent="Root"]
+custom_minimum_size = Vector2(96, 44)
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -120.0
+offset_top = 36.0
+offset_right = -24.0
+offset_bottom = 80.0
+grow_horizontal = 0
+text = "Pause"

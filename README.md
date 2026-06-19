@@ -74,6 +74,13 @@ Implemented foundation:
 - Projectile hit spark feedback.
 - XP gem magnet attraction.
 - Camera shake foundation.
+- Main menu.
+- Start Run flow.
+- Pause menu.
+- Resume from pause.
+- Restart Run through Main.
+- Quit to Menu.
+- Mobile pause button.
 
 Not implemented yet:
 
@@ -83,9 +90,10 @@ Not implemented yet:
 - Damage type colors.
 - Pickup magnet upgrades.
 - Mobile ability buttons for multiple abilities.
-- Mobile pause button.
 - Input rebinding.
 - Settings menu.
+- Audio settings.
+- Character select.
 - Multiple active abilities.
 - Ability icons.
 - Ability targeting indicators.
@@ -93,16 +101,15 @@ Not implemented yet:
 - Reroll, skip, or banish upgrade actions.
 - Upgrade icons.
 - Resource-backed upgrade data files.
-- XP magnet/vacuum.
+- XP vacuum upgrades.
 - Projectile upgrades such as pierce, bounce, or spread.
-- Floating damage numbers.
 - Bosses.
 - Elite modifiers.
 - Wave announcements.
 - Biome or arena progression.
-- Pause menu.
 - Persistent records.
 - Persistent high scores or saved run history.
+- Persistent progression.
 - Save persistence.
 - Meta-progression.
 - Yandex SDK integration.

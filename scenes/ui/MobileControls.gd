@@ -2,6 +2,7 @@ extends CanvasLayer
 
 signal movement_changed(direction: Vector2)
 signal ability_1_pressed
+signal pause_pressed
 
 @export var force_visible: bool = false
 @export var joystick_radius: float = 80.0
@@ -14,6 +15,7 @@ var _movement_direction := Vector2.ZERO
 @onready var joystick_base: Control = get_node_or_null("Root/JoystickArea/Base")
 @onready var joystick_knob: Control = get_node_or_null("Root/JoystickArea/Base/Knob")
 @onready var ability_button: Button = get_node_or_null("Root/AbilityButton")
+@onready var pause_button: Button = get_node_or_null("Root/PauseButton")
 
 
 func _ready() -> void:
@@ -29,6 +31,11 @@ func _ready() -> void:
 		push_warning("MobileControls could not find AbilityButton.")
 	elif not ability_button.pressed.is_connected(_on_ability_button_pressed):
 		ability_button.pressed.connect(_on_ability_button_pressed)
+
+	if pause_button == null:
+		push_warning("MobileControls could not find PauseButton.")
+	elif not pause_button.pressed.is_connected(_on_pause_button_pressed):
+		pause_button.pressed.connect(_on_pause_button_pressed)
 
 	_update_joystick_visual(Vector2.ZERO)
 	_update_ability_button(0.0)
@@ -115,8 +122,8 @@ func _handle_mouse_motion_event(event: InputEventMouseMotion) -> void:
 
 func _update_direction_from_position(local_position: Vector2) -> void:
 	var center := _get_joystick_center()
-	var offset := local_position - center
-	var normalized_offset := offset / joystick_radius
+	var pointer_offset := local_position - center
+	var normalized_offset := pointer_offset / joystick_radius
 	var direction := normalized_offset.limit_length(1.0)
 
 	if direction.length() < deadzone:
@@ -163,6 +170,13 @@ func _on_ability_button_pressed() -> void:
 		return
 
 	ability_1_pressed.emit()
+
+
+func _on_pause_button_pressed() -> void:
+	if get_tree().paused:
+		return
+
+	pause_pressed.emit()
 
 
 func _on_ability_cooldown_changed(slot: int, cooldown_remaining: float, _cooldown_total: float) -> void:

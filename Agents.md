@@ -9,6 +9,7 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Important Files
 
 - `scenes/main/Main.tscn` - project entry scene.
+- `scenes/main/Main.gd` - frontend flow coordinator and run scene replacement.
 - `scenes/game/Arena.tscn` - arena composition.
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup, level-up flow, run lifecycle.
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
@@ -35,6 +36,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/GameHUD.gd` - player and run HUD binding.
 - `scenes/ui/MobileControls.tscn` - mobile virtual joystick and Nova Pulse button scene.
 - `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source.
+- `scenes/ui/MainMenu.tscn` - frontend main menu scene.
+- `scenes/ui/MainMenu.gd` - main menu start and quit intent signals.
+- `scenes/ui/PauseMenu.tscn` - pause-time run menu scene.
+- `scenes/ui/PauseMenu.gd` - pause menu resume, restart, and quit intent signals.
 - `scenes/ui/LevelUpScreen.tscn` - pause-time upgrade selection UI.
 - `scenes/ui/LevelUpScreen.gd` - displays options and emits selected upgrade IDs.
 - `scenes/ui/GameOverScreen.tscn` - pause-time game over UI.
@@ -95,7 +100,22 @@ The game is an original superhero survivors-like: the player moves around an are
 - Projectile hit spark feedback.
 - XP gem magnet attraction.
 - Camera shake foundation.
+- Main menu.
+- Start Run flow.
+- Pause menu.
+- Resume from pause.
+- Restart Run through Main.
+- Quit to Menu.
+- Mobile pause button.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
+
+## Frontend Flow
+
+- Main owns frontend flow and run scene replacement.
+- MainMenu emits `start_requested`; it does not start Arena directly.
+- Arena emits `restart_run_requested` and `quit_to_menu_requested`.
+- PauseMenu only emits UI intents.
+- GameOver restart goes through Arena/Main, not direct scene reload.
 
 ## Level-Up Flow
 
@@ -121,7 +141,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Player emits `died` when health reaches zero.
 - Arena ends the run, pauses the tree, hides level-up UI if needed, and shows `GameOverScreen`.
 - `GameOverScreen` displays time survived, enemies defeated, and level reached.
-- Restart reloads the current scene and does not write saves, high scores, or meta-progression.
+- Restart emits through Arena/Main and creates a fresh run; it does not write saves, high scores, or meta-progression.
 
 ## Spawn Progression
 
@@ -146,6 +166,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `MobileControls` emits a movement signal instead of moving the Player directly.
 - Arena wires `MobileControls.movement_changed` to `Player.set_external_move_vector`.
 - Arena wires the mobile ability button to `AbilityManager.cast_ability_1`.
+- Arena wires the mobile pause button to the same pause-open handler as keyboard pause.
 - `MobileControls` may listen to AbilityManager cooldown changes to update its button text.
 
 ## Collision Notes
@@ -176,23 +197,23 @@ The game is an original superhero survivors-like: the player moves around an are
 - Damage type colors.
 - Pickup magnet upgrades.
 - Mobile ability buttons for multiple abilities.
-- Mobile pause button.
 - Input rebinding.
 - Settings menu.
+- Audio settings.
+- Character select.
 - Multiple active abilities.
 - Ability icons.
 - Ability targeting indicators.
 - Ability upgrade tree.
 - Projectile upgrades.
-- XP magnet/vacuum.
-- Floating damage numbers.
+- XP vacuum upgrades.
 - Bosses.
 - Elite modifiers.
 - Wave announcements.
 - Biome or arena progression.
-- Pause menu.
 - Persistent records.
 - Persistent high scores or saved run history.
+- Persistent progression.
 - Save persistence.
 - Meta-progression.
 - Yandex SDK integration.

@@ -36,7 +36,7 @@ func show_stats(stats: Dictionary) -> void:
 
 func _format_time(seconds: float) -> String:
 	var total_seconds := int(floor(seconds))
-	var minutes := total_seconds / 60
+	var minutes := int(total_seconds / 60.0)
 	var remaining_seconds := total_seconds % 60
 	return "%02d:%02d" % [minutes, remaining_seconds]
 
