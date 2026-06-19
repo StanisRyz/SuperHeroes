@@ -4,6 +4,12 @@ extends Node
 @export var attack_interval: float = 0.6
 @export var attack_range: float = 260.0
 @export var projectile_speed: float = 520.0
+@export var projectile_count: int = 1
+@export var projectile_spread_degrees: float = 0.0
+@export var projectile_pierce: int = 0
+@export var projectile_size_multiplier: float = 1.0
+@export var projectile_explosion_radius: float = 0.0
+@export var projectile_explosion_damage_multiplier: float = 0.6
 @export var projectile_scene: PackedScene
 
 var projectile_container: Node
@@ -44,7 +50,7 @@ func _physics_process(delta: float) -> void:
 	if enemy == null:
 		return
 
-	if _spawn_projectile(enemy):
+	if _spawn_projectiles(enemy):
 		_cooldown = attack_interval
 
 
@@ -97,13 +103,27 @@ func _cleanup_invalid_enemies() -> void:
 	_enemies_in_range = _enemies_in_range.filter(_is_valid_enemy)
 
 
-func _spawn_projectile(enemy: Node2D) -> bool:
+func _spawn_projectiles(enemy: Node2D) -> bool:
 	if projectile_scene == null or projectile_container == null:
 		if not _missing_projectile_warning_shown:
 			push_warning("PlayerAutoAttack is missing projectile_scene or projectile_container.")
 			_missing_projectile_warning_shown = true
 		return false
 
+	var base_direction := (enemy.global_position - owner_body.global_position).normalized()
+	if base_direction.is_zero_approx():
+		base_direction = Vector2.RIGHT
+
+	var spawned_any := false
+	var safe_count := clampi(projectile_count, 1, 7)
+	for direction in _get_projectile_directions(base_direction, safe_count):
+		if _spawn_projectile(enemy, direction):
+			spawned_any = true
+
+	return spawned_any
+
+
+func _spawn_projectile(enemy: Node2D, direction: Vector2) -> bool:
 	var projectile_node := projectile_scene.instantiate()
 	if not projectile_node is Node2D:
 		push_warning("PlayerAutoAttack projectile_scene root must be Node2D.")
@@ -111,7 +131,6 @@ func _spawn_projectile(enemy: Node2D) -> bool:
 		return false
 
 	var projectile := projectile_node as Node2D
-	var direction := (enemy.global_position - owner_body.global_position).normalized()
 	var spawn_position := owner_body.global_position + direction * 24.0
 
 	projectile_container.add_child(projectile)
@@ -121,12 +140,33 @@ func _spawn_projectile(enemy: Node2D) -> bool:
 		projectile.setup_audio_manager(audio_manager)
 
 	if projectile.has_method("setup"):
-		projectile.setup(spawn_position, enemy, attack_damage)
+		projectile.setup(spawn_position, enemy, attack_damage, {
+			"speed": projectile_speed,
+			"direction": direction,
+			"pierce": projectile_pierce,
+			"size_multiplier": projectile_size_multiplier,
+			"explosion_radius": projectile_explosion_radius,
+			"explosion_damage_multiplier": projectile_explosion_damage_multiplier,
+		})
 	else:
 		push_warning("Player projectile does not implement setup(origin, target, damage).")
 		projectile.global_position = spawn_position
 
 	return true
+
+
+func _get_projectile_directions(base_direction: Vector2, count: int) -> Array[Vector2]:
+	if count <= 1:
+		return [base_direction]
+
+	var directions: Array[Vector2] = []
+	var spread_radians := deg_to_rad(projectile_spread_degrees)
+	var start_angle := -spread_radians * 0.5
+	var step := spread_radians / float(count - 1) if count > 1 else 0.0
+	for index in range(count):
+		directions.append(base_direction.rotated(start_angle + step * float(index)).normalized())
+
+	return directions
 
 
 func _update_attack_range_shape() -> void:

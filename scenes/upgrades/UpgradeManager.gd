@@ -4,6 +4,9 @@ const ATTACK_INTERVAL_MIN := 0.2
 const NOVA_COOLDOWN_MIN := 2.0
 const DASH_COOLDOWN_MIN := 0.45
 const DASH_INVULNERABILITY_MAX := 0.6
+const PROJECTILE_COUNT_MAX := 7
+const PROJECTILE_SIZE_MAX := 2.0
+const PROJECTILE_EXPLOSION_RADIUS_MAX := 180.0
 
 var player: Node
 var auto_attack: Node
@@ -100,6 +103,51 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"max_level": 3,
 		"description_template": "Increase dash invulnerability by %ss.",
 		"effect_value": 0.08
+	},
+	{
+		"id": "projectile_pierce_up",
+		"title": "Piercing Bolts",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase projectile pierce by %s.",
+		"effect_value": 1
+	},
+	{
+		"id": "multishot_up",
+		"title": "Hero Barrage",
+		"rarity": "epic",
+		"weight": 0.35,
+		"max_level": 3,
+		"description_template": "Fire %s additional projectile per attack.",
+		"effect_value": 1
+	},
+	{
+		"id": "spread_up",
+		"title": "Wide Angle",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase projectile spread by %s degrees.",
+		"effect_value": 8.0
+	},
+	{
+		"id": "projectile_size_up",
+		"title": "Heavy Bolts",
+		"rarity": "common",
+		"weight": 0.8,
+		"max_level": 4,
+		"description_template": "Increase projectile size by %s.",
+		"effect_value": 0.15
+	},
+	{
+		"id": "explosive_projectiles",
+		"title": "Impact Burst",
+		"rarity": "epic",
+		"weight": 0.35,
+		"max_level": 3,
+		"description_template": "Increase projectile explosion radius by %s.",
+		"effect_value": 45.0
 	}
 ]
 
@@ -162,6 +210,16 @@ func apply_upgrade(upgrade_id: String) -> void:
 			applied = _apply_dash_cooldown_upgrade(effect_value)
 		"dash_invulnerability_up":
 			applied = _apply_dash_invulnerability_upgrade(effect_value)
+		"projectile_pierce_up":
+			applied = _apply_auto_attack_number("projectile_pierce", effect_value)
+		"multishot_up":
+			applied = _apply_projectile_count_upgrade(effect_value)
+		"spread_up":
+			applied = _apply_auto_attack_number("projectile_spread_degrees", effect_value)
+		"projectile_size_up":
+			applied = _apply_projectile_size_upgrade(effect_value)
+		"explosive_projectiles":
+			applied = _apply_explosive_projectiles_upgrade(effect_value)
 		_:
 			push_warning("Unknown upgrade id: %s" % upgrade_id)
 
@@ -336,6 +394,48 @@ func _apply_dash_invulnerability_upgrade(amount) -> bool:
 		return false
 
 	player.set("dash_invulnerability_duration", minf(DASH_INVULNERABILITY_MAX, value + float(amount)))
+	return true
+
+
+func _apply_projectile_count_upgrade(amount) -> bool:
+	if auto_attack == null:
+		push_warning("UpgradeManager is missing AutoAttack reference.")
+		return false
+
+	var value = auto_attack.get("projectile_count")
+	if value == null:
+		push_warning("AutoAttack is missing projectile_count.")
+		return false
+
+	auto_attack.set("projectile_count", mini(PROJECTILE_COUNT_MAX, int(value) + int(amount)))
+	return true
+
+
+func _apply_projectile_size_upgrade(amount) -> bool:
+	if auto_attack == null:
+		push_warning("UpgradeManager is missing AutoAttack reference.")
+		return false
+
+	var value = auto_attack.get("projectile_size_multiplier")
+	if value == null:
+		push_warning("AutoAttack is missing projectile_size_multiplier.")
+		return false
+
+	auto_attack.set("projectile_size_multiplier", minf(PROJECTILE_SIZE_MAX, value + float(amount)))
+	return true
+
+
+func _apply_explosive_projectiles_upgrade(amount) -> bool:
+	if auto_attack == null:
+		push_warning("UpgradeManager is missing AutoAttack reference.")
+		return false
+
+	var value = auto_attack.get("projectile_explosion_radius")
+	if value == null:
+		push_warning("AutoAttack is missing projectile_explosion_radius.")
+		return false
+
+	auto_attack.set("projectile_explosion_radius", minf(PROJECTILE_EXPLOSION_RADIUS_MAX, value + float(amount)))
 	return true
 
 

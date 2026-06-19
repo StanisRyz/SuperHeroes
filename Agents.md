@@ -35,7 +35,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/pickups/ExperienceGem.tscn` - XP pickup scene.
 - `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
-- `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, and enemy hit damage.
+- `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, enemy hit damage, pierce, and explosion logic.
 - `scenes/projectiles/EnemyProjectile.tscn` - enemy projectile scene.
 - `scenes/projectiles/EnemyProjectile.gd` - non-homing enemy projectile damage and lifetime logic.
 - `scenes/upgrades/UpgradeManager.tscn` - runtime upgrade manager scene.
@@ -134,7 +134,21 @@ The game is an original superhero survivors-like: the player moves around an are
 - Mobile dash button.
 - Dash visual feedback.
 - Dash upgrades.
+- Projectile pierce.
+- Multishot.
+- Projectile spread angle.
+- Projectile size upgrade.
+- Explosive projectile upgrade.
+- Weapon modifier upgrades.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
+
+## Weapon Modifier Notes
+
+- PlayerAutoAttack owns weapon stats: `projectile_count`, `projectile_spread_degrees`, `projectile_pierce`, `projectile_size_multiplier`, and `projectile_explosion_radius`.
+- PlayerProjectile handles pierce and explosion.
+- PlayerProjectile should only damage enemies.
+- PlayerProjectile should not damage the same enemy twice per projectile.
+- Weapon modifier upgrades are runtime-only.
 
 ## Player Dash Notes
 
@@ -242,6 +256,11 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Not Implemented Yet
 
 - Upgrade icons or Resource-backed data.
+- Bounce projectiles.
+- Chain lightning.
+- Critical hits.
+- Elemental/status effects.
+- Projectile pooling.
 - Dash damage.
 - Dash trail particles.
 - Stamina.

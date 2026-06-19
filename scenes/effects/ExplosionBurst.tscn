@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://explosion_burst_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/effects/ExplosionBurst.gd" id="1_explosion_burst_script"]
+
+[node name="ExplosionBurst" type="Node2D"]
+z_index = 42
+script = ExtResource("1_explosion_burst_script")
+
+[node name="Ring" type="Line2D" parent="."]
+width = 6.0
+default_color = Color(1, 0.72, 0.25, 0.82)
+closed = true

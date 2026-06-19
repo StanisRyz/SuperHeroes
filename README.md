@@ -99,9 +99,20 @@ Implemented foundation:
 - Mobile dash button.
 - Dash visual feedback.
 - Dash upgrades.
+- Projectile pierce.
+- Multishot.
+- Projectile spread angle.
+- Projectile size upgrade.
+- Explosive projectile upgrade.
+- Weapon modifier upgrades.
 
 Not implemented yet:
 
+- Bounce projectiles.
+- Chain lightning.
+- Critical hits.
+- Elemental/status effects.
+- Projectile pooling.
 - Dash damage.
 - Dash trail particles.
 - Stamina.
