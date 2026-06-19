@@ -27,7 +27,10 @@ func toggle_debug_mode() -> void:
 	set_debug_enabled(not debug_enabled)
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.echo:
+		return
+
 	if event.is_action_pressed("debug_toggle"):
 		toggle_debug_mode()
 		get_viewport().set_input_as_handled()

@@ -16,7 +16,7 @@ var _is_syncing := false
 
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	hide()
 
 	if master_slider != null:

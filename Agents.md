@@ -176,11 +176,19 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Debug Flow
 
 - DebugManager handles F12/F1 input during an active Arena run.
+- DebugManager requires `debug_toggle` and `debug_level_up` InputMap actions and should ignore key echo.
 - DebugOverlay only displays DEBUG ON and does not own debug rules.
 - Player owns `debug_invulnerable` and `debug_gain_one_level()`.
 - Arena wires DebugManager to Player and DebugOverlay.
 - Debug Mode is runtime-only, not persisted, and not exposed in SettingsMenu.
 - Do not add debug cheats unless explicitly requested.
+
+## Settings Flow
+
+- SettingsMenu uses `Node.PROCESS_MODE_ALWAYS` because it must work from MainMenu while unpaused and PauseMenu while paused.
+- SettingsMenu should block clicks behind it while visible.
+- Main owns the MainMenu SettingsMenu and must hide it before starting Arena.
+- Arena owns the in-run SettingsMenu for PauseMenu flow.
 
 ## Frontend Flow
 

@@ -52,6 +52,7 @@ func _show_main_menu() -> void:
 
 func _start_run() -> void:
 	get_tree().paused = false
+	_close_settings_menu_if_open()
 	_clear_main_menu()
 	_clear_current_run()
 
@@ -92,12 +93,14 @@ func _clear_main_menu() -> void:
 
 func _restart_run() -> void:
 	get_tree().paused = false
+	_close_settings_menu_if_open()
 	_clear_current_run()
 	_start_run()
 
 
 func _quit_to_menu() -> void:
 	get_tree().paused = false
+	_close_settings_menu_if_open()
 	_clear_current_run()
 	_show_main_menu()
 
@@ -113,3 +116,13 @@ func _open_settings_menu() -> void:
 
 	if settings_menu.has_method("open"):
 		settings_menu.open()
+
+
+func _close_settings_menu_if_open() -> void:
+	if settings_menu == null or not settings_menu.visible:
+		return
+
+	if settings_menu.has_method("close"):
+		settings_menu.close()
+	else:
+		settings_menu.hide()

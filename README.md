@@ -100,10 +100,13 @@ Implemented foundation:
 - Dash visual feedback.
 - Dash upgrades.
 - Debug Mode toggle with F12.
+- Debug Mode input actions for F12 and F1.
 - DEBUG ON runtime overlay.
 - Debug Mode player invulnerability.
 - F1 debug level gain while Debug Mode is enabled.
 - Runtime-only Debug Mode for development/testing, not progression.
+- SettingsMenu works from both MainMenu and PauseMenu.
+- MainMenu Settings is hidden before gameplay starts.
 - Projectile pierce.
 - Multishot.
 - Projectile spread angle.
