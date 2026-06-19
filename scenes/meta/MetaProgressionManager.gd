@@ -7,7 +7,9 @@ signal progress_loaded
 signal progress_saved
 
 const SAVE_PATH := "user://superheroes_meta_progress.json"
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
+const DEFAULT_HERO_ID := "guardian"
+const DEFAULT_HERO_IDS: Array[String] = ["guardian", "blaster", "vanguard"]
 
 var _data: Dictionary = {}
 
@@ -43,6 +45,7 @@ func load_progress() -> void:
 
 
 func save_progress() -> void:
+	_sync_legacy_meta_upgrades()
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		push_warning("MetaProgressionManager: cannot write save file.")
@@ -79,44 +82,119 @@ func spend_currency(amount: int) -> bool:
 	return true
 
 
+func get_training_level(hero_id: String, upgrade_id: String) -> int:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {})
+	return int(hero_training.get(upgrade_id, 0))
+
+
+func set_training_level(hero_id: String, upgrade_id: String, level: int) -> void:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var def := get_meta_upgrade_definition(upgrade_id)
+	var max_level := int(def.get("max_level", 99)) if not def.is_empty() else 99
+	var clamped_level := clampi(level, 0, max_level)
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {})
+	hero_training[upgrade_id] = clamped_level
+	training_by_hero[resolved_hero_id] = hero_training
+	_data["training_by_hero"] = training_by_hero
+	meta_upgrade_changed.emit(upgrade_id, clamped_level)
+
+
+func get_training_levels_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {})
+	return hero_training.duplicate()
+
+
+func get_training_summary_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	return {
+		"hero_id": resolved_hero_id,
+		"currency": get_currency(),
+		"levels": get_training_levels_for_hero(resolved_hero_id),
+	}
+
+
+func get_debug_training_summary() -> Dictionary:
+	var result := {}
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	for hero_id in training_by_hero:
+		var levels: Dictionary = training_by_hero.get(hero_id, {})
+		var non_zero := {}
+		for upgrade_id in levels:
+			var level := int(levels.get(upgrade_id, 0))
+			if level > 0:
+				non_zero[upgrade_id] = level
+		result[str(hero_id)] = non_zero
+	return result
+
+
+func can_purchase_training_upgrade(hero_id: String, upgrade_id: String) -> bool:
+	var def := get_meta_upgrade_definition(upgrade_id)
+	if def.is_empty():
+		return false
+	if get_training_level(hero_id, upgrade_id) >= int(def.get("max_level", 1)):
+		return false
+	return get_currency() >= get_training_upgrade_cost(hero_id, upgrade_id)
+
+
+func purchase_training_upgrade(hero_id: String, upgrade_id: String) -> bool:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	if not can_purchase_training_upgrade(resolved_hero_id, upgrade_id):
+		return false
+	var cost := get_training_upgrade_cost(resolved_hero_id, upgrade_id)
+	if not spend_currency(cost):
+		return false
+	var new_level := get_training_level(resolved_hero_id, upgrade_id) + 1
+	set_training_level(resolved_hero_id, upgrade_id, new_level)
+	save_progress()
+	return true
+
+
+func ensure_training_data_for_hero(hero_id: String) -> void:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	if not training_by_hero.has(resolved_hero_id) or not training_by_hero.get(resolved_hero_id) is Dictionary:
+		training_by_hero[resolved_hero_id] = {}
+		_data["training_by_hero"] = training_by_hero
+
+
+func ensure_training_data_for_all_heroes(hero_ids: Array) -> void:
+	for hero_id in hero_ids:
+		ensure_training_data_for_hero(str(hero_id))
+
+
+func get_training_upgrade_cost(hero_id: String, upgrade_id: String) -> int:
+	var def := get_meta_upgrade_definition(upgrade_id)
+	if def.is_empty():
+		return 0
+	var level := get_training_level(hero_id, upgrade_id)
+	return _calculate_upgrade_cost(def, level)
+
+
 func get_meta_upgrade_level(upgrade_id: String) -> int:
-	var upgrades: Dictionary = _data.get("meta_upgrades", {})
-	return int(upgrades.get(upgrade_id, 0))
+	return get_training_level(DEFAULT_HERO_ID, upgrade_id)
 
 
 func get_meta_upgrade_cost(upgrade_id: String) -> int:
 	var def := get_meta_upgrade_definition(upgrade_id)
 	if def.is_empty():
 		return 0
-	var level := get_meta_upgrade_level(upgrade_id)
-	var base_cost := int(def.get("base_cost", 25))
-	var growth := float(def.get("cost_growth", 1.35))
-	if level == 0:
-		return base_cost
-	return int(round(float(base_cost) * pow(growth, float(level))))
+	return _calculate_upgrade_cost(def, get_meta_upgrade_level(upgrade_id))
 
 
 func can_buy_meta_upgrade(upgrade_id: String) -> bool:
-	var def := get_meta_upgrade_definition(upgrade_id)
-	if def.is_empty():
-		return false
-	if get_meta_upgrade_level(upgrade_id) >= int(def.get("max_level", 1)):
-		return false
-	return get_currency() >= get_meta_upgrade_cost(upgrade_id)
+	return can_purchase_training_upgrade(DEFAULT_HERO_ID, upgrade_id)
 
 
 func buy_meta_upgrade(upgrade_id: String) -> bool:
-	if not can_buy_meta_upgrade(upgrade_id):
-		return false
-	var cost := get_meta_upgrade_cost(upgrade_id)
-	if not spend_currency(cost):
-		return false
-	var upgrades: Dictionary = _data.get("meta_upgrades", {})
-	upgrades[upgrade_id] = int(upgrades.get(upgrade_id, 0)) + 1
-	_data["meta_upgrades"] = upgrades
-	meta_upgrade_changed.emit(upgrade_id, int(upgrades[upgrade_id]))
-	save_progress()
-	return true
+	return purchase_training_upgrade(DEFAULT_HERO_ID, upgrade_id)
 
 
 func is_hero_unlocked(hero_id: String) -> bool:
@@ -153,7 +231,8 @@ func calculate_run_rewards(summary: Dictionary) -> Dictionary:
 	var final_boss_reward := 35 if final_boss_defeated else 0
 	var victory_bonus := 40 if result == "victory" else 0
 	var evolution_bonus := applied_evolutions.size() * 10
-	var starting_bonus := get_meta_upgrade_level("meta_starting_currency_bonus") * 2
+	var hero_id := str(summary.get("hero_id", DEFAULT_HERO_ID))
+	var starting_bonus := get_training_level(hero_id, "meta_starting_currency_bonus") * 2
 
 	var total_reward := maxi(
 		base_reward + time_reward + kill_reward + elite_reward + miniboss_reward +
@@ -198,7 +277,8 @@ func get_progress_summary() -> Dictionary:
 		"total_kills": int(_data.get("total_kills", 0)),
 		"total_elite_kills": int(_data.get("total_elite_kills", 0)),
 		"total_miniboss_kills": int(_data.get("total_miniboss_kills", 0)),
-		"meta_upgrades": _data.get("meta_upgrades", {}).duplicate(),
+		"training_by_hero": _data.get("training_by_hero", {}).duplicate(true),
+		"meta_upgrades": get_training_levels_for_hero(DEFAULT_HERO_ID),
 		"unlocked_heroes": _data.get("unlocked_heroes", []).duplicate(),
 	}
 
@@ -260,6 +340,7 @@ func _get_defaults() -> Dictionary:
 		"version": SAVE_VERSION,
 		"currency": 0,
 		"meta_upgrades": {},
+		"training_by_hero": _get_default_training_by_hero(),
 		"unlocked_heroes": ["guardian", "blaster", "vanguard"],
 		"total_runs": 0,
 		"total_victories": 0,
@@ -276,8 +357,51 @@ func _merge_with_defaults(parsed: Dictionary) -> void:
 		_data[key] = parsed[key]
 	if not _data.get("meta_upgrades") is Dictionary:
 		_data["meta_upgrades"] = {}
+	if not _data.get("training_by_hero") is Dictionary:
+		_data["training_by_hero"] = {}
+	_migrate_global_training_if_needed(parsed)
+	ensure_training_data_for_all_heroes(DEFAULT_HERO_IDS)
+	_data["version"] = SAVE_VERSION
 	if not _data.get("unlocked_heroes") is Array:
 		_data["unlocked_heroes"] = ["guardian", "blaster", "vanguard"]
 	var unlocked: Array = _data["unlocked_heroes"]
 	if "guardian" not in unlocked:
 		unlocked.append("guardian")
+
+
+func _get_default_training_by_hero() -> Dictionary:
+	var result := {}
+	for hero_id in DEFAULT_HERO_IDS:
+		result[hero_id] = {}
+	return result
+
+
+func _migrate_global_training_if_needed(parsed: Dictionary) -> void:
+	var old_global: Dictionary = parsed.get("meta_upgrades", {}) if parsed.get("meta_upgrades", {}) is Dictionary else {}
+	var parsed_training = parsed.get("training_by_hero", null)
+	var has_per_hero_training: bool = parsed_training is Dictionary and not parsed_training.is_empty()
+	if old_global.is_empty() or has_per_hero_training:
+		return
+
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	for hero_id in DEFAULT_HERO_IDS:
+		training_by_hero[hero_id] = old_global.duplicate()
+	_data["training_by_hero"] = training_by_hero
+
+
+func _calculate_upgrade_cost(def: Dictionary, level: int) -> int:
+	var base_cost := int(def.get("base_cost", 25))
+	var growth := float(def.get("cost_growth", 1.35))
+	if level <= 0:
+		return base_cost
+	return int(round(float(base_cost) * pow(growth, float(level))))
+
+
+func _resolve_hero_id(hero_id: String) -> String:
+	return hero_id if not hero_id.is_empty() else DEFAULT_HERO_ID
+
+
+func _sync_legacy_meta_upgrades() -> void:
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	var default_training: Dictionary = training_by_hero.get(DEFAULT_HERO_ID, {})
+	_data["meta_upgrades"] = default_training.duplicate()

@@ -1,16 +1,22 @@
 extends CanvasLayer
 
 signal back_requested
-signal buy_requested(upgrade_id: String)
+signal buy_requested(hero_id: String, upgrade_id: String)
 
 const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
 
 var _meta_manager: Node
+var _hero_data_provider: Node
+var _selected_hero_id: String = ""
+var _heroes: Array[Dictionary] = []
+var _title_label: Label
+var _hero_selector: HBoxContainer
 var _currency_label: Label
 var _back_button: Button
 var _list_vbox: VBoxContainer
 
 var _rows: Array[Dictionary] = []
+var _hero_buttons: Dictionary = {}
 
 
 func _ready() -> void:
@@ -20,17 +26,22 @@ func _ready() -> void:
 	hide()
 
 
-func setup(meta_progression_manager: Node) -> void:
+func setup(meta_progression_manager: Node, hero_data_provider: Node = null) -> void:
 	_meta_manager = meta_progression_manager
+	_hero_data_provider = hero_data_provider
+	_reload_heroes()
 	if _meta_manager == null:
 		return
 	if _meta_manager.has_signal("currency_changed") and not _meta_manager.currency_changed.is_connected(_on_currency_changed):
 		_meta_manager.currency_changed.connect(_on_currency_changed)
 	if _meta_manager.has_signal("meta_upgrade_changed") and not _meta_manager.meta_upgrade_changed.is_connected(_on_meta_upgrade_changed):
 		_meta_manager.meta_upgrade_changed.connect(_on_meta_upgrade_changed)
+	if _meta_manager.has_method("ensure_training_data_for_all_heroes"):
+		_meta_manager.ensure_training_data_for_all_heroes(_get_hero_ids())
 
 
-func open() -> void:
+func open(hero_id: String = "") -> void:
+	set_selected_hero(hero_id)
 	refresh()
 	show()
 	if _back_button != null:
@@ -44,10 +55,25 @@ func close() -> void:
 func refresh() -> void:
 	if _meta_manager == null:
 		return
+	if _selected_hero_id.is_empty():
+		set_selected_hero("")
+	if _title_label != null:
+		_title_label.text = "Training: %s" % _get_selected_hero_display_name()
 	if _currency_label != null:
 		_currency_label.text = "Currency: %d" % _meta_manager.get_currency()
+	_update_hero_buttons()
 	_rebuild_rows_if_needed()
 	_update_rows()
+
+
+func set_selected_hero(hero_id: String) -> void:
+	_reload_heroes()
+	var resolved := _resolve_hero_id(hero_id)
+	_selected_hero_id = resolved
+	if _meta_manager != null and _meta_manager.has_method("ensure_training_data_for_hero"):
+		_meta_manager.ensure_training_data_for_hero(_selected_hero_id)
+	if visible:
+		refresh()
 
 
 func _build_ui() -> void:
@@ -69,17 +95,22 @@ func _build_ui() -> void:
 	main_vbox.add_theme_constant_override("separation", 14)
 	margin.add_child(main_vbox)
 
-	var title := Label.new()
-	title.text = "Training"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	main_vbox.add_child(title)
+	_title_label = Label.new()
+	_title_label.text = "Training"
+	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_label.add_theme_font_size_override("font_size", 28)
+	main_vbox.add_child(_title_label)
 
 	_currency_label = Label.new()
 	_currency_label.text = "Currency: 0"
 	_currency_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_currency_label.add_theme_font_size_override("font_size", 16)
 	main_vbox.add_child(_currency_label)
+
+	_hero_selector = HBoxContainer.new()
+	_hero_selector.add_theme_constant_override("separation", 8)
+	_hero_selector.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_vbox.add_child(_hero_selector)
 
 	main_vbox.add_child(HSeparator.new())
 
@@ -168,9 +199,9 @@ func _update_rows() -> void:
 	for row in _rows:
 		var upgrade_id := str(row.get("id", ""))
 		var max_level := int(row.get("max_level", 1))
-		var level: int = _meta_manager.get_meta_upgrade_level(upgrade_id)
-		var cost: int = _meta_manager.get_meta_upgrade_cost(upgrade_id)
-		var can_buy: bool = _meta_manager.can_buy_meta_upgrade(upgrade_id)
+		var level: int = _meta_manager.get_training_level(_selected_hero_id, upgrade_id) if _meta_manager.has_method("get_training_level") else _meta_manager.get_meta_upgrade_level(upgrade_id)
+		var cost: int = _meta_manager.get_training_upgrade_cost(_selected_hero_id, upgrade_id) if _meta_manager.has_method("get_training_upgrade_cost") else _meta_manager.get_meta_upgrade_cost(upgrade_id)
+		var can_buy: bool = _meta_manager.can_purchase_training_upgrade(_selected_hero_id, upgrade_id) if _meta_manager.has_method("can_purchase_training_upgrade") else _meta_manager.can_buy_meta_upgrade(upgrade_id)
 
 		var level_lbl := row.get("level_lbl") as Label
 		if level_lbl != null:
@@ -193,7 +224,10 @@ func _update_rows() -> void:
 
 
 func _on_buy_pressed(upgrade_id: String) -> void:
-	buy_requested.emit(upgrade_id)
+	if _selected_hero_id.is_empty():
+		push_warning("MetaUpgradeShop: cannot buy training upgrade without selected hero.")
+		return
+	buy_requested.emit(_selected_hero_id, upgrade_id)
 
 
 func _on_back_pressed() -> void:
@@ -209,6 +243,88 @@ func _on_meta_upgrade_changed(upgrade_id: String, _level: int) -> void:
 	if visible:
 		refresh()
 		_flash_row(upgrade_id)
+
+
+func _reload_heroes() -> void:
+	_heroes.clear()
+	if _hero_data_provider != null and _hero_data_provider.has_method("get_all_heroes"):
+		_heroes = _hero_data_provider.get_all_heroes()
+	if _heroes.is_empty():
+		_heroes = [
+			{"id": "guardian", "display_name": "Guardian"},
+			{"id": "blaster", "display_name": "Blaster"},
+			{"id": "vanguard", "display_name": "Vanguard"},
+		]
+	_rebuild_hero_selector()
+
+
+func _rebuild_hero_selector() -> void:
+	if _hero_selector == null:
+		return
+	for child in _hero_selector.get_children():
+		child.queue_free()
+	_hero_buttons.clear()
+	for hero in _heroes:
+		var hero_id := str(hero.get("id", ""))
+		if hero_id.is_empty():
+			continue
+		var button := Button.new()
+		button.text = str(hero.get("display_name", hero_id.capitalize()))
+		button.custom_minimum_size = Vector2(150, 42)
+		button.pressed.connect(_on_hero_button_pressed.bind(hero_id))
+		_hero_selector.add_child(button)
+		_hero_buttons[hero_id] = button
+	_update_hero_buttons()
+
+
+func _update_hero_buttons() -> void:
+	for hero_id in _hero_buttons:
+		var button := _hero_buttons[hero_id] as Button
+		if button == null:
+			continue
+		var selected: bool = hero_id == _selected_hero_id
+		button.disabled = selected
+		button.modulate = UIStateColors.positive_color() if selected else Color.WHITE
+
+
+func _on_hero_button_pressed(hero_id: String) -> void:
+	set_selected_hero(hero_id)
+
+
+func _resolve_hero_id(hero_id: String) -> String:
+	if _has_hero(hero_id):
+		return hero_id
+	if _hero_data_provider != null and _hero_data_provider.has_method("get_default_hero"):
+		var default_hero: Dictionary = _hero_data_provider.get_default_hero()
+		var default_id := str(default_hero.get("id", ""))
+		if _has_hero(default_id):
+			return default_id
+	return str(_heroes[0].get("id", "guardian")) if not _heroes.is_empty() else "guardian"
+
+
+func _has_hero(hero_id: String) -> bool:
+	if hero_id.is_empty():
+		return false
+	for hero in _heroes:
+		if str(hero.get("id", "")) == hero_id:
+			return true
+	return false
+
+
+func _get_selected_hero_display_name() -> String:
+	for hero in _heroes:
+		if str(hero.get("id", "")) == _selected_hero_id:
+			return str(hero.get("display_name", _selected_hero_id.capitalize()))
+	return _selected_hero_id.capitalize()
+
+
+func _get_hero_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for hero in _heroes:
+		var hero_id := str(hero.get("id", ""))
+		if not hero_id.is_empty():
+			ids.append(hero_id)
+	return ids
 
 
 func _flash_row(upgrade_id: String) -> void:

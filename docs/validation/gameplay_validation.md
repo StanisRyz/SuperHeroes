@@ -368,6 +368,30 @@ Remember to uncheck `use_debug_run_duration` before building for release.
 | 22 | Buy upgrade then check F7 / overlay | Overlay reflects updated meta upgrade levels |
 | 23 | Reset progress via MetaProgressionManager.reset_progress() in remote console | Currency resets to 0; save file updated |
 
+---
+
+## Per-Hero Training
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training from MainMenu | MetaUpgradeShop opens and shows `Training: <Hero>` |
+| 2 | Open Training with no selected hero | Default/remembered hero is resolved and displayed clearly |
+| 3 | Buy one Training upgrade for Guardian | Shared currency decreases; Guardian level increases |
+| 4 | Switch to Blaster in Training | Blaster does not inherit Guardian's newly purchased level |
+| 5 | Buy one Training upgrade for Blaster | Guardian and Blaster show separate levels |
+| 6 | Switch to Vanguard | Vanguard shows its own separate Training levels |
+| 7 | Start run as Guardian | Only Guardian Training bonuses apply |
+| 8 | Start run as Blaster | Only Blaster Training bonuses apply |
+| 9 | Start run as Vanguard | Only Vanguard Training bonuses apply |
+| 10 | Restart a run | Same hero/stage restarts and the same hero-specific Training applies |
+| 11 | Finish or lose a run | Post-run rewards still add shared currency |
+| 12 | Close/reopen game | Per-hero Training levels persist |
+| 13 | Load an old save with global `meta_upgrades` | Global levels are copied to Guardian, Blaster, and Vanguard |
+| 14 | Missing/corrupt save | Fresh defaults load safely |
+| 15 | Check Remember Last Choice | Hero/stage preferences are not reset by Training |
+| 16 | Check Settings | Settings are not reset by Training |
+| 17 | Inspect git diff | No gameplay balance values changed |
+
 ### How to reset progress (debug only)
 In the Godot remote inspector or editor console, call:
 ```gdscript

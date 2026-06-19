@@ -351,8 +351,21 @@ Not implemented yet (feedback):
 - **Hero unlock foundation** — heroes carry `unlocked_by_default` and `unlock_cost` fields. CharacterSelect accepts optional MetaProgressionManager and shows locked state. All three heroes are currently unlocked by default to avoid blocking testing.
 - **Persistent local save** — `user://superheroes_meta_progress.json`. Saved after every purchase and every run result. Safe to delete to reset manually. No cloud save, no online services.
 
+#### Per-Hero Training
+
+- Guardian, Blaster, and Vanguard have separate Training upgrade levels.
+- Meta currency remains shared/global.
+- Training purchases apply only to the selected Training hero.
+- Runs apply only the selected run hero's Training bonuses.
+- Existing old global Training saves are migrated by copying global levels to each existing hero.
+- The reward-training bonus is read from the selected run hero's Training.
+
 Not implemented yet (meta):
 - Advanced hero unlock purchase UI.
+- Per-hero favorite presets.
+- Build loadouts.
+- Training reset UI.
+- Hero-specific currencies.
 - Online leaderboard.
 - Cloud save / Yandex save.
 - Ads, paid purchases, or monetization.

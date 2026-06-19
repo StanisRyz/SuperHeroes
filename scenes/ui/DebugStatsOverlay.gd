@@ -259,20 +259,21 @@ func _build_stats_text() -> String:
 		if _meta_manager.has_method("get_progress_summary"):
 			var ps: Dictionary = _meta_manager.get_progress_summary()
 			lines.append("Runs: %d  Wins: %d" % [int(ps.get("total_runs", 0)), int(ps.get("total_victories", 0))])
-		if _meta_manager.has_method("get_meta_upgrade_definitions"):
-			var defs: Array[Dictionary] = _meta_manager.get_meta_upgrade_definitions()
-			var ups: PackedStringArray = []
-			for def in defs:
-				var uid := str(def.get("id", ""))
-				var lvl := 0
-				if _meta_manager.has_method("get_meta_upgrade_level"):
-					lvl = int(_meta_manager.get_meta_upgrade_level(uid))
-				if lvl > 0:
-					ups.append("%s:%d" % [uid.replace("meta_", ""), lvl])
-			if ups.is_empty():
-				lines.append("Upgrades: none")
+		if _meta_manager.has_method("get_debug_training_summary"):
+			var training: Dictionary = _meta_manager.get_debug_training_summary()
+			var training_lines: PackedStringArray = []
+			for hero_id in training:
+				var levels: Dictionary = training.get(hero_id, {})
+				if levels.is_empty():
+					continue
+				var parts: PackedStringArray = []
+				for upgrade_id in levels:
+					parts.append("%s:%d" % [str(upgrade_id).replace("meta_", ""), int(levels[upgrade_id])])
+				training_lines.append("%s [%s]" % [str(hero_id), ", ".join(parts)])
+			if training_lines.is_empty():
+				lines.append("Training: none")
 			else:
-				lines.append("Upgrades: %s" % ", ".join(ups))
+				lines.append("Training: %s" % " | ".join(training_lines))
 
 	# Feedback settings
 	if _settings_manager != null and is_instance_valid(_settings_manager):

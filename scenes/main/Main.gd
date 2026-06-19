@@ -110,7 +110,7 @@ func _init_meta_upgrade_shop() -> void:
 	meta_upgrade_shop = scene.instantiate()
 	add_child(meta_upgrade_shop)
 	if meta_upgrade_shop.has_method("setup"):
-		meta_upgrade_shop.setup(meta_progression_manager)
+		meta_upgrade_shop.setup(meta_progression_manager, hero_data_provider)
 	if meta_upgrade_shop.has_signal("back_requested") and not meta_upgrade_shop.back_requested.is_connected(_close_meta_shop):
 		meta_upgrade_shop.back_requested.connect(_close_meta_shop)
 	if meta_upgrade_shop.has_signal("buy_requested") and not meta_upgrade_shop.buy_requested.is_connected(_on_meta_buy_requested):
@@ -445,7 +445,7 @@ func _open_meta_shop() -> void:
 	if main_menu != null:
 		main_menu.hide()
 	if meta_upgrade_shop.has_method("open"):
-		meta_upgrade_shop.open()
+		meta_upgrade_shop.open(_resolve_training_hero_id())
 
 
 func _close_meta_shop() -> void:
@@ -455,9 +455,9 @@ func _close_meta_shop() -> void:
 		main_menu.show()
 
 
-func _on_meta_buy_requested(upgrade_id: String) -> void:
-	if meta_progression_manager != null and meta_progression_manager.has_method("buy_meta_upgrade"):
-		meta_progression_manager.buy_meta_upgrade(upgrade_id)
+func _on_meta_buy_requested(hero_id: String, upgrade_id: String) -> void:
+	if meta_progression_manager != null and meta_progression_manager.has_method("purchase_training_upgrade"):
+		meta_progression_manager.purchase_training_upgrade(hero_id, upgrade_id)
 
 
 func _get_hero_data(hero_id: String) -> Dictionary:
@@ -471,6 +471,20 @@ func _get_hero_data(hero_id: String) -> Dictionary:
 	if hero_data_provider.has_method("get_default_hero"):
 		return hero_data_provider.get_default_hero()
 	return {}
+
+
+func _resolve_training_hero_id() -> String:
+	if hero_data_provider != null and hero_data_provider.has_method("is_valid_hero"):
+		if not selected_hero_id.is_empty() and hero_data_provider.is_valid_hero(selected_hero_id):
+			return selected_hero_id
+		if user_preferences_manager != null and user_preferences_manager.has_method("get_last_hero_id"):
+			var remembered: String = user_preferences_manager.get_last_hero_id()
+			if not remembered.is_empty() and hero_data_provider.is_valid_hero(remembered):
+				return remembered
+	if hero_data_provider != null and hero_data_provider.has_method("get_default_hero"):
+		var default_hero: Dictionary = hero_data_provider.get_default_hero()
+		return str(default_hero.get("id", "guardian"))
+	return "guardian"
 
 
 func _get_stage_data(stage_id: String) -> Dictionary:

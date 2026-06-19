@@ -229,7 +229,7 @@ func _apply_meta_progression(auto_attack: Node, ability_manager: Node) -> void:
 	if applier_script == null:
 		push_warning("Arena: MetaApplier.gd not found.")
 		return
-	applier_script.apply_meta_progression(meta_manager, player, auto_attack, ability_manager)
+	applier_script.apply_meta_progression(meta_manager, player, auto_attack, ability_manager, hero_id)
 
 
 # Upgrade and player systems

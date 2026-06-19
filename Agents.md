@@ -253,6 +253,18 @@ The game is an original superhero survivors-like: the player moves around an are
 - `reset_progress()` is available for remote console use only. No key binding.
 - `DebugStatsOverlay.setup_meta_manager(meta_manager)` wires the overlay to show currency, run/win counts, and non-zero upgrade levels in a "-- Meta --" section (visible while F12 debug mode is active).
 
+## Per-Hero Training Architecture
+
+- `MetaProgressionManager` stores shared currency plus per-hero Training levels in `training_by_hero`.
+- Guardian, Blaster, and Vanguard Training levels are separate. Shared currency is never duplicated per hero.
+- Old global `meta_upgrades` saves migrate by copying global levels to each existing hero, preserving earned Training value.
+- `UserPreferencesManager` stores only non-gameplay preferences like last selected hero/stage; it must not store Training levels.
+- `Main` owns current selected hero/stage flow and resolves the safe hero id when opening Training from MainMenu.
+- `MetaUpgradeShop` displays the selected Training hero, offers a compact hero selector, and must never purchase upgrades without a resolved hero id.
+- `MetaUpgradeShop` emits `buy_requested(hero_id, upgrade_id)`; Main delegates to `MetaProgressionManager.purchase_training_upgrade(hero_id, upgrade_id)`.
+- `MetaApplier` must apply Training by selected hero id only. Runs as Guardian, Blaster, or Vanguard must never combine Training levels from other heroes.
+- Runtime upgrades, evolutions, and temporary run state must not be written into Training data.
+
 ## Implemented Systems
 
 - MinibossAttackController with Nova, Barrage, and Charge Slam attacks.
@@ -745,9 +757,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - README.md and Agents.md must be updated on every task.
 - docs/validation/gameplay_validation.md must be updated for new gameplay flows and UI checks.
 - Do not change gameplay values in UI polish patches.
+- Do not change gameplay balance in QoL/progression architecture patches unless explicitly requested.
 - QoL patches must not change gameplay balance, progression formulas, enemy/player stats, or reward formulas.
 - Do not add arena hazards.
 - Do not add persistence unless explicitly requested.
+- Do not add runtime persistence for run temporary state.
 - Do not add arena hazards.
 - Do not add online backend, leaderboards, cloud save, ads, or paid purchases.
 - Meta-progression save is local only (user://superheroes_meta_progress.json). Do not add Yandex or cloud save unless explicitly requested.
