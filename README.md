@@ -55,7 +55,7 @@ Implemented foundation:
 - Restart current run from the game over screen.
 - SpawnDirector with time-based spawn difficulty.
 - Dynamic spawn interval and max alive enemy scaling.
-- Enemy variants: Grunt, Runner, and Tank.
+- Enemy variants: Grunt, Runner, Tank, Charger, and Shooter.
 - Spawn weighting by run time.
 - Variant-based XP values.
 - Player/enemy physical body collisions are separated so enemies do not push or displace the player.
@@ -87,9 +87,18 @@ Implemented foundation:
 - Force mobile controls setting.
 - Screen shake setting.
 - AudioManager foundation.
+- Enemy behavior expansion v1.
+- Behavior IDs in SpawnDirector variants.
+- Charger enemy behavior.
+- Shooter enemy behavior.
+- EnemyProjectile foundation.
 
 Not implemented yet:
 
+- Exploder enemies.
+- Swarm/orbit enemies.
+- Enemy projectile patterns.
+- Status effects.
 - Real audio assets.
 - Music playback.
 - Yandex/cloud save integration.
@@ -111,6 +120,7 @@ Not implemented yet:
 - XP vacuum upgrades.
 - Projectile upgrades such as pierce, bounce, or spread.
 - Bosses.
+- Bosses/minibosses.
 - Elite modifiers.
 - Wave announcements.
 - Biome or arena progression.

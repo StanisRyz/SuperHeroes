@@ -98,7 +98,11 @@ func _on_enemy_died(enemy: Node) -> void:
 	if enemy_node == null:
 		return
 
-	_spawn_death_burst(enemy_node.global_position)
+	call_deferred("_spawn_death_feedback_and_drop", enemy_node.global_position, dropped_experience)
+
+
+func _spawn_death_feedback_and_drop(world_position: Vector2, dropped_experience: int) -> void:
+	_spawn_death_burst(world_position)
 
 	if experience_gem_scene == null or not is_instance_valid(pickup_container):
 		return
@@ -116,7 +120,7 @@ func _on_enemy_died(enemy: Node) -> void:
 		gem.setup_audio_manager(audio_manager)
 
 	pickup_container.add_child(gem)
-	gem.global_position = enemy_node.global_position
+	gem.global_position = world_position
 
 
 func _spawn_death_burst(world_position: Vector2) -> void:

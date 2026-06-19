@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://enemy_scene_superheroes"]
+[gd_scene load_steps=5 format=3 uid="uid://enemy_scene_superheroes"]
 
 [ext_resource type="Script" path="res://scenes/enemies/Enemy.gd" id="1_enemy_script"]
+[ext_resource type="PackedScene" path="res://scenes/projectiles/EnemyProjectile.tscn" id="2_enemy_projectile"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_enemy"]
 radius = 20.0
@@ -12,6 +13,7 @@ radius = 28.0
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("1_enemy_script")
+enemy_projectile_scene = ExtResource("2_enemy_projectile")
 
 [node name="Body" type="Polygon2D" parent="."]
 color = Color(0.83, 0.12, 0.24, 1)

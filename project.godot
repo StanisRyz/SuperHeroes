@@ -80,6 +80,7 @@ pause={
 2d_physics/layer_2="Enemies"
 2d_physics/layer_3="PlayerProjectiles"
 2d_physics/layer_4="Pickups"
+2d_physics/layer_5="EnemyProjectiles"
 
 [rendering]
 

@@ -34,6 +34,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
 - `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, and enemy hit damage.
+- `scenes/projectiles/EnemyProjectile.tscn` - enemy projectile scene.
+- `scenes/projectiles/EnemyProjectile.gd` - non-homing enemy projectile damage and lifetime logic.
 - `scenes/upgrades/UpgradeManager.tscn` - runtime upgrade manager scene.
 - `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade definitions, option weighting, upgrade levels, and application logic.
 - `scenes/ui/GameHUD.tscn` - player HP, XP, time, and kill counter HUD scene.
@@ -84,7 +86,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Time-based spawn difficulty.
 - SpawnDirector-owned spawn scaling and variant selection.
 - Dynamic spawn interval and max alive enemy scaling.
-- Enemy variants: Grunt, Runner, and Tank.
+- Enemy variants: Grunt, Runner, Tank, Charger, and Shooter.
 - Variant-based XP values.
 - Level-up pause screen.
 - Three-option upgrade selection.
@@ -119,6 +121,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - Force mobile controls setting.
 - Screen shake setting.
 - AudioManager foundation.
+- Enemy behavior expansion v1.
+- Charger enemy behavior.
+- Shooter enemy behavior.
+- EnemyProjectile foundation.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
 
 ## Frontend Flow
@@ -168,9 +174,18 @@ The game is an original superhero survivors-like: the player moves around an are
 - `SpawnDirector` owns time-based spawn scaling and variant selection.
 - `EnemySpawner` spawns enemies and drops XP, but should not own long-term difficulty design.
 - Enemy variants are currently hardcoded dictionaries, not Resources.
+- Enemy variant dictionaries include `behavior_id`.
 - Spawn interval and max alive enemy limits scale from run time.
-- Grunt is available from run start, Runner opens after about 30 seconds, and Tank opens after about 60 seconds.
+- Grunt is available from run start, Runner opens after about 30 seconds, Charger after about 45 seconds, Tank after about 60 seconds, and Shooter after about 75 seconds.
 - Variant XP values are copied onto the dropped `ExperienceGem`.
+
+## Enemy Behavior Notes
+
+- `behavior_id` comes from SpawnDirector variant dictionaries.
+- `Enemy.gd` owns runtime behavior execution.
+- SpawnDirector owns unlock timing and weighted selection.
+- EnemySpawner should stay behavior-agnostic.
+- EnemyProjectile should detect Player only.
 
 ## Active Ability Flow
 
@@ -196,6 +211,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Enemy contact damage is handled by `ContactDamageArea`, which detects Player bodies.
 - Player autoattack range detects Enemy bodies through `Area2D`.
 - Player projectiles detect Enemy bodies through `Area2D`.
+- Enemy projectiles detect Player bodies through `Area2D`.
 - Experience gems detect Player bodies through `Area2D`.
 - Do not re-enable Player/Enemy physical body collisions unless explicitly requested.
 
@@ -210,6 +226,10 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Not Implemented Yet
 
 - Upgrade icons or Resource-backed data.
+- Exploder enemies.
+- Swarm/orbit enemies.
+- Enemy projectile patterns.
+- Status effects.
 - Real audio assets.
 - Music playback.
 - Yandex/cloud save integration.
@@ -229,6 +249,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Projectile upgrades.
 - XP vacuum upgrades.
 - Bosses.
+- Bosses/minibosses.
 - Elite modifiers.
 - Wave announcements.
 - Biome or arena progression.
@@ -258,6 +279,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not use Yandex storage until explicitly requested.
 - Do not add real audio assets unless explicitly requested.
 - Do not add persistence for gameplay progression unless explicitly requested.
+- Do not add bosses or elite systems unless explicitly requested.
 
 ## Validation
 

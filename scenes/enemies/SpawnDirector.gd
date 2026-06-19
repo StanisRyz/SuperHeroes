@@ -58,6 +58,7 @@ func _get_available_variants(seconds: float) -> Array[Dictionary]:
 		{
 			"id": "grunt",
 			"display_name": "Grunt",
+			"behavior_id": "chase",
 			"speed": 120.0,
 			"max_health": 20,
 			"contact_damage": 10,
@@ -72,6 +73,7 @@ func _get_available_variants(seconds: float) -> Array[Dictionary]:
 		variants.append({
 			"id": "runner",
 			"display_name": "Runner",
+			"behavior_id": "chase",
 			"speed": 175.0,
 			"max_health": 14,
 			"contact_damage": 10,
@@ -81,10 +83,30 @@ func _get_available_variants(seconds: float) -> Array[Dictionary]:
 			"weight": clampf((seconds - 30.0) / 90.0, 0.25, 1.4),
 		})
 
+	if seconds >= 45.0:
+		variants.append({
+			"id": "charger",
+			"display_name": "Charger",
+			"behavior_id": "charger",
+			"speed": 150.0,
+			"max_health": 32,
+			"contact_damage": 13,
+			"experience_value": 2,
+			"body_color": Color(0.1, 0.68, 0.62, 1.0),
+			"core_color": Color(0.02, 0.26, 0.28, 1.0),
+			"charge_range": 360.0,
+			"charge_windup": 0.35,
+			"charge_speed_multiplier": 2.4,
+			"charge_duration": 0.45,
+			"charge_cooldown": 2.2,
+			"weight": clampf((seconds - 45.0) / 120.0, 0.15, 0.9),
+		})
+
 	if seconds >= 60.0:
 		variants.append({
 			"id": "tank",
 			"display_name": "Tank",
+			"behavior_id": "chase",
 			"speed": 85.0,
 			"max_health": 55,
 			"contact_damage": 18,
@@ -92,6 +114,25 @@ func _get_available_variants(seconds: float) -> Array[Dictionary]:
 			"body_color": Color(0.42, 0.26, 0.72, 1.0),
 			"core_color": Color(0.14, 0.08, 0.32, 1.0),
 			"weight": clampf((seconds - 60.0) / 150.0, 0.15, 0.85),
+		})
+
+	if seconds >= 75.0:
+		variants.append({
+			"id": "shooter",
+			"display_name": "Shooter",
+			"behavior_id": "shooter",
+			"speed": 90.0,
+			"max_health": 24,
+			"contact_damage": 9,
+			"experience_value": 2,
+			"body_color": Color(0.24, 0.42, 0.95, 1.0),
+			"core_color": Color(0.05, 0.12, 0.38, 1.0),
+			"preferred_distance": 430.0,
+			"shoot_range": 560.0,
+			"shoot_interval": 1.8,
+			"projectile_damage": 8,
+			"projectile_speed": 360.0,
+			"weight": clampf((seconds - 75.0) / 150.0, 0.1, 0.75),
 		})
 
 	return variants
