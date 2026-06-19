@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3 uid="uid://arena_scene_superheroes"]
+[gd_scene load_steps=25 format=3 uid="uid://arena_scene_superheroes"]
 
 [ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="1_player"]
 [ext_resource type="Script" path="res://scenes/game/Arena.gd" id="1_arena_script"]
@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/EventAnnouncement.tscn" id="17_event_announcement"]
 [ext_resource type="PackedScene" path="res://scenes/ui/MinibossHealthBar.tscn" id="18_miniboss_health_bar"]
 [ext_resource type="PackedScene" path="res://scenes/ui/VictoryScreen.tscn" id="19_victory_screen"]
+[ext_resource type="PackedScene" path="res://scenes/ui/BossHealthBar.tscn" id="23_boss_health_bar"]
 [ext_resource type="PackedScene" path="res://scenes/game/GameplayTuning.tscn" id="20_gameplay_tuning"]
 [ext_resource type="PackedScene" path="res://scenes/evolution/EvolutionManager.tscn" id="21_evolution_manager"]
 [ext_resource type="PackedScene" path="res://scenes/ui/EvolutionRewardScreen.tscn" id="22_evolution_reward_screen"]
@@ -90,5 +91,7 @@ polygon = PackedVector2Array(-8, -2000, 8, -2000, 8, 2000, -8, 2000)
 [node name="EventAnnouncement" parent="." instance=ExtResource("17_event_announcement")]
 
 [node name="MinibossHealthBar" parent="." instance=ExtResource("18_miniboss_health_bar")]
+
+[node name="BossHealthBar" parent="." instance=ExtResource("23_boss_health_bar")]
 
 [node name="VictoryScreen" parent="." instance=ExtResource("19_victory_screen")]

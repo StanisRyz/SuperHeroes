@@ -13,6 +13,10 @@ var meta_manager: Node = null
 var hero_data: Dictionary = {}
 var hero_id: String = ""
 var hero_display_name: String = ""
+var stage_data: Dictionary = {}
+var stage_id: String = ""
+var stage_display_name: String = ""
+var final_boss_id: String = ""
 var _run_result_emitted := false
 
 @onready var player: Node = get_node_or_null("Player")
@@ -39,6 +43,7 @@ var _run_result_emitted := false
 @onready var event_director: Node = get_node_or_null("EventDirector")
 @onready var event_announcement: Node = get_node_or_null("EventAnnouncement")
 @onready var miniboss_health_bar: Node = get_node_or_null("MinibossHealthBar")
+@onready var boss_health_bar: Node = get_node_or_null("BossHealthBar")
 @onready var victory_screen: Node = get_node_or_null("VictoryScreen")
 
 var _debug_stats_overlay: Node = null
@@ -49,13 +54,17 @@ const DEBUG_XP_AMOUNT: int = 50
 const EVOLUTION_REWARD_OPTION_COUNT: int = 3
 
 
-func setup(new_settings_manager: Node = null, new_audio_manager: Node = null, selected_hero: Dictionary = {}, new_meta_manager: Node = null) -> void:
+func setup(new_settings_manager: Node = null, new_audio_manager: Node = null, selected_hero: Dictionary = {}, new_meta_manager: Node = null, selected_stage: Dictionary = {}) -> void:
 	settings_manager = new_settings_manager
 	audio_manager = new_audio_manager
 	meta_manager = new_meta_manager
 	hero_data = selected_hero.duplicate(true)
 	hero_id = str(hero_data.get("id", ""))
 	hero_display_name = str(hero_data.get("display_name", ""))
+	stage_data = selected_stage.duplicate(true)
+	stage_id = str(stage_data.get("id", ""))
+	stage_display_name = str(stage_data.get("display_name", ""))
+	final_boss_id = str(stage_data.get("final_boss_id", "titan_guardian"))
 
 
 # Core setup and wiring
@@ -68,6 +77,13 @@ func _ready() -> void:
 
 	if gameplay_tuning != null and gameplay_tuning.has_method("apply_to"):
 		gameplay_tuning.apply_to(self)
+
+	if not stage_data.is_empty():
+		var applier_script: Script = load("res://scenes/stages/StageApplier.gd")
+		if applier_script != null:
+			applier_script.apply_stage(stage_data, self)
+		else:
+			push_warning("Arena: StageApplier.gd not found.")
 
 	if player.has_method("set_playable_rect"):
 		player.set_playable_rect(playable_rect)
@@ -110,6 +126,8 @@ func _ready() -> void:
 		hud.setup(player, run_manager, ability_manager, player_buff_manager)
 		if hud.has_method("set_hero_name"):
 			hud.set_hero_name(hero_display_name)
+		if hud.has_method("set_stage_name"):
+			hud.set_stage_name(stage_display_name)
 		if hud.has_method("setup_evolution_manager"):
 			hud.setup_evolution_manager(evolution_manager)
 	else:
@@ -327,6 +345,8 @@ func _setup_run_lifecycle() -> void:
 	else:
 		if run_manager.has_signal("final_phase_started") and not run_manager.final_phase_started.is_connected(_on_final_phase_started):
 			run_manager.final_phase_started.connect(_on_final_phase_started)
+		if run_manager.has_signal("target_time_reached") and not run_manager.target_time_reached.is_connected(_on_boss_phase_triggered):
+			run_manager.target_time_reached.connect(_on_boss_phase_triggered)
 		if run_manager.has_signal("victory_reached") and not run_manager.victory_reached.is_connected(_on_victory_reached):
 			run_manager.victory_reached.connect(_on_victory_reached)
 		if run_manager.has_signal("special_kill_count_changed") and not run_manager.special_kill_count_changed.is_connected(_on_special_kill_count_changed):
@@ -405,6 +425,10 @@ func _setup_event_director() -> void:
 			enemy_spawner.miniboss_defeated.connect(_on_miniboss_defeated)
 		if enemy_spawner.has_signal("elite_defeated") and not enemy_spawner.elite_defeated.is_connected(_on_elite_defeated):
 			enemy_spawner.elite_defeated.connect(_on_elite_defeated)
+		if enemy_spawner.has_signal("final_boss_spawned") and not enemy_spawner.final_boss_spawned.is_connected(_on_final_boss_spawned):
+			enemy_spawner.final_boss_spawned.connect(_on_final_boss_spawned)
+		if enemy_spawner.has_signal("final_boss_defeated") and not enemy_spawner.final_boss_defeated.is_connected(_on_final_boss_defeated):
+			enemy_spawner.final_boss_defeated.connect(_on_final_boss_defeated)
 
 
 func _on_event_started(event_data: Dictionary) -> void:
@@ -442,6 +466,38 @@ func _on_miniboss_defeated() -> void:
 	if event_announcement != null and event_announcement.has_method("show_announcement"):
 		event_announcement.show_announcement("Miniboss Defeated!", 3.0)
 	_try_open_evolution_reward_screen()
+
+
+func _on_boss_phase_triggered() -> void:
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Final Boss Incoming!", 3.5)
+	if enemy_spawner != null and enemy_spawner.has_method("spawn_final_boss"):
+		enemy_spawner.spawn_final_boss(final_boss_id)
+	if run_manager != null and run_manager.has_method("register_final_boss_spawned"):
+		run_manager.register_final_boss_spawned()
+
+
+func _on_final_boss_spawned(enemy: Node) -> void:
+	if boss_health_bar != null and boss_health_bar.has_method("track_enemy"):
+		boss_health_bar.track_enemy(enemy)
+	var controller := enemy.get_node_or_null("FinalBossController") if enemy != null else null
+	if controller != null and controller.has_signal("phase_changed"):
+		if not controller.phase_changed.is_connected(_on_final_boss_phase_changed):
+			controller.phase_changed.connect(_on_final_boss_phase_changed)
+
+
+func _on_final_boss_phase_changed(phase: int) -> void:
+	if phase == 2 and event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Final Boss Enraged!", 2.5)
+
+
+func _on_final_boss_defeated(_enemy: Node) -> void:
+	if run_manager != null and run_manager.has_method("register_final_boss_defeated"):
+		run_manager.register_final_boss_defeated()
+	if boss_health_bar != null and boss_health_bar.has_method("clear"):
+		boss_health_bar.clear()
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Final Boss Defeated!", 3.5)
 
 
 func _on_elite_defeated() -> void:
@@ -536,6 +592,9 @@ func _build_run_summary(base_stats: Dictionary) -> Dictionary:
 	var summary := base_stats.duplicate()
 	summary["hero_id"] = hero_id
 	summary["hero_display_name"] = hero_display_name
+	summary["stage_id"] = stage_id
+	summary["stage_display_name"] = stage_display_name
+	summary["final_boss_id"] = final_boss_id
 
 	if player != null and is_instance_valid(player):
 		summary["player_level"] = int(player.get("level") or 1)
@@ -890,6 +949,18 @@ func _on_debug_spawn_miniboss_requested() -> void:
 			enemy_spawner.miniboss_spawned.connect(miniboss_health_bar.track_enemy)
 	if debug_input_logging:
 		print("DEBUG_ACTION: spawned miniboss")
+
+
+func debug_spawn_final_boss(boss_id: String = "") -> void:
+	var id := boss_id if boss_id != "" else final_boss_id
+	if enemy_spawner == null or not enemy_spawner.has_method("spawn_final_boss"):
+		push_warning("Arena: EnemySpawner missing spawn_final_boss().")
+		return
+	enemy_spawner.spawn_final_boss(id)
+	if run_manager != null and run_manager.has_method("register_final_boss_spawned"):
+		run_manager.register_final_boss_spawned()
+	if debug_input_logging:
+		print("DEBUG_ACTION: spawned final boss id=%s" % id)
 
 
 func debug_spawn_enemy_variant(variant_id: String) -> void:

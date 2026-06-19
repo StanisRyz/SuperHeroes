@@ -8,6 +8,7 @@ var _time_label: Label
 var _kill_label: Label
 var _elite_label: Label
 var _miniboss_label: Label
+var _final_boss_label: Label
 var _victory_label: Label
 var _evo_label: Label
 var _bonus_label: Label
@@ -63,6 +64,7 @@ func _build_ui() -> void:
 	_kill_label = _add_row(vbox, "Kill bonus")
 	_elite_label = _add_row(vbox, "Elite kills")
 	_miniboss_label = _add_row(vbox, "Miniboss kills")
+	_final_boss_label = _add_row(vbox, "Final boss")
 	_victory_label = _add_row(vbox, "Victory bonus")
 	_evo_label = _add_row(vbox, "Evolutions")
 	_bonus_label = _add_row(vbox, "Reward bonus")
@@ -114,6 +116,7 @@ func show_rewards(reward_data: Dictionary, progress_summary: Dictionary) -> void
 	_set_row(_kill_label, int(reward_data.get("kill_reward", 0)))
 	_set_row(_elite_label, int(reward_data.get("elite_reward", 0)))
 	_set_row(_miniboss_label, int(reward_data.get("miniboss_reward", 0)))
+	_set_row(_final_boss_label, int(reward_data.get("final_boss_reward", 0)))
 	_set_row(_victory_label, int(reward_data.get("victory_bonus", 0)))
 	_set_row(_evo_label, int(reward_data.get("evolution_bonus", 0)))
 	_set_row(_bonus_label, int(reward_data.get("starting_bonus", 0)))

@@ -4,6 +4,8 @@ signal miniboss_spawned(enemy: Node)
 signal miniboss_phase_changed(phase: int)
 signal miniboss_defeated
 signal elite_defeated
+signal final_boss_spawned(enemy: Node)
+signal final_boss_defeated(enemy: Node)
 
 const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 
@@ -149,6 +151,102 @@ func spawn_elite_enemy(_event_data: Dictionary = {}) -> void:
 			"guaranteed_powerup": true,
 			"color_override": Color(1.0, 0.4, 0.0)
 		})
+
+
+func spawn_final_boss(final_boss_id: String = "titan_guardian") -> void:
+	var pos := _find_spawn_position()
+	if pos == NO_SPAWN_POSITION:
+		push_warning("EnemySpawner: could not find spawn position for final boss.")
+		return
+
+	var variant := _get_enemy_variant()
+	var enemy := _spawn_enemy_with_variant(variant, pos)
+	if enemy == null:
+		return
+
+	var boss_display_name := _get_boss_display_name(final_boss_id)
+	if enemy.has_method("apply_special_modifier"):
+		enemy.apply_special_modifier(_get_boss_modifier(final_boss_id, boss_display_name))
+
+	if enemy.has_signal("died"):
+		if not enemy.died.is_connected(_on_final_boss_enemy_died):
+			enemy.died.connect(_on_final_boss_enemy_died)
+
+	emit_signal("final_boss_spawned", enemy)
+	_attach_final_boss_controller(enemy, final_boss_id)
+
+
+func _get_boss_display_name(final_boss_id: String) -> String:
+	match final_boss_id:
+		"titan_guardian": return "Titan Guardian"
+		"prism_overlord": return "Prism Overlord"
+		"molten_colossus": return "Molten Colossus"
+		_: return final_boss_id.capitalize()
+
+
+func _get_boss_modifier(final_boss_id: String, display_name: String) -> Dictionary:
+	var base := {
+		"is_final_boss": true,
+		"is_miniboss": false,
+		"display_name": display_name,
+		"xp_multiplier": 20.0,
+		"guaranteed_powerup": true,
+	}
+	match final_boss_id:
+		"titan_guardian":
+			base["health_multiplier"] = 20.0
+			base["speed_multiplier"] = 0.55
+			base["damage_multiplier"] = 2.5
+			base["scale_multiplier"] = 2.8
+			base["color_override"] = Color(0.9, 0.65, 0.1)
+		"prism_overlord":
+			base["health_multiplier"] = 15.0
+			base["speed_multiplier"] = 0.70
+			base["damage_multiplier"] = 2.2
+			base["scale_multiplier"] = 2.4
+			base["color_override"] = Color(0.3, 0.5, 1.0)
+		"molten_colossus":
+			base["health_multiplier"] = 18.0
+			base["speed_multiplier"] = 0.45
+			base["damage_multiplier"] = 3.0
+			base["scale_multiplier"] = 2.6
+			base["color_override"] = Color(1.0, 0.25, 0.05)
+		_:
+			base["health_multiplier"] = 18.0
+			base["speed_multiplier"] = 0.6
+			base["damage_multiplier"] = 2.5
+			base["scale_multiplier"] = 2.5
+			base["color_override"] = Color(1.0, 0.4, 0.1)
+	return base
+
+
+func _attach_final_boss_controller(enemy: Node, final_boss_id: String) -> void:
+	var controller_scene: PackedScene = load("res://scenes/enemies/FinalBossController.tscn")
+	if controller_scene == null:
+		push_warning("EnemySpawner: FinalBossController.tscn not found.")
+		return
+
+	var controller := controller_scene.instantiate()
+	if not controller.has_method("setup"):
+		push_warning("EnemySpawner: FinalBossController missing setup().")
+		controller.queue_free()
+		return
+
+	var proj_parent: Node = projectile_container if projectile_container != null and is_instance_valid(projectile_container) else enemy_container
+	controller.setup(enemy as Node2D, player, proj_parent, final_boss_id)
+
+	if controller.has_signal("phase_changed"):
+		controller.phase_changed.connect(func(p: int): _on_final_boss_phase_changed(p))
+
+	enemy.add_child(controller)
+
+
+func _on_final_boss_phase_changed(_phase: int) -> void:
+	pass
+
+
+func _on_final_boss_enemy_died(enemy: Node) -> void:
+	emit_signal("final_boss_defeated", enemy)
 
 
 func spawn_miniboss_enemy(_event_data: Dictionary = {}) -> void:

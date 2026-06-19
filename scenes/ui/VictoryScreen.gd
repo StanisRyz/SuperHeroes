@@ -48,6 +48,17 @@ func show_stats(stats: Dictionary) -> void:
 		level_label.text = "Level reached: %d" % level
 	if hero_label != null:
 		hero_label.text = "Hero: %s" % hero_name
+	var stage_display := str(stats.get("stage_display_name", ""))
+	if not stage_display.is_empty():
+		var vbox := get_node_or_null("Root/Panel/VBoxContainer")
+		if vbox != null:
+			var slabel := vbox.get_node_or_null("StageLabel") as Label
+			if slabel == null:
+				slabel = Label.new()
+				slabel.name = "StageLabel"
+				vbox.add_child(slabel)
+				vbox.move_child(slabel, hero_label.get_index() + 1)
+			slabel.text = "Stage: %s" % stage_display
 	if build_label != null:
 		build_label.text = "Build: %s" % (dominant.capitalize() if not dominant.is_empty() else "Mixed")
 	if upgrades_label != null:

@@ -8,6 +8,46 @@ signal miniboss_spawn_requested(event_data: Dictionary)
 var run_manager: Node = null
 var _triggered_events: Dictionary = {}
 var _active_timed_events: Dictionary = {}
+var _profile_id: String = "balanced"
+
+var _profile_extra_events: Dictionary = {
+	"ranged_support": [
+		{
+			"id": "rs_shooter_early",
+			"trigger_time": 45.0,
+			"duration": 12.0,
+			"announcement": "Shooter Flankers!",
+			"type": "timed",
+			"modifier": {"boost_variant_weights": {"shooter": 3.0}, "spawn_pressure": 1.15}
+		},
+		{
+			"id": "rs_support_surge",
+			"trigger_time": 250.0,
+			"duration": 15.0,
+			"announcement": "Support Surge!",
+			"type": "timed",
+			"modifier": {"boost_variant_weights": {"support": 3.0}, "spawn_pressure": 1.1}
+		},
+	],
+	"swarm_exploder": [
+		{
+			"id": "se_exploder_early",
+			"trigger_time": 60.0,
+			"duration": 12.0,
+			"announcement": "Exploder Swarm!",
+			"type": "timed",
+			"modifier": {"boost_variant_weights": {"exploder": 3.0}, "spawn_pressure": 1.2}
+		},
+		{
+			"id": "se_swarm_rush",
+			"trigger_time": 100.0,
+			"duration": 12.0,
+			"announcement": "Swarm Rush!",
+			"type": "timed",
+			"modifier": {"boost_variant_weights": {"swarm": 3.0}, "spawn_pressure": 1.25}
+		},
+	],
+}
 
 # Event schedule definition
 var _event_schedule: Array = [
@@ -81,6 +121,19 @@ func setup(new_run_manager: Node) -> void:
 	run_manager = new_run_manager
 	_triggered_events.clear()
 	_active_timed_events.clear()
+
+
+func set_event_profile(profile: String) -> void:
+	_profile_id = profile
+	if _profile_extra_events.has(profile):
+		for extra in _profile_extra_events[profile]:
+			var already := false
+			for existing in _event_schedule:
+				if existing["id"] == extra["id"]:
+					already = true
+					break
+			if not already:
+				_event_schedule.append(extra)
 
 func _process(delta: float) -> void:
 	if run_manager == null:

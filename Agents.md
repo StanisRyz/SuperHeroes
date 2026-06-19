@@ -115,6 +115,15 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MetaUpgradeShop.tscn` - meta upgrade shop CanvasLayer scene (instantiated at runtime by Main).
 - `scenes/ui/MetaUpgradeShop.gd` - display-only Training shop UI. Shows meta upgrade levels and costs. Emits buy_requested; Main handles the purchase. Accessed via "Training" button on MainMenu.
 - `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, meta progression/rewards, expected console log patterns).
+- `scenes/stages/StageDataProvider.tscn` - runtime stage definition provider scene.
+- `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, background_colors, run_settings, event_profile, final_boss_id.
+- `scenes/stages/StageApplier.gd` - static helper; applies selected stage to Arena at startup: background colors, run settings, event/spawn profiles. Called by Arena._ready() when stage_data is non-empty.
+- `scenes/ui/StageSelect.tscn` - stage selection screen CanvasLayer scene (child of Main).
+- `scenes/ui/StageSelect.gd` - display-only stage list + detail panel UI. Emits stage_confirmed(stage_id) and back_requested.
+- `scenes/enemies/FinalBossController.tscn` - final boss combat brain scene (Node root).
+- `scenes/enemies/FinalBossController.gd` - owns final boss attack timing (Nova/Barrage/Charge), 2-phase logic, boss_id variant stats, phase_changed signal. Attached dynamically as child of boss enemy on spawn.
+- `scenes/ui/BossHealthBar.tscn` - final boss health bar overlay scene (CanvasLayer layer=9).
+- `scenes/ui/BossHealthBar.gd` - tracks a final boss enemy; shows "FINAL BOSS", name, HP bar, HP text. Positioned below MinibossHealthBar.
 
 ## Miniboss Combat Architecture
 
@@ -161,14 +170,29 @@ The game is an original superhero survivors-like: the player moves around an are
 - Shield blocks damage in `Player.take_damage()` after dash and debug invulnerability checks, before HP reduction.
 - Timed buffs pause naturally with the tree and do not persist between runs (fresh Arena on restart).
 
+## Stage & Final Boss Architecture
+
+- `Main` owns the navigation flow: MainMenu → CharacterSelect → StageSelect → Arena. Back from StageSelect returns to CharacterSelect. Restart keeps same hero + stage. Quit to menu clears both.
+- `StageDataProvider` is a persistent Node in Main (child of Main.tscn). It owns stage definitions and is passed to StageSelect.setup().
+- `StageApplier` (static) is called by Arena._ready() after GameplayTuning.apply_to() when stage_data is non-empty. It applies background colors, run settings, and event/spawn profiles.
+- `EventDirector.set_event_profile(profile)` appends profile-specific extra events to the schedule. "balanced" adds nothing. "ranged_support" adds early shooter and support surge events. "swarm_exploder" adds early exploder and swarm rush events.
+- `SpawnDirector.set_stage_profile(profile)` stores the profile and applies per-variant weight bonuses in `_get_modified_weight()`.
+- **Final boss victory gating**: when `RunManager.final_boss_required == true` (set from stage run_settings), reaching target time emits `target_time_reached` instead of victory. Arena spawns the boss. Victory only triggers after `register_final_boss_defeated()`.
+- `EnemySpawner.spawn_final_boss(boss_id)` mirrors `spawn_miniboss_enemy` but calls `_attach_final_boss_controller()` instead. Emits `final_boss_spawned(enemy)` and `final_boss_defeated(enemy)`.
+- `FinalBossController` is attached as a child of the boss enemy (auto-freed on death), same pattern as MinibossAttackController. Phase 2 at ≤50% HP emits `phase_changed(2)`.
+- `BossHealthBar` is wired by Arena to `EnemySpawner.final_boss_spawned`; tracks the enemy until death. It is a permanent child of Arena (Arena.tscn).
+- Run summary includes `stage_id`, `stage_display_name`, `final_boss_id`, and `final_boss_defeated` (from RunManager.get_stats()). MetaProgressionManager uses `final_boss_defeated` for the +35 reward.
+- Debug: `Arena.debug_spawn_final_boss(boss_id)` spawns the final boss immediately. No key binding — call from the Godot remote console during a live run.
+
 ## Run Victory Architecture
 
-- `RunManager` owns the run objective state (is_final_phase_active, has_victory, elite_kill_count, miniboss_kill_count, target_run_time, final_phase_start_time).
+- `RunManager` owns the run objective state (is_final_phase_active, has_victory, elite_kill_count, miniboss_kill_count, target_run_time, final_phase_start_time, final_boss_required, final_boss_spawned, final_boss_defeated).
 - `Arena` owns screen coordination: connects RunManager signals, builds enriched run summaries, and shows/hides VictoryScreen and GameOverScreen.
 - `VictoryScreen` and `GameOverScreen` are display-only — they show stats and emit intent signals only.
 - `Main` owns scene replacement for restart and main menu navigation.
 - Run summary is built by `Arena._build_run_summary(base_stats)` on both victory and defeat and is not persisted.
 - Final phase: `RunManager` emits `final_phase_started` → Arena shows announcement → Arena calls `EventDirector.start_final_phase_event()` → EventDirector applies pressure modifier via SpawnDirector.
+- Final boss: `RunManager` emits `target_time_reached` → Arena spawns final boss → victory only after boss death.
 - Debug-shortened runs: set `use_debug_run_duration = true` in RunManager inspector; final phase start time scales proportionally. Not persisted. Not enabled by default.
 
 ## Balance / Readiness Architecture

@@ -276,6 +276,47 @@ Do NOT bind a key to reset_progress in gameplay code; this could cause accidenta
 
 ---
 
+## Stage Select
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start game → click Start | MainMenu → CharacterSelect |
+| 2 | Confirm a hero | CharacterSelect → StageSelect opens |
+| 3 | StageSelect: 3 stages listed | City Rooftop, Neon Lab, Wasteland Gate visible |
+| 4 | Click a stage | Detail panel updates: name, subtitle, difficulty, description, final boss name |
+| 5 | Click Back in StageSelect | Returns to CharacterSelect; same hero still shown |
+| 6 | Confirm a stage | Arena starts with the correct background colors and stage name in HUD |
+| 7 | HUD during run | "Stage: City Rooftop" label visible in RunPanel |
+| 8 | Victory/GameOver screen | "Stage: City Rooftop" row visible below hero name |
+| 9 | Restart from VictoryScreen | Same hero AND same stage; StageSelect does not re-open |
+| 10 | Quit to MainMenu | Both hero and stage selection are cleared |
+| 11 | Start again from MainMenu | Goes through CharacterSelect → StageSelect before starting run |
+| 12 | Select Neon Lab | Background is visually different from City Rooftop |
+| 13 | Select Wasteland Gate | Background is visually different from Neon Lab |
+
+---
+
+## Final Boss
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Set `use_debug_run_duration=true, debug_target_run_time=60` in RunManager | Run ends at 60s; final phase at ~54s |
+| 2 | Survive to target time (City Rooftop) | "Final Boss Incoming!" announcement; run does NOT immediately end |
+| 3 | Final boss spawns | Large enemy appears; BossHealthBar shows at top (below miniboss bar if one is active) |
+| 4 | BossHealthBar label | Shows "FINAL BOSS", boss display name, HP bar, HP text |
+| 5 | Boss HP drops below 50% | "Final Boss Enraged!" announcement; attacks become faster |
+| 6 | Final boss takes damage | BossHealthBar HP bar updates correctly |
+| 7 | Final boss defeated | "Final Boss Defeated!" announcement; BossHealthBar hides; VictoryScreen appears |
+| 8 | VictoryScreen after final boss | Shows all stats; stage name present |
+| 9 | PostRunRewardsScreen after victory | "Final boss" row shows +35 |
+| 10 | Defeat before target time | GameOverScreen shows; no final boss spawned; final_boss_reward = 0 |
+| 11 | Neon Lab: Prism Overlord | BossHealthBar shows "Prism Overlord"; higher barrage count than titan_guardian |
+| 12 | Wasteland Gate: Molten Colossus | BossHealthBar shows "Molten Colossus"; larger nova radius than titan_guardian |
+| 13 | Debug: `get_tree().current_scene.get_node("Arena").debug_spawn_final_boss()` in remote console | Final boss spawns immediately; BossHealthBar appears; run victory gating activates |
+| 14 | Miniboss and final boss both active | Both health bars visible; no overlap (boss bar at offset 70, miniboss at offset 10) |
+
+---
+
 ## Console Diagnostic Patterns
 
 Expected log lines only when verbose debug/powerup logging is enabled in the Inspector:

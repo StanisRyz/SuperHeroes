@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/enemies/FinalBossController.gd" id="1_final_boss_controller"]
+
+[node name="FinalBossController" type="Node"]
+script = ExtResource("1_final_boss_controller")

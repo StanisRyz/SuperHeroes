@@ -220,6 +220,20 @@ func set_hero_name(hero_name: String) -> void:
 	hero_label.text = "Hero: %s" % display_name
 
 
+func set_stage_name(stage_name: String) -> void:
+	if stage_name.is_empty():
+		return
+	var run_panel := get_node_or_null("Root/RunPanel")
+	if run_panel == null:
+		return
+	var stage_label := run_panel.get_node_or_null("StageLabel") as Label
+	if stage_label == null:
+		stage_label = Label.new()
+		stage_label.name = "StageLabel"
+		run_panel.add_child(stage_label)
+	stage_label.text = "Stage: %s" % stage_name
+
+
 func setup_evolution_manager(evolution_manager: Node) -> void:
 	_evolution_manager = evolution_manager
 	_update_evolution_label(evolution_manager)

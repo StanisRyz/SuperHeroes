@@ -277,6 +277,25 @@ Not implemented yet (meta):
 - Achievements.
 - Prestige or season resets.
 
+### Bosses, Stages & Content Expansion v1
+
+- **StageSelect** screen between CharacterSelect and Arena; shows stage list (left) and detail panel (right: color swatch, name, subtitle, difficulty, description, final boss name). Back returns to CharacterSelect; Start Run advances to Arena.
+- **StageDataProvider** owns 3 hardcoded stage presets:
+  - **City Rooftop** (Normal difficulty, `balanced` event profile, final boss: Titan Guardian, 10 min run)
+  - **Neon Lab** (Hard difficulty, `ranged_support` event profile, final boss: Prism Overlord, 8 min run)
+  - **Wasteland Gate** (Hard difficulty, `swarm_exploder` event profile, final boss: Molten Colossus, 9 min run)
+- **StageApplier** (static helper) applies the selected stage to Arena at startup: background colors on Ground/CenterGuide/HorizontalGuide/VerticalGuide, run settings to RunManager, event profile to EventDirector + SpawnDirector.
+- **Stage event profiles** in EventDirector: `balanced` uses the default schedule; `ranged_support` adds earlier shooter flanker and support surge events; `swarm_exploder` adds earlier exploder and swarm rush events.
+- **Stage spawn profiles** in SpawnDirector: `ranged_support` gives shooter/support a +25% weight bonus; `swarm_exploder` gives exploder/swarm a +30% weight bonus.
+- **Final boss spawn flow**: RunManager emits `target_time_reached` when the run time is reached (instead of triggering victory). Arena shows "Final Boss Incoming!" announcement and calls `EnemySpawner.spawn_final_boss(boss_id)`. Victory only occurs after the final boss is defeated.
+- **FinalBossController** (attached dynamically, like MinibossAttackController): 3 attacks — Nova (area damage circle), Barrage (radial projectile spread), Charge (telegraphed speed burst with boosted contact damage). Phase 2 at 50% HP reduces cooldowns and scales attack count/radius. Boss variant stats differ per boss_id.
+- **BossHealthBar** — CanvasLayer (layer 9) positioned below MinibossHealthBar. Shows "FINAL BOSS", boss display name, HP bar, and HP text. Wired by Arena to `EnemySpawner.final_boss_spawned`.
+- **HUD stage name** — `GameHUD.set_stage_name()` dynamically adds a StageLabel to RunPanel showing "Stage: City Rooftop".
+- **Victory/GameOver stage display** — both screens show "Stage: <name>" below the hero name row (added dynamically on `show_stats()`).
+- **Final boss meta reward** — `+35 currency` if `final_boss_defeated == true`; shown as "Final boss" row in PostRunRewardsScreen.
+- **Debug**: `Arena.debug_spawn_final_boss(boss_id: String = "")` can be called from the Godot remote console. No new key binding.
+- Restart from Victory/GameOver keeps the same hero and stage. Quit to MainMenu clears both selections.
+
 ### Weapon / Ability Evolution System
 
 - **EvolutionManager** owns runtime-only evolution definitions and applied evolution state for the current run.
@@ -301,21 +320,19 @@ Not implemented yet (meta):
 Not implemented yet:
 
 - Persistent records or run history.
-- Meta-progression or rewards after victory.
-- Hero unlocks.
 - Hero portraits.
 - Hero-specific unique abilities.
 - Persistent selected hero.
+- Persistent selected stage.
 - Persistent evolution unlocks.
 - Evolution art/icons.
 - Evolution sound effects.
 - Evolution chest animation.
 - Stage-specific evolutions.
-- Stage selection.
-- Arena hazards.
+- Stage unlocks (all 3 stages are unlocked by default).
+- Arena hazards / floor zones / obstacles.
 - Leaderboard.
 - Persistent high scores.
-- Save system or persistence.
 - Yandex SDK integration.
 - Ads, payments, or monetization.
 - Reroll, skip, or banish upgrade actions.
@@ -323,14 +340,13 @@ Not implemented yet:
 - Upgrade codex / full history UI.
 - Data-driven Resource upgrade files.
 - Mouse/manual ability aiming.
-- Ability unlock system (all 3 are available by default).
 - Ability icons.
 - Complex targeting indicators.
 - Status effects from abilities.
 - Ability loadouts or per-run selection.
 - Boss-specific art assets.
 - Boss sound effects.
-- More than 2 miniboss phases.
+- More than 2 final boss phases.
 - Complex bullet patterns or homing projectiles.
 - Boss arena or cutscene.
 - Buff icons.
@@ -353,7 +369,6 @@ Not implemented yet:
 - Enemy pathfinding.
 - Enemy spawn warning indicators.
 - Enemy projectile patterns.
-- Status effects.
 - Real audio assets.
 - Music playback.
 - Yandex/cloud save integration.
@@ -363,18 +378,12 @@ Not implemented yet:
 - Crit text.
 - Damage type colors.
 - Pickup magnet upgrades.
-- Mobile ability buttons for multiple abilities.
 - Input rebinding.
-- Character select.
-- Multiple active abilities.
-- Ability icons.
-- Ability targeting indicators.
 - Ability upgrade tree.
 - Resource-backed upgrade data files.
 - XP vacuum upgrades.
-- Bosses.
-- Biome or arena progression.
-- Arena hazards.
+- Additional stages beyond 3.
+- TileMap-based arena layouts.
 
 ## Architecture Principles
 

@@ -9,10 +9,13 @@ var settings_manager: Node
 var audio_manager: Node
 var hero_data_provider: Node
 var character_select: Node
+var stage_data_provider: Node
+var stage_select: Node
 var meta_progression_manager: Node
 var post_run_rewards_screen: Node
 var meta_upgrade_shop: Node
 var selected_hero_id: String = ""
+var selected_stage_id: String = ""
 
 var _last_reward_data: Dictionary = {}
 var _rewards_shown: bool = true
@@ -27,6 +30,8 @@ func _ready() -> void:
 	audio_manager = get_node_or_null("AudioManager")
 	hero_data_provider = get_node_or_null("HeroDataProvider")
 	character_select = get_node_or_null("CharacterSelect")
+	stage_data_provider = get_node_or_null("StageDataProvider")
+	stage_select = get_node_or_null("StageSelect")
 
 	if settings_manager != null and settings_manager.has_method("load_settings"):
 		settings_manager.load_settings()
@@ -48,6 +53,14 @@ func _ready() -> void:
 			character_select.hero_confirmed.connect(_on_hero_confirmed)
 		if character_select.has_signal("back_requested") and not character_select.back_requested.is_connected(_on_character_select_back_requested):
 			character_select.back_requested.connect(_on_character_select_back_requested)
+
+	if stage_select != null:
+		if stage_select.has_method("setup"):
+			stage_select.setup(stage_data_provider)
+		if stage_select.has_signal("stage_confirmed") and not stage_select.stage_confirmed.is_connected(_on_stage_confirmed):
+			stage_select.stage_confirmed.connect(_on_stage_confirmed)
+		if stage_select.has_signal("back_requested") and not stage_select.back_requested.is_connected(_on_stage_select_back_requested):
+			stage_select.back_requested.connect(_on_stage_select_back_requested)
 
 	_show_main_menu()
 
@@ -92,6 +105,8 @@ func _show_main_menu() -> void:
 	_clear_main_menu()
 	if character_select != null and character_select.has_method("close"):
 		character_select.close()
+	if stage_select != null and stage_select.has_method("close"):
+		stage_select.close()
 
 	if main_menu_scene == null:
 		push_warning("Main is missing main_menu_scene.")
@@ -120,7 +135,7 @@ func _show_character_select() -> void:
 	if character_select != null and character_select.has_method("open"):
 		character_select.open()
 	else:
-		_start_run_with_hero(selected_hero_id)
+		_show_stage_select()
 
 
 func _on_character_select_back_requested() -> void:
@@ -134,10 +149,34 @@ func _on_hero_confirmed(hero_id: String) -> void:
 	selected_hero_id = hero_id
 	if character_select != null and character_select.has_method("close"):
 		character_select.close()
-	_start_run_with_hero(hero_id)
+	_show_stage_select()
 
 
-func _start_run_with_hero(hero_id: String) -> void:
+func _show_stage_select() -> void:
+	if stage_select != null and stage_select.has_method("open"):
+		stage_select.open()
+	else:
+		_start_run_with_hero_and_stage(selected_hero_id, selected_stage_id)
+
+
+func _on_stage_confirmed(stage_id: String) -> void:
+	selected_stage_id = stage_id
+	if stage_select != null and stage_select.has_method("close"):
+		stage_select.close()
+	_start_run_with_hero_and_stage(selected_hero_id, selected_stage_id)
+
+
+func _on_stage_select_back_requested() -> void:
+	if stage_select != null and stage_select.has_method("close"):
+		stage_select.close()
+	if character_select != null and character_select.has_method("open"):
+		character_select.open()
+	else:
+		if main_menu != null:
+			main_menu.show()
+
+
+func _start_run_with_hero_and_stage(hero_id: String, stage_id: String) -> void:
 	get_tree().paused = false
 	_close_settings_menu_if_open()
 	_clear_main_menu()
@@ -152,9 +191,13 @@ func _start_run_with_hero(hero_id: String) -> void:
 
 	var selected_hero := _get_hero_data(hero_id)
 	selected_hero_id = str(selected_hero.get("id", hero_id))
+
+	var selected_stage := _get_stage_data(stage_id)
+	selected_stage_id = str(selected_stage.get("id", stage_id))
+
 	current_run = arena_scene.instantiate()
 	if current_run.has_method("setup"):
-		current_run.setup(settings_manager, audio_manager, selected_hero, meta_progression_manager)
+		current_run.setup(settings_manager, audio_manager, selected_hero, meta_progression_manager, selected_stage)
 	add_child(current_run)
 
 	if current_run.has_signal("run_result_ready") and not current_run.run_result_ready.is_connected(_on_run_result_ready):
@@ -233,13 +276,14 @@ func _do_restart_run() -> void:
 	get_tree().paused = false
 	_close_settings_menu_if_open()
 	_clear_current_run()
-	_start_run_with_hero(selected_hero_id)
+	_start_run_with_hero_and_stage(selected_hero_id, selected_stage_id)
 
 
 func _do_quit_to_menu() -> void:
 	get_tree().paused = false
 	_close_settings_menu_if_open()
 	_clear_current_run()
+	selected_stage_id = ""
 	_show_main_menu()
 
 
@@ -296,4 +340,17 @@ func _get_hero_data(hero_id: String) -> Dictionary:
 			return hero_data_provider.get_hero(hero_id)
 	if hero_data_provider.has_method("get_default_hero"):
 		return hero_data_provider.get_default_hero()
+	return {}
+
+
+func _get_stage_data(stage_id: String) -> Dictionary:
+	if stage_data_provider == null:
+		return {}
+	if stage_id.is_empty() and stage_data_provider.has_method("get_default_stage"):
+		return stage_data_provider.get_default_stage()
+	if stage_data_provider.has_method("is_valid_stage") and stage_data_provider.is_valid_stage(stage_id):
+		if stage_data_provider.has_method("get_stage"):
+			return stage_data_provider.get_stage(stage_id)
+	if stage_data_provider.has_method("get_default_stage"):
+		return stage_data_provider.get_default_stage()
 	return {}

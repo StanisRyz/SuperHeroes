@@ -7,9 +7,19 @@ const MAX_ALIVE_ENEMIES := 60
 
 var run_manager: Node
 var active_event_modifiers: Dictionary = {}
+var _stage_profile: String = "balanced"
+
+var _stage_profile_weight_bonuses: Dictionary = {
+	"ranged_support": {"shooter": 1.25, "support": 1.25},
+	"swarm_exploder": {"exploder": 1.3, "swarm": 1.3},
+}
 
 func setup(new_run_manager: Node) -> void:
 	run_manager = new_run_manager
+
+
+func set_stage_profile(profile: String) -> void:
+	_stage_profile = profile
 
 
 func apply_event_modifier(event_data: Dictionary) -> void:
@@ -245,6 +255,10 @@ func _get_available_variants(seconds: float) -> Array[Dictionary]:
 func _get_modified_weight(variant: Dictionary) -> float:
 	var weight := float(variant.get("weight", 1.0))
 	var variant_id := str(variant.get("id", ""))
+	if _stage_profile_weight_bonuses.has(_stage_profile):
+		var bonuses: Dictionary = _stage_profile_weight_bonuses[_stage_profile]
+		if bonuses.has(variant_id):
+			weight *= float(bonuses[variant_id])
 	for mod_id in active_event_modifiers:
 		var mod: Dictionary = active_event_modifiers[mod_id]
 		if mod.get("boost_runner_weight", false) and variant_id == "runner":

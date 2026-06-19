@@ -143,18 +143,21 @@ func calculate_run_rewards(summary: Dictionary) -> Dictionary:
 	var result := str(summary.get("result", "defeat"))
 	var applied_evolutions: Array = summary.get("applied_evolutions", [])
 
+	var final_boss_defeated := bool(summary.get("final_boss_defeated", false))
+
 	var base_reward := 10
 	var time_reward := int(floor(run_time / 30.0)) * 2
 	var kill_reward := int(floor(float(kill_count) / 10.0))
 	var elite_reward := elite_kill_count * 5
 	var miniboss_reward := miniboss_kill_count * 15
+	var final_boss_reward := 35 if final_boss_defeated else 0
 	var victory_bonus := 40 if result == "victory" else 0
 	var evolution_bonus := applied_evolutions.size() * 10
 	var starting_bonus := get_meta_upgrade_level("meta_starting_currency_bonus") * 2
 
 	var total_reward := maxi(
 		base_reward + time_reward + kill_reward + elite_reward + miniboss_reward +
-		victory_bonus + evolution_bonus + starting_bonus, 0
+		final_boss_reward + victory_bonus + evolution_bonus + starting_bonus, 0
 	)
 
 	return {
@@ -163,6 +166,7 @@ func calculate_run_rewards(summary: Dictionary) -> Dictionary:
 		"kill_reward": kill_reward,
 		"elite_reward": elite_reward,
 		"miniboss_reward": miniboss_reward,
+		"final_boss_reward": final_boss_reward,
 		"victory_bonus": victory_bonus,
 		"evolution_bonus": evolution_bonus,
 		"starting_bonus": starting_bonus,
