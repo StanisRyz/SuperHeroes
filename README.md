@@ -233,6 +233,30 @@ Implemented foundation:
 - UpgradeManager effect arrays now support `set` operations for bool/int/float properties and fail safely when a target/property/operation is invalid.
 - DebugStatsOverlay shows dash trail state, projectile bounce count, ability synergy flags, and build-defining option counts.
 
+### UI Readability Polish
+
+- **UIFormat** (`scenes/ui/UIFormat.gd`) — shared static helpers: `format_time`, `format_cooldown`, `format_percent`, `format_list`, `format_title_id`. Used across HUD and result screens to keep display formatting consistent.
+- **UIStateColors** (`scenes/ui/UIStateColors.gd`) — shared static color helpers: `ready_color`, `cooldown_color`, `warning_color`, `danger_color`, `muted_color`, `positive_color`, `boss_color`, `final_phase_color`. Used to consistently apply state-driven colors.
+- **Improved HUD grouping** — GameHUD panels reorganized into clear sections: Player (HP bar + XP bar), Run (time / kills / threat / objective / special kills / final phase), Combat (dash + 3 abilities), Buffs (shield / speed / haste), Build (hero / archetype / evolutions). AbilityPanel layout bug (overlapping RunPanel) fixed.
+- **Ability cooldown states** — HUD shows `J  Nova: Ready` (green) or `J  Nova: 3.4s` (gray) for each ability and dash. Ready state uses ready_color; cooldown uses cooldown_color.
+- **Low HP readability** — HP label turns amber at ≤30% HP and red with `LOW` prefix at ≤15% HP.
+- **Final phase / boss HUD** — `★ FINAL PHASE` shown in magenta when final phase starts; `Final Boss: Boss Name` in orange when the boss spawns; `Boss defeated` in green when defeated.
+- **Improved level-up cards** — LevelUpScreen shows title on top, then `[RARITY]  [ARCHETYPE]`, synergy/build-defining markers (`★ SYNERGY`, `◆ BUILD DEFINING`), level line, and description. Cards tinted by rarity (blue=rare, purple=epic, gold=legendary).
+- **Improved evolution cards** — EvolutionRewardScreen shows `◆ EVOLUTION  [ARCHETYPE]` header, title, description. Cards tinted golden. Friendly message when no evolution is available.
+- **Improved result screens** — VictoryScreen title is green; GameOverScreen title is red. Both show consistent stat labels (`Time:`, `Enemies:`, `Elites:`, `Minibosses:`, `Level:`, `Hero:`, `Stage:`, `Final Boss:`, `Build:`, `Upgrades:`, `Evolutions:`). GameOverScreen now also shows upgrade count.
+- **Improved PostRunRewardsScreen** — Reward rows colored green for non-zero values, gray for zero. Total and currency labels colored.
+- **Improved Training shop** — Buy button green when affordable, gray when not affordable or maxed.
+- **Improved CharacterSelect** — Selected hero button turns green; locked hero buttons are gray.
+- **Improved StageSelect** — Selected stage button turns green.
+- **Help overlay section titles** — Section titles are uppercase amber with horizontal separators between sections.
+
+Not implemented yet (UI):
+- Custom art UI theme.
+- Icon set for abilities, buffs, upgrades.
+- Localization / text scaling.
+- Remappable controls UI.
+- Gamepad navigation polish.
+
 ### Controls Help Overlay
 
 - **ControlsHelpOverlay** is a reusable pause-safe CanvasLayer shared by Main and Arena.

@@ -2,6 +2,8 @@ extends CanvasLayer
 
 signal continue_requested
 
+const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
+
 var _result_label: Label
 var _base_label: Label
 var _time_label: Label
@@ -121,8 +123,12 @@ func show_rewards(reward_data: Dictionary, progress_summary: Dictionary) -> void
 	_set_row(_evo_label, int(reward_data.get("evolution_bonus", 0)))
 	_set_row(_bonus_label, int(reward_data.get("starting_bonus", 0)))
 
-	_total_label.text = "  Earned this run:  +%d" % int(reward_data.get("total_reward", 0))
-	_currency_label.text = "  Total currency:    %d" % int(progress_summary.get("currency", 0))
+	var total := int(reward_data.get("total_reward", 0))
+	var currency := int(progress_summary.get("currency", 0))
+	_total_label.text = "  Earned this run:  +%d" % total
+	_total_label.modulate = UIStateColors.positive_color() if total > 0 else UIStateColors.muted_color()
+	_currency_label.text = "  Total currency:    %d" % currency
+	_currency_label.modulate = UIStateColors.positive_color() if currency > 0 else Color.WHITE
 
 	show()
 	if _continue_button != null:
@@ -136,6 +142,7 @@ func hide_screen() -> void:
 func _set_row(lbl: Label, value: int) -> void:
 	if lbl != null:
 		lbl.text = "+%d" % value
+		lbl.modulate = UIStateColors.positive_color() if value > 0 else UIStateColors.muted_color()
 
 
 func _on_continue_pressed() -> void:

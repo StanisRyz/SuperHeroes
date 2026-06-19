@@ -3,6 +3,8 @@ extends CanvasLayer
 signal back_requested
 signal buy_requested(upgrade_id: String)
 
+const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
+
 var _meta_manager: Node
 var _currency_label: Label
 var _back_button: Button
@@ -178,9 +180,15 @@ func _update_rows() -> void:
 			if level >= max_level:
 				buy_btn.text = "MAX"
 				buy_btn.disabled = true
+				buy_btn.modulate = UIStateColors.muted_color()
+			elif can_buy:
+				buy_btn.text = "Buy  %d" % cost
+				buy_btn.disabled = false
+				buy_btn.modulate = UIStateColors.positive_color()
 			else:
 				buy_btn.text = "Buy  %d" % cost
-				buy_btn.disabled = not can_buy
+				buy_btn.disabled = true
+				buy_btn.modulate = UIStateColors.muted_color()
 
 
 func _on_buy_pressed(upgrade_id: String) -> void:

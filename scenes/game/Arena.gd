@@ -4,6 +4,8 @@ signal restart_run_requested
 signal quit_to_menu_requested
 signal run_result_ready(summary: Dictionary)
 
+const UIFormat = preload("res://scenes/ui/UIFormat.gd")
+
 @export var arena_size: Vector2 = Vector2(4000.0, 4000.0)
 @export var debug_input_logging: bool = false
 
@@ -493,6 +495,8 @@ func _on_boss_phase_triggered() -> void:
 func _on_final_boss_spawned(enemy: Node) -> void:
 	if boss_health_bar != null and boss_health_bar.has_method("track_enemy"):
 		boss_health_bar.track_enemy(enemy)
+	if hud != null and hud.has_method("show_final_boss_info"):
+		hud.show_final_boss_info(UIFormat.format_title_id(final_boss_id))
 	var controller := enemy.get_node_or_null("FinalBossController") if enemy != null else null
 	if controller != null and controller.has_signal("phase_changed"):
 		if not controller.phase_changed.is_connected(_on_final_boss_phase_changed):
@@ -509,6 +513,8 @@ func _on_final_boss_defeated(_enemy: Node) -> void:
 		run_manager.register_final_boss_defeated()
 	if boss_health_bar != null and boss_health_bar.has_method("clear"):
 		boss_health_bar.clear()
+	if hud != null and hud.has_method("show_final_boss_defeated"):
+		hud.show_final_boss_defeated()
 	if event_announcement != null and event_announcement.has_method("show_announcement"):
 		event_announcement.show_announcement("Final Boss Defeated!", 3.5)
 

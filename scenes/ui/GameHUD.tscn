@@ -17,8 +17,8 @@ grow_vertical = 2
 layout_mode = 0
 offset_left = 64.0
 offset_top = 36.0
-offset_right = 304.0
-offset_bottom = 92.0
+offset_right = 310.0
+offset_bottom = 100.0
 
 [node name="PlayerHealthTitle" type="Label" parent="Root/HealthPanel"]
 layout_mode = 2
@@ -36,13 +36,13 @@ text = "100 / 100"
 [node name="ExperiencePanel" type="VBoxContainer" parent="Root"]
 layout_mode = 0
 offset_left = 64.0
-offset_top = 100.0
-offset_right = 344.0
-offset_bottom = 156.0
+offset_top = 106.0
+offset_right = 350.0
+offset_bottom = 168.0
 
 [node name="ExperienceTitle" type="Label" parent="Root/ExperiencePanel"]
 layout_mode = 2
-text = "Level 1"
+text = "Lv 1"
 
 [node name="ExperienceBar" type="ProgressBar" parent="Root/ExperiencePanel"]
 custom_minimum_size = Vector2(280, 16)
@@ -56,64 +56,73 @@ text = "XP 0 / 10"
 [node name="RunPanel" type="VBoxContainer" parent="Root"]
 layout_mode = 0
 offset_left = 64.0
-offset_top = 164.0
-offset_right = 420.0
-offset_bottom = 290.0
+offset_top = 174.0
+offset_right = 430.0
+offset_bottom = 336.0
 
 [node name="RunTimeLabel" type="Label" parent="Root/RunPanel"]
 layout_mode = 2
-text = "Time 00:00"
+text = "Time  0:00"
 
 [node name="KillCountLabel" type="Label" parent="Root/RunPanel"]
 layout_mode = 2
-text = "Enemies defeated 0"
+text = "Kills  0"
 
 [node name="ThreatLabel" type="Label" parent="Root/RunPanel"]
 layout_mode = 2
-text = "Threat 1"
+text = "Threat  1"
 
 [node name="ObjectiveLabel" type="Label" parent="Root/RunPanel"]
 layout_mode = 2
-text = "Survive: 00:00 / 10:00"
+text = "Goal: Survive 10:00"
 
 [node name="SpecialKillsLabel" type="Label" parent="Root/RunPanel"]
 layout_mode = 2
-text = "Elite 0 | Boss 0"
+text = "Elite 0  |  Boss 0"
 
 [node name="FinalPhaseLabel" type="Label" parent="Root/RunPanel"]
 layout_mode = 2
-text = "FINAL PHASE"
+text = "★ FINAL PHASE"
+visible = false
+
+[node name="FinalBossLabel" type="Label" parent="Root/RunPanel"]
+layout_mode = 2
+text = ""
 visible = false
 
 [node name="AbilityPanel" type="VBoxContainer" parent="Root"]
 layout_mode = 0
 offset_left = 64.0
-offset_top = 232.0
-offset_right = 380.0
-offset_bottom = 300.0
+offset_top = 342.0
+offset_right = 430.0
+offset_bottom = 460.0
 
-[node name="AbilityCooldownLabel" type="Label" parent="Root/AbilityPanel"]
+[node name="CombatSectionLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
-text = "Nova Pulse (J): Ready"
-
-[node name="LaserCooldownLabel" type="Label" parent="Root/AbilityPanel"]
-layout_mode = 2
-text = "Laser Beam (K): Ready"
-
-[node name="SlamCooldownLabel" type="Label" parent="Root/AbilityPanel"]
-layout_mode = 2
-text = "Hero Slam (L): Ready"
+text = "-- COMBAT --"
 
 [node name="DashCooldownLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
-text = "Dash: Ready"
+text = "Space  Dash: Ready"
+
+[node name="AbilityCooldownLabel" type="Label" parent="Root/AbilityPanel"]
+layout_mode = 2
+text = "J  Nova: Ready"
+
+[node name="LaserCooldownLabel" type="Label" parent="Root/AbilityPanel"]
+layout_mode = 2
+text = "K  Laser: Ready"
+
+[node name="SlamCooldownLabel" type="Label" parent="Root/AbilityPanel"]
+layout_mode = 2
+text = "L  Slam: Ready"
 
 [node name="BuffPanel" type="VBoxContainer" parent="Root"]
 layout_mode = 0
 offset_left = 64.0
-offset_top = 316.0
-offset_right = 400.0
-offset_bottom = 372.0
+offset_top = 466.0
+offset_right = 410.0
+offset_bottom = 524.0
 
 [node name="ShieldLabel" type="Label" parent="Root/BuffPanel"]
 layout_mode = 2
@@ -133,9 +142,9 @@ visible = false
 [node name="BuildPanel" type="VBoxContainer" parent="Root"]
 layout_mode = 0
 offset_left = 64.0
-offset_top = 384.0
-offset_right = 340.0
-offset_bottom = 456.0
+offset_top = 530.0
+offset_right = 390.0
+offset_bottom = 604.0
 
 [node name="HeroLabel" type="Label" parent="Root/BuildPanel"]
 layout_mode = 2
@@ -147,4 +156,4 @@ text = "Build: Mixed"
 
 [node name="EvolutionLabel" type="Label" parent="Root/BuildPanel"]
 layout_mode = 2
-text = "Evolution: None"
+text = "Evolved: None"

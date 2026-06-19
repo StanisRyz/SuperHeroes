@@ -356,3 +356,37 @@ DEBUG_INPUT: key=F12 physical=4194347 ...
 DEBUG_MODE: enabled=true
 DEBUG_PLAYER: invulnerable=true
 ```
+
+---
+
+## UI Readability Polish
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a run at 1280×720 | HUD panels visible in top-left; no panel text is clipped; RunPanel, AbilityPanel, BuffPanel, BuildPanel do not overlap |
+| 2 | Player HP drops to 31–100% | HP label shows `current / max` in white |
+| 3 | Player HP drops to 16–30% | HP label turns amber (warning color) |
+| 4 | Player HP drops to 1–15% | HP label shows `LOW  current / max` in red (danger color) |
+| 5 | Abilities are on cooldown | J/K/L labels show cooldown time in gray; e.g. `K  Laser: 3.4s` |
+| 6 | Ability cooldown expires | Label turns green and shows `Ready`; e.g. `J  Nova: Ready` |
+| 7 | Dash is on cooldown | `Space  Dash: 2.1s` shown in gray |
+| 8 | Dash cooldown expires | `Space  Dash: Ready` shown in green |
+| 9 | Run time advances | `Time  1:30` format; `Goal: Survive 1:30 / 10:00` updates each second |
+| 10 | Final phase triggers (9:00) | `★ FINAL PHASE` appears in magenta in RunPanel |
+| 11 | Final boss spawns | `Final Boss: Titan Guardian` appears in orange in RunPanel |
+| 12 | Final boss defeated | `Boss defeated` shown in green in RunPanel |
+| 13 | Pick a build archetype upgrade | `Build: Projectile` (or current dominant) shows in BuildPanel |
+| 14 | Apply an evolution | `Evolved: Evolution Name` or `Evolved: 2` shows in BuildPanel |
+| 15 | Collect shield powerup | `Shield: N` shown in green in BuffPanel |
+| 16 | Collect speed powerup | `Speed: X.Xs` shown in green in BuffPanel; hidden when expired |
+| 17 | Open LevelUpScreen | Cards show: title, `[RARITY]  [ARCHETYPE]`, `★ SYNERGY` / `◆ BUILD DEFINING` markers, level line, description; rare/epic/legendary cards have subtle color tint |
+| 18 | Open EvolutionRewardScreen | Cards show: `◆ EVOLUTION  [ARCHETYPE]`, title, description in golden tint |
+| 19 | No evolution available | EvolutionRewardScreen shows friendly "No evolution available" message and Continue button |
+| 20 | VictoryScreen shows | Result has: VICTORY title in green, `Time:`, `Enemies:`, `Elites:`, `Minibosses:`, `Level:`, `Hero:`, `Stage:`, `Final Boss:`, `Build:`, `Upgrades:`, `Evolutions:` rows with consistent labels |
+| 21 | GameOverScreen shows | Result has: RUN OVER title in red, same stat rows as Victory but without Final Boss if not reached |
+| 22 | PostRunRewardsScreen shows | All reward rows with `+N` right-aligned; non-zero values in green, zero values in gray; total row in green; total currency in green |
+| 23 | Training shop opens | Rows show title, description, level, cost; affordable Buy button in green; unaffordable or MAX button in gray |
+| 24 | CharacterSelect: select a hero | Selected hero button turns green and is disabled; other hero buttons are white (or gray if locked) |
+| 25 | StageSelect: select a stage | Selected stage button turns green and is disabled; other stage buttons are white |
+| 26 | Open Help / Controls overlay | Section titles are uppercase amber, separated by horizontal lines; body text is white; scroll works; Close button visible |
+| 27 | No gameplay values changed | Ability cooldowns, enemy stats, XP thresholds, reward formula all unchanged from pre-polish values |

@@ -1,5 +1,8 @@
 extends CanvasLayer
 
+const UIFormat = preload("res://scenes/ui/UIFormat.gd")
+const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
+
 var player: Node
 var _run_manager: Node = null
 var _target_run_time: float = 600.0
@@ -16,6 +19,7 @@ var _evolution_manager: Node = null
 @onready var objective_label: Label = get_node_or_null("Root/RunPanel/ObjectiveLabel")
 @onready var special_kills_label: Label = get_node_or_null("Root/RunPanel/SpecialKillsLabel")
 @onready var final_phase_label: Label = get_node_or_null("Root/RunPanel/FinalPhaseLabel")
+@onready var final_boss_label: Label = get_node_or_null("Root/RunPanel/FinalBossLabel")
 @onready var ability_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/AbilityCooldownLabel")
 @onready var laser_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/LaserCooldownLabel")
 @onready var slam_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/SlamCooldownLabel")
@@ -26,6 +30,7 @@ var _evolution_manager: Node = null
 @onready var build_label: Label = get_node_or_null("Root/BuildPanel/BuildLabel")
 @onready var hero_label: Label = get_node_or_null("Root/BuildPanel/HeroLabel")
 @onready var evolution_label: Label = get_node_or_null("Root/BuildPanel/EvolutionLabel")
+
 
 func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null, buff_manager: Node = null) -> void:
 	player = new_player
@@ -70,7 +75,17 @@ func _update_player_health(current_health: int, max_health: int) -> void:
 		health_bar.value = current_health
 
 	if health_label != null:
-		health_label.text = "%d / %d" % [current_health, max_health]
+		var hp_ratio := float(current_health) / float(max_health) if max_health > 0 else 1.0
+		var base_text := "%d / %d" % [current_health, max_health]
+		if hp_ratio <= 0.15:
+			health_label.text = "LOW  %s" % base_text
+			health_label.modulate = UIStateColors.danger_color()
+		elif hp_ratio <= 0.30:
+			health_label.text = base_text
+			health_label.modulate = UIStateColors.warning_color()
+		else:
+			health_label.text = base_text
+			health_label.modulate = Color.WHITE
 
 
 func _update_player_experience(current_xp: int, xp_to_next_level: int, level: int) -> void:
@@ -79,7 +94,7 @@ func _update_player_experience(current_xp: int, xp_to_next_level: int, level: in
 		experience_bar.value = current_xp
 
 	if experience_title != null:
-		experience_title.text = "Level %d" % level
+		experience_title.text = "Lv %d" % level
 
 	if experience_label != null:
 		experience_label.text = "XP %d / %d" % [current_xp, xp_to_next_level]
@@ -131,64 +146,78 @@ func _setup_ability_manager(ability_manager: Node) -> void:
 
 
 func _update_ability_cooldown(slot: int, cooldown_remaining: float, _cooldown_total: float) -> void:
+	var cd_text := UIFormat.format_cooldown(cooldown_remaining)
+	var is_ready := cooldown_remaining <= 0.0
+	var color := UIStateColors.ready_color() if is_ready else UIStateColors.cooldown_color()
 	match slot:
 		1:
 			if ability_cooldown_label == null:
 				return
-			ability_cooldown_label.text = "Nova Pulse (J): Ready" if cooldown_remaining <= 0.0 else "Nova Pulse (J): %.1fs" % cooldown_remaining
+			ability_cooldown_label.text = "J  Nova: %s" % cd_text
+			ability_cooldown_label.modulate = color
 		2:
 			if laser_cooldown_label == null:
 				return
-			laser_cooldown_label.text = "Laser Beam (K): Ready" if cooldown_remaining <= 0.0 else "Laser Beam (K): %.1fs" % cooldown_remaining
+			laser_cooldown_label.text = "K  Laser: %s" % cd_text
+			laser_cooldown_label.modulate = color
 		3:
 			if slam_cooldown_label == null:
 				return
-			slam_cooldown_label.text = "Hero Slam (L): Ready" if cooldown_remaining <= 0.0 else "Hero Slam (L): %.1fs" % cooldown_remaining
+			slam_cooldown_label.text = "L  Slam: %s" % cd_text
+			slam_cooldown_label.modulate = color
 
 
 func _update_dash_cooldown(cooldown_remaining: float, _cooldown_total: float) -> void:
 	if dash_cooldown_label == null:
 		return
-
-	if cooldown_remaining <= 0.0:
-		dash_cooldown_label.text = "Dash: Ready"
-	else:
-		dash_cooldown_label.text = "Dash: %.1fs" % cooldown_remaining
+	var cd_text := UIFormat.format_cooldown(cooldown_remaining)
+	var is_ready := cooldown_remaining <= 0.0
+	dash_cooldown_label.text = "Space  Dash: %s" % cd_text
+	dash_cooldown_label.modulate = UIStateColors.ready_color() if is_ready else UIStateColors.cooldown_color()
 
 
 func _update_run_time(seconds: float) -> void:
 	if run_time_label != null:
-		run_time_label.text = "Time %s" % _format_time(seconds)
+		run_time_label.text = "Time  %s" % UIFormat.format_time(seconds)
 	if threat_label != null:
-		threat_label.text = "Threat %d" % _get_threat_level(seconds)
+		threat_label.text = "Threat  %d" % _get_threat_level(seconds)
 	_update_objective(seconds)
 
 
 func _update_objective(seconds: float) -> void:
 	if objective_label != null:
-		objective_label.text = "Survive: %s / %s" % [_format_time(seconds), _format_time(_target_run_time)]
+		objective_label.text = "Goal: Survive %s / %s" % [UIFormat.format_time(seconds), UIFormat.format_time(_target_run_time)]
 
 
 func _update_kill_count(kills: int) -> void:
 	if kill_count_label != null:
-		kill_count_label.text = "Enemies defeated %d" % kills
+		kill_count_label.text = "Kills  %d" % kills
 
 
 func update_special_kills(elites: int, minibosses: int) -> void:
 	if special_kills_label != null:
-		special_kills_label.text = "Elite %d | Boss %d" % [elites, minibosses]
+		special_kills_label.text = "Elite %d  |  Boss %d" % [elites, minibosses]
 
 
 func _on_final_phase_started() -> void:
 	if final_phase_label != null:
 		final_phase_label.visible = true
+		final_phase_label.modulate = UIStateColors.final_phase_color()
 
 
-func _format_time(seconds: float) -> String:
-	var total_seconds := int(floor(seconds))
-	var minutes := int(total_seconds / 60.0)
-	var remaining_seconds := total_seconds % 60
-	return "%02d:%02d" % [minutes, remaining_seconds]
+func show_final_boss_info(boss_name: String) -> void:
+	if final_boss_label == null:
+		return
+	final_boss_label.text = "Final Boss: %s" % boss_name
+	final_boss_label.modulate = UIStateColors.boss_color()
+	final_boss_label.visible = true
+
+
+func show_final_boss_defeated() -> void:
+	if final_boss_label == null:
+		return
+	final_boss_label.text = "Boss defeated"
+	final_boss_label.modulate = UIStateColors.positive_color()
 
 
 func _get_threat_level(seconds: float) -> int:
@@ -257,11 +286,11 @@ func _update_evolution_label(evolution_manager: Node) -> void:
 	if evolution_label == null:
 		return
 	if evolution_manager == null or not evolution_manager.has_method("get_applied_evolution_titles"):
-		evolution_label.text = "Evolution: None"
+		evolution_label.text = "Evolved: None"
 		return
 	var titles: Array = evolution_manager.get_applied_evolution_titles()
 	if titles.is_empty():
-		evolution_label.text = "Evolution: None"
+		evolution_label.text = "Evolved: None"
 	elif titles.size() == 1:
 		evolution_label.text = "Evolved: %s" % titles[0]
 	else:
@@ -298,10 +327,12 @@ func _on_buff_updated(buff_id: String, time_left: float, _duration: float) -> vo
 		"move_speed_boost":
 			if move_speed_label != null:
 				move_speed_label.text = "Speed: %.1fs" % time_left
+				move_speed_label.modulate = UIStateColors.positive_color()
 				move_speed_label.visible = true
 		"attack_speed_boost":
 			if attack_speed_label != null:
 				attack_speed_label.text = "Haste: %.1fs" % time_left
+				attack_speed_label.modulate = UIStateColors.positive_color()
 				attack_speed_label.visible = true
 
 
@@ -320,6 +351,7 @@ func _on_shield_changed(charges: int) -> void:
 		return
 	if charges > 0:
 		shield_label.text = "Shield: %d" % charges
+		shield_label.modulate = UIStateColors.positive_color()
 		shield_label.visible = true
 	else:
 		shield_label.visible = false

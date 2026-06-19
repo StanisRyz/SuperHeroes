@@ -3,6 +3,8 @@ extends CanvasLayer
 signal evolution_selected(evolution_id: String)
 signal closed_without_selection
 
+const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
+
 var _option_buttons: Array[Button] = []
 var _message_label: Label
 var _continue_button: Button
@@ -18,15 +20,32 @@ func show_options(options: Array[Dictionary]) -> void:
 	for button in _option_buttons:
 		button.hide()
 		button.set_meta("evolution_id", "")
+		button.modulate = Color.WHITE
 	for index in mini(options.size(), _option_buttons.size()):
 		var evolution := options[index]
 		var button := _option_buttons[index]
-		button.text = "%s\n%s" % [evolution.get("title", "Evolution"), evolution.get("description", "")]
+		button.text = _format_evolution_text(evolution)
 		button.set_meta("evolution_id", evolution.get("id", ""))
+		button.modulate = Color(1.0, 0.9, 0.5, 1.0)
 		button.show()
-	_message_label.text = "No evolution available yet." if options.is_empty() else "Choose one evolution for this run."
+	if options.is_empty():
+		_message_label.text = "No evolution available at this time.\nKeep building your archetype and try again."
+	else:
+		_message_label.text = "Choose one evolution for this run."
 	_continue_button.visible = options.is_empty()
 	show()
+
+
+func _format_evolution_text(evolution: Dictionary) -> String:
+	var title := str(evolution.get("title", "Evolution"))
+	var archetype := str(evolution.get("archetype", ""))
+	var description := str(evolution.get("description", ""))
+
+	var header := "◆ EVOLUTION"
+	if not archetype.is_empty():
+		header = "◆ EVOLUTION  [%s]" % archetype.to_upper()
+
+	return "%s\n%s\n%s" % [header, title, description]
 
 
 func hide_screen() -> void:

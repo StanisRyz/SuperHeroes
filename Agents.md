@@ -127,6 +127,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/enemies/FinalBossController.gd` - owns final boss attack timing (Nova/Barrage/Charge), 2-phase logic, boss_id variant stats, phase_changed signal. Attached dynamically as child of boss enemy on spawn.
 - `scenes/ui/BossHealthBar.tscn` - final boss health bar overlay scene (CanvasLayer layer=9).
 - `scenes/ui/BossHealthBar.gd` - tracks a final boss enemy; shows "FINAL BOSS", name, HP bar, HP text. Positioned below MinibossHealthBar.
+- `scenes/ui/UIFormat.gd` - display formatting helpers (RefCounted, static methods only): format_time, format_cooldown, format_percent, format_list, format_title_id. No gameplay logic.
+- `scenes/ui/UIStateColors.gd` - color state helpers (RefCounted, static methods only): ready_color, cooldown_color, warning_color, danger_color, muted_color, positive_color, boss_color, final_phase_color. Built-in Color values only; no external assets.
 
 ## Miniboss Combat Architecture
 
@@ -680,10 +682,21 @@ The game is an original superhero survivors-like: the player moves around an are
 - Run `godot --headless --editor --quit` from the repo root to confirm no parse errors after every patch.
 - Validate Help / Controls from MainMenu, PauseMenu, active gameplay, and blocked modal states after changing input or menu flows.
 
+## UI Helper Architecture
+
+- `UIFormat` contains display formatting only — no gameplay logic, no signals, no state. Preload with `const UIFormat = preload("res://scenes/ui/UIFormat.gd")` and call static methods directly.
+- `UIStateColors` contains color helpers only — no gameplay logic. Preload the same way. Colors are built-in Color values only; never require external assets or theme resources.
+- UI scripts should not mutate gameplay balance. HUD, result screens, and reward screens are display-only.
+- `GameHUD` displays state from Player, RunManager, AbilityManager, BuffManager, UpgradeManager, and EvolutionManager — it does not own any of that state.
+- `GameHUD.show_final_boss_info(boss_name)` and `show_final_boss_defeated()` are called from Arena when the final boss spawns/dies.
+
 ## Development Rules
 
 - README.md and Agents.md must be updated on every task.
-- docs/validation/gameplay_validation.md must be updated for new gameplay flows.
+- docs/validation/gameplay_validation.md must be updated for new gameplay flows and UI checks.
+- Do not change gameplay values in UI polish patches.
+- Do not add arena hazards.
+- Do not add persistence unless explicitly requested.
 - Do not add arena hazards.
 - Do not add online backend, leaderboards, cloud save, ads, or paid purchases.
 - Meta-progression save is local only (user://superheroes_meta_progress.json). Do not add Yandex or cloud save unless explicitly requested.

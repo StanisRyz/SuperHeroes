@@ -3,6 +3,8 @@ extends CanvasLayer
 signal stage_confirmed(stage_id: String)
 signal back_requested
 
+const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
+
 var _stage_data_provider: Node = null
 var _stages: Array[Dictionary] = []
 var _selected_stage_id: String = ""
@@ -205,7 +207,9 @@ func _refresh_details() -> void:
 
 	for sid in _stage_buttons:
 		var btn := _stage_buttons[sid] as Button
-		btn.disabled = sid == _selected_stage_id
+		var is_selected: bool = sid == _selected_stage_id
+		btn.disabled = is_selected
+		btn.modulate = UIStateColors.positive_color() if is_selected else Color.WHITE
 
 
 func _format_boss_name(boss_id: String) -> String:

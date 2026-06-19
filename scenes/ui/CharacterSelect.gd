@@ -3,6 +3,8 @@ extends CanvasLayer
 signal hero_confirmed(hero_id: String)
 signal back_requested
 
+const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
+
 var hero_data_provider: Node
 var meta_progression_manager: Node = null
 var _heroes: Array[Dictionary] = []
@@ -170,8 +172,10 @@ func _reload_heroes() -> void:
 		if locked:
 			var unlock_cost := int(hero.get("unlock_cost", 0))
 			button.text = "%s\n[LOCKED — %d currency]" % [hero.get("display_name", "Hero"), unlock_cost]
+			button.modulate = UIStateColors.muted_color()
 		else:
 			button.text = "%s\n%s" % [hero.get("display_name", "Hero"), hero.get("playstyle", "")]
+			button.modulate = Color.WHITE
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.pressed.connect(_select_hero.bind(hero_id))
 		_cards_box.add_child(button)
@@ -229,7 +233,17 @@ func _refresh_details() -> void:
 
 	for hero_id in _hero_buttons:
 		var button := _hero_buttons[hero_id] as Button
-		button.disabled = hero_id == _selected_hero_id
+		var is_selected: bool = hero_id == _selected_hero_id
+		button.disabled = is_selected
+		if is_selected:
+			button.modulate = UIStateColors.positive_color()
+		else:
+			var locked := false
+			for h: Dictionary in _heroes:
+				if str(h.get("id", "")) == hero_id:
+					locked = _is_hero_locked(h)
+					break
+			button.modulate = UIStateColors.muted_color() if locked else Color.WHITE
 
 
 func _get_selected_hero() -> Dictionary:

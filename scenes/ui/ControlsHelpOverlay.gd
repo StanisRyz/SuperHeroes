@@ -3,6 +3,7 @@ extends CanvasLayer
 signal closed
 
 const ControlsHelpContent = preload("res://scenes/ui/ControlsHelpContent.gd")
+const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
 
 var _close_button: Button
 
@@ -105,8 +106,11 @@ func _build_ui() -> void:
 	content.add_theme_constant_override("separation", 12)
 	scroll.add_child(content)
 
-	for section: Dictionary in ControlsHelpContent.get_sections():
-		_add_section(content, str(section.get("title", "")), section.get("lines", []))
+	var sections: Array = ControlsHelpContent.get_sections()
+	for i: int in sections.size():
+		if i > 0:
+			content.add_child(HSeparator.new())
+		_add_section(content, str(sections[i].get("title", "")), sections[i].get("lines", []))
 
 	_close_button = Button.new()
 	_close_button.name = "CloseButton"
@@ -119,8 +123,10 @@ func _build_ui() -> void:
 
 func _add_section(parent: VBoxContainer, title_text: String, lines: Array) -> void:
 	var title := Label.new()
-	title.text = title_text
+	title.text = title_text.to_upper()
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.modulate = UIStateColors.warning_color()
+	title.add_theme_font_size_override("font_size", 14)
 	parent.add_child(title)
 
 	var body := Label.new()
