@@ -226,7 +226,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - Guardian may override ability display names through hero data, but global input slots and ability ids must stay stable.
 - Blaster keeps the `blaster` id and is an original dark gadget tactician fantasy with precision tools, tactical mobility, controlled burst damage, and close control presentation.
 - Blaster may override ability display names through hero data as Smoke Charge, Grapnel Shot, and Shock Trap, but global input slots and ability ids must stay stable.
-- Vanguard keeps the existing global Nova/Laser/Slam presentation unless explicitly reworked.
+- Vanguard keeps the `vanguard` id and is an original rage bruiser fantasy with durability, heavy impact, leap-like presentation, close-range fury, and ground-smash presentation.
+- Vanguard may override ability display names through hero data as Rage Burst, Crushing Leap, and Titan Slam, but global input slots and ability ids must stay stable.
 - HeroApplier applies run-only selected hero stats to Player, AutoAttack, and AbilityManager.
 - Arena stores selected hero data for the active run summary and HUD display.
 - Restart from GameOver/Victory should reuse the same selected hero id; Quit to Menu should allow choosing a different hero next run.

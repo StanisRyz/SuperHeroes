@@ -181,7 +181,7 @@ Run these before adding new gameplay systems.
 | 2 | Press **Back** from CharacterSelect | Returns to MainMenu |
 | 3 | Select **Solar Guardian**, then Start Run | Run starts with Guardian id, solar color, and 130 max HP |
 | 4 | Select **Night Tactician**, then Start Run | Run starts with Blaster id, 90 max HP, +1 projectile, and tactical tool tuning |
-| 5 | Select **Vanguard**, then Start Run | Run starts with faster ability cooldowns and stronger Nova/Slam damage |
+| 5 | Select **Fury Vanguard**, then Start Run | Run starts with Vanguard id, 125 max HP, slower bruiser speed, and heavy close-range tuning |
 | 6 | Start any hero | HUD shows `Hero: <name>` |
 | 7 | Reach Victory/GameOver | Summary screen shows `Hero: <name>` |
 | 8 | Restart from Victory/GameOver | Fresh run starts with the same selected hero |
@@ -204,7 +204,7 @@ Run these before adding new gameplay systems.
 | 7 | Enable mobile controls while Guardian is selected | Ability buttons use Guardian-specific labels and still cast slots 1/2/3 |
 | 8 | Open DebugStatsOverlay during Guardian run | Ability stats still display without errors |
 | 9 | Start a Night Tactician run | Blaster uses Smoke Charge, Grapnel Shot, and Shock Trap presentation without changing ability ids |
-| 10 | Start a Vanguard run | Vanguard keeps existing Nova/Laser/Slam behavior and labels |
+| 10 | Start a Fury Vanguard run | Vanguard uses Rage Burst, Crushing Leap, and Titan Slam presentation without changing ability ids |
 | 11 | Check Training with Guardian selected | Per-Hero Training still applies only Guardian Training |
 | 12 | Inspect changed text | No licensed superhero names or protected character identities are used |
 
@@ -223,8 +223,27 @@ Run these before adding new gameplay systems.
 | 7 | Enable mobile controls while Blaster is selected | Ability buttons use Blaster-specific labels and still cast slots 1/2/3 |
 | 8 | Open DebugStatsOverlay during Blaster run | Ability stats still display without errors |
 | 9 | Start a Solar Guardian run | Guardian-specific ability names still work |
-| 10 | Start a Vanguard run | Vanguard keeps existing Nova/Laser/Slam behavior and labels |
+| 10 | Start a Fury Vanguard run | Vanguard uses Rage Burst, Crushing Leap, and Titan Slam presentation without changing ability ids |
 | 11 | Check Training with Blaster selected | Per-Hero Training still applies only Blaster Training |
+| 12 | Inspect changed text | No licensed superhero names or protected character identities are used |
+
+---
+
+## Vanguard Ability Rework
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open CharacterSelect | Vanguard appears as Fury Vanguard with rage bruiser role text |
+| 2 | Select Vanguard and start a run | Run starts normally with hero id `vanguard` |
+| 3 | Check GameHUD ability panel | Slot labels show Rage Burst, Crushing Leap, and Titan Slam presentation |
+| 4 | Press ability_1 / J as Vanguard near enemies | Close-area fury pulse casts, damages enemies, and cooldown updates |
+| 5 | Press ability_2 / K as Vanguard with enemies ahead | Forward impact line casts, damages enemies, and cooldown updates |
+| 6 | Press ability_3 / L as Vanguard near enemies | Heavy ground smash casts, damages enemies, and cooldown updates |
+| 7 | Enable mobile controls while Vanguard is selected | Ability buttons use Vanguard-specific labels and still cast slots 1/2/3 |
+| 8 | Open DebugStatsOverlay during Vanguard run | Ability stats still display without errors |
+| 9 | Start a Solar Guardian run | Guardian-specific ability names still work |
+| 10 | Start a Night Tactician run | Blaster-specific ability names still work |
+| 11 | Check Training with Vanguard selected | Per-Hero Training still applies only Vanguard Training |
 | 12 | Inspect changed text | No licensed superhero names or protected character identities are used |
 
 ---
