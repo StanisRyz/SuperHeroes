@@ -23,6 +23,8 @@ var audio_manager: Node
 @onready var floating_text_spawner: Node = get_node_or_null("FloatingTextSpawner")
 @onready var pause_menu: Node = get_node_or_null("PauseMenu")
 @onready var settings_menu: Node = get_node_or_null("SettingsMenu")
+@onready var debug_manager: Node = get_node_or_null("DebugManager")
+@onready var debug_overlay: Node = get_node_or_null("DebugOverlay")
 
 
 func setup(new_settings_manager: Node = null, new_audio_manager: Node = null) -> void:
@@ -72,6 +74,7 @@ func _ready() -> void:
 	_setup_run_lifecycle()
 	_setup_pause_menu()
 	_setup_settings_menu()
+	_setup_debug_flow()
 
 	if projectile_container == null:
 		push_warning("Arena could not find ProjectileContainer node.")
@@ -236,6 +239,29 @@ func _setup_settings_menu() -> void:
 		settings_menu.setup(settings_manager, audio_manager)
 
 
+func _setup_debug_flow() -> void:
+	if debug_manager == null:
+		push_warning("Arena could not find DebugManager node.")
+		return
+
+	if debug_manager.has_method("setup"):
+		debug_manager.setup(player)
+	else:
+		push_warning("DebugManager does not implement setup(player).")
+
+	if debug_manager.has_signal("debug_mode_changed"):
+		if not debug_manager.debug_mode_changed.is_connected(_on_debug_mode_changed):
+			debug_manager.debug_mode_changed.connect(_on_debug_mode_changed)
+	else:
+		push_warning("DebugManager is missing debug_mode_changed signal.")
+
+	if debug_manager.has_signal("debug_level_requested"):
+		if not debug_manager.debug_level_requested.is_connected(_on_debug_level_requested):
+			debug_manager.debug_level_requested.connect(_on_debug_level_requested)
+	else:
+		push_warning("DebugManager is missing debug_level_requested signal.")
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		_request_pause_menu()
@@ -304,6 +330,28 @@ func _on_pause_quit_to_menu_requested() -> void:
 func _on_pause_settings_requested() -> void:
 	if settings_menu != null and settings_menu.has_method("open"):
 		settings_menu.open()
+
+
+func _on_debug_mode_changed(enabled: bool) -> void:
+	if debug_overlay != null and debug_overlay.has_method("set_debug_enabled"):
+		debug_overlay.set_debug_enabled(enabled)
+	else:
+		push_warning("DebugOverlay does not implement set_debug_enabled(enabled).")
+
+	if player != null and player.has_method("set_debug_invulnerable"):
+		player.set_debug_invulnerable(enabled)
+	else:
+		push_warning("Player does not implement set_debug_invulnerable(enabled).")
+
+
+func _on_debug_level_requested() -> void:
+	if get_tree().paused or _is_player_dead() or _is_game_over_visible():
+		return
+
+	if player != null and player.has_method("debug_gain_one_level"):
+		player.debug_gain_one_level()
+	else:
+		push_warning("Player does not implement debug_gain_one_level().")
 
 
 func _is_player_dead() -> bool:

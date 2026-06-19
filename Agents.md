@@ -14,6 +14,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/settings/SettingsManager.gd` - `user://settings.cfg` load/save helper for settings only.
 - `scenes/audio/AudioManager.tscn` - audio playback manager scene.
 - `scenes/audio/AudioManager.gd` - volume/mute application and optional SFX playback hooks.
+- `scenes/debug/DebugManager.tscn` - runtime-only debug input manager scene.
+- `scenes/debug/DebugManager.gd` - F12/F1 debug mode input and debug signals.
 - `scenes/game/Arena.tscn` - arena composition.
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup, level-up flow, run lifecycle.
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
@@ -50,6 +52,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/PauseMenu.gd` - pause menu resume, restart, and quit intent signals.
 - `scenes/ui/SettingsMenu.tscn` - pause-capable settings menu scene.
 - `scenes/ui/SettingsMenu.gd` - settings UI binding for volume, mobile controls, and screen shake.
+- `scenes/ui/DebugOverlay.tscn` - simple DEBUG ON overlay scene.
+- `scenes/ui/DebugOverlay.gd` - debug overlay visibility binding.
 - `scenes/ui/LevelUpScreen.tscn` - pause-time upgrade selection UI.
 - `scenes/ui/LevelUpScreen.gd` - displays options and emits selected upgrade IDs.
 - `scenes/ui/GameOverScreen.tscn` - pause-time game over UI.
@@ -134,6 +138,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - Mobile dash button.
 - Dash visual feedback.
 - Dash upgrades.
+- Debug Mode toggle with F12.
+- DEBUG ON overlay.
+- Debug invulnerability through Player.take_damage().
+- F1 debug one-level gain while Debug Mode is enabled.
 - Projectile pierce.
 - Multishot.
 - Projectile spread angle.
@@ -161,8 +169,18 @@ The game is an original superhero survivors-like: the player moves around an are
 
 - Player owns dash state, cooldown, and invulnerability.
 - Damage immunity is handled inside `Player.take_damage()`.
+- Debug invulnerability is separate from dash invulnerability and must not alter dash timers.
 - MobileControls emits dash intent; Arena wires it to `Player.try_dash()`.
 - `dash_cooldown_down` and `dash_invulnerability_up` are runtime upgrades only.
+
+## Debug Flow
+
+- DebugManager handles F12/F1 input during an active Arena run.
+- DebugOverlay only displays DEBUG ON and does not own debug rules.
+- Player owns `debug_invulnerable` and `debug_gain_one_level()`.
+- Arena wires DebugManager to Player and DebugOverlay.
+- Debug Mode is runtime-only, not persisted, and not exposed in SettingsMenu.
+- Do not add debug cheats unless explicitly requested.
 
 ## Frontend Flow
 
@@ -328,6 +346,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not add persistence for gameplay progression unless explicitly requested.
 - Do not add bosses or elite systems unless explicitly requested.
 - Do not re-enable Player/Enemy physical body collisions.
+- Do not persist debug mode.
+- Do not add debug cheats unless explicitly requested.
 
 ## Validation
 

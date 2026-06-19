@@ -99,6 +99,11 @@ Implemented foundation:
 - Mobile dash button.
 - Dash visual feedback.
 - Dash upgrades.
+- Debug Mode toggle with F12.
+- DEBUG ON runtime overlay.
+- Debug Mode player invulnerability.
+- F1 debug level gain while Debug Mode is enabled.
+- Runtime-only Debug Mode for development/testing, not progression.
 - Projectile pierce.
 - Multishot.
 - Projectile spread angle.
@@ -130,6 +135,7 @@ Not implemented yet:
 - Real audio assets.
 - Music playback.
 - Yandex/cloud save integration.
+- Persistent debug mode.
 - Sound effects.
 - Advanced particles.
 - Crit text.

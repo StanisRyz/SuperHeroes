@@ -28,6 +28,7 @@ var dash_direction := Vector2.ZERO
 var dash_time_remaining := 0.0
 var dash_cooldown_remaining := 0.0
 var invulnerability_time_remaining := 0.0
+var debug_invulnerable: bool = false
 var _playable_rect: Rect2
 var _has_playable_rect := false
 var _hit_flash_tween: Tween
@@ -77,7 +78,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func take_damage(amount: int) -> void:
-	if amount <= 0 or is_dead() or is_invulnerable():
+	if amount <= 0 or is_dead() or is_invulnerable() or debug_invulnerable:
 		return
 
 	var previous_health := current_health
@@ -121,6 +122,14 @@ func is_invulnerable() -> bool:
 	return invulnerability_time_remaining > 0.0
 
 
+func set_debug_invulnerable(enabled: bool) -> void:
+	debug_invulnerable = enabled
+
+
+func is_debug_invulnerable() -> bool:
+	return debug_invulnerable
+
+
 func add_experience(amount: int) -> void:
 	if amount <= 0:
 		return
@@ -136,6 +145,15 @@ func add_experience(amount: int) -> void:
 	experience_changed.emit(current_xp, xp_to_next_level, level)
 	for gained_level in gained_levels:
 		level_up_available.emit(gained_level)
+
+
+func debug_gain_one_level() -> void:
+	if is_dead():
+		return
+
+	level += 1
+	experience_changed.emit(current_xp, xp_to_next_level, level)
+	level_up_available.emit(level)
 
 
 func set_external_move_vector(direction: Vector2) -> void:
