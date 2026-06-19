@@ -4,6 +4,7 @@ signal restart_run_requested
 signal quit_to_menu_requested
 
 @export var arena_size: Vector2 = Vector2(4000.0, 4000.0)
+@export var debug_input_logging: bool = false
 
 var settings_manager: Node
 var audio_manager: Node
@@ -261,6 +262,23 @@ func _setup_debug_flow() -> void:
 	else:
 		push_warning("DebugManager is missing debug_level_requested signal.")
 
+	if debug_manager.has_method("is_debug_enabled"):
+		_on_debug_mode_changed(debug_manager.is_debug_enabled())
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.echo:
+		return
+
+	if event.is_action_pressed("debug_toggle"):
+		_toggle_debug_mode_from_input()
+		get_viewport().set_input_as_handled()
+		return
+
+	if event.is_action_pressed("debug_level_up"):
+		_request_debug_level_from_input()
+		get_viewport().set_input_as_handled()
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
@@ -345,13 +363,49 @@ func _on_debug_mode_changed(enabled: bool) -> void:
 
 
 func _on_debug_level_requested() -> void:
-	if get_tree().paused or _is_player_dead() or _is_game_over_visible():
+	if _is_debug_level_blocked():
 		return
 
 	if player != null and player.has_method("debug_gain_one_level"):
 		player.debug_gain_one_level()
 	else:
 		push_warning("Player does not implement debug_gain_one_level().")
+
+
+func _toggle_debug_mode_from_input() -> void:
+	if _is_debug_toggle_blocked():
+		return
+
+	if debug_input_logging:
+		print("Debug input: toggle pressed")
+	if debug_manager != null and debug_manager.has_method("toggle_debug_mode"):
+		debug_manager.toggle_debug_mode()
+		if debug_input_logging and debug_manager.has_method("is_debug_enabled"):
+			print("Debug input: debug_enabled=%s" % debug_manager.is_debug_enabled())
+	else:
+		push_warning("DebugManager does not implement toggle_debug_mode().")
+
+
+func _request_debug_level_from_input() -> void:
+	if _is_debug_level_blocked():
+		return
+	if debug_manager == null or not debug_manager.has_method("is_debug_enabled") or not debug_manager.is_debug_enabled():
+		return
+
+	if debug_input_logging:
+		print("Debug input: level requested")
+	if debug_manager.has_signal("debug_level_requested"):
+		debug_manager.debug_level_requested.emit()
+	else:
+		_on_debug_level_requested()
+
+
+func _is_debug_toggle_blocked() -> bool:
+	return get_tree().paused or _is_level_up_visible() or _is_game_over_visible() or _is_player_dead()
+
+
+func _is_debug_level_blocked() -> bool:
+	return get_tree().paused or _is_level_up_visible() or _is_game_over_visible() or _is_player_dead()
 
 
 func _is_player_dead() -> bool:

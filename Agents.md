@@ -175,8 +175,11 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Debug Flow
 
-- DebugManager handles F12/F1 input during an active Arena run.
-- DebugManager requires `debug_toggle` and `debug_level_up` InputMap actions and should ignore key echo.
+- Arena coordinates Debug Mode keyboard input during an active Arena run.
+- DebugManager owns debug state and signals, not keyboard handling.
+- Debug input requires `debug_toggle` and `debug_level_up` InputMap actions and should ignore key echo.
+- Debug toggle supports F12 with F10 fallback; debug level supports F1 with F2 fallback.
+- Debug level keys should not work while paused, game-over, level-up, or player-dead.
 - DebugOverlay only displays DEBUG ON and does not own debug rules.
 - Player owns `debug_invulnerable` and `debug_gain_one_level()`.
 - Arena wires DebugManager to Player and DebugOverlay.

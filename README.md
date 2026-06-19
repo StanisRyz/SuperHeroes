@@ -99,11 +99,12 @@ Implemented foundation:
 - Mobile dash button.
 - Dash visual feedback.
 - Dash upgrades.
-- Debug Mode toggle with F12.
-- Debug Mode input actions for F12 and F1.
+- Debug Mode toggle with F12, with F10 fallback for browser/editor cases.
+- Debug Mode input actions for F12/F10 and F1/F2.
 - DEBUG ON runtime overlay.
 - Debug Mode player invulnerability.
-- F1 debug level gain while Debug Mode is enabled.
+- F1 debug level gain while Debug Mode is enabled, with F2 fallback.
+- F12/F1 may be intercepted by browsers or the editor, so fallback debug keys are supported.
 - Runtime-only Debug Mode for development/testing, not progression.
 - SettingsMenu works from both MainMenu and PauseMenu.
 - MainMenu Settings is hidden before gameplay starts.
