@@ -24,11 +24,28 @@ func show_options(options: Array[Dictionary]) -> void:
 			continue
 
 		var option := options[index]
-		button.text = "%s\n%s" % [option.get("title", "Upgrade"), option.get("description", "")]
+		button.text = _format_option_text(option)
 		button.set_meta("upgrade_id", option.get("id", ""))
 		button.show()
 
 	show()
+
+
+func _format_option_text(option: Dictionary) -> String:
+	var rarity := str(option.get("rarity", "common")).to_upper()
+	var title := str(option.get("title", "Upgrade"))
+	var level := int(option.get("level", 0))
+	var max_level := int(option.get("max_level", 1))
+	var description := str(option.get("description", ""))
+
+	return "[%s] %s\nLevel %d -> %d / %d\n%s" % [
+		rarity,
+		title,
+		level,
+		mini(level + 1, max_level),
+		max_level,
+		description
+	]
 
 
 func _on_option_pressed(index: int) -> void:

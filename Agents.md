@@ -22,7 +22,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
 - `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, and enemy hit damage.
 - `scenes/upgrades/UpgradeManager.tscn` - runtime upgrade manager scene.
-- `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade options and application logic.
+- `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade definitions, option weighting, upgrade levels, and application logic.
 - `scenes/ui/GameHUD.tscn` - player HP, XP, time, and kill counter HUD scene.
 - `scenes/ui/GameHUD.gd` - player and run HUD binding.
 - `scenes/ui/MobileControls.tscn` - mobile virtual joystick and Nova Pulse button scene.
@@ -70,6 +70,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - Level-up pause screen.
 - Three-option upgrade selection.
 - Basic run upgrades.
+- Upgrade levels and max upgrade levels.
+- Weighted upgrade option selection.
+- Upgrade rarity labels.
+- Dynamic upgrade descriptions.
 - AbilityManager on the player.
 - Active ability input through `ability_1`.
 - Nova Pulse active ability.
@@ -85,9 +89,17 @@ The game is an original superhero survivors-like: the player moves around an are
 - Player emits `level_up_available(level)` after XP crosses a threshold.
 - Arena pauses the tree.
 - Arena asks `UpgradeManager` for three options.
-- `LevelUpScreen` displays options while paused.
+- `UpgradeManager` returns option dictionaries with title, rarity, level info, max level, and dynamic description.
+- `LevelUpScreen` displays option dictionaries from `UpgradeManager` while paused.
 - Arena applies the selected upgrade through `UpgradeManager`.
 - Arena unpauses gameplay.
+
+## UpgradeManager V2 Notes
+
+- Upgrade definitions are still hardcoded dictionaries, not Resource assets.
+- Each upgrade has rarity, weight, max_level, current level, and effect_value.
+- Maxed upgrades are excluded from future option rolls.
+- Arena coordinates level-up pause/resume and does not own upgrade effects.
 
 ## Run Lifecycle
 
@@ -135,7 +147,8 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Not Implemented Yet
 
-- Upgrade icons, rarities, weights, or Resource-backed data.
+- Upgrade icons or Resource-backed data.
+- Reroll, skip, or banish upgrade actions.
 - Mobile ability buttons for multiple abilities.
 - Mobile pause button.
 - Input rebinding.
@@ -154,8 +167,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - Pause menu.
 - Persistent records.
 - Persistent high scores or saved run history.
+- Save persistence.
 - Meta-progression.
-- Mobile joystick.
 - Yandex SDK integration.
 - Ads, payments, monetization, leaderboards, or saves.
 
@@ -173,6 +186,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Keep 16:9 and wide 20:9 landscape layouts in mind.
 - Do not add additional mobile ability buttons unless explicitly requested.
 - Do not make `MobileControls` directly mutate gameplay except through signals.
+- Do not add persistence unless explicitly requested.
 
 ## Validation
 

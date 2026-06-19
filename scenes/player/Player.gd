@@ -72,7 +72,7 @@ func add_experience(amount: int) -> void:
 
 	experience_changed.emit(current_xp, xp_to_next_level, level)
 	for gained_level in gained_levels:
-			level_up_available.emit(gained_level)
+		level_up_available.emit(gained_level)
 
 
 func set_external_move_vector(direction: Vector2) -> void:

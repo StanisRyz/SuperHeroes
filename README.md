@@ -44,7 +44,11 @@ Implemented foundation:
 - XP bar in the HUD.
 - Level-up pause screen.
 - Three-option upgrade selection.
-- Basic run upgrades for attack damage, attack speed, attack range, move speed, max HP, and projectile speed.
+- Basic run upgrades for attack damage, attack speed, attack range, move speed, max HP, projectile speed, and Nova Pulse.
+- Upgrade levels and max upgrade levels.
+- Weighted upgrade option selection.
+- Upgrade rarity labels.
+- Dynamic upgrade descriptions.
 - Run timer and enemy kill counter.
 - Player death detection.
 - Game over screen with current run stats.
@@ -76,7 +80,9 @@ Not implemented yet:
 - Ability icons.
 - Ability targeting indicators.
 - Ability upgrade tree.
-- Upgrade icons, rarities, weights, or Resource-backed upgrade data.
+- Reroll, skip, or banish upgrade actions.
+- Upgrade icons.
+- Resource-backed upgrade data files.
 - XP magnet/vacuum.
 - Projectile upgrades such as pierce, bounce, or spread.
 - Floating damage numbers.
@@ -87,8 +93,8 @@ Not implemented yet:
 - Pause menu.
 - Persistent records.
 - Persistent high scores or saved run history.
+- Save persistence.
 - Meta-progression.
-- Mobile joystick.
 - Yandex SDK integration.
 - Ads, payments, leaderboards, saves, or monetization.
 
