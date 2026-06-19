@@ -16,6 +16,7 @@ var audio_manager: Node
 @onready var enemy_spawner: Node = get_node_or_null("EnemySpawner")
 @onready var run_manager: Node = get_node_or_null("RunManager")
 @onready var spawn_director: Node = get_node_or_null("SpawnDirector")
+@onready var gameplay_tuning: Node = get_node_or_null("GameplayTuning")
 @onready var hud: Node = get_node_or_null("GameHUD")
 @onready var upgrade_manager: Node = get_node_or_null("UpgradeManager")
 @onready var level_up_screen: Node = get_node_or_null("LevelUpScreen")
@@ -43,12 +44,17 @@ func setup(new_settings_manager: Node = null, new_audio_manager: Node = null) ->
 	settings_manager = new_settings_manager
 	audio_manager = new_audio_manager
 
+
+# Core setup and wiring
 func _ready() -> void:
 	var playable_rect := get_playable_rect()
 
 	if player == null:
 		push_warning("Arena could not find Player node to apply playable bounds.")
 		return
+
+	if gameplay_tuning != null and gameplay_tuning.has_method("apply_to"):
+		gameplay_tuning.apply_to(self)
 
 	if player.has_method("set_playable_rect"):
 		player.set_playable_rect(playable_rect)
@@ -127,12 +133,14 @@ func _ready() -> void:
 		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner).")
 
 	_setup_debug_stats_overlay()
+	_run_project_health_check()
 
 
 func get_playable_rect() -> Rect2:
 	return Rect2(-arena_size * 0.5, arena_size)
 
 
+# Upgrade and player systems
 func _setup_level_up_flow(auto_attack: Node, ability_manager: Node) -> void:
 	if upgrade_manager == null:
 		push_warning("Arena could not find UpgradeManager node.")
@@ -247,6 +255,7 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 	get_tree().paused = false
 
 
+# Run lifecycle
 func _setup_run_lifecycle() -> void:
 	if player.has_signal("died") and not player.died.is_connected(_on_player_died):
 		player.died.connect(_on_player_died)
@@ -437,15 +446,19 @@ func _build_run_summary(base_stats: Dictionary) -> Dictionary:
 	return summary
 
 
+# Debug systems
 func _setup_debug_flow() -> void:
-	print("DEBUG_WIRING: DebugManager exists=%s" % (debug_manager != null))
-	print("DEBUG_WIRING: DebugOverlay exists=%s" % (debug_overlay != null))
+	if debug_input_logging:
+		print("DEBUG_WIRING: DebugManager exists=%s" % (debug_manager != null))
+		print("DEBUG_WIRING: DebugOverlay exists=%s" % (debug_overlay != null))
 	if player != null:
-		print("DEBUG_WIRING: Player.set_debug_invulnerable=%s" % player.has_method("set_debug_invulnerable"))
-		print("DEBUG_WIRING: Player.debug_gain_one_level=%s" % player.has_method("debug_gain_one_level"))
-		print("DEBUG_WIRING: Player.debug_add_experience=%s" % player.has_method("debug_add_experience"))
+		if debug_input_logging:
+			print("DEBUG_WIRING: Player.set_debug_invulnerable=%s" % player.has_method("set_debug_invulnerable"))
+			print("DEBUG_WIRING: Player.debug_gain_one_level=%s" % player.has_method("debug_gain_one_level"))
+			print("DEBUG_WIRING: Player.debug_add_experience=%s" % player.has_method("debug_add_experience"))
 	else:
-		print("DEBUG_WIRING: Player is null")
+		if debug_input_logging:
+			print("DEBUG_WIRING: Player is null")
 
 	if debug_manager == null:
 		push_warning("Arena could not find DebugManager node.")
@@ -478,7 +491,8 @@ func _setup_debug_flow() -> void:
 	_connect_debug_signal("debug_print_stats_requested", _on_debug_print_stats_requested)
 	_connect_debug_signal("debug_kill_nearby_enemies_requested", _on_debug_kill_nearby_enemies_requested)
 
-	print("DEBUG_WIRING: signals connected=%s" % signals_connected)
+	if debug_input_logging:
+		print("DEBUG_WIRING: signals connected=%s" % signals_connected)
 
 	if debug_manager.has_method("is_debug_enabled"):
 		_on_debug_mode_changed(debug_manager.is_debug_enabled())
@@ -505,13 +519,24 @@ func _setup_debug_stats_overlay() -> void:
 	var ability_manager := player.get_node_or_null("AbilityManager") if player != null else null
 
 	if _debug_stats_overlay.has_method("setup"):
-		_debug_stats_overlay.setup(player, auto_attack, ability_manager, upgrade_manager, powerup_manager, enemy_spawner)
+		_debug_stats_overlay.setup(player, auto_attack, ability_manager, upgrade_manager, powerup_manager, enemy_spawner, run_manager, enemy_container, projectile_container, pickup_container)
 
 	var is_debug: bool = debug_manager != null and debug_manager.has_method("is_debug_enabled") and debug_manager.is_debug_enabled()
 	if _debug_stats_overlay.has_method("set_debug_enabled"):
 		_debug_stats_overlay.set_debug_enabled(is_debug)
 
-	print("DEBUG_WIRING: DebugStatsOverlay instantiated=%s" % (_debug_stats_overlay != null))
+	if debug_input_logging:
+		print("DEBUG_WIRING: DebugStatsOverlay instantiated=%s" % (_debug_stats_overlay != null))
+
+
+func _run_project_health_check() -> void:
+	var checker_script: Script = load("res://scenes/debug/ProjectHealthCheck.gd")
+	if checker_script == null:
+		push_warning("Arena: ProjectHealthCheck.gd not found.")
+		return
+	var checker := checker_script.new()
+	if checker != null and checker.has_method("run"):
+		checker.run(self)
 
 
 func _input(event: InputEvent) -> void:
@@ -522,7 +547,7 @@ func _input(event: InputEvent) -> void:
 
 	var kc: int = event.keycode if event.keycode != 0 else event.physical_keycode
 
-	if kc == KEY_F12 or kc == KEY_F10 or kc == KEY_F1 or kc == KEY_F2:
+	if debug_input_logging and (kc == KEY_F12 or kc == KEY_F10 or kc == KEY_F1 or kc == KEY_F2):
 		print("DEBUG_INPUT: key=%s physical=%d keycode=%d pressed=%s echo=%s" % [
 			OS.get_keycode_string(kc), event.physical_keycode, event.keycode, event.pressed, event.echo
 		])
@@ -547,32 +572,38 @@ func _input(event: InputEvent) -> void:
 	elif _is_debug_action_blocked():
 		pass
 	elif kc == KEY_F3 or event.is_action_pressed("debug_spawn_powerup"):
-		print("DEBUG_INPUT: action=debug_spawn_powerup")
+		if debug_input_logging:
+			print("DEBUG_INPUT: action=debug_spawn_powerup")
 		if debug_manager != null and debug_manager.has_method("request_spawn_powerup"):
 			debug_manager.request_spawn_powerup()
 		handled_debug_key = true
 	elif kc == KEY_F4 or event.is_action_pressed("debug_spawn_elite"):
-		print("DEBUG_INPUT: action=debug_spawn_elite")
+		if debug_input_logging:
+			print("DEBUG_INPUT: action=debug_spawn_elite")
 		if debug_manager != null and debug_manager.has_method("request_spawn_elite"):
 			debug_manager.request_spawn_elite()
 		handled_debug_key = true
 	elif kc == KEY_F5 or event.is_action_pressed("debug_spawn_miniboss"):
-		print("DEBUG_INPUT: action=debug_spawn_miniboss")
+		if debug_input_logging:
+			print("DEBUG_INPUT: action=debug_spawn_miniboss")
 		if debug_manager != null and debug_manager.has_method("request_spawn_miniboss"):
 			debug_manager.request_spawn_miniboss()
 		handled_debug_key = true
 	elif kc == KEY_F6 or event.is_action_pressed("debug_add_xp"):
-		print("DEBUG_INPUT: action=debug_add_xp")
+		if debug_input_logging:
+			print("DEBUG_INPUT: action=debug_add_xp")
 		if debug_manager != null and debug_manager.has_method("request_add_xp"):
 			debug_manager.request_add_xp()
 		handled_debug_key = true
 	elif kc == KEY_F7 or event.is_action_pressed("debug_print_stats"):
-		print("DEBUG_INPUT: action=debug_print_stats")
+		if debug_input_logging:
+			print("DEBUG_INPUT: action=debug_print_stats")
 		if debug_manager != null and debug_manager.has_method("request_print_stats"):
 			debug_manager.request_print_stats()
 		handled_debug_key = true
 	elif kc == KEY_F8 or event.is_action_pressed("debug_kill_nearby_enemies"):
-		print("DEBUG_INPUT: action=debug_kill_nearby_enemies")
+		if debug_input_logging:
+			print("DEBUG_INPUT: action=debug_kill_nearby_enemies")
 		if debug_manager != null and debug_manager.has_method("request_kill_nearby_enemies"):
 			debug_manager.request_kill_nearby_enemies()
 		handled_debug_key = true
@@ -692,7 +723,8 @@ func _on_debug_spawn_powerup_requested() -> void:
 	var powerup_id: String = DEBUG_POWERUP_CYCLE[_debug_powerup_cycle_index % DEBUG_POWERUP_CYCLE.size()]
 	_debug_powerup_cycle_index += 1
 	enemy_spawner.debug_spawn_powerup(powerup_id)
-	print("DEBUG_ACTION: spawned powerup %s" % powerup_id)
+	if debug_input_logging:
+		print("DEBUG_ACTION: spawned powerup %s" % powerup_id)
 
 
 func _on_debug_spawn_elite_requested() -> void:
@@ -700,7 +732,8 @@ func _on_debug_spawn_elite_requested() -> void:
 		push_warning("Arena: EnemySpawner missing spawn_elite_enemy().")
 		return
 	enemy_spawner.spawn_elite_enemy({})
-	print("DEBUG_ACTION: spawned elite")
+	if debug_input_logging:
+		print("DEBUG_ACTION: spawned elite")
 
 
 func _on_debug_spawn_miniboss_requested() -> void:
@@ -711,7 +744,8 @@ func _on_debug_spawn_miniboss_requested() -> void:
 	if enemy_spawner.has_signal("miniboss_spawned") and miniboss_health_bar != null:
 		if not enemy_spawner.miniboss_spawned.is_connected(miniboss_health_bar.track_enemy):
 			enemy_spawner.miniboss_spawned.connect(miniboss_health_bar.track_enemy)
-	print("DEBUG_ACTION: spawned miniboss")
+	if debug_input_logging:
+		print("DEBUG_ACTION: spawned miniboss")
 
 
 func debug_spawn_enemy_variant(variant_id: String) -> void:
@@ -728,7 +762,8 @@ func _on_debug_add_xp_requested() -> void:
 		player.debug_add_experience(DEBUG_XP_AMOUNT)
 	elif player.has_method("add_experience"):
 		player.add_experience(DEBUG_XP_AMOUNT)
-	print("DEBUG_ACTION: added XP %d" % DEBUG_XP_AMOUNT)
+	if debug_input_logging:
+		print("DEBUG_ACTION: added XP %d" % DEBUG_XP_AMOUNT)
 
 
 func _on_debug_print_stats_requested() -> void:
@@ -758,7 +793,8 @@ func _on_debug_kill_nearby_enemies_requested() -> void:
 			enemy.take_damage(99999)
 			killed_count += 1
 
-	print("DEBUG_ACTION: killed nearby enemies count=%d" % killed_count)
+	if debug_input_logging:
+		print("DEBUG_ACTION: killed nearby enemies count=%d" % killed_count)
 
 
 func _print_compact_stats() -> void:

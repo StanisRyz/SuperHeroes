@@ -21,6 +21,7 @@ signal invulnerability_changed(is_invulnerable: bool)
 @export var dash_damage_trail_enabled: bool = false
 @export var dash_trail_damage: int = 18
 @export var dash_trail_radius: float = 80.0
+@export var debug_player_logging: bool = false
 
 var current_health: int
 var current_xp: int = 0
@@ -136,7 +137,8 @@ func is_invulnerable() -> bool:
 
 func set_debug_invulnerable(enabled: bool) -> void:
 	debug_invulnerable = enabled
-	print("DEBUG_PLAYER: invulnerable=%s" % enabled)
+	if debug_player_logging:
+		print("DEBUG_PLAYER: invulnerable=%s" % enabled)
 
 
 func is_debug_invulnerable() -> bool:
@@ -175,7 +177,8 @@ func debug_gain_one_level() -> void:
 		return
 
 	level += 1
-	print("DEBUG_PLAYER: level increased to %d" % level)
+	if debug_player_logging:
+		print("DEBUG_PLAYER: level increased to %d" % level)
 	experience_changed.emit(current_xp, xp_to_next_level, level)
 	level_up_available.emit(level)
 
@@ -183,7 +186,8 @@ func debug_gain_one_level() -> void:
 func debug_add_experience(amount: int) -> void:
 	if is_dead() or amount <= 0:
 		return
-	print("DEBUG_PLAYER: add_experience amount=%d" % amount)
+	if debug_player_logging:
+		print("DEBUG_PLAYER: add_experience amount=%d" % amount)
 	add_experience(amount)
 
 

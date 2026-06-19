@@ -6,6 +6,8 @@ extends Area2D
 @export var hit_spark_scene: PackedScene
 @export var explosion_burst_scene: PackedScene
 @export var debug_hits: bool = false
+@export var max_bounce_count: int = 5
+@export var max_explosion_radius: float = 180.0
 
 var damage: int
 var target: Node2D
@@ -47,11 +49,11 @@ func setup(origin: Vector2, new_target: Node2D, new_damage: int, extra_data: Dic
 	if extra_data.has("size_multiplier"):
 		size_multiplier = maxf(float(extra_data["size_multiplier"]), 0.2)
 	if extra_data.has("explosion_radius"):
-		explosion_radius = maxf(float(extra_data["explosion_radius"]), 0.0)
+		explosion_radius = clampf(float(extra_data["explosion_radius"]), 0.0, max_explosion_radius)
 	if extra_data.has("explosion_damage_multiplier"):
 		explosion_damage_multiplier = maxf(float(extra_data["explosion_damage_multiplier"]), 0.0)
 	if extra_data.has("bounce"):
-		bounce_remaining = maxi(int(extra_data["bounce"]), 0)
+		bounce_remaining = clampi(int(extra_data["bounce"]), 0, max_bounce_count)
 	if extra_data.has("bounce_range"):
 		bounce_range = maxf(float(extra_data["bounce_range"]), 0.0)
 	if extra_data.has("homing_enabled"):

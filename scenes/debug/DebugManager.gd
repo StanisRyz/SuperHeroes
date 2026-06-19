@@ -9,7 +9,7 @@ signal debug_add_xp_requested
 signal debug_print_stats_requested
 signal debug_kill_nearby_enemies_requested
 
-@export var debug_input_logging: bool = true
+@export var debug_input_logging: bool = false
 
 var debug_enabled: bool = false
 var player: Node

@@ -7,6 +7,7 @@ signal phase_changed(phase: int)
 @export var nova_radius: float = 280.0
 @export var nova_damage: int = 18
 @export var projectile_barrage_count: int = 8
+@export var max_projectile_barrage_count: int = 14
 @export var projectile_damage: int = 10
 @export var projectile_speed: float = 360.0
 @export var charge_damage_multiplier: float = 1.5
@@ -120,6 +121,7 @@ func _attack_barrage() -> void:
 	var count := projectile_barrage_count
 	if _current_phase == 2:
 		count = int(count * 1.5)
+	count = clampi(count, 1, max_projectile_barrage_count)
 
 	var angle_step := TAU / float(count)
 	var aim_offset := 0.0

@@ -14,9 +14,11 @@ const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 @export var max_alive_enemies: int = 12
 @export var min_spawn_distance_from_player: float = 320.0
 @export var max_spawn_distance_from_player: float = 900.0
+@export var max_alive_enemies_cap: int = 60
 @export var max_spawn_attempts: int = 12
 @export var base_powerup_drop_chance: float = 0.06
-@export var powerup_debug_logging: bool = true
+@export var powerup_debug_logging: bool = false
+@export var spawn_debug_logging: bool = false
 
 var player: Node2D
 var playable_rect: Rect2
@@ -84,6 +86,13 @@ func _on_spawn_timer_timeout() -> void:
 
 	var variant := _get_enemy_variant()
 	_spawn_enemy_with_variant(variant, spawn_position)
+	if spawn_debug_logging:
+		print("SPAWN: variant=%s alive=%d/%d interval=%.2f" % [
+			str(variant.get("id", "default")),
+			enemy_container.get_child_count(),
+			_get_current_max_alive_enemies(),
+			_get_current_spawn_interval(),
+		])
 
 
 func _spawn_enemy_with_variant(variant: Dictionary, spawn_position: Vector2) -> Node2D:
@@ -274,7 +283,8 @@ func _spawn_powerup_pickup(world_position: Vector2, powerup_id: String) -> void:
 
 
 func debug_spawn_powerup(powerup_id: String = "heal") -> void:
-	print("POWERUP_DEBUG: debug_spawn_powerup called id=%s" % powerup_id)
+	if powerup_debug_logging:
+		print("POWERUP_DEBUG: debug_spawn_powerup called id=%s" % powerup_id)
 	if not is_instance_valid(player):
 		push_warning("POWERUP_DEBUG: player not valid, cannot spawn.")
 		return
@@ -307,6 +317,16 @@ func debug_get_powerup_wiring_state() -> Dictionary:
 		"powerup_manager_assigned": powerup_manager != null,
 		"pickup_container_valid": is_instance_valid(pickup_container),
 		"drop_chance": base_powerup_drop_chance,
+	}
+
+
+func debug_get_spawn_state() -> Dictionary:
+	return {
+		"enemy_count": enemy_container.get_child_count() if is_instance_valid(enemy_container) else 0,
+		"max_alive_enemies": _get_current_max_alive_enemies(),
+		"spawn_interval": _get_current_spawn_interval(),
+		"min_spawn_distance": min_spawn_distance_from_player,
+		"max_spawn_distance": max_spawn_distance_from_player,
 	}
 
 
@@ -395,10 +415,11 @@ func _get_current_spawn_interval() -> float:
 
 
 func _get_current_max_alive_enemies() -> int:
+	var cap := maxi(max_alive_enemies_cap, 0)
 	if spawn_director != null and spawn_director.has_method("get_max_alive_enemies"):
-		return maxi(int(spawn_director.get_max_alive_enemies()), 0)
+		return mini(maxi(int(spawn_director.get_max_alive_enemies()), 0), cap)
 
-	return max_alive_enemies
+	return mini(max_alive_enemies, cap)
 
 
 func _get_enemy_variant() -> Dictionary:

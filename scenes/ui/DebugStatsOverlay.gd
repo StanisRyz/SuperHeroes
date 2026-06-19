@@ -8,6 +8,10 @@ var _ability_manager: Node = null
 var _upgrade_manager: Node = null
 var _powerup_manager: Node = null
 var _enemy_spawner: Node = null
+var _run_manager: Node = null
+var _enemy_container: Node = null
+var _projectile_container: Node = null
+var _pickup_container: Node = null
 
 var _debug_enabled: bool = false
 var _refresh_timer: float = 0.0
@@ -25,26 +29,30 @@ func _build_ui() -> void:
 	var bg := ColorRect.new()
 	bg.color = Color(0.0, 0.0, 0.0, 0.68)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.size = Vector2(318.0, 530.0)
+	bg.size = Vector2(336.0, 590.0)
 	bg.position = Vector2(4.0, 4.0)
 	add_child(bg)
 
 	_stats_label = Label.new()
 	_stats_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stats_label.position = Vector2(10.0, 8.0)
-	_stats_label.size = Vector2(302.0, 520.0)
+	_stats_label.size = Vector2(320.0, 580.0)
 	_stats_label.add_theme_font_size_override("font_size", 11)
 	_stats_label.text = "DEBUG OFF"
 	add_child(_stats_label)
 
 
-func setup(p_player: Node, p_auto_attack: Node, p_ability_manager: Node, p_upgrade_manager: Node, p_powerup_manager: Node, p_enemy_spawner: Node) -> void:
+func setup(p_player: Node, p_auto_attack: Node, p_ability_manager: Node, p_upgrade_manager: Node, p_powerup_manager: Node, p_enemy_spawner: Node, p_run_manager: Node = null, p_enemy_container: Node = null, p_projectile_container: Node = null, p_pickup_container: Node = null) -> void:
 	_player = p_player
 	_auto_attack = p_auto_attack
 	_ability_manager = p_ability_manager
 	_upgrade_manager = p_upgrade_manager
 	_powerup_manager = p_powerup_manager
 	_enemy_spawner = p_enemy_spawner
+	_run_manager = p_run_manager
+	_enemy_container = p_enemy_container
+	_projectile_container = p_projectile_container
+	_pickup_container = p_pickup_container
 
 
 func set_debug_enabled(enabled: bool) -> void:
@@ -75,6 +83,21 @@ func _build_stats_text() -> String:
 	var lines: PackedStringArray = PackedStringArray()
 
 	lines.append("=== DEBUG ON ===")
+
+	# Run
+	if _run_manager != null and is_instance_valid(_run_manager):
+		lines.append("-- Run --")
+		var run_time: float = _run_manager.get("run_time") if _run_manager.get("run_time") != null else 0.0
+		var target_time := 0.0
+		if _run_manager.has_method("get_target_run_time"):
+			target_time = float(_run_manager.get_target_run_time())
+		var final_active: bool = _run_manager.get("is_final_phase_active") if _run_manager.get("is_final_phase_active") != null else false
+		lines.append("Time: %.0f / %.0f  Final: %s" % [run_time, target_time, final_active])
+		lines.append("Enemies: %d  Projectiles: %d  Pickups: %d" % [
+			_count_children(_enemy_container),
+			_count_children(_projectile_container),
+			_count_children(_pickup_container)
+		])
 
 	# Player
 	if _player != null and is_instance_valid(_player):
@@ -189,6 +212,12 @@ func _build_stats_text() -> String:
 	# Spawner wiring
 	if _enemy_spawner != null and is_instance_valid(_enemy_spawner):
 		lines.append("-- Spawner --")
+		if _enemy_spawner.has_method("debug_get_spawn_state"):
+			var spawn: Dictionary = _enemy_spawner.debug_get_spawn_state()
+			lines.append("Max alive: %d  Interval: %.2f" % [
+				int(spawn.get("max_alive_enemies", 0)),
+				float(spawn.get("spawn_interval", 0.0))
+			])
 		if _enemy_spawner.has_method("debug_get_powerup_wiring_state"):
 			var wiring: Dictionary = _enemy_spawner.debug_get_powerup_wiring_state()
 			lines.append("Pickup scene: %s" % wiring.get("pickup_scene_assigned", false))
@@ -201,3 +230,7 @@ func _build_stats_text() -> String:
 		lines.append("-- Spawner: null --")
 
 	return "\n".join(lines)
+
+
+func _count_children(node: Node) -> int:
+	return node.get_child_count() if node != null and is_instance_valid(node) else 0

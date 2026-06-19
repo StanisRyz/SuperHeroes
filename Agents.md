@@ -16,8 +16,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/audio/AudioManager.gd` - volume/mute application and optional SFX playback hooks.
 - `scenes/debug/DebugManager.tscn` - runtime-only debug state manager scene.
 - `scenes/debug/DebugManager.gd` - debug mode state and debug signals.
+- `scenes/debug/ProjectHealthCheck.gd` - one-time Arena startup wiring checker; prints concise warnings only for missing critical nodes.
 - `scenes/game/Arena.tscn` - arena composition.
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup, level-up flow, run lifecycle.
+- `scenes/game/GameplayTuning.tscn` - central exported gameplay tuning node instanced under Arena.
+- `scenes/game/GameplayTuning.gd` - applies safe balance/logging defaults to existing Arena systems.
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
 - `scenes/game/RunManager.gd` - run timer, kill counter, and run end signal.
 - `scenes/abilities/AbilityManager.tscn` - player active ability manager scene (3 slots wired).
@@ -128,7 +131,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `EnemySpawner.tscn` MUST assign `powerup_pickup_scene` — the original bug was this assignment missing, causing all powerup drops to silently return early.
 - `PowerupManager.tscn` MUST assign `bomb_burst_scene` for the bomb visual to work.
 - `PowerupPickup` detects the player via `body_entered`; its `collision_mask` must include the player layer (layer 1). `collision_layer = 0` is correct.
-- `POWERUP_WIRING`, `POWERUP_ROLL`, `POWERUP_SPAWNED` diagnostics logs are intentionally active; remove only after drops are confirmed working in the target environment.
+- `POWERUP_WIRING`, `POWERUP_ROLL`, `POWERUP_SPAWNED` diagnostics are available through `EnemySpawner.powerup_debug_logging`; keep the diagnostics, but leave verbose logging off by default.
 - `EnemySpawner.debug_spawn_powerup(powerup_id)` can be called from the Godot remote console or editor to spawn a powerup pickup near the player without waiting for an enemy death.
 - Powerup drops silently fail if scene/manager/container are missing; diagnostics reveal which dependency is absent.
 
@@ -151,6 +154,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - Run summary is built by `Arena._build_run_summary(base_stats)` on both victory and defeat and is not persisted.
 - Final phase: `RunManager` emits `final_phase_started` → Arena shows announcement → Arena calls `EventDirector.start_final_phase_event()` → EventDirector applies pressure modifier via SpawnDirector.
 - Debug-shortened runs: set `use_debug_run_duration = true` in RunManager inspector; final phase start time scales proportionally. Not persisted. Not enabled by default.
+
+## Balance / Readiness Architecture
+
+- `GameplayTuning` centralizes exported balance defaults and applies them to existing systems at Arena startup.
+- Arena remains the coordinator: it finds systems, calls `GameplayTuning.apply_to(self)`, then wires gameplay, UI, debug, and lifecycle flows.
+- Arena should avoid storing every balance number directly; keep easily tweakable values on `GameplayTuning` or the owning gameplay node.
+- Debug logs should be configurable and off by default unless actively diagnosing input, spawn, or powerup flow.
+- Spawn diagnostics use `EnemySpawner.spawn_debug_logging`; powerup diagnostics use `EnemySpawner.powerup_debug_logging`.
+- `ProjectHealthCheck` is a one-time startup wiring checker, not a test framework and not a success logger.
+- Readiness safeguards should be lightweight caps or validation guards, not object pooling or architecture rewrites.
 
 ## Implemented Systems
 
@@ -317,14 +330,14 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ### Debug Diagnostics
 
-- `DEBUG_INPUT:` — Arena prints raw key detection for F12/F10/F1/F2 on every non-echo press or release, before any condition checks. Also prints `action=debug_spawn_powerup` etc. for F3–F8.
+- `DEBUG_INPUT:` — Arena can print raw key detection for F12/F10/F1/F2 and debug action names when `Arena.debug_input_logging` is enabled.
 - `DEBUG_WIRING:` — Arena prints whether DebugManager, DebugOverlay, DebugStatsOverlay, and Player debug APIs were found and whether signals were connected.
 - `DEBUG_MODE:` — DebugManager logs every toggle with the resulting enabled state.
 - `DEBUG_LEVEL:` — DebugManager logs each request (accepted) or rejection with a short reason (disabled, tree paused, missing player, player dead).
 - `DEBUG_ACTION:` — DebugManager logs each validation request (accepted or rejected with reason). Arena logs the result: `spawned powerup <id>`, `spawned elite`, `spawned miniboss`, `added XP <n>`, `killed nearby enemies count=<n>`.
 - `DEBUG_PLAYER:` — Player logs `set_debug_invulnerable` changes, `debug_gain_one_level` level values, and `debug_add_experience` amounts.
-- `POWERUP_WIRING:`, `POWERUP_ROLL:`, `POWERUP_SPAWNED:`, `POWERUP_DEBUG:` — EnemySpawner powerup diagnostics; keep active until powerup drops are confirmed.
-- Diagnostic logs remain active until Debug Mode reliability is confirmed. Do not remove them prematurely.
+- `POWERUP_WIRING:`, `POWERUP_ROLL:`, `POWERUP_SPAWNED:`, `POWERUP_DEBUG:` — EnemySpawner powerup diagnostics controlled by `powerup_debug_logging`.
+- Diagnostic log code should remain available, but verbose logging should be off by default unless actively debugging.
 
 ### Old Naruto-Clicker Comparison
 
@@ -495,6 +508,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - Reroll, skip, or banish upgrade actions.
 - Upgrade icons.
 - Upgrade codex or full upgrade history UI.
+- Character Select.
+- Hero roster.
+- Weapon/ability evolution.
+- Stage selection.
+- Arena hazards.
 - Persistent builds or meta-progression.
 - Data-driven Resource upgrade files.
 - Stun or knockback from abilities.
@@ -557,7 +575,7 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Validation Notes
 
 - Use debug tools (F3–F8) to verify gameplay systems before adding new content.
-- Keep POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED diagnostics until powerup drops are confirmed working in the target environment.
+- Keep POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED diagnostics available behind `powerup_debug_logging`.
 - docs/validation/gameplay_validation.md is the canonical manual test checklist; update it when systems change.
 - Run `godot --headless --editor --quit` from the repo root to confirm no parse errors after every patch.
 
@@ -573,12 +591,12 @@ The game is an original superhero survivors-like: the player moves around an are
 - Arena coordinates all debug actions. DebugManager owns debug state and emits request signals. DebugStatsOverlay is display-only.
 - Do not add new enemy types unless explicitly requested.
 - Miniboss damage must always go through Player.take_damage() or existing EnemyProjectile collision logic.
-- Do not remove POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED diagnostic logs until powerup drops are confirmed working.
+- Do not remove POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED diagnostics; keep them configurable and off by default.
 - Inspect the current project before changing files.
 - Do not duplicate existing systems.
 - Keep patches small and focused.
 - Update `README.md` and `Agents.md` on every task.
-- Do not remove `DEBUG_INPUT`, `DEBUG_WIRING`, `DEBUG_MODE`, `DEBUG_LEVEL`, or `DEBUG_PLAYER` diagnostic logs until Debug Mode is confirmed working in the target environment.
+- Do not remove `DEBUG_INPUT`, `DEBUG_WIRING`, `DEBUG_MODE`, `DEBUG_LEVEL`, or `DEBUG_PLAYER` diagnostic hooks; keep them configurable and off by default.
 - Do not add extra debug cheats unless explicitly requested.
 - Enemy variants are currently dictionaries, not Resource assets.
 - Keep long-term difficulty formulas in `SpawnDirector`, not `EnemySpawner`.

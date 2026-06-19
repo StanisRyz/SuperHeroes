@@ -20,6 +20,8 @@ var upgrade_levels: Dictionary = {}
 var archetype_points: Dictionary = {}
 var selected_upgrade_history: Array[Dictionary] = []
 
+# Upgrade definitions are hardcoded for now. Archetypes drive build identity,
+# prerequisites unlock synergies, and build-defining entries reshape a run.
 var _upgrade_definitions: Array[Dictionary] = [
 	# ── BASE UPGRADES ───────────────────────────────────────────────────────────
 	{

@@ -23,7 +23,7 @@ SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game 
 
 ## Development Status
 
-The project is currently in the run progression & victory condition stage. Core systems (combat, XP, upgrades, powerups, miniboss, mobile controls, events) are implemented. This patch adds a clear win condition, a final run phase, VictoryScreen, and enriched run summary for both victory and defeat.
+The project is currently in the balance, cleanup, and production-readiness stage. Core systems (combat, XP, upgrades, powerups, miniboss, mobile controls, events, victory/defeat flow, and build-defining synergies) are implemented. This pass centralizes tunable balance defaults, quiets verbose debug logs by default, adds a startup wiring health check, and adds lightweight performance safeguards.
 
 ### Gameplay Validation / Debug Pass
 
@@ -32,6 +32,7 @@ A debug toolset has been added to help verify all gameplay systems quickly witho
 - **DebugStatsOverlay** — top-left panel that shows live player stats, weapon values, ability cooldowns, build archetype, buff state, and powerup wiring. Visible only while Debug Mode is ON.
 - **F3–F8 debug actions** — in-game keyboard shortcuts active only while Debug Mode is ON (F12/F10).
 - **docs/validation/gameplay_validation.md** — manual test checklist for all systems.
+- Verbose diagnostic logs are configurable in the Inspector through `GameplayTuning`, `Arena.debug_input_logging`, `DebugManager.debug_input_logging`, `EnemySpawner.powerup_debug_logging`, and `EnemySpawner.spawn_debug_logging`; they are off by default for normal play.
 
 #### Debug Keys
 
@@ -143,7 +144,7 @@ Implemented foundation:
 - Debug level gain: F1 or F2, only while Debug Mode is enabled (direct key detection first, InputMap fallback).
 - DebugManager logs mode changes and level-up accept/reject reasons to the console.
 - Player logs debug invulnerability changes and level gains to the console.
-- Debug diagnostic logs are intentionally kept active until debug reliability is confirmed.
+- Debug diagnostic logs remain available through Inspector flags but are off by default for normal play.
 - SettingsMenu works from both MainMenu and PauseMenu.
 - MainMenu Settings is hidden before gameplay starts.
 - Projectile pierce.
@@ -187,7 +188,7 @@ Implemented foundation:
 - Elite and miniboss guaranteed powerup drops now actually spawn (fixed via scene assignment).
 - PowerupPickup collision_mask explicitly set to player layer 1.
 - Powerup ids have distinct placeholder colors (heal=green, shield=blue, bomb=red, magnet=purple, speed=cyan, haste=yellow).
-- Powerup spawn diagnostics: POWERUP_WIRING, POWERUP_ROLL, POWERUP_SPAWNED logs active while being verified.
+- Powerup spawn diagnostics (`POWERUP_WIRING`, `POWERUP_ROLL`, `POWERUP_SPAWNED`) are available when `EnemySpawner.powerup_debug_logging` is enabled.
 - Guaranteed drop fallback to "heal" if roll unexpectedly returns empty.
 - EnemySpawner.debug_spawn_powerup(id) helper for quick console verification.
 - EventDirector with a timed event schedule (Runner Rush, Tank Wave, Elite, Miniboss).
@@ -232,6 +233,14 @@ Implemented foundation:
 - UpgradeManager effect arrays now support `set` operations for bool/int/float properties and fail safely when a target/property/operation is invalid.
 - DebugStatsOverlay shows dash trail state, projectile bounce count, ability synergy flags, and build-defining option counts.
 
+### Balance / Cleanup / Production Readiness
+
+- **GameplayTuning** (`scenes/game/GameplayTuning.tscn`) centralizes exported balance defaults for debug logging, run timing, spawn distances/caps, powerup drop chance, core ability values, and player defaults.
+- **Configurable debug logs** keep debug tools functional while disabling noisy `DEBUG_*` and `POWERUP_*` logs by default.
+- **ProjectHealthCheck** runs once at Arena startup and prints concise warnings only when critical wiring is missing.
+- **Lightweight safeguards** clamp max alive enemies, projectile count, projectile bounce count, explosion radius, and miniboss barrage count.
+- Current balance review areas: enemy spawn progression, ability cooldown/damage roles, projectile synergies, powerup drop pressure, miniboss readability, restart/victory/game-over flow, and browser-friendly runtime load.
+
 ### Run Progression & Victory
 
 - **Run target duration** — 10 minutes (600 seconds) by default, configurable per RunManager inspector.
@@ -247,6 +256,11 @@ Not implemented yet:
 
 - Persistent records or run history.
 - Meta-progression or rewards after victory.
+- Character Select.
+- Hero roster.
+- Weapon/ability evolution.
+- Stage selection.
+- Arena hazards.
 - Leaderboard.
 - Persistent high scores.
 - Save system or persistence.

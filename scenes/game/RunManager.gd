@@ -28,6 +28,19 @@ var _effective_final_phase_time: float = 540.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	_recalculate_effective_times()
+	run_time_changed.emit(run_time)
+	kill_count_changed.emit(kill_count)
+
+
+func apply_run_tuning(new_target_run_time: float, new_final_phase_start_time: float) -> void:
+	target_run_time = maxf(new_target_run_time, 1.0)
+	final_phase_start_time = clampf(new_final_phase_start_time, 0.0, target_run_time)
+	_recalculate_effective_times()
+	run_time_changed.emit(run_time)
+
+
+func _recalculate_effective_times() -> void:
 	if use_debug_run_duration:
 		_effective_target_run_time = debug_target_run_time
 		var ratio := final_phase_start_time / maxf(target_run_time, 1.0)
@@ -35,8 +48,6 @@ func _ready() -> void:
 	else:
 		_effective_target_run_time = target_run_time
 		_effective_final_phase_time = final_phase_start_time
-	run_time_changed.emit(run_time)
-	kill_count_changed.emit(kill_count)
 
 
 func _process(delta: float) -> void:
@@ -100,6 +111,10 @@ func can_trigger_victory() -> bool:
 
 func get_target_run_time() -> float:
 	return _effective_target_run_time
+
+
+func get_final_phase_start_time() -> float:
+	return _effective_final_phase_time
 
 
 func end_run() -> void:

@@ -14,6 +14,9 @@ extends Node
 @export var projectile_bounce: int = 0
 @export var projectile_bounce_range: float = 260.0
 @export var projectile_scene: PackedScene
+@export var max_projectile_count: int = 7
+@export var max_projectile_bounce: int = 5
+@export var max_projectile_explosion_radius: float = 180.0
 
 var projectile_container: Node
 var audio_manager: Node
@@ -119,7 +122,7 @@ func _spawn_projectiles(enemy: Node2D) -> bool:
 		base_direction = Vector2.RIGHT
 
 	var spawned_any := false
-	var safe_count := clampi(projectile_count, 1, 7)
+	var safe_count := clampi(projectile_count, 1, max_projectile_count)
 	var effective_spread := _get_effective_spread_degrees(safe_count)
 	var homing_enabled := not (safe_count > 1 or effective_spread > 0.0)
 	var directions := _get_projectile_directions(base_direction, safe_count, effective_spread)
@@ -157,9 +160,9 @@ func _spawn_projectile(enemy: Node2D, direction: Vector2, spawn_offset: Vector2 
 			"direction": direction,
 			"pierce": projectile_pierce,
 			"size_multiplier": projectile_size_multiplier,
-			"explosion_radius": projectile_explosion_radius,
+			"explosion_radius": minf(projectile_explosion_radius, max_projectile_explosion_radius),
 			"explosion_damage_multiplier": projectile_explosion_damage_multiplier,
-			"bounce": projectile_bounce,
+			"bounce": mini(projectile_bounce, max_projectile_bounce),
 			"bounce_range": projectile_bounce_range,
 			"homing_enabled": homing_enabled,
 			"attack_id": attack_id,
@@ -218,6 +221,7 @@ func get_weapon_stats() -> Dictionary:
 		"projectile_size_multiplier": projectile_size_multiplier,
 		"projectile_explosion_radius": projectile_explosion_radius,
 		"projectile_bounce": projectile_bounce,
+		"max_projectile_count": max_projectile_count,
 	}
 
 

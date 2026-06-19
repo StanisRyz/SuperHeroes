@@ -51,7 +51,7 @@ Run these before adding new gameplay systems.
 | 6 | Walk into **speed** pickup | Player visibly speeds up for 6s; "Speed: X.Xs" shown in HUD |
 | 7 | Walk into **haste** pickup | Attack rate increases for 6s; "Haste: X.Xs" shown in HUD |
 | 8 | Press F3 repeatedly | Powerup types cycle: heal → shield → bomb → magnet_burst → move_speed_boost → attack_speed_boost → heal … |
-| 9 | Check console on game start | `POWERUP_WIRING: pickup_scene=True manager=True drop_chance=0.06` |
+| 9 | Enable powerup logging, then check console on game start | `POWERUP_WIRING: pickup_scene=True manager=True drop_chance=0.06` |
 
 ---
 
@@ -103,6 +103,26 @@ Run these before adding new gameplay systems.
 | 4 | Pick **Comet Dash**, then dash into enemies | Nearby enemies take damage when dash ends; dash cooldown/invulnerability behavior remains unchanged |
 | 5 | Pick **Bouncing Bolts**, then shoot clustered enemies | Projectile bounces from the hit enemy to another nearby valid enemy without repeatedly damaging the same enemy instance |
 | 6 | Use F7 / DebugStatsOverlay after each pick | New flags and counts reflect the picked build-defining effects |
+
+---
+
+## Balance / Readiness Pass
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a normal run with default Inspector values | Run starts without excessive console spam; only real missing dependency warnings should appear |
+| 2 | Enable `GameplayTuning.enable_debug_input_logs` / Arena debug logging in Inspector | DEBUG_INPUT / DEBUG_WIRING style logs appear for diagnosis |
+| 3 | Enable `GameplayTuning.enable_powerup_logs` or `EnemySpawner.powerup_debug_logging` | POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED logs appear for diagnosis |
+| 3a | Enable `GameplayTuning.enable_spawn_logs` or `EnemySpawner.spawn_debug_logging` | Compact SPAWN lines appear when enemies spawn |
+| 4 | Toggle Debug Mode with F12/F10 | Debug overlay and DebugStatsOverlay still work |
+| 5 | Use F3-F8 while Debug Mode ON | Debug tools still work; F7 still prints compact stats |
+| 6 | Reach defeat, then Restart | GameOverScreen works and restart creates a fresh run |
+| 7 | Reach victory, then Restart / Main Menu | VictoryScreen works and scene flow remains stable |
+| 8 | Play with many enemies/projectiles | FPS remains stable; max alive enemies, projectile count, bounce count, explosion radius, and miniboss barrage stay capped |
+| 9 | Cast Nova/Laser/Slam and their synergies | All abilities still work and keep distinct roles |
+| 10 | Collect all powerup types | Powerups remain noticeable without flooding normal runs |
+| 11 | Fight miniboss | Telegraphs are readable; dash/debug/shield protections still block damage |
+| 12 | Observe advanced enemies | Shooter, exploder, swarm, shielded, and support behaviors still function |
 
 ---
 
@@ -186,7 +206,7 @@ Remember to uncheck `use_debug_run_duration` before building for release.
 
 ## Console Diagnostic Patterns
 
-Expected log lines to verify at startup (Debug Mode OFF):
+Expected log lines only when verbose debug/powerup logging is enabled in the Inspector:
 
 ```
 DEBUG_WIRING: DebugManager exists=true
