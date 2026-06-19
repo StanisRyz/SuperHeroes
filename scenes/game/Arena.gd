@@ -60,6 +60,10 @@ var _settings_opened_from_pause: bool = false
 var _confirm_opened_from_pause: bool = false
 var _run_ended: bool = false
 var _transition_in_progress: bool = false
+var _final_boss_arena_active: bool = false
+var _boss_arena_boundary: Node2D = null
+var _original_playable_rect: Rect2
+const BOSS_ARENA_SIZE := Vector2(1200.0, 900.0)
 const DEBUG_POWERUP_CYCLE: Array = ["heal", "shield", "bomb", "magnet_burst", "move_speed_boost", "attack_speed_boost"]
 const DEBUG_KILL_RADIUS: float = 500.0
 const DEBUG_XP_AMOUNT: int = 50
@@ -534,14 +538,94 @@ func _on_miniboss_defeated() -> void:
 
 
 func _on_boss_phase_triggered() -> void:
-	if event_announcement != null and event_announcement.has_method("show_announcement"):
-		event_announcement.show_announcement("Final Boss Incoming!", 3.5)
 	if _feedback_manager != null and _feedback_manager.has_method("shake"):
 		_feedback_manager.shake(10.0, 0.3)
+	_start_final_boss_encounter()
+
+
+func _start_final_boss_encounter() -> void:
+	_final_boss_arena_active = true
+	_original_playable_rect = get_playable_rect()
+
+	if enemy_spawner != null and enemy_spawner.has_method("start_final_boss_encounter"):
+		enemy_spawner.start_final_boss_encounter()
+
+	if event_director != null and event_director.has_method("stop_for_final_boss_encounter"):
+		event_director.stop_for_final_boss_encounter()
+
+	_clear_normal_enemies_for_boss()
+
+	var boss_rect := _build_boss_arena_rect()
+
+	if player != null:
+		if player.has_method("set_playable_rect"):
+			player.set_playable_rect(boss_rect)
+		if player.has_method("set_camera_limits"):
+			player.set_camera_limits(boss_rect)
+
+	_boss_arena_boundary = _spawn_boss_arena_boundary(boss_rect)
+
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Final Boss Arena!", 3.5)
+	if _feedback_manager != null and _feedback_manager.has_method("shake"):
+		_feedback_manager.shake(8.0, 0.25)
+
+	var boss_center := boss_rect.get_center()
 	if enemy_spawner != null and enemy_spawner.has_method("spawn_final_boss"):
-		enemy_spawner.spawn_final_boss(final_boss_id)
+		enemy_spawner.spawn_final_boss(final_boss_id, boss_center)
 	if run_manager != null and run_manager.has_method("register_final_boss_spawned"):
 		run_manager.register_final_boss_spawned()
+
+
+func _build_boss_arena_rect() -> Rect2:
+	var full_rect := _original_playable_rect
+	var player_pos := Vector2.ZERO
+	if player != null and player is Node2D:
+		player_pos = (player as Node2D).global_position
+
+	var half := BOSS_ARENA_SIZE * 0.5
+	var tl := player_pos - half
+	tl.x = clampf(tl.x, full_rect.position.x, full_rect.end.x - BOSS_ARENA_SIZE.x)
+	tl.y = clampf(tl.y, full_rect.position.y, full_rect.end.y - BOSS_ARENA_SIZE.y)
+	return Rect2(tl, BOSS_ARENA_SIZE)
+
+
+func _clear_normal_enemies_for_boss() -> void:
+	if enemy_container == null or not is_instance_valid(enemy_container):
+		return
+	for child in enemy_container.get_children():
+		if not is_instance_valid(child):
+			continue
+		if child.get("is_final_boss") == true:
+			continue
+		child.queue_free()
+
+
+func _spawn_boss_arena_boundary(rect: Rect2) -> Node2D:
+	var boundary := Node2D.new()
+	boundary.name = "BossArenaBoundary"
+	add_child(boundary)
+
+	var line := Line2D.new()
+	line.width = 4.0
+	line.default_color = Color(1.0, 0.55, 0.05, 0.9)
+	var corners := [
+		rect.position,
+		Vector2(rect.end.x, rect.position.y),
+		rect.end,
+		Vector2(rect.position.x, rect.end.y),
+		rect.position,
+	]
+	for pt in corners:
+		line.add_point(pt)
+	boundary.add_child(line)
+	return boundary
+
+
+func _clear_boss_arena_boundary() -> void:
+	if _boss_arena_boundary != null and is_instance_valid(_boss_arena_boundary):
+		_boss_arena_boundary.queue_free()
+	_boss_arena_boundary = null
 
 
 func _on_final_boss_spawned(enemy: Node) -> void:
@@ -571,6 +655,7 @@ func _on_final_boss_defeated(_enemy: Node) -> void:
 		event_announcement.show_announcement("Final Boss Defeated!", 3.5)
 	if _feedback_manager != null and _feedback_manager.has_method("shake"):
 		_feedback_manager.shake(8.0, 0.25)
+	_clear_boss_arena_boundary()
 
 
 func _on_elite_defeated() -> void:
@@ -940,6 +1025,7 @@ func _on_restart_requested() -> void:
 	if _transition_in_progress:
 		return
 	_transition_in_progress = true
+	_clear_boss_arena_boundary()
 	get_tree().paused = false
 	restart_run_requested.emit()
 
@@ -948,6 +1034,7 @@ func _on_quit_to_menu_requested() -> void:
 	if _transition_in_progress:
 		return
 	_transition_in_progress = true
+	_clear_boss_arena_boundary()
 	get_tree().paused = false
 	quit_to_menu_requested.emit()
 
@@ -1095,9 +1182,11 @@ func _on_confirm_dialog_confirmed(action_id: String) -> void:
 
 	match action_id:
 		"restart_run":
+			_clear_boss_arena_boundary()
 			get_tree().paused = false
 			restart_run_requested.emit()
 		"quit_to_menu":
+			_clear_boss_arena_boundary()
 			get_tree().paused = false
 			quit_to_menu_requested.emit()
 		_:

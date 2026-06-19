@@ -332,6 +332,26 @@ Not implemented yet (feedback):
 - Hit stop.
 - Controller rumble.
 
+### Miniboss + Final Boss Encounter Rework
+
+- **Miniboss remains a normal-wave pressure event.** Miniboss spawns during regular waves via EventDirector (at 2:30). Normal enemies continue spawning around the player while the miniboss is alive. The miniboss health bar tracks the miniboss; defeat still grants the existing evolution reward flow. No enemies are cleared and no arena is created for the miniboss.
+- **Final boss is now a separate arena duel.** When the run timer reaches the target time (`target_time_reached`), the game transitions into a dedicated final boss encounter instead of directly spawning the boss in the open field:
+  1. EnemySpawner's regular spawn timer and wave timer are stopped.
+  2. EventDirector stops firing new events (elite, miniboss, timed modifiers).
+  3. All non-final-boss enemies are silently despawned (`queue_free`) with no XP or powerup drops.
+  4. A 1200×900 temporary boss arena `Rect2` is built centered on the player, clamped to the full playable field.
+  5. `Player.set_playable_rect()` and `Player.set_camera_limits()` are applied to the smaller arena, so the player is bounded inside it.
+  6. An orange `Line2D` outline draws the arena boundary in world space (purely visual — no collision, no damage).
+  7. "Final Boss Arena!" is announced via EventAnnouncement with a screen shake.
+  8. The final boss spawns at the center of the boss arena. BossHealthBar and HUD track the boss as before.
+  9. Existing boss phases (phase 2 at 50% HP, enraged announcement) still work.
+- **No arena hazards were added.** The boundary Line2D is display-only and applies no damage to the player or enemies.
+- **Cleanup:**
+  - On final boss defeat: boundary is removed; victory flow triggers as before.
+  - On player death, restart, or quit to menu: boundary is cleared before the transition.
+- **XP gems and powerup pickups** already on the ground are kept; they can still be collected during the boss fight.
+- **Enemy projectiles** already in flight are kept; they expire naturally by their max_lifetime.
+
 ### Enemy Roles & Wave Director 2.0
 
 Waves now feel intentional, role-based, and stage-specific. This patch sits entirely inside `SpawnDirector` and `EnemySpawner`; hero kits, bosses, upgrades, rewards, and saves are unchanged.
@@ -557,7 +577,7 @@ Not implemented yet:
 - Boss sound effects.
 - More than 2 final boss phases.
 - Complex bullet patterns or homing projectiles.
-- Boss arena or cutscene.
+- Boss cutscene or elaborate transition animation.
 - Buff icons.
 - Powerup rarity tiers.
 - Powerup upgrade scaling.

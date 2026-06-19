@@ -37,6 +37,7 @@ var feedback_manager: Node
 
 var _last_wave_package_id: String = ""
 var _wave_timer: Timer = null
+var _final_boss_encounter_active: bool = false
 
 const POWERUP_WEIGHTS: Dictionary = {
 	"heal": 30,
@@ -229,11 +230,15 @@ func spawn_elite_enemy(_event_data: Dictionary = {}) -> void:
 		})
 
 
-func spawn_final_boss(final_boss_id: String = "titan_guardian") -> void:
-	var pos := _find_spawn_position()
-	if pos == NO_SPAWN_POSITION:
-		push_warning("EnemySpawner: could not find spawn position for final boss.")
-		return
+func spawn_final_boss(final_boss_id: String = "titan_guardian", override_position: Vector2 = NO_SPAWN_POSITION) -> void:
+	var pos: Vector2
+	if override_position != NO_SPAWN_POSITION:
+		pos = override_position
+	else:
+		pos = _find_spawn_position()
+		if pos == NO_SPAWN_POSITION:
+			push_warning("EnemySpawner: could not find spawn position for final boss.")
+			return
 
 	var variant := _get_enemy_variant()
 	var enemy := _spawn_enemy_with_variant(variant, pos)
@@ -554,7 +559,21 @@ func _spawn_death_burst(world_position: Vector2) -> void:
 		burst.global_position = world_position
 
 
+func start_final_boss_encounter() -> void:
+	_final_boss_encounter_active = true
+	if is_instance_valid(spawn_timer):
+		spawn_timer.stop()
+	if is_instance_valid(_wave_timer):
+		_wave_timer.stop()
+
+
+func cleanup_final_boss_encounter() -> void:
+	_final_boss_encounter_active = false
+
+
 func _can_spawn() -> bool:
+	if _final_boss_encounter_active:
+		return false
 	if run_manager != null and run_manager.get("is_run_active") == false:
 		return false
 

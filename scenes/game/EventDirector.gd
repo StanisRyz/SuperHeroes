@@ -9,6 +9,7 @@ var run_manager: Node = null
 var _triggered_events: Dictionary = {}
 var _active_timed_events: Dictionary = {}
 var _profile_id: String = "balanced"
+var _final_boss_encounter_active: bool = false
 
 var _profile_extra_events: Dictionary = {
 	"ranged_support": [
@@ -121,6 +122,11 @@ func setup(new_run_manager: Node) -> void:
 	run_manager = new_run_manager
 	_triggered_events.clear()
 	_active_timed_events.clear()
+	_final_boss_encounter_active = false
+
+
+func stop_for_final_boss_encounter() -> void:
+	_final_boss_encounter_active = true
 
 
 func set_event_profile(profile: String) -> void:
@@ -137,6 +143,8 @@ func set_event_profile(profile: String) -> void:
 
 func _process(delta: float) -> void:
 	if run_manager == null:
+		return
+	if _final_boss_encounter_active:
 		return
 	# Guard: only run events if run is active
 	if "is_run_active" in run_manager and not run_manager.is_run_active:

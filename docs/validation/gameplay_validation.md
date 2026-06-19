@@ -747,6 +747,51 @@ DEBUG_PLAYER: invulnerable=true
 
 ---
 
+## Miniboss + Final Boss Encounter Rework
+
+### Miniboss (must remain normal-wave pressure, no arena)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press **F5** with Debug Mode ON | Miniboss spawns; normal enemies continue spawning around it; no wave stop |
+| 2 | Observe enemy container while miniboss is alive | Regular spawn timer and wave director continue; no enemies are cleared |
+| 3 | MinibossHealthBar during miniboss fight | Shows miniboss name and HP; hides on death |
+| 4 | Miniboss dies | "Miniboss Defeated!" announcement; evolution reward screen opens if evolutions available; guaranteed powerup drops |
+| 5 | Inspect player bounds during miniboss | Player is **not** restricted to a smaller arena; full arena bounds remain |
+| 6 | Inspect diff | No enemy clearing, no arena creation, no spawn stopping for miniboss |
+
+### Final Boss Encounter (separate arena duel)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Set `use_debug_run_duration=true, debug_target_run_time=60` | Target time fires at 60 s |
+| 2 | Reach target time | Screen shake; "Final Boss Arena!" announcement (not a direct boss spawn in the open field) |
+| 3 | Observe enemy container immediately after trigger | All non-final-boss enemies disappear (queue_freed) without XP or powerup drops |
+| 4 | Observe spawn timer and wave timer | Both stop; no new regular enemies or wave packages spawn |
+| 5 | Observe EventDirector | No new elite, miniboss, or timed-modifier events fire |
+| 6 | Observe player bounds | Player is clamped to a ~1200×900 area centered where they were standing |
+| 7 | Observe camera | Camera limits match the smaller boss arena |
+| 8 | Observe world space | Orange Line2D rectangle outlines the boss arena boundary |
+| 9 | Boundary collision check | Player and boss walk through the boundary Line2D freely; it deals **no damage** |
+| 10 | Boss spawn position | Final boss appears near the center of the boss arena, not off-screen |
+| 11 | BossHealthBar | Shows "FINAL BOSS", boss display name, HP bar, and HP text |
+| 12 | HUD final boss label | `Final Boss: <Name>` shown in RunPanel |
+| 13 | Boss at 50% HP | "Final Boss Enraged!" announcement; phase 2 patterns activate |
+| 14 | Hero abilities inside arena | J / K / L still cast and deal damage; mobile controls work |
+| 15 | Level-up during boss fight | Level-up pauses tree; upgrades apply; game resumes and boss fight continues |
+| 16 | XP gems and powerup pickups on the ground | Still collectible during boss fight |
+| 17 | Enemy projectiles already in flight when encounter starts | Expire naturally; no crash |
+| 18 | Final boss defeated | "Final Boss Defeated!" announcement; BossHealthBar hides; boundary Line2D removed; VictoryScreen appears |
+| 19 | Player dies during boss fight | Game over screen shows; boundary visible under game over overlay (harmless) |
+| 20 | Restart from game over during boss fight | Boundary is cleared before restart; fresh Arena starts with full bounds and normal spawning |
+| 21 | Quit to menu from game over during boss fight | Boundary cleared; returns to MainMenu safely |
+| 22 | Restart from VictoryScreen after boss kill | Boundary already cleared on boss death; fresh Arena starts correctly |
+| 23 | Open PauseMenu during boss fight | Pause works; confirm Restart or Main Menu also clears boundary |
+| 24 | Debug `Arena.debug_spawn_final_boss()` from remote console | Boss spawns using ring-based position (no arena setup, debug only); no crash |
+| 25 | Inspect diff | No arena hazards, no damaging boundaries, no hero kit changes, no reward changes |
+
+---
+
 ## Enemy Roles & Wave Director 2.0
 
 | # | Test | Expected |

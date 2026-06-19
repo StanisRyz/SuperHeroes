@@ -183,6 +183,52 @@ The game is an original superhero survivors-like: the player moves around an are
 - Shield blocks damage in `Player.take_damage()` after dash and debug invulnerability checks, before HP reduction.
 - Timed buffs pause naturally with the tree and do not persist between runs (fresh Arena on restart).
 
+## Miniboss + Final Boss Encounter Architecture
+
+### Miniboss rules
+- Miniboss spawns via EventDirector during normal waves (no separate arena, no enemy clear).
+- Normal enemies MUST keep spawning while the miniboss is alive.
+- Miniboss health bar tracks the miniboss; defeat opens the evolution reward screen.
+- Do not clear normal enemies, do not create a temporary arena, and do not restrict the player's movement for the miniboss.
+
+### Final boss encounter state
+- `Arena._final_boss_arena_active: bool` — set to `true` when the final boss encounter begins; reset by Arena scene reload.
+- `EnemySpawner._final_boss_encounter_active: bool` — stops `_can_spawn()`, `spawn_timer`, and `_wave_timer` for the duration of the encounter.
+- `EventDirector._final_boss_encounter_active: bool` — causes `_process()` to return early, preventing new event triggers and active-timed-event ticks.
+
+### Encounter trigger flow
+1. `RunManager.target_time_reached` → `Arena._on_boss_phase_triggered()`.
+2. Arena shakes and calls `Arena._start_final_boss_encounter()`.
+3. `EnemySpawner.start_final_boss_encounter()` stops spawn and wave timers.
+4. `EventDirector.stop_for_final_boss_encounter()` freezes the event schedule.
+5. `Arena._clear_normal_enemies_for_boss()` calls `queue_free()` on all `enemy_container` children whose `is_final_boss != true`. No `died` signal fires; no XP or powerup drops are granted.
+6. Arena builds a 1200×900 `Rect2` centered on the player, clamped to the full playable field, via `_build_boss_arena_rect()`.
+7. `Player.set_playable_rect()` and `Player.set_camera_limits()` apply the smaller rect.
+8. `_spawn_boss_arena_boundary(rect)` adds a `Node2D` child with a single `Line2D` rectangle. The boundary is display-only — no collision shape, no damage. No damaging arena hazards are ever added here.
+9. "Final Boss Arena!" is announced; the boss spawns at the arena center via `EnemySpawner.spawn_final_boss(boss_id, center_pos)`.
+10. `BossHealthBar`, HUD final boss info, and FinalBossController all wire the same way as before.
+
+### Temporary boss arena boundary rules
+- The boundary is a `Line2D` rect drawn in world space; it is purely visual.
+- Player clamping is handled by `Player.set_playable_rect()` (existing mechanism).
+- Camera limits are handled by `Player.set_camera_limits()` (existing mechanism).
+- The boundary node is named `"BossArenaBoundary"` and stored in `Arena._boss_arena_boundary`.
+- **No collision shape** is added to the boundary. **No area damage** is added. Damaging arena hazards must not be added unless explicitly requested by the user.
+
+### Encounter cleanup
+- Final boss defeated: `Arena._on_final_boss_defeated()` calls `_clear_boss_arena_boundary()`. Victory flow continues as normal.
+- Player death: `_on_player_died()` → game over screen; boundary cleanup happens when the player confirms restart or quit.
+- Restart from game over/victory: `_on_restart_requested()` calls `_clear_boss_arena_boundary()` before emitting `restart_run_requested`.
+- Quit to menu from game over/victory: `_on_quit_to_menu_requested()` calls `_clear_boss_arena_boundary()`.
+- Restart/quit confirmed via pause-menu ConfirmDialog: `_on_confirm_dialog_confirmed()` calls `_clear_boss_arena_boundary()` before the scene transition.
+- Arena scene reload resets all state naturally; no explicit flag reset is needed.
+
+### Spawn guard chain during final boss
+- `EnemySpawner.start_final_boss_encounter()` stops timers → timer callbacks do not fire.
+- `EnemySpawner._can_spawn()` also checks `_final_boss_encounter_active` as a redundant guard.
+- `EventDirector._process()` returns early → no new elites, no new miniboss events, no new timed modifiers.
+- `EnemySpawner.spawn_final_boss()` is exempt: it accepts an optional `override_position: Vector2` (defaults to `NO_SPAWN_POSITION` which triggers the normal ring-based search). Arena passes the boss arena center.
+
 ## Stage & Final Boss Architecture
 
 - `Main` owns the navigation flow: MainMenu → CharacterSelect → StageSelect → RunBriefingScreen → Arena. Back from StageSelect returns to CharacterSelect. Back from RunBriefingScreen returns to StageSelect. Restart keeps same hero + stage and bypasses briefing. Quit to menu clears both.
@@ -193,7 +239,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - StageSelect must emit the original stable stage id (`city_rooftop`, `neon_lab`, or `wasteland_gate`) when Start Run is pressed.
 - RunBriefingScreen is display-only: it may read hero data, stage data, and Training summaries, but it must not mutate meta/training data, saves, gameplay state, or persistence.
 - RunBriefingScreen Start emits intent only and Main starts the current selected hero/stage flow. RunBriefingScreen Back returns to StageSelect.
-- Do not add arena hazards unless the user explicitly requests hazards.
+- Do not add arena hazards unless the user explicitly requests hazards. The boss arena boundary (`BossArenaBoundary`) is a display-only Line2D with no collision or damage; it must remain that way.
 - `EventDirector.set_event_profile(profile)` appends profile-specific extra events to the schedule. "balanced" adds nothing. "ranged_support" adds early shooter and support surge events. "swarm_exploder" adds early exploder and swarm rush events.
 - `SpawnDirector.set_stage_profile(profile)` stores the profile and applies per-variant weight bonuses in `_get_modified_weight()`.
 - **Final boss victory gating**: when `RunManager.final_boss_required == true` (set from stage run_settings), reaching target time emits `target_time_reached` instead of victory. Arena spawns the boss. Victory only triggers after `register_final_boss_defeated()`.
@@ -760,10 +806,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - Stamina.
 - Advanced dodge perks.
 - Controller remapping.
-- Boss Rework (not included in Wave Director 2.0 patch).
-- Primary Weapon Rework (not included in Wave Director 2.0 patch).
-- Build Evolution rework (not included in Wave Director 2.0 patch).
-- Stage Objectives (not included in Wave Director 2.0 patch).
+- Primary Weapon Rework.
+- Build Evolution rework.
+- Stage Objectives.
 - Enemy projectile patterns.
 - Status effects.
 - Real audio assets.
