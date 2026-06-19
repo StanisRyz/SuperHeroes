@@ -1,0 +1,84 @@
+[gd_scene load_steps=2 format=3 uid="uid://confirm_dialog_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/ui/ConfirmDialog.gd" id="1_confirm_dialog_script"]
+
+[node name="ConfirmDialog" type="CanvasLayer"]
+process_mode = 3
+layer = 60
+visible = false
+script = ExtResource("1_confirm_dialog_script")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Dimmer" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.7)
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -130.0
+offset_right = 260.0
+offset_bottom = 130.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 18
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="Root/Panel/Margin/VBoxContainer"]
+layout_mode = 2
+text = "Confirm"
+horizontal_alignment = 1
+
+[node name="MessageLabel" type="Label" parent="Root/Panel/Margin/VBoxContainer"]
+layout_mode = 2
+text = "Are you sure?"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Spacer" type="Control" parent="Root/Panel/Margin/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="ButtonRow" type="HBoxContainer" parent="Root/Panel/Margin/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ConfirmButton" type="Button" parent="Root/Panel/Margin/VBoxContainer/ButtonRow"]
+custom_minimum_size = Vector2(160, 46)
+layout_mode = 2
+text = "Confirm"
+
+[node name="CancelButton" type="Button" parent="Root/Panel/Margin/VBoxContainer/ButtonRow"]
+custom_minimum_size = Vector2(160, 46)
+layout_mode = 2
+text = "Cancel"

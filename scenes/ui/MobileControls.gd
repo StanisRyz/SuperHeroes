@@ -14,6 +14,7 @@ signal dash_pressed
 var _active_pointer_id := -999
 var _movement_direction := Vector2.ZERO
 var _settings_manager: Node
+var _input_blocker: Callable
 
 @onready var joystick_touch_area: Control = get_node_or_null("Root/JoystickArea")
 @onready var joystick_base: Control = get_node_or_null("Root/JoystickArea/Base")
@@ -87,6 +88,10 @@ func setup_player(player: Node) -> void:
 	_update_dash_button(0.0)
 	if player != null and player.has_signal("dash_cooldown_changed") and not player.dash_cooldown_changed.is_connected(_on_dash_cooldown_changed):
 		player.dash_cooldown_changed.connect(_on_dash_cooldown_changed)
+
+
+func setup_input_blocker(blocker: Callable) -> void:
+	_input_blocker = blocker
 
 
 func apply_settings(settings_manager: Node) -> void:
@@ -207,33 +212,39 @@ func _get_base_center() -> Vector2:
 
 
 func _on_ability_button_pressed() -> void:
-	if get_tree().paused:
+	if _is_action_blocked():
 		return
 	ability_1_pressed.emit()
 
 
 func _on_beam_button_pressed() -> void:
-	if get_tree().paused:
+	if _is_action_blocked():
 		return
 	ability_2_pressed.emit()
 
 
 func _on_slam_button_pressed() -> void:
-	if get_tree().paused:
+	if _is_action_blocked():
 		return
 	ability_3_pressed.emit()
 
 
 func _on_pause_button_pressed() -> void:
-	if get_tree().paused:
-		return
 	pause_pressed.emit()
 
 
 func _on_dash_button_pressed() -> void:
-	if get_tree().paused:
+	if _is_action_blocked():
 		return
 	dash_pressed.emit()
+
+
+func _is_action_blocked() -> bool:
+	if get_tree().paused:
+		return true
+	if _input_blocker.is_valid():
+		return bool(_input_blocker.call())
+	return false
 
 
 func _on_ability_cooldown_changed(slot: int, cooldown_remaining: float, _cooldown_total: float) -> void:

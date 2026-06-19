@@ -48,11 +48,18 @@ var _run_result_emitted := false
 @onready var boss_health_bar: Node = get_node_or_null("BossHealthBar")
 @onready var victory_screen: Node = get_node_or_null("VictoryScreen")
 @onready var controls_help_overlay: Node = get_node_or_null("ControlsHelpOverlay")
+@onready var confirm_dialog: Node = get_node_or_null("ConfirmDialog")
 
 var _debug_stats_overlay: Node = null
 var _feedback_manager: Node = null
 var _debug_powerup_cycle_index: int = 0
 var _help_overlay_paused_game: bool = false
+var _pause_requested_by_menu: bool = false
+var _help_opened_from_pause: bool = false
+var _settings_opened_from_pause: bool = false
+var _confirm_opened_from_pause: bool = false
+var _run_ended: bool = false
+var _transition_in_progress: bool = false
 const DEBUG_POWERUP_CYCLE: Array = ["heal", "shield", "bomb", "magnet_burst", "move_speed_boost", "attack_speed_boost"]
 const DEBUG_KILL_RADIUS: float = 500.0
 const DEBUG_XP_AMOUNT: int = 50
@@ -153,6 +160,7 @@ func _ready() -> void:
 	_setup_pause_menu()
 	_setup_settings_menu()
 	_setup_controls_help_overlay()
+	_setup_confirm_dialog()
 	_setup_debug_flow()
 	_setup_event_director()
 
@@ -316,6 +324,8 @@ func _setup_mobile_controls(ability_manager: Node) -> void:
 		mobile_controls.setup_ability_manager(ability_manager)
 	if mobile_controls.has_method("setup_player"):
 		mobile_controls.setup_player(player)
+	if mobile_controls.has_method("setup_input_blocker"):
+		mobile_controls.setup_input_blocker(Callable(self, "_should_ignore_gameplay_pause_input"))
 	if mobile_controls.has_method("apply_settings"):
 		mobile_controls.apply_settings(settings_manager)
 
@@ -355,7 +365,7 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 	else:
 		push_warning("UpgradeManager cannot apply selected upgrade.")
 
-	get_tree().paused = false
+	_resume_game_if_safe()
 
 
 # Run lifecycle
@@ -418,6 +428,8 @@ func _setup_settings_menu() -> void:
 
 	if settings_menu.has_method("setup"):
 		settings_menu.setup(settings_manager, audio_manager)
+	if settings_menu.has_signal("closed") and not settings_menu.closed.is_connected(_on_settings_menu_closed):
+		settings_menu.closed.connect(_on_settings_menu_closed)
 
 
 func _setup_controls_help_overlay() -> void:
@@ -426,6 +438,16 @@ func _setup_controls_help_overlay() -> void:
 		return
 	if controls_help_overlay.has_signal("closed") and not controls_help_overlay.closed.is_connected(_on_controls_help_closed):
 		controls_help_overlay.closed.connect(_on_controls_help_closed)
+
+
+func _setup_confirm_dialog() -> void:
+	if confirm_dialog == null:
+		push_warning("Arena could not find ConfirmDialog node.")
+		return
+	if confirm_dialog.has_signal("confirmed") and not confirm_dialog.confirmed.is_connected(_on_confirm_dialog_confirmed):
+		confirm_dialog.confirmed.connect(_on_confirm_dialog_confirmed)
+	if confirm_dialog.has_signal("cancelled") and not confirm_dialog.cancelled.is_connected(_on_confirm_dialog_cancelled):
+		confirm_dialog.cancelled.connect(_on_confirm_dialog_cancelled)
 
 
 func _setup_event_director() -> void:
@@ -588,8 +610,8 @@ func _on_evolution_reward_closed_without_selection() -> void:
 
 
 func _resume_after_evolution_reward() -> void:
-	if not _is_player_dead() and not _is_game_over_visible() and not _is_victory_visible():
-		get_tree().paused = false
+	if not _is_player_dead():
+		_resume_game_if_safe()
 
 
 func _on_evolution_applied(_evolution_id: String, evolution_data: Dictionary) -> void:
@@ -613,6 +635,7 @@ func _on_final_phase_started() -> void:
 func _on_victory_reached(stats: Dictionary) -> void:
 	if _is_player_dead():
 		return
+	_run_ended = true
 
 	var summary := _build_run_summary(stats)
 	summary["result"] = "victory"
@@ -873,17 +896,15 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _is_controls_help_open():
-		get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed("pause"):
-		_request_pause_menu()
+	if event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel"):
+		_handle_pause_back_requested()
 		get_viewport().set_input_as_handled()
 
 
 func _on_player_died() -> void:
 	if run_manager != null and run_manager.get("has_victory") == true:
 		return
+	_run_ended = true
 
 	var stats := {}
 	if run_manager != null and run_manager.has_method("end_run"):
@@ -914,56 +935,102 @@ func _on_player_died() -> void:
 
 
 func _on_restart_requested() -> void:
+	if _transition_in_progress:
+		return
+	_transition_in_progress = true
 	get_tree().paused = false
 	restart_run_requested.emit()
 
 
 func _on_quit_to_menu_requested() -> void:
+	if _transition_in_progress:
+		return
+	_transition_in_progress = true
 	get_tree().paused = false
 	quit_to_menu_requested.emit()
 
 
 func _request_pause_menu() -> void:
-	if get_tree().paused or _is_player_dead() or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible() or _is_controls_help_open():
+	_handle_pause_back_requested()
+
+
+func _handle_pause_back_requested() -> void:
+	if _is_confirm_open():
+		if confirm_dialog.has_method("cancel"):
+			confirm_dialog.cancel()
+		return
+	if _is_help_open():
+		if controls_help_overlay != null and controls_help_overlay.has_method("close"):
+			controls_help_overlay.close()
+		return
+	if _is_settings_open():
+		if settings_menu != null and settings_menu.has_method("close"):
+			settings_menu.close()
+		return
+	if _is_level_up_visible() or _is_evolution_reward_visible() or _is_game_over_visible() or _is_victory_visible():
+		return
+	if _is_pause_menu_open():
+		_on_pause_resume_requested()
+		return
+	_open_pause_menu()
+
+
+func _open_pause_menu() -> void:
+	if _run_ended or _transition_in_progress or _is_player_dead() or _is_modal_open():
 		return
 
 	get_tree().paused = true
+	_pause_requested_by_menu = true
 	_reset_mobile_controls()
 	if pause_menu != null and pause_menu.has_method("open"):
 		pause_menu.open()
 
 
 func _on_pause_resume_requested() -> void:
+	if _transition_in_progress:
+		return
 	if pause_menu != null and pause_menu.has_method("close"):
 		pause_menu.close()
-	get_tree().paused = false
+	_pause_requested_by_menu = false
+	_resume_game_if_safe()
 
 
 func _on_pause_restart_requested() -> void:
-	if pause_menu != null and pause_menu.has_method("close"):
-		pause_menu.close()
-	get_tree().paused = false
-	restart_run_requested.emit()
+	_open_run_action_confirm(
+		"restart_run",
+		"Restart Run?",
+		"Current run progress will be lost. Restart this run?",
+		"Restart",
+		"Cancel"
+	)
 
 
 func _on_pause_quit_to_menu_requested() -> void:
-	if pause_menu != null and pause_menu.has_method("close"):
-		pause_menu.close()
-	get_tree().paused = false
-	quit_to_menu_requested.emit()
+	_open_run_action_confirm(
+		"quit_to_menu",
+		"Return to Main Menu?",
+		"Current run progress will be lost. Return to Main Menu?",
+		"Main Menu",
+		"Cancel"
+	)
 
 
 func _on_pause_settings_requested() -> void:
+	if _transition_in_progress:
+		return
+	_settings_opened_from_pause = _is_pause_menu_open()
 	if settings_menu != null and settings_menu.has_method("open"):
 		settings_menu.open()
 
 
 func _on_pause_help_requested() -> void:
+	if _transition_in_progress:
+		return
 	_open_controls_help(true)
 
 
 func _toggle_controls_help_from_input() -> void:
-	if _is_controls_help_open():
+	if _is_help_open():
 		if controls_help_overlay != null and controls_help_overlay.has_method("close"):
 			controls_help_overlay.close()
 		return
@@ -978,6 +1045,7 @@ func _open_controls_help(should_pause: bool) -> void:
 	if _is_controls_help_blocked():
 		return
 
+	_help_opened_from_pause = _is_pause_menu_open()
 	_help_overlay_paused_game = should_pause and not get_tree().paused
 	if should_pause and not get_tree().paused:
 		get_tree().paused = true
@@ -986,9 +1054,78 @@ func _open_controls_help(should_pause: bool) -> void:
 
 
 func _on_controls_help_closed() -> void:
-	if _help_overlay_paused_game and not _is_controls_help_blocked():
-		get_tree().paused = false
+	if _help_overlay_paused_game:
+		_resume_game_if_safe()
 	_help_overlay_paused_game = false
+	_help_opened_from_pause = false
+
+
+func _on_settings_menu_closed() -> void:
+	_settings_opened_from_pause = false
+	_resume_game_if_safe()
+
+
+func _open_run_action_confirm(action_id: String, title: String, message: String, confirm_text: String, cancel_text: String) -> void:
+	if _transition_in_progress or _run_ended or confirm_dialog == null or not confirm_dialog.has_method("open"):
+		return
+	if _is_confirm_open():
+		return
+
+	_confirm_opened_from_pause = _is_pause_menu_open()
+	get_tree().paused = true
+	_reset_mobile_controls()
+	if pause_menu != null and pause_menu.has_method("set_buttons_disabled"):
+		pause_menu.set_buttons_disabled(true)
+	confirm_dialog.open(action_id, title, message, confirm_text, cancel_text)
+
+
+func _on_confirm_dialog_confirmed(action_id: String) -> void:
+	if _transition_in_progress:
+		return
+
+	_transition_in_progress = true
+	_confirm_opened_from_pause = false
+	if pause_menu != null and pause_menu.has_method("set_buttons_disabled"):
+		pause_menu.set_buttons_disabled(true)
+	if pause_menu != null and pause_menu.has_method("close"):
+		pause_menu.close()
+	_pause_requested_by_menu = false
+
+	match action_id:
+		"restart_run":
+			get_tree().paused = false
+			restart_run_requested.emit()
+		"quit_to_menu":
+			get_tree().paused = false
+			quit_to_menu_requested.emit()
+		_:
+			_transition_in_progress = false
+			_restore_pause_after_confirm_cancelled()
+
+
+func _on_confirm_dialog_cancelled(_action_id: String) -> void:
+	_restore_pause_after_confirm_cancelled()
+
+
+func _restore_pause_after_confirm_cancelled() -> void:
+	if pause_menu != null and pause_menu.has_method("set_buttons_disabled"):
+		pause_menu.set_buttons_disabled(false)
+	if _confirm_opened_from_pause and pause_menu != null and pause_menu.has_method("open"):
+		pause_menu.open()
+		get_tree().paused = true
+		_pause_requested_by_menu = true
+	_confirm_opened_from_pause = false
+	_resume_game_if_safe()
+
+
+func _resume_game_if_safe() -> void:
+	if _run_ended or _transition_in_progress:
+		return
+	if _is_blocking_run_screen_open() or _is_settings_open() or _is_help_open() or _is_confirm_open() or _is_pause_menu_open():
+		return
+	if _pause_requested_by_menu:
+		return
+	get_tree().paused = false
 
 
 func _on_debug_mode_changed(enabled: bool) -> void:
@@ -1188,7 +1325,7 @@ func _request_debug_level_from_input() -> void:
 
 
 func _is_debug_action_blocked() -> bool:
-	if get_tree().paused:
+	if get_tree().paused or _should_ignore_gameplay_pause_input():
 		return true
 	if _is_game_over_visible():
 		return true
@@ -1202,11 +1339,11 @@ func _is_debug_action_blocked() -> bool:
 
 
 func _is_debug_toggle_blocked() -> bool:
-	return get_tree().paused or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible() or _is_player_dead()
+	return get_tree().paused or _should_ignore_gameplay_pause_input() or _is_player_dead()
 
 
 func _is_debug_level_blocked() -> bool:
-	return get_tree().paused or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible() or _is_player_dead()
+	return get_tree().paused or _should_ignore_gameplay_pause_input() or _is_player_dead()
 
 
 func _is_player_dead() -> bool:
@@ -1226,19 +1363,63 @@ func _is_level_up_visible() -> bool:
 
 
 func _is_controls_help_open() -> bool:
-	return controls_help_overlay != null and controls_help_overlay.visible
+	return _is_help_open()
 
 
 func _is_controls_help_blocked() -> bool:
-	return _is_player_dead() or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible() or _is_settings_visible() or _is_evolution_reward_visible()
+	return _is_player_dead() or _is_blocking_run_screen_open() or _is_settings_open() or _is_confirm_open()
 
 
 func _is_settings_visible() -> bool:
-	return settings_menu != null and settings_menu.visible
+	return _is_settings_open()
 
 
 func _is_evolution_reward_visible() -> bool:
 	return evolution_reward_screen != null and evolution_reward_screen.visible
+
+
+func _is_modal_open() -> bool:
+	return _is_blocking_run_screen_open() or _is_settings_open() or _is_help_open() or _is_confirm_open() or _is_pause_menu_open()
+
+
+func _is_blocking_run_screen_open() -> bool:
+	return _is_level_up_visible() or _is_evolution_reward_visible() or _is_victory_visible() or _is_game_over_visible()
+
+
+func _is_help_open() -> bool:
+	if controls_help_overlay == null:
+		return false
+	if controls_help_overlay.has_method("is_open"):
+		return controls_help_overlay.is_open()
+	return controls_help_overlay.visible
+
+
+func _is_settings_open() -> bool:
+	if settings_menu == null:
+		return false
+	if settings_menu.has_method("is_open"):
+		return settings_menu.is_open()
+	return settings_menu.visible
+
+
+func _is_confirm_open() -> bool:
+	if confirm_dialog == null:
+		return false
+	if confirm_dialog.has_method("is_open"):
+		return confirm_dialog.is_open()
+	return confirm_dialog.visible
+
+
+func _is_pause_menu_open() -> bool:
+	if pause_menu == null:
+		return false
+	if pause_menu.has_method("is_open"):
+		return pause_menu.is_open()
+	return pause_menu.visible
+
+
+func _should_ignore_gameplay_pause_input() -> bool:
+	return _is_modal_open() or _run_ended or _transition_in_progress
 
 
 func _reset_mobile_controls() -> void:

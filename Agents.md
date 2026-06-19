@@ -67,6 +67,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/ControlsHelpOverlay.tscn` - reusable help and controls CanvasLayer scene.
 - `scenes/ui/ControlsHelpOverlay.gd` - display-only help overlay API (`open`, `close`, `toggle`, `is_open`) and close handling.
 - `scenes/ui/ControlsHelpContent.gd` - centralized help content sections.
+- `scenes/ui/ConfirmDialog.tscn` - reusable pause-safe confirmation CanvasLayer scene for active-run destructive actions.
+- `scenes/ui/ConfirmDialog.gd` - display-only confirmation dialog API (`open`, `close`, `is_open`, `get_action_id`) and confirmed/cancelled action-id signals.
 - `scenes/ui/CharacterSelect.tscn` - hero selection screen between MainMenu and Arena.
 - `scenes/ui/CharacterSelect.gd` - display-only hero list/details UI; emits selected hero id.
 - `scenes/ui/EvolutionRewardScreen.tscn` - paused evolution reward choice screen.
@@ -449,6 +451,17 @@ The game is an original superhero survivors-like: the player moves around an are
 - Opening help from PauseMenu keeps PauseMenu state intact; closing help returns to the paused menu.
 - Help must not open over SettingsMenu, LevelUpScreen, EvolutionRewardScreen, VictoryScreen, or GameOverScreen.
 
+## Pause / Restart / Exit Safety Flow
+
+- `ConfirmDialog` is display-only; it emits `confirmed(action_id)` and `cancelled(action_id)` and does not own gameplay pause state.
+- Arena owns active-run confirmation and pause state. Restart and Main Menu requests from PauseMenu open ConfirmDialog first; confirmed actions emit `restart_run_requested` or `quit_to_menu_requested` once.
+- Main owns the out-of-run menu stack and post-run reward transition. Victory/GameOver buttons keep using the reward screen path and are not confirmed as active-run abandonment.
+- PauseMenu emits requests only; it does not confirm destructive actions or change scenes directly.
+- SettingsMenu and ControlsHelpOverlay do not own gameplay pause state. Arena/Main decide whether closing them should resume gameplay or return to a menu.
+- Escape / Back priority during a run is ConfirmDialog, Help, Settings, blocked run screens, PauseMenu, then opening PauseMenu.
+- Mobile pause follows the same Arena pause/back route as Escape. Mobile ability and dash signals are blocked while run modals are open.
+- Duplicate transition guards are required around active-run restart/quit, CharacterSelect/StageSelect confirms, result-screen reward transitions, and PostRunRewardsScreen Continue.
+
 ## User Preferences Flow
 
 - `UserPreferencesManager` stores non-gameplay preferences only in `user://superheroes_user_preferences.json`.
@@ -708,6 +721,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - docs/validation/gameplay_validation.md is the canonical manual test checklist; update it when systems change.
 - Run `godot --headless --editor --quit` from the repo root to confirm no parse errors after every patch.
 - Validate Help / Controls from MainMenu, PauseMenu, active gameplay, and blocked modal states after changing input or menu flows.
+- Validate Pause / Restart / Exit Safety QoL after changing pause, settings, help, reward, character select, stage select, or mobile controls flow.
 
 ## UI Helper Architecture
 
@@ -722,6 +736,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - README.md and Agents.md must be updated on every task.
 - docs/validation/gameplay_validation.md must be updated for new gameplay flows and UI checks.
 - Do not change gameplay values in UI polish patches.
+- QoL patches must not change gameplay balance, progression formulas, enemy/player stats, or reward formulas.
 - Do not add arena hazards.
 - Do not add persistence unless explicitly requested.
 - Do not add arena hazards.

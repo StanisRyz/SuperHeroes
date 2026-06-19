@@ -110,6 +110,8 @@ func _add_row(parent: VBoxContainer, label_text: String) -> Label:
 
 
 func show_rewards(reward_data: Dictionary, progress_summary: Dictionary) -> void:
+	if visible:
+		return
 	var result := str(reward_data.get("result", "defeat"))
 	_result_label.text = "Victory!" if result == "victory" else "Defeated"
 
@@ -132,11 +134,14 @@ func show_rewards(reward_data: Dictionary, progress_summary: Dictionary) -> void
 
 	show()
 	if _continue_button != null:
+		_continue_button.disabled = false
 		_continue_button.grab_focus()
 
 
 func hide_screen() -> void:
 	hide()
+	if _continue_button != null:
+		_continue_button.disabled = false
 
 
 func _set_row(lbl: Label, value: int) -> void:
@@ -146,4 +151,8 @@ func _set_row(lbl: Label, value: int) -> void:
 
 
 func _on_continue_pressed() -> void:
+	if _continue_button != null:
+		if _continue_button.disabled:
+			return
+		_continue_button.disabled = true
 	continue_requested.emit()

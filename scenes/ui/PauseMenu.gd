@@ -47,12 +47,24 @@ func _ready() -> void:
 
 func open() -> void:
 	show()
+	set_buttons_disabled(false)
 	if resume_button != null:
 		resume_button.grab_focus()
 
 
 func close() -> void:
 	hide()
+	set_buttons_disabled(false)
+
+
+func set_buttons_disabled(disabled: bool) -> void:
+	for button in [resume_button, settings_button, help_button, restart_button, quit_button]:
+		if button != null:
+			button.disabled = disabled
+
+
+func is_open() -> bool:
+	return visible
 
 
 func setup_audio_manager(new_audio_manager: Node = null) -> void:

@@ -21,6 +21,7 @@ var selected_stage_id: String = ""
 var _last_reward_data: Dictionary = {}
 var _rewards_shown: bool = true
 var _pending_action: String = ""
+var _selection_transition_in_progress: bool = false
 
 @onready var settings_menu: Node = get_node_or_null("SettingsMenu")
 @onready var controls_help_overlay: Node = get_node_or_null("ControlsHelpOverlay")
@@ -50,6 +51,9 @@ func _ready() -> void:
 
 	if settings_menu != null and settings_menu.has_method("setup"):
 		settings_menu.setup(settings_manager, audio_manager)
+	if settings_menu != null and settings_menu.has_signal("closed"):
+		if not settings_menu.closed.is_connected(_on_settings_menu_closed):
+			settings_menu.closed.connect(_on_settings_menu_closed)
 
 	if controls_help_overlay != null and controls_help_overlay.has_signal("closed"):
 		if not controls_help_overlay.closed.is_connected(_on_controls_help_closed):
@@ -114,6 +118,7 @@ func _init_meta_upgrade_shop() -> void:
 
 
 func _show_main_menu() -> void:
+	_selection_transition_in_progress = false
 	_clear_current_run()
 	_clear_main_menu()
 	if character_select != null and character_select.has_method("close"):
@@ -149,18 +154,25 @@ func _show_main_menu() -> void:
 func _input(event: InputEvent) -> void:
 	if current_run != null:
 		return
-	if not event.is_action_pressed("help_toggle"):
-		return
 	if event is InputEventKey and event.echo:
 		return
-	if _is_settings_open() or _is_meta_shop_open():
+
+	if event.is_action_pressed("help_toggle"):
+		if _is_settings_open() or _is_meta_shop_open():
+			return
+		_toggle_controls_help()
+		get_viewport().set_input_as_handled()
 		return
 
-	_toggle_controls_help()
-	get_viewport().set_input_as_handled()
+	if event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel"):
+		_handle_menu_back_requested()
+		get_viewport().set_input_as_handled()
 
 
 func _show_character_select() -> void:
+	if _selection_transition_in_progress:
+		return
+	_selection_transition_in_progress = true
 	_close_settings_menu_if_open()
 	_refresh_selection_preferences()
 	if main_menu != null:
@@ -169,9 +181,12 @@ func _show_character_select() -> void:
 		character_select.open()
 	else:
 		_show_stage_select()
+	_selection_transition_in_progress = false
 
 
 func _on_character_select_back_requested() -> void:
+	if _selection_transition_in_progress:
+		return
 	if character_select != null and character_select.has_method("close"):
 		character_select.close()
 	if main_menu != null:
@@ -179,12 +194,16 @@ func _on_character_select_back_requested() -> void:
 
 
 func _on_hero_confirmed(hero_id: String) -> void:
+	if _selection_transition_in_progress:
+		return
+	_selection_transition_in_progress = true
 	selected_hero_id = hero_id
 	if user_preferences_manager != null and user_preferences_manager.has_method("set_last_hero_id"):
 		user_preferences_manager.set_last_hero_id(hero_id)
 	if character_select != null and character_select.has_method("close"):
 		character_select.close()
 	_show_stage_select()
+	_selection_transition_in_progress = false
 
 
 func _show_stage_select() -> void:
@@ -196,6 +215,9 @@ func _show_stage_select() -> void:
 
 
 func _on_stage_confirmed(stage_id: String) -> void:
+	if _selection_transition_in_progress:
+		return
+	_selection_transition_in_progress = true
 	selected_stage_id = stage_id
 	if user_preferences_manager != null and user_preferences_manager.has_method("set_last_stage_id"):
 		user_preferences_manager.set_last_stage_id(stage_id)
@@ -205,6 +227,8 @@ func _on_stage_confirmed(stage_id: String) -> void:
 
 
 func _on_stage_select_back_requested() -> void:
+	if _selection_transition_in_progress:
+		return
 	if stage_select != null and stage_select.has_method("close"):
 		stage_select.close()
 	if character_select != null and character_select.has_method("open"):
@@ -225,6 +249,7 @@ func _start_run_with_hero_and_stage(hero_id: String, stage_id: String) -> void:
 
 	if arena_scene == null:
 		push_warning("Main is missing arena_scene.")
+		_selection_transition_in_progress = false
 		return
 
 	var selected_hero := _get_hero_data(hero_id)
@@ -244,6 +269,7 @@ func _start_run_with_hero_and_stage(hero_id: String, stage_id: String) -> void:
 		current_run.restart_run_requested.connect(_restart_run)
 	if current_run.has_signal("quit_to_menu_requested") and not current_run.quit_to_menu_requested.is_connected(_quit_to_menu):
 		current_run.quit_to_menu_requested.connect(_quit_to_menu)
+	_selection_transition_in_progress = false
 
 
 func _on_run_result_ready(summary: Dictionary) -> void:
@@ -274,16 +300,22 @@ func _clear_main_menu() -> void:
 
 
 func _restart_run() -> void:
+	if not _pending_action.is_empty():
+		return
 	if not _check_and_show_rewards("restart"):
 		_do_restart_run()
 
 
 func _quit_to_menu() -> void:
+	if not _pending_action.is_empty():
+		return
 	if not _check_and_show_rewards("quit_to_menu"):
 		_do_quit_to_menu()
 
 
 func _check_and_show_rewards(pending_action: String) -> bool:
+	if not _pending_action.is_empty():
+		return true
 	if _rewards_shown or _last_reward_data.is_empty():
 		return false
 	if post_run_rewards_screen == null or not post_run_rewards_screen.has_method("show_rewards"):
@@ -299,6 +331,8 @@ func _check_and_show_rewards(pending_action: String) -> bool:
 
 
 func _on_post_run_continue() -> void:
+	if _pending_action.is_empty():
+		return
 	if post_run_rewards_screen != null and post_run_rewards_screen.has_method("hide_screen"):
 		post_run_rewards_screen.hide_screen()
 	get_tree().paused = false
@@ -337,6 +371,11 @@ func _open_settings_menu() -> void:
 		settings_menu.open()
 
 
+func _on_settings_menu_closed() -> void:
+	if current_run == null and main_menu != null:
+		main_menu.show()
+
+
 func _close_settings_menu_if_open() -> void:
 	if settings_menu == null or not settings_menu.visible:
 		return
@@ -360,12 +399,43 @@ func _on_controls_help_closed() -> void:
 	pass
 
 
+func _handle_menu_back_requested() -> void:
+	if _is_controls_help_open():
+		if controls_help_overlay != null and controls_help_overlay.has_method("close"):
+			controls_help_overlay.close()
+		return
+	if _is_settings_open():
+		_close_settings_menu_if_open()
+		return
+	if _is_meta_shop_open():
+		_close_meta_shop()
+		return
+	if stage_select != null and stage_select.visible:
+		_on_stage_select_back_requested()
+		return
+	if character_select != null and character_select.visible:
+		_on_character_select_back_requested()
+		return
+
+
 func _is_settings_open() -> bool:
-	return settings_menu != null and settings_menu.visible
+	if settings_menu == null:
+		return false
+	if settings_menu.has_method("is_open"):
+		return settings_menu.is_open()
+	return settings_menu.visible
 
 
 func _is_meta_shop_open() -> bool:
 	return meta_upgrade_shop != null and meta_upgrade_shop.visible
+
+
+func _is_controls_help_open() -> bool:
+	if controls_help_overlay == null:
+		return false
+	if controls_help_overlay.has_method("is_open"):
+		return controls_help_overlay.is_open()
+	return controls_help_overlay.visible
 
 
 func _open_meta_shop() -> void:

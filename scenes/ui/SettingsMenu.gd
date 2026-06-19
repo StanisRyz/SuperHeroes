@@ -62,8 +62,14 @@ func open() -> void:
 
 
 func close() -> void:
+	if not visible:
+		return
 	hide()
 	closed.emit()
+
+
+func is_open() -> bool:
+	return visible
 
 
 func _sync_from_settings() -> void:

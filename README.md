@@ -249,6 +249,7 @@ Implemented foundation:
 - **Improved CharacterSelect** — Selected hero button turns green; locked hero buttons are gray.
 - **Improved StageSelect** — Selected stage button turns green.
 - **Help overlay section titles** — Section titles are uppercase amber with horizontal separators between sections.
+- **Pause / Restart / Exit Safety QoL** — active-run Restart and Main Menu actions now use a reusable confirmation dialog, Escape / Back behavior is centralized across pause/settings/help overlays, and duplicate transition guards prevent repeated restarts, exits, reward screens, or Arena creation from rapid clicks.
 
 Not implemented yet (UI):
 - Custom art UI theme.
@@ -256,6 +257,20 @@ Not implemented yet (UI):
 - Localization / text scaling.
 - Remappable controls UI.
 - Gamepad navigation polish.
+- Full controller navigation.
+- Platform-specific back button support.
+- Autosave mid-run.
+- Pause menu animations.
+
+### Pause / Restart / Exit Safety QoL
+
+- **ConfirmDialog** is a reusable display-only CanvasLayer for destructive active-run actions. It emits action ids and never owns gameplay pause state.
+- **Restart confirmation** appears from PauseMenu with "Restart Run?" before abandoning current run progress.
+- **Main Menu exit confirmation** appears from PauseMenu with "Return to Main Menu?" before abandoning current run progress.
+- **Unified Escape / Back behavior** closes ConfirmDialog, Help, Settings, or PauseMenu in priority order, and ignores pause toggles on LevelUp, EvolutionReward, Victory, and GameOver screens.
+- **Safe reward screen transition** keeps Victory/GameOver Restart and Main Menu on the existing post-run reward path. PostRunRewardsScreen shows once per completed run and Continue can only fire once per pending action.
+- **Duplicate transition protection** guards active-run restart/quit signals, CharacterSelect/StageSelect confirms, reward Continue, and rapid result-screen clicks.
+- Gameplay balance values, progression formulas, enemy behavior, player stats, and reward formulas are unchanged.
 
 ### Controls Help Overlay
 

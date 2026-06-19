@@ -254,6 +254,34 @@ debug_spawn_enemy_variant("support")
 
 ---
 
+## Pause / Restart / Exit Safety QoL
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press **Escape** during active gameplay | PauseMenu opens and the run pauses |
+| 2 | Press **Escape** again while PauseMenu is open | PauseMenu closes and the run resumes |
+| 3 | Click Restart Run from PauseMenu | Confirmation dialog opens; PauseMenu buttons are disabled behind it |
+| 4 | Confirm Restart | Exactly one restart request is emitted and a fresh run starts |
+| 5 | Cancel Restart | Confirmation closes, PauseMenu stays open, and the tree remains paused |
+| 6 | Click Quit to Menu from PauseMenu | Confirmation dialog opens with Main Menu action text |
+| 7 | Confirm Main Menu | Exactly one quit-to-menu request is emitted and MainMenu opens |
+| 8 | Cancel Main Menu | Confirmation closes, PauseMenu stays open, and the tree remains paused |
+| 9 | Open Settings from PauseMenu, then close it | Returns to PauseMenu state without unpausing gameplay |
+| 10 | Open Help from PauseMenu, then close it | Returns to PauseMenu state without unpausing gameplay |
+| 11 | Open Help during active gameplay, then close it | Run pauses while help is open and resumes after close |
+| 12 | Press **H** / **F11** while Help is open | Help closes; it does not open over Settings or blocking run screens |
+| 13 | Press **Escape** while LevelUpScreen is open | Level-up choice remains open; pause toggle is ignored |
+| 14 | Press **Escape** while EvolutionRewardScreen is open | Evolution reward remains open; it is not skipped |
+| 15 | Press **Escape** while VictoryScreen or GameOverScreen is open | Result screen remains open; pause toggle is ignored |
+| 16 | Click Restart/MainMenu repeatedly on VictoryScreen or GameOverScreen | PostRunRewardsScreen shows once and rewards apply once |
+| 17 | Click Continue repeatedly on PostRunRewardsScreen | Continue is accepted once; pending restart/menu action runs once |
+| 18 | Double-click CharacterSelect Start Run or StageSelect Start Run | Only one StageSelect/Arena transition happens |
+| 19 | Press mobile Pause button | Follows the same behavior as Escape for PauseMenu, Settings, Help, and ConfirmDialog |
+| 20 | Try mobile ability/dash buttons while any modal is open | No ability or dash signal is emitted |
+| 21 | Repeatedly open/close PauseMenu, Settings, Help, ConfirmDialog | No stuck paused/unpaused state occurs |
+
+---
+
 ## Run Victory
 
 | # | Test | Expected |
