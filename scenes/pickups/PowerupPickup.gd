@@ -1,15 +1,16 @@
 extends Area2D
 
-@export var experience_value: int = 1
-@export var pickup_radius: float = 16.0
-@export var magnet_radius: float = 140.0
+@export var powerup_id: String = "heal"
+@export var pickup_radius: float = 18.0
+@export var magnet_radius: float = 120.0
 @export var magnet_speed: float = 420.0
 
 var target_player: Node2D
-var audio_manager: Node
-var _picked_up := false
+var powerup_manager: Node
+var picked_up: bool = false
 
 @onready var collision_shape: CollisionShape2D = get_node_or_null("CollisionShape2D")
+
 
 func _ready() -> void:
 	if not body_entered.is_connected(_on_body_entered):
@@ -20,8 +21,13 @@ func _ready() -> void:
 		circle.radius = pickup_radius
 
 
+func setup(new_powerup_id: String, new_powerup_manager: Node) -> void:
+	powerup_id = new_powerup_id
+	powerup_manager = new_powerup_manager
+
+
 func _physics_process(delta: float) -> void:
-	if _picked_up:
+	if picked_up:
 		return
 
 	_update_target_player()
@@ -36,22 +42,15 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node2D) -> void:
-	if _picked_up or not body.has_method("add_experience"):
+	if picked_up:
+		return
+	if not body.is_in_group("player"):
 		return
 
-	_picked_up = true
-	if audio_manager != null and audio_manager.has_method("play_pickup"):
-		audio_manager.play_pickup()
-	body.add_experience(experience_value)
+	picked_up = true
+	if powerup_manager != null and powerup_manager.has_method("apply_powerup"):
+		powerup_manager.apply_powerup(powerup_id, global_position)
 	queue_free()
-
-
-func setup_audio_manager(new_audio_manager: Node) -> void:
-	audio_manager = new_audio_manager
-
-
-func force_magnet_to_player(player: Node2D) -> void:
-	target_player = player
 
 
 func _update_target_player() -> void:

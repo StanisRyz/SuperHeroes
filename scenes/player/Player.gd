@@ -81,6 +81,11 @@ func take_damage(amount: int) -> void:
 	if amount <= 0 or is_dead() or is_invulnerable() or debug_invulnerable:
 		return
 
+	var buff_manager := get_node_or_null("PlayerBuffManager")
+	if buff_manager != null and buff_manager.has_method("consume_shield_charge"):
+		if buff_manager.consume_shield_charge():
+			return
+
 	var previous_health := current_health
 	current_health = clampi(current_health - amount, 0, max_health)
 
@@ -146,6 +151,16 @@ func add_experience(amount: int) -> void:
 	experience_changed.emit(current_xp, xp_to_next_level, level)
 	for gained_level in gained_levels:
 		level_up_available.emit(gained_level)
+
+
+func heal(amount: int) -> void:
+	if amount <= 0 or is_dead():
+		return
+
+	var previous_health := current_health
+	current_health = clampi(current_health + amount, 0, max_health)
+	if current_health != previous_health:
+		health_changed.emit(current_health, max_health)
 
 
 func debug_gain_one_level() -> void:

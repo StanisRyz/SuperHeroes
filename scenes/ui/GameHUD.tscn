@@ -86,3 +86,25 @@ text = "Nova Pulse (J): Ready"
 [node name="DashCooldownLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
 text = "Dash: Ready"
+
+[node name="BuffPanel" type="VBoxContainer" parent="Root"]
+layout_mode = 0
+offset_left = 64.0
+offset_top = 284.0
+offset_right = 400.0
+offset_bottom = 340.0
+
+[node name="ShieldLabel" type="Label" parent="Root/BuffPanel"]
+layout_mode = 2
+text = ""
+visible = false
+
+[node name="MoveSpeedLabel" type="Label" parent="Root/BuffPanel"]
+layout_mode = 2
+text = ""
+visible = false
+
+[node name="AttackSpeedLabel" type="Label" parent="Root/BuffPanel"]
+layout_mode = 2
+text = ""
+visible = false

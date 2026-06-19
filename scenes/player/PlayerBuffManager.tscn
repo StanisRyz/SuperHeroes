@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://player_buff_manager_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/player/PlayerBuffManager.gd" id="1_player_buff_manager_script"]
+
+[node name="PlayerBuffManager" type="Node"]
+script = ExtResource("1_player_buff_manager_script")

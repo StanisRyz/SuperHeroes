@@ -66,7 +66,25 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/enemies/SpawnDirector.tscn` - time-based spawn progression scene.
 - `scenes/enemies/SpawnDirector.gd` - dynamic spawn settings and enemy variant selection.
 - `scenes/enemies/EnemySpawner.tscn` - timer-based spawner scene.
-- `scenes/enemies/EnemySpawner.gd` - spawn loop, spawn distance checks, max alive enemy limit, XP drops.
+- `scenes/enemies/EnemySpawner.gd` - spawn loop, spawn distance checks, max alive enemy limit, XP drops, powerup drop rolls.
+- `scenes/player/PlayerBuffManager.tscn` - player buff manager scene.
+- `scenes/player/PlayerBuffManager.gd` - timed buffs (move speed, attack speed) and shield charges.
+- `scenes/powerups/PowerupManager.tscn` - powerup manager scene.
+- `scenes/powerups/PowerupManager.gd` - applies powerup effects (heal, shield, bomb, magnet burst, speed boosts).
+- `scenes/pickups/PowerupPickup.tscn` - generic in-run powerup pickup scene.
+- `scenes/pickups/PowerupPickup.gd` - magnet movement and delegation to PowerupManager on collection.
+- `scenes/effects/BombBurst.tscn` - bomb burst radius visual effect scene.
+- `scenes/effects/BombBurst.gd` - expanding ring tween and cleanup logic.
+
+## Powerup System Architecture
+
+- `ExperienceGem` remains XP-only; it exposes `force_magnet_to_player(player)` for magnet burst but does not apply powerup effects.
+- `PowerupPickup` is generic — it stores a `powerup_id` and delegates all gameplay effects to `PowerupManager.apply_powerup()`.
+- `PlayerBuffManager` owns all temporary player stat modifiers and shield charges. It is a child of `Player` and is wired by Arena via `PlayerBuffManager.setup(player, auto_attack)`.
+- `EnemySpawner` only rolls and spawns powerup pickups on enemy death; it never applies powerup effects directly.
+- `PowerupManager` applies effects and is wired by Arena to Player, AutoAttack, containers, HUD, and EnemySpawner.
+- Shield blocks damage in `Player.take_damage()` after dash and debug invulnerability checks, before HP reduction.
+- Timed buffs pause naturally with the tree and do not persist between runs (fresh Arena on restart).
 
 ## Implemented Systems
 
@@ -149,6 +167,15 @@ The game is an original superhero survivors-like: the player moves around an are
 - Explosive projectile upgrade.
 - Weapon modifier upgrades.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
+- PowerupPickup foundation.
+- PowerupManager with heal, shield, bomb, magnet burst, move speed boost, attack speed boost.
+- PlayerBuffManager with timed speed buffs and shield charges.
+- Active buff HUD display (shield, move speed timer, attack speed timer).
+- BombBurst visual effect.
+- Enemy death powerup drop rolls (6% base chance, weighted selection).
+- ExperienceGem.force_magnet_to_player() for magnet burst.
+- Player.heal() for non-damaging HP restoration.
+- Shield charge consumption in Player.take_damage() (after dash/debug invulnerability).
 
 ## Weapon Modifier Notes
 
@@ -309,6 +336,12 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Not Implemented Yet
 
+- Elite/miniboss guaranteed powerup drops.
+- Buff icons.
+- Powerup rarity tiers.
+- Powerup upgrade scaling.
+- Pickup object pooling.
+- Advanced particle effects for powerups.
 - Upgrade icons or Resource-backed data.
 - Bounce projectiles.
 - Chain lightning.

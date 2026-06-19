@@ -12,8 +12,11 @@ var player: Node
 @onready var threat_label: Label = get_node_or_null("Root/RunPanel/ThreatLabel")
 @onready var ability_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/AbilityCooldownLabel")
 @onready var dash_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/DashCooldownLabel")
+@onready var shield_label: Label = get_node_or_null("Root/BuffPanel/ShieldLabel")
+@onready var move_speed_label: Label = get_node_or_null("Root/BuffPanel/MoveSpeedLabel")
+@onready var attack_speed_label: Label = get_node_or_null("Root/BuffPanel/AttackSpeedLabel")
 
-func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null) -> void:
+func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null, buff_manager: Node = null) -> void:
 	player = new_player
 
 	if player == null:
@@ -47,6 +50,7 @@ func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = n
 
 	_setup_run_manager(run_manager)
 	_setup_ability_manager(ability_manager)
+	_setup_buff_manager(buff_manager)
 
 
 func _update_player_health(current_health: int, max_health: int) -> void:
@@ -138,3 +142,60 @@ func _format_time(seconds: float) -> String:
 
 func _get_threat_level(seconds: float) -> int:
 	return int(clampf(floor(seconds / 30.0) + 1.0, 1.0, 10.0))
+
+
+func _setup_buff_manager(buff_manager: Node) -> void:
+	if shield_label != null:
+		shield_label.visible = false
+	if move_speed_label != null:
+		move_speed_label.visible = false
+	if attack_speed_label != null:
+		attack_speed_label.visible = false
+
+	if buff_manager == null:
+		return
+
+	if buff_manager.has_signal("buff_started") and not buff_manager.buff_started.is_connected(_on_buff_started):
+		buff_manager.buff_started.connect(_on_buff_started)
+	if buff_manager.has_signal("buff_updated") and not buff_manager.buff_updated.is_connected(_on_buff_updated):
+		buff_manager.buff_updated.connect(_on_buff_updated)
+	if buff_manager.has_signal("buff_finished") and not buff_manager.buff_finished.is_connected(_on_buff_finished):
+		buff_manager.buff_finished.connect(_on_buff_finished)
+	if buff_manager.has_signal("shield_changed") and not buff_manager.shield_changed.is_connected(_on_shield_changed):
+		buff_manager.shield_changed.connect(_on_shield_changed)
+
+
+func _on_buff_started(buff_id: String, duration: float) -> void:
+	_on_buff_updated(buff_id, duration, duration)
+
+
+func _on_buff_updated(buff_id: String, time_left: float, _duration: float) -> void:
+	match buff_id:
+		"move_speed_boost":
+			if move_speed_label != null:
+				move_speed_label.text = "Speed: %.1fs" % time_left
+				move_speed_label.visible = true
+		"attack_speed_boost":
+			if attack_speed_label != null:
+				attack_speed_label.text = "Haste: %.1fs" % time_left
+				attack_speed_label.visible = true
+
+
+func _on_buff_finished(buff_id: String) -> void:
+	match buff_id:
+		"move_speed_boost":
+			if move_speed_label != null:
+				move_speed_label.visible = false
+		"attack_speed_boost":
+			if attack_speed_label != null:
+				attack_speed_label.visible = false
+
+
+func _on_shield_changed(charges: int) -> void:
+	if shield_label == null:
+		return
+	if charges > 0:
+		shield_label.text = "Shield: %d" % charges
+		shield_label.visible = true
+	else:
+		shield_label.visible = false

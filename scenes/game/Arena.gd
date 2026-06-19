@@ -26,6 +26,7 @@ var audio_manager: Node
 @onready var settings_menu: Node = get_node_or_null("SettingsMenu")
 @onready var debug_manager: Node = get_node_or_null("DebugManager")
 @onready var debug_overlay: Node = get_node_or_null("DebugOverlay")
+@onready var powerup_manager: Node = get_node_or_null("PowerupManager")
 
 
 func setup(new_settings_manager: Node = null, new_audio_manager: Node = null) -> void:
@@ -60,16 +61,31 @@ func _ready() -> void:
 	else:
 		push_warning("AbilityManager does not implement setup(player, enemy_container).")
 
+	var auto_attack := player.get_node_or_null("AutoAttack")
+	var player_buff_manager := player.get_node_or_null("PlayerBuffManager")
+	if player_buff_manager == null:
+		push_warning("Arena could not find Player/PlayerBuffManager node.")
+	elif player_buff_manager.has_method("setup"):
+		player_buff_manager.setup(player, auto_attack)
+	else:
+		push_warning("PlayerBuffManager does not implement setup(player, auto_attack).")
+
 	_setup_mobile_controls(ability_manager)
 
 	if hud == null:
 		push_warning("Arena could not find GameHUD node.")
 	elif hud.has_method("setup"):
-		hud.setup(player, run_manager, ability_manager)
+		hud.setup(player, run_manager, ability_manager, player_buff_manager)
 	else:
 		push_warning("GameHUD does not implement setup(player, run_manager, ability_manager).")
 
-	var auto_attack := player.get_node_or_null("AutoAttack")
+	if powerup_manager == null:
+		push_warning("Arena could not find PowerupManager node.")
+	elif powerup_manager.has_method("setup"):
+		powerup_manager.setup(player, auto_attack, enemy_container, pickup_container, floating_text_spawner, audio_manager)
+	else:
+		push_warning("PowerupManager does not implement setup(...).")
+
 	_setup_spawn_director()
 	_setup_level_up_flow(auto_attack, ability_manager)
 	_setup_run_lifecycle()
@@ -95,7 +111,7 @@ func _ready() -> void:
 	elif enemy_spawner == null:
 		push_warning("Arena could not find EnemySpawner node.")
 	elif enemy_spawner.has_method("setup"):
-		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner, audio_manager)
+		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner, audio_manager, powerup_manager)
 	else:
 		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner).")
 

@@ -5,10 +5,12 @@ const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 @export var enemy_scene: PackedScene
 @export var experience_gem_scene: PackedScene
 @export var death_burst_scene: PackedScene
+@export var powerup_pickup_scene: PackedScene
 @export var spawn_interval: float = 1.5
 @export var max_alive_enemies: int = 12
 @export var min_spawn_distance_from_player: float = 500.0
 @export var max_spawn_attempts: int = 12
+@export var base_powerup_drop_chance: float = 0.06
 
 var player: Node2D
 var playable_rect: Rect2
@@ -18,6 +20,16 @@ var run_manager: Node
 var spawn_director: Node
 var floating_text_spawner: Node
 var audio_manager: Node
+var powerup_manager: Node
+
+const POWERUP_WEIGHTS: Dictionary = {
+	"heal": 30,
+	"shield": 20,
+	"bomb": 15,
+	"magnet_burst": 15,
+	"move_speed_boost": 10,
+	"attack_speed_boost": 10,
+}
 
 @onready var spawn_timer: Timer = $SpawnTimer
 
@@ -27,7 +39,7 @@ func _ready() -> void:
 	spawn_timer.one_shot = false
 
 
-func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null, new_audio_manager: Node = null) -> void:
+func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null, new_audio_manager: Node = null, new_powerup_manager: Node = null) -> void:
 	player = new_player
 	playable_rect = new_playable_rect
 	enemy_container = new_enemy_container
@@ -36,6 +48,7 @@ func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: No
 	spawn_director = new_spawn_director
 	floating_text_spawner = new_floating_text_spawner
 	audio_manager = new_audio_manager
+	powerup_manager = new_powerup_manager
 
 	spawn_timer.wait_time = _get_current_spawn_interval()
 	if _can_spawn():
@@ -98,10 +111,10 @@ func _on_enemy_died(enemy: Node) -> void:
 	if enemy_node == null:
 		return
 
-	call_deferred("_spawn_death_feedback_and_drop", enemy_node.global_position, dropped_experience)
+	call_deferred("_spawn_death_feedback_and_drop", enemy_node.global_position, dropped_experience, _roll_powerup_id())
 
 
-func _spawn_death_feedback_and_drop(world_position: Vector2, dropped_experience: int) -> void:
+func _spawn_death_feedback_and_drop(world_position: Vector2, dropped_experience: int, powerup_id: String = "") -> void:
 	_spawn_death_burst(world_position)
 
 	if experience_gem_scene == null or not is_instance_valid(pickup_container):
@@ -121,6 +134,47 @@ func _spawn_death_feedback_and_drop(world_position: Vector2, dropped_experience:
 
 	pickup_container.add_child(gem)
 	gem.global_position = world_position
+
+	if powerup_id != "":
+		_spawn_powerup_pickup(world_position, powerup_id)
+
+
+func _spawn_powerup_pickup(world_position: Vector2, powerup_id: String) -> void:
+	if powerup_pickup_scene == null or powerup_manager == null:
+		return
+	if not is_instance_valid(pickup_container):
+		return
+
+	var pickup_node := powerup_pickup_scene.instantiate()
+	if not pickup_node is Node2D:
+		push_warning("EnemySpawner powerup_pickup_scene root must be Node2D.")
+		pickup_node.queue_free()
+		return
+
+	var pickup := pickup_node as Node2D
+	pickup_container.add_child(pickup)
+	var offset := Vector2(randf_range(-28.0, 28.0), randf_range(-28.0, 28.0))
+	pickup.global_position = world_position + offset
+	if pickup.has_method("setup"):
+		pickup.setup(powerup_id, powerup_manager)
+
+
+func _roll_powerup_id() -> String:
+	if randf() > base_powerup_drop_chance:
+		return ""
+
+	var total_weight := 0
+	for weight in POWERUP_WEIGHTS.values():
+		total_weight += weight
+
+	var roll := randi() % total_weight
+	var accumulated := 0
+	for pid in POWERUP_WEIGHTS:
+		accumulated += POWERUP_WEIGHTS[pid]
+		if roll < accumulated:
+			return pid
+
+	return ""
 
 
 func _spawn_death_burst(world_position: Vector2) -> void:

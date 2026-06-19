@@ -126,8 +126,27 @@ Implemented foundation:
 - Per-projectile hit lists only prevent duplicate hits from the same projectile instance.
 - Weapon upgrade direction generation has a headless sanity check at `scripts/tests/WeaponUpgradeSanityCheck.gd`.
 
+- PowerupPickup foundation (generic in-run pickup that delegates to PowerupManager).
+- PowerupManager (applies powerup effects to player and world).
+- PlayerBuffManager (owns timed buffs and shield charges).
+- Heal pickup (restores 25 HP, capped at max HP).
+- Shield pickup (adds shield charges that block the next hit).
+- Bomb pickup (damages all enemies within radius around player).
+- Magnet burst pickup (pulls all XP gems within radius toward player).
+- Move speed boost (temporary 1.35× speed for 6 seconds, shown in HUD).
+- Attack speed boost (temporary 1.35× attack speed for 6 seconds, shown in HUD).
+- Active buff HUD display (shield charges, move speed timer, attack speed timer).
+- Enemy death rolls a 6% chance to drop a random powerup pickup.
+- BombBurst visual effect on bomb pickup.
+
 Not implemented yet:
 
+- Elite/miniboss guaranteed powerup drops.
+- Buff icons.
+- Powerup rarity tiers.
+- Powerup upgrade scaling.
+- Pickup object pooling.
+- Advanced particle effects for powerups.
 - Bounce projectiles.
 - Chain lightning.
 - Critical hits.
