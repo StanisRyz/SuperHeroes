@@ -231,6 +231,13 @@ func set_screen_shake_enabled(enabled: bool) -> void:
 		camera.offset = Vector2.ZERO
 
 
+func apply_hero_visual_color(color: Color) -> void:
+	if body_visual != null:
+		body_visual.set("color", color)
+	if core_visual != null:
+		core_visual.set("color", color.lightened(0.45))
+
+
 func _clamp_to_playable_rect() -> void:
 	if not _has_playable_rect:
 		return

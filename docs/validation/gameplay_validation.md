@@ -126,6 +126,24 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Character Select / Heroes
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press **Select Hero** in MainMenu | CharacterSelect opens instead of starting Arena directly |
+| 2 | Press **Back** from CharacterSelect | Returns to MainMenu |
+| 3 | Select **Guardian**, then Start Run | Run starts with Guardian color and 120 max HP |
+| 4 | Select **Blaster**, then Start Run | Run starts with 90 max HP and +1 projectile in weapon stats |
+| 5 | Select **Vanguard**, then Start Run | Run starts with faster ability cooldowns and stronger Nova/Slam damage |
+| 6 | Start any hero | HUD shows `Hero: <name>` |
+| 7 | Reach Victory/GameOver | Summary screen shows `Hero: <name>` |
+| 8 | Restart from Victory/GameOver | Fresh run starts with the same selected hero |
+| 9 | Quit to MainMenu, then start another run | CharacterSelect opens and allows choosing a different hero |
+| 10 | Enable Debug Mode for each hero | F1-F8 debug tools still work |
+| 11 | Pick weapon/ability/synergy upgrades | Upgrades stack on top of hero starting stats |
+
+---
+
 ## Miniboss
 
 | # | Test | Expected |

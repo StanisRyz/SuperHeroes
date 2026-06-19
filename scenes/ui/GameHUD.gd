@@ -23,6 +23,7 @@ var _target_run_time: float = 600.0
 @onready var move_speed_label: Label = get_node_or_null("Root/BuffPanel/MoveSpeedLabel")
 @onready var attack_speed_label: Label = get_node_or_null("Root/BuffPanel/AttackSpeedLabel")
 @onready var build_label: Label = get_node_or_null("Root/BuildPanel/BuildLabel")
+@onready var hero_label: Label = get_node_or_null("Root/BuildPanel/HeroLabel")
 
 func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null, buff_manager: Node = null) -> void:
 	player = new_player
@@ -208,6 +209,13 @@ func _on_build_changed(dominant_archetype: String, _points: Dictionary) -> void:
 		build_label.text = "Build: Mixed"
 	else:
 		build_label.text = "Build: %s" % dominant_archetype.capitalize()
+
+
+func set_hero_name(hero_name: String) -> void:
+	if hero_label == null:
+		return
+	var display_name := hero_name if not hero_name.is_empty() else "Guardian"
+	hero_label.text = "Hero: %s" % display_name
 
 
 func _setup_buff_manager(buff_manager: Node) -> void:

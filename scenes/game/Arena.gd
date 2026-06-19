@@ -8,6 +8,9 @@ signal quit_to_menu_requested
 
 var settings_manager: Node
 var audio_manager: Node
+var hero_data: Dictionary = {}
+var hero_id: String = ""
+var hero_display_name: String = ""
 
 @onready var player: Node = get_node_or_null("Player")
 @onready var enemy_container: Node = get_node_or_null("EnemyContainer")
@@ -40,9 +43,12 @@ const DEBUG_KILL_RADIUS: float = 500.0
 const DEBUG_XP_AMOUNT: int = 50
 
 
-func setup(new_settings_manager: Node = null, new_audio_manager: Node = null) -> void:
+func setup(new_settings_manager: Node = null, new_audio_manager: Node = null, selected_hero: Dictionary = {}) -> void:
 	settings_manager = new_settings_manager
 	audio_manager = new_audio_manager
+	hero_data = selected_hero.duplicate(true)
+	hero_id = str(hero_data.get("id", ""))
+	hero_display_name = str(hero_data.get("display_name", ""))
 
 
 # Core setup and wiring
@@ -70,6 +76,9 @@ func _ready() -> void:
 		settings_manager.settings_changed.connect(_apply_settings)
 
 	var ability_manager := player.get_node_or_null("AbilityManager")
+	var auto_attack := player.get_node_or_null("AutoAttack")
+	_apply_selected_hero(auto_attack, ability_manager)
+
 	if ability_manager == null:
 		push_warning("Arena could not find Player/AbilityManager node.")
 	elif ability_manager.has_method("setup"):
@@ -77,7 +86,6 @@ func _ready() -> void:
 	else:
 		push_warning("AbilityManager does not implement setup(player, enemy_container).")
 
-	var auto_attack := player.get_node_or_null("AutoAttack")
 	var player_buff_manager := player.get_node_or_null("PlayerBuffManager")
 	if player_buff_manager == null:
 		push_warning("Arena could not find Player/PlayerBuffManager node.")
@@ -92,6 +100,8 @@ func _ready() -> void:
 		push_warning("Arena could not find GameHUD node.")
 	elif hud.has_method("setup"):
 		hud.setup(player, run_manager, ability_manager, player_buff_manager)
+		if hud.has_method("set_hero_name"):
+			hud.set_hero_name(hero_display_name)
 	else:
 		push_warning("GameHUD does not implement setup(player, run_manager, ability_manager).")
 
@@ -138,6 +148,18 @@ func _ready() -> void:
 
 func get_playable_rect() -> Rect2:
 	return Rect2(-arena_size * 0.5, arena_size)
+
+
+func _apply_selected_hero(auto_attack: Node, ability_manager: Node) -> void:
+	if hero_data.is_empty():
+		return
+	var applier_script: Script = load("res://scenes/heroes/HeroApplier.gd")
+	if applier_script == null:
+		push_warning("Arena: HeroApplier.gd not found.")
+		return
+	applier_script.apply_hero(hero_data, player, auto_attack, ability_manager)
+	if hero_display_name.is_empty():
+		hero_display_name = str(hero_data.get("display_name", ""))
 
 
 # Upgrade and player systems
@@ -416,6 +438,8 @@ func _on_special_kill_count_changed(elites: int, minibosses: int) -> void:
 
 func _build_run_summary(base_stats: Dictionary) -> Dictionary:
 	var summary := base_stats.duplicate()
+	summary["hero_id"] = hero_id
+	summary["hero_display_name"] = hero_display_name
 
 	if player != null and is_instance_valid(player):
 		summary["player_level"] = int(player.get("level") or 1)
@@ -534,7 +558,7 @@ func _run_project_health_check() -> void:
 	if checker_script == null:
 		push_warning("Arena: ProjectHealthCheck.gd not found.")
 		return
-	var checker := checker_script.new()
+	var checker: Node = checker_script.new()
 	if checker != null and checker.has_method("run"):
 		checker.run(self)
 

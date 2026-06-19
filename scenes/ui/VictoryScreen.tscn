@@ -71,6 +71,11 @@ layout_mode = 2
 text = "Level reached: 1"
 horizontal_alignment = 1
 
+[node name="HeroLabel" type="Label" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+text = "Hero: Guardian"
+horizontal_alignment = 1
+
 [node name="BuildLabel" type="Label" parent="Root/Panel/VBoxContainer"]
 layout_mode = 2
 text = "Build: Mixed"

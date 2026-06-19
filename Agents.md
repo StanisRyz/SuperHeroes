@@ -9,7 +9,10 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Important Files
 
 - `scenes/main/Main.tscn` - project entry scene.
-- `scenes/main/Main.gd` - frontend flow coordinator and run scene replacement.
+- `scenes/main/Main.gd` - frontend flow coordinator, character select transition, and run scene replacement.
+- `scenes/heroes/HeroDataProvider.tscn` - runtime hero definition provider scene.
+- `scenes/heroes/HeroDataProvider.gd` - dictionary-backed Guardian / Blaster / Vanguard definitions.
+- `scenes/heroes/HeroApplier.gd` - run-only helper for applying selected hero stats to Player, AutoAttack, and AbilityManager.
 - `scenes/settings/SettingsManager.tscn` - local settings manager scene.
 - `scenes/settings/SettingsManager.gd` - `user://settings.cfg` load/save helper for settings only.
 - `scenes/audio/AudioManager.tscn` - audio playback manager scene.
@@ -57,6 +60,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source (ability_1/2/3_pressed).
 - `scenes/ui/MainMenu.tscn` - frontend main menu scene.
 - `scenes/ui/MainMenu.gd` - main menu start and quit intent signals.
+- `scenes/ui/CharacterSelect.tscn` - hero selection screen between MainMenu and Arena.
+- `scenes/ui/CharacterSelect.gd` - display-only hero list/details UI; emits selected hero id.
 - `scenes/ui/PauseMenu.tscn` - pause-time run menu scene.
 - `scenes/ui/PauseMenu.gd` - pause menu resume, restart, and quit intent signals.
 - `scenes/ui/SettingsMenu.tscn` - pause-capable settings menu scene.
@@ -164,6 +169,17 @@ The game is an original superhero survivors-like: the player moves around an are
 - Spawn diagnostics use `EnemySpawner.spawn_debug_logging`; powerup diagnostics use `EnemySpawner.powerup_debug_logging`.
 - `ProjectHealthCheck` is a one-time startup wiring checker, not a test framework and not a success logger.
 - Readiness safeguards should be lightweight caps or validation guards, not object pooling or architecture rewrites.
+
+## Character Select / Hero Roster Architecture
+
+- Main owns the frontend flow: MainMenu -> CharacterSelect -> Arena.
+- MainMenu only emits `start_requested`; it does not know Arena or hero details.
+- CharacterSelect is display-only: it reads HeroDataProvider, displays heroes, and emits `hero_confirmed(hero_id)`.
+- HeroDataProvider owns hardcoded hero dictionaries for now; do not migrate to Resources until explicitly requested.
+- HeroApplier applies run-only selected hero stats to Player, AutoAttack, and AbilityManager.
+- Arena stores selected hero data for the active run summary and HUD display.
+- Restart from GameOver/Victory should reuse the same selected hero id; Quit to Menu should allow choosing a different hero next run.
+- Do not persist selected hero or add hero unlocks/meta-progression unless explicitly requested.
 
 ## Implemented Systems
 
@@ -508,8 +524,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - Reroll, skip, or banish upgrade actions.
 - Upgrade icons.
 - Upgrade codex or full upgrade history UI.
-- Character Select.
-- Hero roster.
+- Hero unlocks.
+- Hero portraits.
+- Hero-specific unique abilities.
+- Persistent selected hero.
 - Weapon/ability evolution.
 - Stage selection.
 - Arena hazards.

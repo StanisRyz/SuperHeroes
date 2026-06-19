@@ -10,6 +10,7 @@ var audio_manager: Node
 @onready var elite_kills_label: Label = get_node_or_null("Root/Panel/VBoxContainer/EliteKillsLabel")
 @onready var miniboss_kills_label: Label = get_node_or_null("Root/Panel/VBoxContainer/MinibossKillsLabel")
 @onready var level_label: Label = get_node_or_null("Root/Panel/VBoxContainer/LevelLabel")
+@onready var hero_label: Label = get_node_or_null("Root/Panel/VBoxContainer/HeroLabel")
 @onready var build_label: Label = get_node_or_null("Root/Panel/VBoxContainer/BuildLabel")
 @onready var restart_button: Button = get_node_or_null("Root/Panel/VBoxContainer/RestartButton")
 @onready var menu_button: Button = get_node_or_null("Root/Panel/VBoxContainer/MenuButton")
@@ -33,6 +34,7 @@ func show_stats(stats: Dictionary) -> void:
 	var elite_kills := int(stats.get("elite_kill_count", 0))
 	var miniboss_kills := int(stats.get("miniboss_kill_count", 0))
 	var level := int(stats.get("player_level", int(stats.get("level", 1))))
+	var hero_name := str(stats.get("hero_display_name", "Guardian"))
 	var dominant := str(stats.get("dominant_archetype", ""))
 
 	if time_label != null:
@@ -45,6 +47,8 @@ func show_stats(stats: Dictionary) -> void:
 		miniboss_kills_label.text = "Miniboss kills: %d" % miniboss_kills
 	if level_label != null:
 		level_label.text = "Level reached: %d" % level
+	if hero_label != null:
+		hero_label.text = "Hero: %s" % hero_name
 	if build_label != null:
 		build_label.text = "Build: %s" % (dominant.capitalize() if not dominant.is_empty() else "Mixed")
 

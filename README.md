@@ -241,6 +241,17 @@ Implemented foundation:
 - **Lightweight safeguards** clamp max alive enemies, projectile count, projectile bounce count, explosion radius, and miniboss barrage count.
 - Current balance review areas: enemy spawn progression, ability cooldown/damage roles, projectile synergies, powerup drop pressure, miniboss readability, restart/victory/game-over flow, and browser-friendly runtime load.
 
+### Character Select & Hero Roster v1
+
+- **CharacterSelect** sits between MainMenu and Arena; Main owns the menu/selection/run transition.
+- **HeroDataProvider** owns three hardcoded starter heroes for now: Guardian, Blaster, and Vanguard.
+- **Guardian** is balanced and beginner-friendly: 120 HP, 245 speed, no damage penalty.
+- **Blaster** is projectile-focused: 90 HP, 265 speed, +3 attack damage, +1 starting projectile, slightly slower attack interval.
+- **Vanguard** is ability/burst-focused: 100 HP, 275 speed, 0.9x ability cooldowns, +4 Nova damage, +6 Slam damage.
+- **HeroApplier** applies run-only starting stats to Player, AutoAttack, and AbilityManager before gameplay systems start.
+- Selected hero appears in GameHUD and in Victory/GameOver run summaries.
+- Restart from Victory/GameOver keeps the same selected hero; returning to MainMenu allows choosing a different hero.
+
 ### Run Progression & Victory
 
 - **Run target duration** — 10 minutes (600 seconds) by default, configurable per RunManager inspector.
@@ -256,8 +267,10 @@ Not implemented yet:
 
 - Persistent records or run history.
 - Meta-progression or rewards after victory.
-- Character Select.
-- Hero roster.
+- Hero unlocks.
+- Hero portraits.
+- Hero-specific unique abilities.
+- Persistent selected hero.
 - Weapon/ability evolution.
 - Stage selection.
 - Arena hazards.
