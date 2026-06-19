@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://eventannounce001"]
+[gd_scene load_steps=2 format=3 uid="uid://8ulcvgur0vd5"]
 
 [ext_resource type="Script" path="res://scenes/ui/EventAnnouncement.gd" id="1_evtann"]
 

@@ -115,7 +115,7 @@ func _ready() -> void:
 	elif enemy_spawner == null:
 		push_warning("Arena could not find EnemySpawner node.")
 	elif enemy_spawner.has_method("setup"):
-		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner, audio_manager, powerup_manager)
+		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner, audio_manager, powerup_manager, projectile_container)
 	else:
 		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner).")
 
@@ -283,6 +283,12 @@ func _setup_event_director() -> void:
 		if enemy_spawner.has_signal("miniboss_spawned") and not enemy_spawner.miniboss_spawned.is_connected(miniboss_health_bar.track_enemy):
 			enemy_spawner.miniboss_spawned.connect(miniboss_health_bar.track_enemy)
 
+	if enemy_spawner != null:
+		if enemy_spawner.has_signal("miniboss_phase_changed") and not enemy_spawner.miniboss_phase_changed.is_connected(_on_miniboss_phase_changed):
+			enemy_spawner.miniboss_phase_changed.connect(_on_miniboss_phase_changed)
+		if enemy_spawner.has_signal("miniboss_defeated") and not enemy_spawner.miniboss_defeated.is_connected(_on_miniboss_defeated):
+			enemy_spawner.miniboss_defeated.connect(_on_miniboss_defeated)
+
 
 func _on_event_started(event_data: Dictionary) -> void:
 	var announcement: String = event_data.get("announcement", "")
@@ -308,6 +314,16 @@ func _on_elite_spawn_requested(event_data: Dictionary) -> void:
 func _on_miniboss_spawn_requested(event_data: Dictionary) -> void:
 	if enemy_spawner != null and enemy_spawner.has_method("spawn_miniboss_enemy"):
 		enemy_spawner.spawn_miniboss_enemy(event_data)
+
+
+func _on_miniboss_phase_changed(phase: int) -> void:
+	if phase == 2 and event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Miniboss Enraged!", 2.5)
+
+
+func _on_miniboss_defeated() -> void:
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Miniboss Defeated!", 3.0)
 
 
 func _setup_debug_flow() -> void:

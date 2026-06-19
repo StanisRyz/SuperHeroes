@@ -145,9 +145,22 @@ Implemented foundation:
 - MinibossHealthBar UI tracks a miniboss enemy and hides when it dies.
 - EventAnnouncement UI shows timed fade-in/out labels for event names.
 - Guaranteed powerup drop for elite and miniboss enemies.
+- MinibossAttackController: dedicated miniboss combat brain attached dynamically on spawn.
+- Miniboss Nova attack: circular telegraph warning zone, then area damage via Player.take_damage().
+- Miniboss projectile barrage: radial spread of EnemyProjectiles, more in phase 2.
+- Miniboss charge slam: line telegraph toward player, then locked-direction speed burst with boosted contact damage.
+- AttackTelegraph: short-lived visual warning zone (circle or line) using built-in Line2D nodes only; never applies damage.
+- 2-phase miniboss: phase 2 starts at 50% HP, reduces cooldowns, increases barrage count and nova radius, and shows "Miniboss Enraged!" announcement.
+- Miniboss defeated announcement: "Miniboss Defeated!" shown via EventAnnouncement on miniboss death.
 
 Not implemented yet:
 
+- Boss-specific art assets.
+- Boss sound effects.
+- More than 2 miniboss phases.
+- Boss rewards or meta-progression.
+- Complex bullet patterns or homing projectiles.
+- Boss arena or cutscene.
 - Buff icons.
 - Powerup rarity tiers.
 - Powerup upgrade scaling.

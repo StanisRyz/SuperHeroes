@@ -38,6 +38,8 @@ var _charge_timer := 0.0
 var _charge_cooldown_remaining := 0.0
 var _charge_direction := Vector2.ZERO
 var _shoot_cooldown_remaining := 0.0
+var _velocity_override_active: bool = false
+var _velocity_override: Vector2 = Vector2.ZERO
 
 @onready var contact_damage_area: Area2D = get_node_or_null("ContactDamageArea")
 @onready var health_bar: ProgressBar = get_node_or_null("HealthBar")
@@ -146,10 +148,26 @@ func apply_special_modifier(modifier: Dictionary) -> void:
 		behavior_id = "chase"
 
 
+func set_velocity_override(vel: Vector2) -> void:
+	_velocity_override = vel
+	_velocity_override_active = true
+
+
+func clear_velocity_override() -> void:
+	_velocity_override_active = false
+	_velocity_override = Vector2.ZERO
+
+
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(target):
 		velocity = Vector2.ZERO
 		move_and_slide()
+		return
+
+	if _velocity_override_active:
+		velocity = _velocity_override
+		move_and_slide()
+		_tick_contact_damage(delta)
 		return
 
 	match behavior_id:

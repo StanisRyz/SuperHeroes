@@ -81,6 +81,23 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/EventAnnouncement.gd` - fade-in/out label announcement for run events.
 - `scenes/ui/MinibossHealthBar.tscn` - miniboss health bar overlay scene.
 - `scenes/ui/MinibossHealthBar.gd` - tracks a miniboss enemy and displays its name, HP bar, and HP text.
+- `scenes/enemies/MinibossAttackController.tscn` - miniboss combat brain scene (Node root).
+- `scenes/enemies/MinibossAttackController.gd` - owns miniboss attack timing, attack selection, nova/barrage/charge execution, 2-phase logic, and phase_changed signal.
+- `scenes/effects/AttackTelegraph.tscn` - short-lived visual warning zone scene (Node2D root).
+- `scenes/effects/AttackTelegraph.gd` - plays circle or line danger zone using dynamically created Line2D; fades/pulses and queue_frees; never applies damage.
+
+## Miniboss Combat Architecture
+
+- `EventDirector` schedules the miniboss event and signals `EnemySpawner` to spawn it.
+- `EnemySpawner.spawn_miniboss_enemy()` creates the base enemy, applies the miniboss modifier, emits `miniboss_spawned`, then calls `_attach_miniboss_controller()`.
+- `_attach_miniboss_controller()` instantiates `MinibossAttackController`, calls `setup(enemy, player, projectile_container)`, and adds the controller as a child of the enemy so it is freed automatically on miniboss death.
+- `Enemy.gd` remains responsible for base movement, health, contact damage, and the new `set_velocity_override` / `clear_velocity_override` methods used by the charge attack.
+- `MinibossAttackController` owns all miniboss-only attack timing: picks randomly from Nova, Barrage, and Charge each cycle; respects `_stopped` flag so it halts when the enemy dies.
+- `AttackTelegraph` shows danger zones for Nova (circle) and Charge (line); it never applies damage and always queue_frees after its animation.
+- Phase 2 begins at ≤50% HP: `phase_changed(2)` → EnemySpawner emits `miniboss_phase_changed(2)` → Arena shows "Miniboss Enraged!" announcement.
+- Miniboss death → `_on_enemy_died` emits `miniboss_defeated` → Arena shows "Miniboss Defeated!" announcement.
+- All miniboss damage goes through `Player.take_damage()` or existing `EnemyProjectile` collision logic, so dash/debug/shield invulnerability protections are always respected.
+- Timers use `get_tree().create_timer()` with default `process_always=false`, so attacks pause naturally with tree pause.
 
 ## Event Director System Architecture
 
@@ -107,6 +124,13 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Implemented Systems
 
+- MinibossAttackController with Nova, Barrage, and Charge Slam attacks.
+- AttackTelegraph visual warning zones (circle for nova, line for charge).
+- 2-phase miniboss: reduced cooldowns, increased barrage count and nova radius in phase 2.
+- Miniboss phase announcement: "Miniboss Enraged!" on phase 2 transition.
+- Miniboss defeated announcement: "Miniboss Defeated!" on miniboss death.
+- Enemy.set_velocity_override / clear_velocity_override for locked-direction charge movement.
+- EnemySpawner.projectile_container passed from Arena for projectile and effect parenting.
 - Player movement.
 - Arena bounds and player clamping.
 - Camera follow and camera limits.
@@ -362,6 +386,12 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Not Implemented Yet
 
+- Boss-specific art assets.
+- Boss sound effects.
+- More than 2 miniboss phases.
+- Boss rewards or meta-progression.
+- Complex bullet patterns or homing projectiles.
+- Boss arena or cutscene.
 - Buff icons.
 - Powerup rarity tiers.
 - Powerup upgrade scaling.
@@ -412,6 +442,10 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Development Rules
 
+- README.md and Agents.md must be updated on every task.
+- Miniboss damage must always go through Player.take_damage() or existing EnemyProjectile collision logic.
+- Do not re-enable Player/Enemy physical body collisions.
+- Do not add persistence unless explicitly requested.
 - Inspect the current project before changing files.
 - Do not duplicate existing systems.
 - Keep patches small and focused.

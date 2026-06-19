@@ -1,6 +1,8 @@
 extends Node
 
 signal miniboss_spawned(enemy: Node)
+signal miniboss_phase_changed(phase: int)
+signal miniboss_defeated
 
 const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 
@@ -18,6 +20,7 @@ var player: Node2D
 var playable_rect: Rect2
 var enemy_container: Node
 var pickup_container: Node
+var projectile_container: Node
 var run_manager: Node
 var spawn_director: Node
 var floating_text_spawner: Node
@@ -41,11 +44,12 @@ func _ready() -> void:
 	spawn_timer.one_shot = false
 
 
-func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null, new_audio_manager: Node = null, new_powerup_manager: Node = null) -> void:
+func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null, new_audio_manager: Node = null, new_powerup_manager: Node = null, new_projectile_container: Node = null) -> void:
 	player = new_player
 	playable_rect = new_playable_rect
 	enemy_container = new_enemy_container
 	pickup_container = new_pickup_container
+	projectile_container = new_projectile_container
 	run_manager = new_run_manager
 	spawn_director = new_spawn_director
 	floating_text_spawner = new_floating_text_spawner
@@ -148,6 +152,28 @@ func spawn_miniboss_enemy(_event_data: Dictionary = {}) -> void:
 		})
 	if enemy:
 		emit_signal("miniboss_spawned", enemy)
+		_attach_miniboss_controller(enemy)
+
+
+func _attach_miniboss_controller(enemy: Node) -> void:
+	var controller_scene: PackedScene = load("res://scenes/enemies/MinibossAttackController.tscn")
+	if controller_scene == null:
+		push_warning("EnemySpawner: MinibossAttackController.tscn not found.")
+		return
+
+	var controller := controller_scene.instantiate()
+	if not controller.has_method("setup"):
+		push_warning("EnemySpawner: MinibossAttackController missing setup().")
+		controller.queue_free()
+		return
+
+	var proj_parent: Node = projectile_container if projectile_container != null and is_instance_valid(projectile_container) else enemy_container
+	controller.setup(enemy as Node2D, player, proj_parent)
+
+	if controller.has_signal("phase_changed"):
+		controller.phase_changed.connect(func(p: int): emit_signal("miniboss_phase_changed", p))
+
+	enemy.add_child(controller)
 
 
 func _on_enemy_died(enemy: Node) -> void:
@@ -156,6 +182,9 @@ func _on_enemy_died(enemy: Node) -> void:
 
 	if run_manager != null and run_manager.has_method("register_enemy_kill"):
 		run_manager.register_enemy_kill()
+
+	if enemy != null and enemy.get("is_miniboss") == true:
+		emit_signal("miniboss_defeated")
 
 	var dropped_experience := 1
 	if enemy != null and enemy.has_method("get_experience_value"):

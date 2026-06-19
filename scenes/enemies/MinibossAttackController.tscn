@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://miniboss_attack_ctrl_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/enemies/MinibossAttackController.gd" id="1_miniboss_ctrl"]
+
+[node name="MinibossAttackController" type="Node"]
+script = ExtResource("1_miniboss_ctrl")
