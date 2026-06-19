@@ -854,6 +854,7 @@ func _build_option(definition: Dictionary) -> Dictionary:
 	else:
 		var effect_text := _format_effect_value(definition.get("effect_value", 0.0))
 		description = str(definition.get("description_template", "Upgrade by %s.")) % effect_text
+	description = _apply_ability_display_names_to_text(description)
 	description = "%s Level %d / %d." % [description, next_level, max_level]
 
 	return {
@@ -868,6 +869,16 @@ func _build_option(definition: Dictionary) -> Dictionary:
 		"is_synergy": is_synergy,
 		"is_build_defining": bool(definition.get("is_build_defining", false))
 	}
+
+
+func _apply_ability_display_names_to_text(text: String) -> String:
+	if ability_manager == null or not ability_manager.has_method("get_ability_name"):
+		return text
+	var result := text
+	result = result.replace("Nova Pulse", str(ability_manager.get_ability_name(1)))
+	result = result.replace("Laser Beam", str(ability_manager.get_ability_name(2)))
+	result = result.replace("Hero Slam", str(ability_manager.get_ability_name(3)))
+	return result
 
 
 func _pick_weighted_definition(candidates: Array[Dictionary]) -> Dictionary:

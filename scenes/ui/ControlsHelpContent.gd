@@ -15,9 +15,9 @@ static func get_sections() -> Array[Dictionary]:
 		{
 			"title": "Active Abilities",
 			"lines": [
-				"J - Nova Pulse",
-				"K - Laser Beam",
-				"L - Hero Slam",
+				"J - ability slot 1",
+				"K - ability slot 2",
+				"L - ability slot 3",
 				"Mobile buttons cast the same ability slots"
 			]
 		},

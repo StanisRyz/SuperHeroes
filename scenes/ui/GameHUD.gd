@@ -8,9 +8,9 @@ var _run_manager: Node = null
 var _target_run_time: float = 600.0
 var _evolution_manager: Node = null
 var _ability_names: Dictionary = {
-	1: "Nova",
-	2: "Laser",
-	3: "Slam",
+	1: "A1",
+	2: "A2",
+	3: "A3",
 }
 
 @onready var health_bar: ProgressBar = get_node_or_null("Root/HealthPanel/PlayerHealthBar")
@@ -147,7 +147,10 @@ func _setup_ability_manager(ability_manager: Node) -> void:
 		var states: Dictionary = ability_manager.get_all_ability_states()
 		for slot: int in states.keys():
 			var state: Dictionary = states[slot]
-			_ability_names[slot] = str(state.get("short_name", state.get("display_name", _ability_names.get(slot, "Ability"))))
+			if ability_manager.has_method("get_ability_name"):
+				_ability_names[slot] = ability_manager.get_ability_name(slot, true)
+			else:
+				_ability_names[slot] = str(state.get("short_name", state.get("display_name", _ability_names.get(slot, "Ability"))))
 			_update_ability_cooldown(slot, float(state.get("cooldown_remaining", 0.0)), float(state.get("cooldown_total", 0.0)))
 
 
@@ -159,17 +162,17 @@ func _update_ability_cooldown(slot: int, cooldown_remaining: float, _cooldown_to
 		1:
 			if ability_cooldown_label == null:
 				return
-			ability_cooldown_label.text = "J  %s: %s" % [_get_ability_name(1, "Nova"), cd_text]
+			ability_cooldown_label.text = "J  %s: %s" % [_get_ability_name(1, "A1"), cd_text]
 			ability_cooldown_label.modulate = color
 		2:
 			if laser_cooldown_label == null:
 				return
-			laser_cooldown_label.text = "K  %s: %s" % [_get_ability_name(2, "Laser"), cd_text]
+			laser_cooldown_label.text = "K  %s: %s" % [_get_ability_name(2, "A2"), cd_text]
 			laser_cooldown_label.modulate = color
 		3:
 			if slam_cooldown_label == null:
 				return
-			slam_cooldown_label.text = "L  %s: %s" % [_get_ability_name(3, "Slam"), cd_text]
+			slam_cooldown_label.text = "L  %s: %s" % [_get_ability_name(3, "A3"), cd_text]
 			slam_cooldown_label.modulate = color
 
 

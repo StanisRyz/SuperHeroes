@@ -170,14 +170,21 @@ func _build_stats_text() -> String:
 		var nova_cd_remaining: float = 0.0
 		var laser_cd_remaining: float = 0.0
 		var slam_cd_remaining: float = 0.0
+		var slot_1_name: String = "Ability 1"
+		var slot_2_name: String = "Ability 2"
+		var slot_3_name: String = "Ability 3"
 		if _ability_manager.has_method("get_ability_state"):
 			nova_cd_remaining = float(_ability_manager.get_ability_state(1).get("cooldown_remaining", 0.0))
 			laser_cd_remaining = float(_ability_manager.get_ability_state(2).get("cooldown_remaining", 0.0))
 			slam_cd_remaining = float(_ability_manager.get_ability_state(3).get("cooldown_remaining", 0.0))
+		if _ability_manager.has_method("get_ability_name"):
+			slot_1_name = str(_ability_manager.get_ability_name(1))
+			slot_2_name = str(_ability_manager.get_ability_name(2))
+			slot_3_name = str(_ability_manager.get_ability_name(3))
 
-		lines.append("Nova: dmg=%d r=%.0f cd=%.1f/%.1f" % [nova_dmg, nova_r, nova_cd_remaining, nova_cd])
-		lines.append("Laser: dmg=%d r=%.0f w=%.0f cd=%.1f/%.1f" % [laser_dmg, laser_r, laser_w, laser_cd_remaining, laser_cd])
-		lines.append("Slam: dmg=%d r=%.0f cd=%.1f/%.1f" % [slam_dmg, slam_r, slam_cd_remaining, slam_cd])
+		lines.append("%s: dmg=%d r=%.0f cd=%.1f/%.1f" % [slot_1_name, nova_dmg, nova_r, nova_cd_remaining, nova_cd])
+		lines.append("%s: dmg=%d r=%.0f w=%.0f cd=%.1f/%.1f" % [slot_2_name, laser_dmg, laser_r, laser_w, laser_cd_remaining, laser_cd])
+		lines.append("%s: dmg=%d r=%.0f cd=%.1f/%.1f" % [slot_3_name, slam_dmg, slam_r, slam_cd_remaining, slam_cd])
 		lines.append("Synergy: nova=%s laser2=%s slam2=%s" % [nova_aftershock, laser_double, slam_second])
 	else:
 		lines.append("-- Abilities: null --")

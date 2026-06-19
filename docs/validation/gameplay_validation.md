@@ -59,9 +59,9 @@ Run these before adding new gameplay systems.
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Press **J** (Nova Pulse) near enemies | Enemies in radius take damage; ring visual plays; cooldown shows in HUD |
-| 2 | Press **K** (Laser Beam) with enemies ahead | Enemies in beam line take damage; laser visual plays; cooldown shows in HUD |
-| 3 | Press **L** (Hero Slam) near enemies | Enemies in radius take damage; ring visual plays; cooldown shows in HUD |
+| 1 | Press **J** / ability slot 1 near enemies | Enemies in radius take damage; ring visual plays; hero-specific cooldown label shows in HUD |
+| 2 | Press **K** / ability slot 2 with enemies ahead | Enemies in the forward line take damage; line visual plays; hero-specific cooldown label shows in HUD |
+| 3 | Press **L** / ability slot 3 near enemies | Enemies in radius take damage; ring visual plays; hero-specific cooldown label shows in HUD |
 | 4 | Press ability key during cooldown | Nothing happens |
 | 5 | Press ability key while tree is paused | Nothing happens |
 
@@ -144,9 +144,9 @@ Run these before adding new gameplay systems.
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Pick **Aftershock Zone**, then cast Nova Pulse | Initial Nova damage happens immediately; a delayed aftershock damages enemies at the original cast position; aftershock feedback ring appears |
-| 2 | Pick **Double Pulse**, then cast Laser Beam | Initial beam fires immediately; a delayed weaker second beam fires from the original origin/direction |
-| 3 | Pick **Seismic Echo**, then cast Hero Slam | Initial slam fires immediately; delayed second wave damages enemies at the original slam position |
+| 1 | Pick **Aftershock Zone**, then cast slot 1 | Initial slot 1 damage happens immediately; a delayed aftershock damages enemies at the original cast position; aftershock feedback ring appears |
+| 2 | Pick **Double Pulse**, then cast slot 2 | Initial line hit fires immediately; a delayed weaker second hit fires from the original origin/direction |
+| 3 | Pick **Seismic Echo**, then cast slot 3 | Initial close burst fires immediately; delayed second wave damages enemies at the original cast position |
 | 4 | Pick **Comet Dash**, then dash into enemies | Nearby enemies take damage when dash ends; dash cooldown/invulnerability behavior remains unchanged |
 | 5 | Pick **Bouncing Bolts**, then shoot clustered enemies | Projectile bounces from the hit enemy to another nearby valid enemy without repeatedly damaging the same enemy instance |
 | 6 | Use F7 / DebugStatsOverlay after each pick | New flags and counts reflect the picked build-defining effects |
@@ -245,6 +245,29 @@ Run these before adding new gameplay systems.
 | 10 | Start a Night Tactician run | Blaster-specific ability names still work |
 | 11 | Check Training with Vanguard selected | Per-Hero Training still applies only Vanguard Training |
 | 12 | Inspect changed text | No licensed superhero names or protected character identities are used |
+
+---
+
+## Hero Rework Integration Polish
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open CharacterSelect | Solar Guardian, Night Tactician, and Fury Vanguard names, subtitles, role text, and starting modifiers fit without overlap |
+| 2 | Select Solar Guardian | Ability details show Solar Burst, Solar Beam, and Aerial Impact |
+| 3 | Select Night Tactician | Ability details show Smoke Charge, Grapnel Shot, and Shock Trap |
+| 4 | Select Fury Vanguard | Ability details show Rage Burst, Crushing Leap, and Titan Slam |
+| 5 | Start each hero and inspect GameHUD | Cooldown labels use the selected hero's short ability names and update Ready/cooldown states |
+| 6 | Enable mobile controls for each hero | Mobile ability buttons use the selected hero's short ability names and still emit slots 1/2/3 |
+| 7 | Cast all 3 abilities for each hero | Existing ability ids cast correctly, damage enemies, and update cooldowns |
+| 8 | Enable DebugStatsOverlay for each hero | Ability stat rows use hero-specific display names while still showing damage/radius/cooldown values |
+| 9 | Press F7 with Debug Mode enabled | Debug ability logs include hero-specific display names and stable internal ids |
+| 10 | Buy Training for Guardian, then run Solar Guardian | Only Guardian Training affects the run |
+| 11 | Buy Training for Blaster, then run Night Tactician | Only Blaster Training affects the run |
+| 12 | Buy Training for Vanguard, then run Fury Vanguard | Only Vanguard Training affects the run |
+| 13 | Restart a run after choosing each hero/stage pair | Same hero, same stage, and same hero-specific Training remain active |
+| 14 | Return to MainMenu, CharacterSelect, StageSelect, Settings, Help, Pause, Victory/GameOver, and PostRunRewards | Existing flow remains unchanged |
+| 15 | Inspect diff | No balance values, enemy values, stage values, rewards, meta economy, save format, persistence, or arena hazards were changed |
+| 16 | Inspect changed text | No licensed superhero names or protected character identities are used |
 
 ---
 
@@ -532,8 +555,8 @@ DEBUG_PLAYER: invulnerable=true
 | 2 | Player HP drops to 31–100% | HP label shows `current / max` in white |
 | 3 | Player HP drops to 16–30% | HP label turns amber (warning color) |
 | 4 | Player HP drops to 1–15% | HP label shows `LOW  current / max` in red (danger color) |
-| 5 | Abilities are on cooldown | J/K/L labels show cooldown time in gray; e.g. `K  Laser: 3.4s` |
-| 6 | Ability cooldown expires | Label turns green and shows `Ready`; e.g. `J  Nova: Ready` |
+| 5 | Abilities are on cooldown | J/K/L labels show hero-specific cooldown time in gray; e.g. `K  Grapnel: 3.4s` |
+| 6 | Ability cooldown expires | Label turns green and shows `Ready`; e.g. `J  Burst: Ready` |
 | 7 | Dash is on cooldown | `Space  Dash: 2.1s` shown in gray |
 | 8 | Dash cooldown expires | `Space  Dash: Ready` shown in green |
 | 9 | Run time advances | `Time  1:30` format; `Goal: Survive 1:30 / 10:00` updates each second |
@@ -575,8 +598,8 @@ DEBUG_PLAYER: invulnerable=true
 | 11 | Enemy takes normal damage | Hit flash brightens briefly to white-red and fades over ~0.12s; original color restores |
 | 12 | Shielded enemy absorbs a hit fully | Blue-white flash instead of red-white flash |
 | 13 | Enemy dies | Death burst visual still plays normally |
-| 14 | Nova Pulse fires | Brief screen shake; Nova ring visible |
-| 15 | Hero Slam fires | Stronger brief screen shake; slam ring visible |
+| 14 | Slot 1 ability fires | Brief screen shake; ring feedback visible |
+| 15 | Slot 3 ability fires | Stronger brief screen shake; ring feedback visible |
 | 16 | Elite enemy spawns | `Elite Incoming!` announcement; brief screen shake |
 | 17 | Miniboss enemy spawns | `Miniboss Incoming!` announcement; medium screen shake |
 | 18 | Final boss spawns | `Final Boss Incoming!` announcement; strong screen shake |

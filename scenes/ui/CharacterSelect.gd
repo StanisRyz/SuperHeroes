@@ -228,9 +228,9 @@ func _refresh_details() -> void:
 	var ability_names: Dictionary = hero.get("ability_names", {})
 	if not ability_names.is_empty():
 		lines.append("Abilities: %s / %s / %s" % [
-			_get_ability_display_name(ability_names, 1, "Nova Pulse"),
-			_get_ability_display_name(ability_names, 2, "Laser Beam"),
-			_get_ability_display_name(ability_names, 3, "Hero Slam"),
+			_get_ability_display_name(ability_names, 1, "Ability 1"),
+			_get_ability_display_name(ability_names, 2, "Ability 2"),
+			_get_ability_display_name(ability_names, 3, "Ability 3"),
 		])
 	if int(stats.get("attack_damage_bonus", 0)) != 0:
 		lines.append("Attack damage: +%d" % int(stats.get("attack_damage_bonus", 0)))
@@ -241,11 +241,11 @@ func _refresh_details() -> void:
 	if stats.has("ability_cooldown_multiplier"):
 		lines.append("Ability cooldowns: x%.2f" % float(stats["ability_cooldown_multiplier"]))
 	if int(stats.get("nova_damage_bonus", 0)) != 0:
-		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 1, "Nova"), int(stats.get("nova_damage_bonus", 0))])
+		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 1, "Ability 1"), int(stats.get("nova_damage_bonus", 0))])
 	if int(stats.get("laser_damage_bonus", 0)) != 0:
-		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 2, "Laser"), int(stats.get("laser_damage_bonus", 0))])
+		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 2, "Ability 2"), int(stats.get("laser_damage_bonus", 0))])
 	if int(stats.get("slam_damage_bonus", 0)) != 0:
-		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 3, "Slam"), int(stats.get("slam_damage_bonus", 0))])
+		lines.append("%s damage: +%d" % [_get_ability_display_name(ability_names, 3, "Ability 3"), int(stats.get("slam_damage_bonus", 0))])
 	_stats_label.text = "\n".join(lines)
 
 	var selected_locked := _is_hero_locked(hero)

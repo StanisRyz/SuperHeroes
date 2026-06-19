@@ -95,8 +95,8 @@ func get_ability_state(slot: int) -> Dictionary:
 		1:
 			return {
 				"id": "nova_pulse",
-				"display_name": _get_ability_display_name(1, "Nova Pulse"),
-				"short_name": _get_ability_short_name(1, "Nova"),
+				"display_name": _get_ability_display_name(1, "Ability 1"),
+				"short_name": _get_ability_short_name(1, "A1"),
 				"input_action": "ability_1",
 				"cooldown_remaining": _cooldowns[1],
 				"cooldown_total": nova_cooldown
@@ -104,8 +104,8 @@ func get_ability_state(slot: int) -> Dictionary:
 		2:
 			return {
 				"id": "laser_beam",
-				"display_name": _get_ability_display_name(2, "Laser Beam"),
-				"short_name": _get_ability_short_name(2, "Beam"),
+				"display_name": _get_ability_display_name(2, "Ability 2"),
+				"short_name": _get_ability_short_name(2, "A2"),
 				"input_action": "ability_2",
 				"cooldown_remaining": _cooldowns[2],
 				"cooldown_total": laser_cooldown
@@ -113,8 +113,8 @@ func get_ability_state(slot: int) -> Dictionary:
 		3:
 			return {
 				"id": "hero_slam",
-				"display_name": _get_ability_display_name(3, "Hero Slam"),
-				"short_name": _get_ability_short_name(3, "Slam"),
+				"display_name": _get_ability_display_name(3, "Ability 3"),
+				"short_name": _get_ability_short_name(3, "A3"),
 				"input_action": "ability_3",
 				"cooldown_remaining": _cooldowns[3],
 				"cooldown_total": slam_cooldown
@@ -124,6 +124,15 @@ func get_ability_state(slot: int) -> Dictionary:
 
 func get_all_ability_states() -> Dictionary:
 	return {1: get_ability_state(1), 2: get_ability_state(2), 3: get_ability_state(3)}
+
+
+func get_ability_name(slot: int, prefer_short: bool = false) -> String:
+	var state := get_ability_state(slot)
+	if state.is_empty():
+		return "Ability"
+	if prefer_short:
+		return str(state.get("short_name", state.get("display_name", "Ability")))
+	return str(state.get("display_name", state.get("short_name", "Ability")))
 
 
 func _guard_cast(slot: int) -> bool:

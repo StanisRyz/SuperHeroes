@@ -1273,7 +1273,8 @@ func _print_compact_stats() -> void:
 			var states: Dictionary = ability_manager.get_all_ability_states()
 			for slot: int in states.keys():
 				var s: Dictionary = states[slot]
-				print("Ability %d [%s]: cd=%.1f/%.1f" % [slot, s.get("id", "?"), s.get("cooldown_remaining", 0.0), s.get("cooldown_total", 0.0)])
+				var ability_name := str(ability_manager.get_ability_name(slot)) if ability_manager.has_method("get_ability_name") else str(s.get("display_name", s.get("id", "?")))
+				print("Ability %d [%s]: cd=%.1f/%.1f id=%s" % [slot, ability_name, s.get("cooldown_remaining", 0.0), s.get("cooldown_total", 0.0), s.get("id", "?")])
 	if upgrade_manager != null and is_instance_valid(upgrade_manager):
 		if upgrade_manager.has_method("debug_get_build_state"):
 			var build: Dictionary = upgrade_manager.debug_get_build_state()

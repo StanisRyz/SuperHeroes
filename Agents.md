@@ -228,11 +228,15 @@ The game is an original superhero survivors-like: the player moves around an are
 - Blaster may override ability display names through hero data as Smoke Charge, Grapnel Shot, and Shock Trap, but global input slots and ability ids must stay stable.
 - Vanguard keeps the `vanguard` id and is an original rage bruiser fantasy with durability, heavy impact, leap-like presentation, close-range fury, and ground-smash presentation.
 - Vanguard may override ability display names through hero data as Rage Burst, Crushing Leap, and Titan Slam, but global input slots and ability ids must stay stable.
+- Final hero roster ids and display names: `guardian` = Solar Guardian, `blaster` = Night Tactician, `vanguard` = Fury Vanguard.
+- Final hero ability display names: Solar Guardian = Solar Burst / Solar Beam / Aerial Impact; Night Tactician = Smoke Charge / Grapnel Shot / Shock Trap; Fury Vanguard = Rage Burst / Crushing Leap / Titan Slam.
+- UI, HUD, mobile controls, debug overlays, and debug logs must prefer hero-specific ability display names from AbilityManager state instead of hardcoded global ability labels.
+- Level-up option descriptions may substitute hero-specific ability display names at presentation time, but upgrade ids, archetypes, effects, weights, and save-facing data must stay stable.
 - HeroApplier applies run-only selected hero stats to Player, AutoAttack, and AbilityManager.
 - Arena stores selected hero data for the active run summary and HUD display.
 - Restart from GameOver/Victory should reuse the same selected hero id; Quit to Menu should allow choosing a different hero next run.
 - Do not persist selected hero or add hero unlocks/meta-progression unless explicitly requested.
-- Do not use licensed superhero names, characters, brands, or logos in code, UI text, docs, comments, or commit text.
+- Do not use licensed superhero names, characters, brands, logos, or protected identity terms in code, UI text, docs, comments, or commit text.
 
 ## Evolution System Architecture
 
@@ -314,16 +318,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - Dynamic upgrade descriptions.
 - AbilityManager on the player with 3 active ability slots.
 - Active ability input through `ability_1` (J), `ability_2` (K), `ability_3` (L).
-- Nova Pulse active ability (slot 1).
-- Laser Beam active ability (slot 2): line damage in aim direction.
-- Hero Slam active ability (slot 3): close-range burst.
+- Slot 1 active ability (`ability_1`): hero-specific area presentation.
+- Slot 2 active ability (`ability_2`): hero-specific forward line presentation.
+- Slot 3 active ability (`ability_3`): hero-specific close burst presentation.
 - 3-slot ability cooldown HUD display.
-- Nova Pulse, Laser Beam, Hero Slam visual feedback (built-in nodes only).
-- Laser Beam and Hero Slam runtime upgrades (damage, cooldown, width/radius).
-- Player.get_aim_direction() for Laser Beam targeting.
+- Slot 1/2/3 visual feedback (built-in nodes only).
+- Slot 2 and slot 3 runtime upgrades (damage, cooldown, width/radius).
+- Player.get_aim_direction() for slot 2 targeting.
 - Mobile ability buttons for all 3 slots.
 - Virtual joystick mobile movement foundation.
-- Mobile Nova Pulse button.
+- Mobile slot 1 ability button.
 - Keyboard and mobile input coexist.
 - Floating damage numbers.
 - Enemy death burst feedback.
@@ -598,15 +602,15 @@ The game is an original superhero survivors-like: the player moves around an are
 
 - `AbilityManager` is a child of `Player` and owns all active ability logic and cooldowns.
 - Arena wires `AbilityManager` to the Player, EnemyContainer, HUD, and optionally UpgradeManager.
-- Slot 1: Nova Pulse uses `ability_1` (J) — radial area damage.
-- Slot 2: Laser Beam uses `ability_2` (K) — line damage in player's aim direction.
-- Slot 3: Hero Slam uses `ability_3` (L) — close-range burst damage.
+- Slot 1 uses `ability_1` (J) with hero-specific display text and radial area damage.
+- Slot 2 uses `ability_2` (K) with hero-specific display text and line damage in player's aim direction.
+- Slot 3 uses `ability_3` (L) with hero-specific display text and close-range burst damage.
 - All abilities are available from run start; no unlock system.
 - HUD listens to `ability_cooldown_changed` and displays readiness for all 3 slots.
 - MobileControls emits ability intents (ability_1/2/3_pressed) only; Arena wires them to AbilityManager.
 - GameHUD displays ability states only; no gameplay logic.
 - Cooldowns pause naturally while the tree is paused.
-- `Player.get_aim_direction()` returns the last non-zero movement direction; Laser Beam uses this as its cast direction.
+- `Player.get_aim_direction()` returns the last non-zero movement direction; slot 2 uses this as its cast direction.
 - Ability enemy scans happen only on cast, not every frame.
 - Ability synergy delayed hits are owned by AbilityManager and stay anchored to their original cast origin/direction.
 - Nova Aftershock uses `NovaAftershockFeedback`; Laser Double Pulse and Slam Second Wave reuse the existing Laser/Slam feedback scenes at the delayed cast position.

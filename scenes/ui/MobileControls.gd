@@ -16,9 +16,9 @@ var _movement_direction := Vector2.ZERO
 var _settings_manager: Node
 var _input_blocker: Callable
 var _ability_button_labels: Dictionary = {
-	1: "Nova",
-	2: "Beam",
-	3: "Slam",
+	1: "A1",
+	2: "A2",
+	3: "A3",
 }
 
 @onready var joystick_touch_area: Control = get_node_or_null("Root/JoystickArea")
@@ -302,4 +302,7 @@ func _read_ability_button_labels(ability_manager: Node) -> void:
 	var states: Dictionary = ability_manager.get_all_ability_states()
 	for slot in states:
 		var state: Dictionary = states[slot]
-		_ability_button_labels[int(slot)] = str(state.get("short_name", state.get("display_name", _ability_button_labels.get(int(slot), "Ability"))))
+		if ability_manager.has_method("get_ability_name"):
+			_ability_button_labels[int(slot)] = ability_manager.get_ability_name(int(slot), true)
+		else:
+			_ability_button_labels[int(slot)] = str(state.get("short_name", state.get("display_name", _ability_button_labels.get(int(slot), "Ability"))))

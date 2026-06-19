@@ -68,7 +68,7 @@ Implemented foundation:
 - XP bar in the HUD.
 - Level-up pause screen.
 - Three-option upgrade selection.
-- Basic run upgrades for attack damage, attack speed, attack range, move speed, max HP, projectile speed, and Nova Pulse.
+- Basic run upgrades for attack damage, attack speed, attack range, move speed, max HP, projectile speed, and active abilities.
 - Upgrade levels and max upgrade levels.
 - Weighted upgrade option selection.
 - Upgrade rarity labels.
@@ -86,19 +86,19 @@ Implemented foundation:
 - Enemy contact damage, projectiles, and XP pickups use Area2D detection.
 - AbilityManager on the player with 3 active ability slots.
 - Active ability input through `ability_1` (J), `ability_2` (K), `ability_3` (L).
-- Nova Pulse active ability (slot 1 / J): area damage within radius.
-- Laser Beam active ability (slot 2 / K): line damage in front of player.
-- Hero Slam active ability (slot 3 / L): close-range burst damage around player.
+- Slot 1 / J: hero-specific area ability presentation.
+- Slot 2 / K: hero-specific forward line ability presentation.
+- Slot 3 / L: hero-specific close burst ability presentation.
 - 3-slot ability cooldown display in the HUD.
-- Simple in-world Nova Pulse visual feedback.
-- Laser Beam visual feedback (built-in Line2D beam with fade).
-- Hero Slam visual feedback (built-in expanding ring with fade).
-- Laser Beam and Hero Slam runtime upgrades (damage, cooldown, width/radius).
-- Player exposes get_aim_direction() used by Laser Beam direction targeting.
+- Simple in-world slot 1 visual feedback.
+- Slot 2 visual feedback (built-in Line2D beam with fade).
+- Slot 3 visual feedback (built-in expanding ring with fade).
+- Slot 2 and slot 3 runtime upgrades (damage, cooldown, width/radius).
+- Player exposes get_aim_direction() used by slot 2 direction targeting.
 - Virtual joystick for mobile movement.
-- Mobile Nova Pulse button (ability_1).
-- Mobile Laser Beam button (ability_2 / Beam).
-- Mobile Hero Slam button (ability_3 / Slam).
+- Mobile slot 1 button (`ability_1`).
+- Mobile slot 2 button (`ability_2`).
+- Mobile slot 3 button (`ability_3`).
 - Mobile ability buttons show cooldown timers.
 - Keyboard and mobile input coexist.
 - Mobile controls are hidden on desktop by default unless forced.
@@ -225,9 +225,9 @@ Implemented foundation:
 ### Ability & Build Synergy v4
 
 - **Build-defining upgrades** - synergy upgrades can now be marked as build-defining; LevelUpScreen displays `BUILD DEFINING` on those options.
-- **Nova Aftershock Zone** - Nova Pulse can create a delayed second area hit at the cast position with its own feedback ring.
-- **Laser Double Pulse** - Laser Beam can fire a delayed weaker second beam from the original cast origin and direction.
-- **Slam Second Wave** - Hero Slam can create a delayed second wave at the original slam position.
+- **Aftershock Zone** - slot 1 can create a delayed second area hit at the cast position with its own feedback ring.
+- **Double Pulse** - slot 2 can fire a delayed weaker second line hit from the original cast origin and direction.
+- **Second Wave** - slot 3 can create a delayed second wave at the original cast position.
 - **Comet Dash** - dash can damage nearby enemies when the dash ends.
 - **Bouncing Bolts** - player projectiles can bounce from a hit enemy to another nearby valid enemy.
 - UpgradeManager effect arrays now support `set` operations for bool/int/float properties and fail safely when a target/property/operation is invalid.
@@ -238,7 +238,7 @@ Implemented foundation:
 - **UIFormat** (`scenes/ui/UIFormat.gd`) — shared static helpers: `format_time`, `format_cooldown`, `format_percent`, `format_list`, `format_title_id`. Used across HUD and result screens to keep display formatting consistent.
 - **UIStateColors** (`scenes/ui/UIStateColors.gd`) — shared static color helpers: `ready_color`, `cooldown_color`, `warning_color`, `danger_color`, `muted_color`, `positive_color`, `boss_color`, `final_phase_color`. Used to consistently apply state-driven colors.
 - **Improved HUD grouping** — GameHUD panels reorganized into clear sections: Player (HP bar + XP bar), Run (time / kills / threat / objective / special kills / final phase), Combat (dash + 3 abilities), Buffs (shield / speed / haste), Build (hero / archetype / evolutions). AbilityPanel layout bug (overlapping RunPanel) fixed.
-- **Ability cooldown states** — HUD shows `J  Nova: Ready` (green) or `J  Nova: 3.4s` (gray) for each ability and dash. Ready state uses ready_color; cooldown uses cooldown_color.
+- **Ability cooldown states** — HUD shows the selected hero's ability names, such as `J  Burst: Ready` or `K  Grapnel: 3.4s`, for each ability and dash. Ready state uses ready_color; cooldown uses cooldown_color.
 - **Low HP readability** — HP label turns amber at ≤30% HP and red with `LOW` prefix at ≤15% HP.
 - **Final phase / boss HUD** — `★ FINAL PHASE` shown in magenta when final phase starts; `Final Boss: Boss Name` in orange when the boss spawns; `Boss defeated` in green when defeated.
 - **Improved level-up cards** — LevelUpScreen shows title on top, then `[RARITY]  [ARCHETYPE]`, synergy/build-defining markers (`★ SYNERGY`, `◆ BUILD DEFINING`), level line, and description. Cards tinted by rarity (blue=rare, purple=epic, gold=legendary).
@@ -302,7 +302,7 @@ Not implemented yet (UI):
 - **Improved powerup feedback** — Each powerup type shows a distinct colored label: `+HP` (green), `SHIELD` (blue), `BOMB` (red), `MAGNET` (purple), `SPEED` (cyan), `HASTE` (yellow). Bomb also triggers a small screen shake.
 - **Improved hit feedback** — Enemy hit flash brightened (red→white over 0.12 s). Shielded enemies show a blue-white flash when shield absorbs a hit instead of the normal red-white flash.
 - **Improved player damage feedback** — Real HP damage triggers small screen shake + floating damage number. Shield block shows `BLOCK` floating text instead. Dash/debug invulnerability suppresses all feedback.
-- **Improved ability feedback** — Nova Pulse and Hero Slam casts route their shakes through FeedbackManager to respect the intensity setting.
+- **Improved ability feedback** — slot 1 and slot 3 casts route their shakes through FeedbackManager to respect the intensity setting.
 - **Improved boss/evolution feedback** — Elite, miniboss, and final boss spawns show announcements with shake. Evolution shows `EVOLVED` floating text near player + small shake.
 - **Improved MetaUpgradeShop** — Purchased row briefly flashes green on successful buy.
 - **DebugStatsOverlay** — `-- Feedback --` section shows current screen shake, intensity, floating text, and impact flash settings when Debug Mode is ON (F12).
@@ -332,8 +332,14 @@ Not implemented yet (feedback):
 - **Fury Vanguard** keeps the `vanguard` hero id and is an original rage bruiser: 125 HP, 245 speed, +2 attack damage, heavier attack timing, and stronger close-range impact tuning.
 - **HeroApplier** applies run-only starting stats to Player, AutoAttack, and AbilityManager before gameplay systems start.
 - Solar Guardian, Night Tactician, and Fury Vanguard use hero-specific ability presentation names while preserving the global ability slots and ids.
+- Final integrated hero ability names:
+  - Solar Guardian: Solar Burst, Solar Beam, Aerial Impact.
+  - Night Tactician: Smoke Charge, Grapnel Shot, Shock Trap.
+  - Fury Vanguard: Rage Burst, Crushing Leap, Titan Slam.
 - Night Tactician presents slot 1/2/3 as Smoke Charge, Grapnel Shot, and Shock Trap. The underlying ability ids and input actions remain unchanged.
 - Fury Vanguard presents slot 1/2/3 as Rage Burst, Crushing Leap, and Titan Slam. The underlying ability ids and input actions remain unchanged.
+- Hero rework integration polish keeps balance, persistence, rewards, enemy values, stage values, and meta economy unchanged.
+- HUD, mobile controls, debug overlays/logs, and level-up ability descriptions now use the selected hero's display names while preserving internal ability ids.
 - Selected hero appears in GameHUD and in Victory/GameOver run summaries.
 - Restart from Victory/GameOver keeps the same selected hero; returning to MainMenu allows choosing a different hero.
 - No licensed superhero names, brands, or protected character identities are used.

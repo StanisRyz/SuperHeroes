@@ -107,15 +107,15 @@ text = "Space  Dash: Ready"
 
 [node name="AbilityCooldownLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
-text = "J  Nova: Ready"
+text = "J  A1: Ready"
 
 [node name="LaserCooldownLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
-text = "K  Laser: Ready"
+text = "K  A2: Ready"
 
 [node name="SlamCooldownLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
-text = "L  Slam: Ready"
+text = "L  A3: Ready"
 
 [node name="BuffPanel" type="VBoxContainer" parent="Root"]
 layout_mode = 0
