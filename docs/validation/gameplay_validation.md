@@ -67,6 +67,24 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Controls Help Overlay
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click **Help / Controls** on MainMenu | ControlsHelpOverlay opens over the menu and blocks clicks behind it |
+| 2 | Press **Close** or **Escape** while help is open | Help closes and MainMenu remains usable |
+| 3 | Press **H** or **F11** on MainMenu | Help toggles when Settings and Training shop are not open |
+| 4 | Start a run, then press **H** or **F11** during active gameplay | Help opens, gameplay pauses, movement/mobile input stops |
+| 5 | Close help opened during active gameplay | Gameplay resumes only if Help created the pause |
+| 6 | Open PauseMenu, then click **Help / Controls** | Help opens above PauseMenu while the run stays paused |
+| 7 | Close help opened from PauseMenu | Returns to PauseMenu state; gameplay does not resume |
+| 8 | Open Settings from PauseMenu, then press **H** | Help does not open over SettingsMenu |
+| 9 | Open LevelUpScreen, EvolutionRewardScreen, VictoryScreen, or GameOverScreen | Help does not open over those modal screens |
+| 10 | Scroll the Help / Controls content with wheel/touch drag | ScrollContainer moves normally; Close button still receives clicks |
+| 11 | Click/touch behind the help overlay | Underlying menu/gameplay controls do not receive the click |
+
+---
+
 ## Weapon Upgrades
 
 | # | Test | Expected |

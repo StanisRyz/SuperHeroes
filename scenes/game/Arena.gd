@@ -45,9 +45,11 @@ var _run_result_emitted := false
 @onready var miniboss_health_bar: Node = get_node_or_null("MinibossHealthBar")
 @onready var boss_health_bar: Node = get_node_or_null("BossHealthBar")
 @onready var victory_screen: Node = get_node_or_null("VictoryScreen")
+@onready var controls_help_overlay: Node = get_node_or_null("ControlsHelpOverlay")
 
 var _debug_stats_overlay: Node = null
 var _debug_powerup_cycle_index: int = 0
+var _help_overlay_paused_game: bool = false
 const DEBUG_POWERUP_CYCLE: Array = ["heal", "shield", "bomb", "magnet_burst", "move_speed_boost", "attack_speed_boost"]
 const DEBUG_KILL_RADIUS: float = 500.0
 const DEBUG_XP_AMOUNT: int = 50
@@ -146,6 +148,7 @@ func _ready() -> void:
 	_setup_run_lifecycle()
 	_setup_pause_menu()
 	_setup_settings_menu()
+	_setup_controls_help_overlay()
 	_setup_debug_flow()
 	_setup_event_director()
 
@@ -382,6 +385,8 @@ func _setup_pause_menu() -> void:
 		pause_menu.quit_to_menu_requested.connect(_on_pause_quit_to_menu_requested)
 	if pause_menu.has_signal("settings_requested") and not pause_menu.settings_requested.is_connected(_on_pause_settings_requested):
 		pause_menu.settings_requested.connect(_on_pause_settings_requested)
+	if pause_menu.has_signal("help_requested") and not pause_menu.help_requested.is_connected(_on_pause_help_requested):
+		pause_menu.help_requested.connect(_on_pause_help_requested)
 	if pause_menu.has_method("setup_audio_manager"):
 		pause_menu.setup_audio_manager(audio_manager)
 
@@ -393,6 +398,14 @@ func _setup_settings_menu() -> void:
 
 	if settings_menu.has_method("setup"):
 		settings_menu.setup(settings_manager, audio_manager)
+
+
+func _setup_controls_help_overlay() -> void:
+	if controls_help_overlay == null:
+		push_warning("Arena could not find ControlsHelpOverlay node.")
+		return
+	if controls_help_overlay.has_signal("closed") and not controls_help_overlay.closed.is_connected(_on_controls_help_closed):
+		controls_help_overlay.closed.connect(_on_controls_help_closed)
 
 
 func _setup_event_director() -> void:
@@ -748,6 +761,11 @@ func _input(event: InputEvent) -> void:
 	if not event.pressed:
 		return
 
+	if event.is_action_pressed("help_toggle"):
+		_toggle_controls_help_from_input()
+		get_viewport().set_input_as_handled()
+		return
+
 	var handled_debug_key := false
 
 	if kc == KEY_F12 or kc == KEY_F10:
@@ -812,6 +830,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _is_controls_help_open():
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("pause"):
 		_request_pause_menu()
 		get_viewport().set_input_as_handled()
@@ -860,7 +881,7 @@ func _on_quit_to_menu_requested() -> void:
 
 
 func _request_pause_menu() -> void:
-	if get_tree().paused or _is_player_dead() or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible():
+	if get_tree().paused or _is_player_dead() or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible() or _is_controls_help_open():
 		return
 
 	get_tree().paused = true
@@ -892,6 +913,39 @@ func _on_pause_quit_to_menu_requested() -> void:
 func _on_pause_settings_requested() -> void:
 	if settings_menu != null and settings_menu.has_method("open"):
 		settings_menu.open()
+
+
+func _on_pause_help_requested() -> void:
+	_open_controls_help(true)
+
+
+func _toggle_controls_help_from_input() -> void:
+	if _is_controls_help_open():
+		if controls_help_overlay != null and controls_help_overlay.has_method("close"):
+			controls_help_overlay.close()
+		return
+	if _is_controls_help_blocked():
+		return
+	_open_controls_help(true)
+
+
+func _open_controls_help(should_pause: bool) -> void:
+	if controls_help_overlay == null or not controls_help_overlay.has_method("open"):
+		return
+	if _is_controls_help_blocked():
+		return
+
+	_help_overlay_paused_game = should_pause and not get_tree().paused
+	if should_pause and not get_tree().paused:
+		get_tree().paused = true
+		_reset_mobile_controls()
+	controls_help_overlay.open()
+
+
+func _on_controls_help_closed() -> void:
+	if _help_overlay_paused_game and not _is_controls_help_blocked():
+		get_tree().paused = false
+	_help_overlay_paused_game = false
 
 
 func _on_debug_mode_changed(enabled: bool) -> void:
@@ -1126,6 +1180,22 @@ func _is_victory_visible() -> bool:
 
 func _is_level_up_visible() -> bool:
 	return level_up_screen != null and level_up_screen.visible
+
+
+func _is_controls_help_open() -> bool:
+	return controls_help_overlay != null and controls_help_overlay.visible
+
+
+func _is_controls_help_blocked() -> bool:
+	return _is_player_dead() or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible() or _is_settings_visible() or _is_evolution_reward_visible()
+
+
+func _is_settings_visible() -> bool:
+	return settings_menu != null and settings_menu.visible
+
+
+func _is_evolution_reward_visible() -> bool:
+	return evolution_reward_screen != null and evolution_reward_screen.visible
 
 
 func _reset_mobile_controls() -> void:

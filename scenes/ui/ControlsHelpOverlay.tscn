@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://controls_help_overlay_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/ui/ControlsHelpOverlay.gd" id="1_controls_help_overlay_script"]
+
+[node name="ControlsHelpOverlay" type="CanvasLayer"]
+process_mode = 3
+visible = false
+script = ExtResource("1_controls_help_overlay_script")

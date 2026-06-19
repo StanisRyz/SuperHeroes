@@ -60,6 +60,11 @@ custom_minimum_size = Vector2(320, 48)
 layout_mode = 2
 text = "Settings"
 
+[node name="HelpButton" type="Button" parent="Root/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(320, 48)
+layout_mode = 2
+text = "Help / Controls"
+
 [node name="TrainingButton" type="Button" parent="Root/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(320, 48)
 layout_mode = 2

@@ -233,6 +233,16 @@ Implemented foundation:
 - UpgradeManager effect arrays now support `set` operations for bool/int/float properties and fail safely when a target/property/operation is invalid.
 - DebugStatsOverlay shows dash trail state, projectile bounce count, ability synergy flags, and build-defining option counts.
 
+### Controls Help Overlay
+
+- **ControlsHelpOverlay** is a reusable pause-safe CanvasLayer shared by Main and Arena.
+- MainMenu and PauseMenu now include a **Help / Controls** button that opens the controls reference without owning gameplay state.
+- **H / F11** toggles Help / Controls through the `help_toggle` input action. F11 is available as a browser/editor fallback.
+- During active gameplay, opening Help pauses the run and resets mobile controls; closing it resumes only when Help created that pause.
+- If Help is opened from PauseMenu, closing it returns to the paused menu state.
+- Help does not open over Settings, LevelUpScreen, EvolutionRewardScreen, VictoryScreen, or GameOverScreen.
+- The content is centralized in `ControlsHelpContent.gd` and covers basic controls, active abilities, run systems, meta progression, debug mode, and mobile controls.
+
 ### Balance / Cleanup / Production Readiness
 
 - **GameplayTuning** (`scenes/game/GameplayTuning.tscn`) centralizes exported balance defaults for debug logging, run timing, spawn distances/caps, powerup drop chance, core ability values, and player defaults.
@@ -329,6 +339,9 @@ Not implemented yet:
 - Evolution sound effects.
 - Evolution chest animation.
 - Stage-specific evolutions.
+- Localized help text.
+- Icon-based controls guide.
+- Runtime input remapping UI.
 - Stage unlocks (all 3 stages are unlocked by default).
 - Arena hazards / floor zones / obstacles.
 - Leaderboard.

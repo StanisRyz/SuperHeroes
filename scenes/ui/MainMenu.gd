@@ -4,12 +4,14 @@ signal start_requested
 signal quit_requested
 signal settings_requested
 signal meta_shop_requested
+signal help_requested
 
 var settings_manager: Node
 var audio_manager: Node
 
 @onready var start_button: Button = get_node_or_null("Root/Panel/VBoxContainer/StartButton")
 @onready var settings_button: Button = get_node_or_null("Root/Panel/VBoxContainer/SettingsButton")
+@onready var help_button: Button = get_node_or_null("Root/Panel/VBoxContainer/HelpButton")
 @onready var training_button: Button = get_node_or_null("Root/Panel/VBoxContainer/TrainingButton")
 @onready var quit_button: Button = get_node_or_null("Root/Panel/VBoxContainer/QuitButton")
 
@@ -27,6 +29,11 @@ func _ready() -> void:
 		push_warning("MainMenu could not find SettingsButton.")
 	elif not settings_button.pressed.is_connected(_on_settings_button_pressed):
 		settings_button.pressed.connect(_on_settings_button_pressed)
+
+	if help_button == null:
+		push_warning("MainMenu could not find HelpButton.")
+	elif not help_button.pressed.is_connected(_on_help_button_pressed):
+		help_button.pressed.connect(_on_help_button_pressed)
 
 	if training_button != null and not training_button.pressed.is_connected(_on_training_button_pressed):
 		training_button.pressed.connect(_on_training_button_pressed)
@@ -48,6 +55,11 @@ func _on_start_button_pressed() -> void:
 func _on_settings_button_pressed() -> void:
 	_play_ui_click()
 	settings_requested.emit()
+
+
+func _on_help_button_pressed() -> void:
+	_play_ui_click()
+	help_requested.emit()
 
 
 func _on_training_button_pressed() -> void:

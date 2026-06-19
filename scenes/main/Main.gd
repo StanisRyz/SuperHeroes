@@ -22,6 +22,7 @@ var _rewards_shown: bool = true
 var _pending_action: String = ""
 
 @onready var settings_menu: Node = get_node_or_null("SettingsMenu")
+@onready var controls_help_overlay: Node = get_node_or_null("ControlsHelpOverlay")
 
 
 func _ready() -> void:
@@ -41,6 +42,10 @@ func _ready() -> void:
 
 	if settings_menu != null and settings_menu.has_method("setup"):
 		settings_menu.setup(settings_manager, audio_manager)
+
+	if controls_help_overlay != null and controls_help_overlay.has_signal("closed"):
+		if not controls_help_overlay.closed.is_connected(_on_controls_help_closed):
+			controls_help_overlay.closed.connect(_on_controls_help_closed)
 
 	_init_meta_progression_manager()
 	_init_post_run_rewards_screen()
@@ -126,6 +131,22 @@ func _show_main_menu() -> void:
 		main_menu.settings_requested.connect(_open_settings_menu)
 	if main_menu.has_signal("meta_shop_requested") and not main_menu.meta_shop_requested.is_connected(_open_meta_shop):
 		main_menu.meta_shop_requested.connect(_open_meta_shop)
+	if main_menu.has_signal("help_requested") and not main_menu.help_requested.is_connected(_open_controls_help):
+		main_menu.help_requested.connect(_open_controls_help)
+
+
+func _input(event: InputEvent) -> void:
+	if current_run != null:
+		return
+	if not event.is_action_pressed("help_toggle"):
+		return
+	if event is InputEventKey and event.echo:
+		return
+	if _is_settings_open() or _is_meta_shop_open():
+		return
+
+	_toggle_controls_help()
+	get_viewport().set_input_as_handled()
 
 
 func _show_character_select() -> void:
@@ -306,6 +327,28 @@ func _close_settings_menu_if_open() -> void:
 		settings_menu.close()
 	else:
 		settings_menu.hide()
+
+
+func _open_controls_help() -> void:
+	if controls_help_overlay != null and controls_help_overlay.has_method("open"):
+		controls_help_overlay.open()
+
+
+func _toggle_controls_help() -> void:
+	if controls_help_overlay != null and controls_help_overlay.has_method("toggle"):
+		controls_help_overlay.toggle()
+
+
+func _on_controls_help_closed() -> void:
+	pass
+
+
+func _is_settings_open() -> bool:
+	return settings_menu != null and settings_menu.visible
+
+
+func _is_meta_shop_open() -> bool:
+	return meta_upgrade_shop != null and meta_upgrade_shop.visible
 
 
 func _open_meta_shop() -> void:

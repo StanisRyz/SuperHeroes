@@ -61,13 +61,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MobileControls.tscn` - mobile virtual joystick and 3 ability buttons scene.
 - `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source (ability_1/2/3_pressed).
 - `scenes/ui/MainMenu.tscn` - frontend main menu scene.
-- `scenes/ui/MainMenu.gd` - main menu start and quit intent signals.
+- `scenes/ui/MainMenu.gd` - main menu start, settings, training, help, and quit intent signals.
+- `scenes/ui/ControlsHelpOverlay.tscn` - reusable help and controls CanvasLayer scene.
+- `scenes/ui/ControlsHelpOverlay.gd` - display-only help overlay API (`open`, `close`, `toggle`, `is_open`) and close handling.
+- `scenes/ui/ControlsHelpContent.gd` - centralized help content sections.
 - `scenes/ui/CharacterSelect.tscn` - hero selection screen between MainMenu and Arena.
 - `scenes/ui/CharacterSelect.gd` - display-only hero list/details UI; emits selected hero id.
 - `scenes/ui/EvolutionRewardScreen.tscn` - paused evolution reward choice screen.
 - `scenes/ui/EvolutionRewardScreen.gd` - display-only evolution option UI; emits selected evolution id.
 - `scenes/ui/PauseMenu.tscn` - pause-time run menu scene.
-- `scenes/ui/PauseMenu.gd` - pause menu resume, restart, and quit intent signals.
+- `scenes/ui/PauseMenu.gd` - pause menu resume, settings, help, restart, and quit intent signals.
 - `scenes/ui/SettingsMenu.tscn` - pause-capable settings menu scene.
 - `scenes/ui/SettingsMenu.gd` - settings UI binding for volume, mobile controls, and screen shake.
 - `scenes/ui/DebugOverlay.tscn` - simple DEBUG ON overlay scene.
@@ -430,6 +433,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - Main owns the MainMenu SettingsMenu and must hide it before starting Arena.
 - Arena owns the in-run SettingsMenu for PauseMenu flow.
 
+## Controls Help Flow
+
+- `ControlsHelpOverlay` is display-only and does not own pause, navigation, upgrades, settings, rewards, or persistence.
+- `ControlsHelpContent.gd` is the single source for help text sections.
+- Main owns the frontend help overlay and opens it from MainMenu `help_requested` or `help_toggle` when no run/settings/shop screen is active.
+- Arena owns the in-run help overlay and opens it from PauseMenu `help_requested` or `help_toggle`.
+- Opening help during active gameplay pauses the tree and resets mobile controls. Closing resumes only when help was the reason the tree was paused.
+- Opening help from PauseMenu keeps PauseMenu state intact; closing help returns to the paused menu.
+- Help must not open over SettingsMenu, LevelUpScreen, EvolutionRewardScreen, VictoryScreen, or GameOverScreen.
+
 ## Frontend Flow
 
 - Main owns frontend flow and run scene replacement.
@@ -553,6 +566,7 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Input Flow
 
 - Keyboard movement and ability input still use the Godot InputMap.
+- `help_toggle` uses H with F11 fallback and opens/closes the Help / Controls overlay where allowed.
 - `MobileControls` emits a movement signal instead of moving the Player directly.
 - Arena wires `MobileControls.movement_changed` to `Player.set_external_move_vector`.
 - Arena wires `ability_1_pressed` → `AbilityManager.cast_ability_1`.
@@ -560,6 +574,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Arena wires `ability_3_pressed` → `AbilityManager.cast_ability_3`.
 - Arena wires the mobile pause button to the same pause-open handler as keyboard pause.
 - `MobileControls` listens to `ability_cooldown_changed` and updates all 3 button texts.
+- Help overlay blocks mouse/touch input behind it while visible.
 
 ## Collision Notes
 
@@ -627,6 +642,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - Status effects.
 - Real audio assets.
 - Music playback.
+- Localized help text.
+- Icon-based controls guide.
+- Runtime input remapping UI.
 - Yandex/cloud save integration.
 - Reroll, skip, or banish upgrade actions.
 - Sound effects.
@@ -660,6 +678,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Keep POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED diagnostics available behind `powerup_debug_logging`.
 - docs/validation/gameplay_validation.md is the canonical manual test checklist; update it when systems change.
 - Run `godot --headless --editor --quit` from the repo root to confirm no parse errors after every patch.
+- Validate Help / Controls from MainMenu, PauseMenu, active gameplay, and blocked modal states after changing input or menu flows.
 
 ## Development Rules
 
@@ -694,6 +713,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not add ability unlock systems unless explicitly requested.
 - Do not add status effects or knockback to abilities unless explicitly requested.
 - Do not make `MobileControls` directly mutate gameplay except through signals.
+- Do not make ControlsHelpOverlay own gameplay pause decisions; Arena/Main own flow and state.
 - Do not use Yandex storage until explicitly requested.
 - Do not add real audio assets unless explicitly requested.
 - Do not add bosses unless explicitly requested.
@@ -738,5 +758,6 @@ Manual playtest checklist:
 - Enemy kill counter increases when enemies die.
 - Player death pauses gameplay and shows the game over screen.
 - Game over screen displays time survived, enemies defeated, and player level.
+- Help / Controls opens from MainMenu, PauseMenu, and H/F11 during allowed states.
 - Restart button reloads the current run.
 - No script errors appear.
