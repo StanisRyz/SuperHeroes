@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 signal health_changed(current_health: int, max_health: int)
+signal damage_taken(amount: int)
 signal experience_changed(current_xp: int, xp_to_next_level: int, level: int)
 signal level_up_available(level: int)
 signal died
@@ -106,6 +107,7 @@ func take_damage(amount: int) -> void:
 	current_health = clampi(current_health - amount, 0, max_health)
 
 	if current_health != previous_health:
+		damage_taken.emit(previous_health - current_health)
 		health_changed.emit(current_health, max_health)
 		_play_hit_flash()
 		if _feedback_manager != null:

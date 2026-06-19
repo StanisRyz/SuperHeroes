@@ -30,6 +30,8 @@ static func apply_hero(hero: Dictionary, player: Node, auto_attack: Node, abilit
 	if ability_manager != null:
 		if hero.has("ability_names") and ability_manager.has_method("set_ability_display_names"):
 			ability_manager.set_ability_display_names(hero.get("ability_names", {}))
+		if ability_manager.has_method("set_hero_kit"):
+			ability_manager.set_hero_kit(str(hero.get("id", "")), str(hero.get("kit_id", "")), hero.get("ability_kit", {}))
 		var cooldown_multiplier := float(stats.get("ability_cooldown_multiplier", 1.0))
 		if not is_equal_approx(cooldown_multiplier, 1.0):
 			_apply_cooldown_multiplier(ability_manager, "nova_cooldown", cooldown_multiplier)

@@ -67,6 +67,27 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Hero Signature Kits
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start Solar Guardian and cast slot 1 near enemies | Solar Burst damages a radius, builds Solar Charge on hits, and updates cooldown |
+| 2 | Build high Solar Charge, then cast Solar Beam or Aerial Impact | Charge is spent; damage/radius is stronger and DebugStatsOverlay charge decreases |
+| 3 | Cast Aerial Impact near enemies | Impact occurs near/forward of the player and grants brief invulnerability |
+| 4 | Start Night Tactician and cast any ability near enemies | Tactical Mark selects a priority/nearby enemy and appears in DebugStatsOverlay |
+| 5 | Cast Grapnel Shot through the marked enemy | Narrow line strike hits; marked target takes bonus damage |
+| 6 | Cast Shock Trap near enemies | Trap feedback appears, then delayed radius damage triggers |
+| 7 | Cast Smoke Charge near enemies | Tactical burst damages enemies and applies temporary slow/control when supported |
+| 8 | Start Fury Vanguard and take real HP damage | Rage increases in DebugStatsOverlay |
+| 9 | Cast Rage Burst / Crushing Leap with Rage available | Damage scales with Rage and cooldowns update normally |
+| 10 | Cast Titan Slam with Rage available | Heavy close impact fires, then Rage is partially spent |
+| 11 | Check all three heroes on HUD and mobile controls | Labels use hero-specific names; inputs still emit slots 1/2/3 |
+| 12 | Pick Nova/Laser/Slam upgrades after selecting any hero | Existing upgrade effects still tune slot 1/2/3 behavior through legacy properties |
+| 13 | Restart after each hero/stage pair | Same hero, same stage, same kit, and same per-hero Training apply |
+| 14 | Inspect diff and run flow | No enemies, stages, rewards, meta economy, save format, arena hazards, primary autoattack identity, or Build Evolution changes |
+
+---
+
 ## Controls Help Overlay
 
 | # | Test | Expected |

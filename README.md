@@ -86,9 +86,9 @@ Implemented foundation:
 - Enemy contact damage, projectiles, and XP pickups use Area2D detection.
 - AbilityManager on the player with 3 active ability slots.
 - Active ability input through `ability_1` (J), `ability_2` (K), `ability_3` (L).
-- Slot 1 / J: hero-specific area ability presentation.
-- Slot 2 / K: hero-specific forward line ability presentation.
-- Slot 3 / L: hero-specific close burst ability presentation.
+- Slot 1 / J: hero-specific area ability behavior.
+- Slot 2 / K: hero-specific forward ability behavior.
+- Slot 3 / L: hero-specific impact/control ability behavior.
 - 3-slot ability cooldown display in the HUD.
 - Simple in-world slot 1 visual feedback.
 - Slot 2 visual feedback (built-in Line2D beam with fade).
@@ -233,6 +233,16 @@ Implemented foundation:
 - UpgradeManager effect arrays now support `set` operations for bool/int/float properties and fail safely when a target/property/operation is invalid.
 - DebugStatsOverlay shows dash trail state, projectile bounce count, ability synergy flags, and build-defining option counts.
 
+### Hero Signature Kits Rework Foundation
+
+- **AbilityManager hero-kit routing** - active ability inputs and public cast methods remain `ability_1` / `ability_2` / `ability_3`, but casts now route by the selected hero's `kit_id`.
+- **Solar Guardian kit** - passive Solar Charge builds from ability hits. Solar Burst, Solar Beam, and Aerial Impact can spend high charge for stronger damage/radius, and Aerial Impact grants a brief invulnerability window.
+- **Night Tactician kit** - passive Tactical Mark selects a priority enemy when ability logic runs. Smoke Charge damages and slows nearby enemies, Grapnel Shot is a narrower precision line with mark bonus damage, and Shock Trap places a delayed close-range trap.
+- **Fury Vanguard kit** - passive Rage builds from real damage taken and ability hits, then decays slowly. Rage Burst, Crushing Leap, and Titan Slam scale as bruiser impact abilities, with Titan Slam spending part of Rage after use.
+- Existing upgrade hooks remain stable: `nova_*`, `laser_*`, and `slam_*` properties still tune slot 1/2/3, so current UpgradeManager effects and hero-flavored upgrade text keep working.
+- DebugStatsOverlay shows current kit and passive resource/mark state when Debug Mode is enabled.
+- This foundation does not add Build Evolution, a primary weapon rework, arena hazards, enemy changes, stage changes, reward changes, meta economy changes, or save-format changes.
+
 ### UI Readability Polish
 
 - **UIFormat** (`scenes/ui/UIFormat.gd`) — shared static helpers: `format_time`, `format_cooldown`, `format_percent`, `format_list`, `format_title_id`. Used across HUD and result screens to keep display formatting consistent.
@@ -338,13 +348,14 @@ Not implemented yet (feedback):
 - CharacterSelect hero detail cards list the current identities: `guardian` = Solar Guardian, `blaster` = Night Tactician, `vanguard` = Fury Vanguard.
 - CharacterSelect remains UI-only and display-only: it reads hero data and Training summaries, but does not change hero stats, balance, Training levels, rewards, saves, stages, enemies, arena logic, or persistence.
 - **HeroApplier** applies run-only starting stats to Player, AutoAttack, and AbilityManager before gameplay systems start.
-- Solar Guardian, Night Tactician, and Fury Vanguard use hero-specific ability presentation names while preserving the global ability slots and ids.
+- Solar Guardian, Night Tactician, and Fury Vanguard use hero-specific ability presentation names and combat kit behavior while preserving the global ability slots and input actions.
 - Final integrated hero ability names:
   - Solar Guardian: Solar Burst, Solar Beam, Aerial Impact.
   - Night Tactician: Smoke Charge, Grapnel Shot, Shock Trap.
   - Fury Vanguard: Rage Burst, Crushing Leap, Titan Slam.
 - Night Tactician presents slot 1/2/3 as Smoke Charge, Grapnel Shot, and Shock Trap. The underlying ability ids and input actions remain unchanged.
 - Fury Vanguard presents slot 1/2/3 as Rage Burst, Crushing Leap, and Titan Slam. The underlying ability ids and input actions remain unchanged.
+- Hero kit ids are `solar_guardian`, `night_tactician`, and `fury_vanguard`; stable hero ids remain `guardian`, `blaster`, and `vanguard`.
 - Hero rework integration polish keeps balance, persistence, rewards, enemy values, stage values, and meta economy unchanged.
 - HUD, mobile controls, debug overlays/logs, and level-up ability descriptions now use the selected hero's display names while preserving internal ability ids.
 - Selected hero appears in GameHUD and in Victory/GameOver run summaries.

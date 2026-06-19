@@ -31,7 +31,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
 - `scenes/game/RunManager.gd` - run timer, kill counter, and run end signal.
 - `scenes/abilities/AbilityManager.tscn` - player active ability manager scene (3 slots wired).
-- `scenes/abilities/AbilityManager.gd` - 3-slot active ability logic, Nova/Laser/Slam, cooldown tracking, cast signals.
+- `scenes/abilities/AbilityManager.gd` - 3-slot active ability logic, hero-kit routing, legacy Nova/Laser/Slam tuning hooks, cooldown tracking, cast signals.
 - `scenes/abilities/NovaPulseFeedback.tscn` - simple in-world Nova Pulse feedback scene.
 - `scenes/abilities/NovaPulseFeedback.gd` - Nova Pulse feedback tween and cleanup logic.
 - `scenes/abilities/NovaAftershockFeedback.tscn` - delayed Nova aftershock feedback scene.
@@ -235,6 +235,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - CharacterSelect bottom navigation buttons must remain fixed below the main hero list/details content and visible at 16:9 landscape sizes.
 - CharacterSelect must never mutate Training/meta data, buy upgrades, write saves, change hero stats, or change balance values.
 - HeroDataProvider owns hardcoded hero dictionaries for now; do not migrate to Resources until explicitly requested.
+- HeroDataProvider supplies stable hero ids plus kit ids: `guardian` -> `solar_guardian`, `blaster` -> `night_tactician`, `vanguard` -> `fury_vanguard`.
 - Guardian is an original solar/flying powerhouse fantasy with strength, beam, durability, and aerial-impact presentation.
 - Guardian may override ability display names through hero data, but global input slots and ability ids must stay stable.
 - Blaster keeps the `blaster` id and is an original dark gadget tactician fantasy with precision tools, tactical mobility, controlled burst damage, and close control presentation.
@@ -244,6 +245,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - Final hero roster ids and display names: `guardian` = Solar Guardian, `blaster` = Night Tactician, `vanguard` = Fury Vanguard.
 - Final hero ability display names: Solar Guardian = Solar Burst / Solar Beam / Aerial Impact; Night Tactician = Smoke Charge / Grapnel Shot / Shock Trap; Fury Vanguard = Rage Burst / Crushing Leap / Titan Slam.
 - Hero-specific ability display names must come from hero data and flow through HeroApplier/AbilityManager or direct hero data reads in display-only roster UI.
+- HeroApplier must pass selected hero kit info into AbilityManager. AbilityManager owns all hero-specific active ability behavior and passive combat resources.
+- Global input slots and public methods remain stable: `ability_1`/`cast_ability_1`, `ability_2`/`cast_ability_2`, `ability_3`/`cast_ability_3`.
+- AbilityManager must keep `nova_*`, `laser_*`, and `slam_*` properties as shared slot 1/2/3 tuning hooks so UpgradeManager effects remain compatible.
+- Solar Guardian uses Solar Charge; Night Tactician uses Tactical Mark; Fury Vanguard uses Rage. These runtime passive resources reset naturally with each Arena.
 - UI, HUD, mobile controls, debug overlays, and debug logs must prefer hero-specific ability display names from AbilityManager state instead of hardcoded global ability labels.
 - Level-up option descriptions may substitute hero-specific ability display names at presentation time, but upgrade ids, archetypes, effects, weights, and save-facing data must stay stable.
 - Hero-specific upgrade flavor is display-only. Upgrade ids, effects, weights, rarity, max levels, prerequisites, archetype points, synergies, build-defining logic, and selected upgrade history remain shared and stable.
@@ -618,9 +623,12 @@ The game is an original superhero survivors-like: the player moves around an are
 
 - `AbilityManager` is a child of `Player` and owns all active ability logic and cooldowns.
 - Arena wires `AbilityManager` to the Player, EnemyContainer, HUD, and optionally UpgradeManager.
-- Slot 1 uses `ability_1` (J) with hero-specific display text and radial area damage.
-- Slot 2 uses `ability_2` (K) with hero-specific display text and line damage in player's aim direction.
-- Slot 3 uses `ability_3` (L) with hero-specific display text and close-range burst damage.
+- Slot 1 uses `ability_1` (J) with hero-specific area behavior routed by kit id.
+- Slot 2 uses `ability_2` (K) with hero-specific forward behavior routed by kit id.
+- Slot 3 uses `ability_3` (L) with hero-specific impact/control behavior routed by kit id.
+- Solar Guardian: Solar Burst / Solar Beam / Aerial Impact build or spend Solar Charge; Aerial Impact may grant brief invulnerability.
+- Night Tactician: Smoke Charge / Grapnel Shot / Shock Trap refresh Tactical Mark; Grapnel Shot and Shock Trap can deal bonus damage to the marked target.
+- Fury Vanguard: Rage Burst / Crushing Leap / Titan Slam build from hits and real player damage taken; Rage decays and Titan Slam spends part of it.
 - All abilities are available from run start; no unlock system.
 - HUD listens to `ability_cooldown_changed` and displays readiness for all 3 slots.
 - MobileControls emits ability intents (ability_1/2/3_pressed) only; Arena wires them to AbilityManager.
@@ -630,6 +638,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Ability enemy scans happen only on cast, not every frame.
 - Ability synergy delayed hits are owned by AbilityManager and stay anchored to their original cast origin/direction.
 - Nova Aftershock uses `NovaAftershockFeedback`; Laser Double Pulse and Slam Second Wave reuse the existing Laser/Slam feedback scenes at the delayed cast position.
+- Hero-kit routing must not change enemies, stages, reward formulas, meta economy, save format, arena hazards, primary autoattack identity, or Build Evolution unless explicitly requested.
 
 ## Build Synergy v4 Notes
 

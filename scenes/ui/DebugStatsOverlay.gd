@@ -186,6 +186,16 @@ func _build_stats_text() -> String:
 		lines.append("%s: dmg=%d r=%.0f w=%.0f cd=%.1f/%.1f" % [slot_2_name, laser_dmg, laser_r, laser_w, laser_cd_remaining, laser_cd])
 		lines.append("%s: dmg=%d r=%.0f cd=%.1f/%.1f" % [slot_3_name, slam_dmg, slam_r, slam_cd_remaining, slam_cd])
 		lines.append("Synergy: nova=%s laser2=%s slam2=%s" % [nova_aftershock, laser_double, slam_second])
+		if _ability_manager.has_method("get_hero_kit_state"):
+			var kit: Dictionary = _ability_manager.get_hero_kit_state()
+			lines.append("Kit: %s (%s)" % [kit.get("kit_id", "generic"), kit.get("passive_name", "None")])
+			match str(kit.get("kit_id", "")):
+				"solar_guardian":
+					lines.append("Solar Charge: %.0f / %.0f" % [float(kit.get("solar_charge", 0.0)), float(kit.get("solar_charge_max", 0.0))])
+				"night_tactician":
+					lines.append("Tactical Mark: %s" % str(kit.get("tactical_mark_target", "none")))
+				"fury_vanguard":
+					lines.append("Rage: %.0f / %.0f" % [float(kit.get("rage", 0.0)), float(kit.get("rage_max", 0.0))])
 	else:
 		lines.append("-- Abilities: null --")
 
