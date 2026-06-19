@@ -535,6 +535,24 @@ Do NOT bind a key to reset_progress in gameplay code; this could cause accidenta
 
 ---
 
+## Stage Select Polish
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open StageSelect after confirming a hero | Three stage cards appear with display name, difficulty, and threat identity line |
+| 2 | Return to StageSelect after a remembered stage exists | The remembered stage preselects and the matching card shows a compact Last marker |
+| 3 | Select City Rooftop | Detail panel shows name, subtitle, Normal difficulty, balanced threat summary, Titan Guardian, and 10:00 objective |
+| 4 | Select Neon Lab | Detail panel shows ranged support pressure, Prism Overlord, recommended mobility/line-control text, and 10:00 objective |
+| 5 | Select Wasteland Gate | Detail panel shows swarm / exploder pressure, Molten Colossus, durable/area-control recommendation, and 10:00 objective |
+| 6 | Resize to 16:9 landscape or add long detail text | Detail content stays inside the right ScrollContainer; Back and Start Run remain visible |
+| 7 | Scroll the selected stage details | Vertical scrolling works when content exceeds the panel; horizontal scrolling is not needed |
+| 8 | Press Back | Returns to CharacterSelect exactly as before |
+| 9 | Press Start Run | Emits the original selected stage id and starts Arena normally |
+| 10 | Restart from Victory/GameOver | Same hero and same stage restart without reopening StageSelect |
+| 11 | Inspect stage data diff | `run_settings`, `event_profile`, `final_boss_id`, enemy values, rewards, persistence, and arena hazards are unchanged |
+
+---
+
 ## Final Boss
 
 | # | Test | Expected |

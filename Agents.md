@@ -123,10 +123,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MetaUpgradeShop.gd` - display-only Training shop UI. Shows meta upgrade levels and costs. Emits buy_requested; Main handles the purchase. Accessed via "Training" button on MainMenu.
 - `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, meta progression/rewards, expected console log patterns).
 - `scenes/stages/StageDataProvider.tscn` - runtime stage definition provider scene.
-- `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, background_colors, run_settings, event_profile, final_boss_id.
+- `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, display-only identity metadata, background_colors, run_settings, event_profile, final_boss_id.
 - `scenes/stages/StageApplier.gd` - static helper; applies selected stage to Arena at startup: background colors, run settings, event/spawn profiles. Called by Arena._ready() when stage_data is non-empty.
 - `scenes/ui/StageSelect.tscn` - stage selection screen CanvasLayer scene (child of Main).
-- `scenes/ui/StageSelect.gd` - display-only stage list + detail panel UI. Emits stage_confirmed(stage_id) and back_requested.
+- `scenes/ui/StageSelect.gd` - display-only stage list + bounded scrollable detail panel UI. Emits the original stage_confirmed(stage_id) and back_requested.
 - `scenes/enemies/FinalBossController.tscn` - final boss combat brain scene (Node root).
 - `scenes/enemies/FinalBossController.gd` - owns final boss attack timing (Nova/Barrage/Charge), 2-phase logic, boss_id variant stats, phase_changed signal. Attached dynamically as child of boss enemy on spawn.
 - `scenes/ui/BossHealthBar.tscn` - final boss health bar overlay scene (CanvasLayer layer=9).
@@ -186,6 +186,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - `Main` owns the navigation flow: MainMenu → CharacterSelect → StageSelect → Arena. Back from StageSelect returns to CharacterSelect. Restart keeps same hero + stage. Quit to menu clears both.
 - `StageDataProvider` is a persistent Node in Main (child of Main.tscn). It owns stage definitions and is passed to StageSelect.setup().
 - `StageApplier` (static) is called by Arena._ready() after GameplayTuning.apply_to() when stage_data is non-empty. It applies background colors, run settings, and event/spawn profiles.
+- StageSelect is display-only: it may show stage cards, remembered-stage markers, color swatches, threat summaries, run objectives, recommended playstyle, and boss previews, but it must not mutate stage data or gameplay state.
+- Stage identity metadata in StageDataProvider is for UI presentation only. Do not wire `threat_summary`, `stage_goal`, `recommended_playstyle`, `enemy_pressure`, or `boss_preview` into spawn logic, run settings, rewards, persistence, or final boss behavior.
+- StageSelect must emit the original stable stage id (`city_rooftop`, `neon_lab`, or `wasteland_gate`) when Start Run is pressed.
+- Do not add arena hazards unless the user explicitly requests hazards.
 - `EventDirector.set_event_profile(profile)` appends profile-specific extra events to the schedule. "balanced" adds nothing. "ranged_support" adds early shooter and support surge events. "swarm_exploder" adds early exploder and swarm rush events.
 - `SpawnDirector.set_stage_profile(profile)` stores the profile and applies per-variant weight bonuses in `_get_modified_weight()`.
 - **Final boss victory gating**: when `RunManager.final_boss_required == true` (set from stage run_settings), reaching target time emits `target_time_reached` instead of victory. Arena spawns the boss. Victory only triggers after `register_final_boss_defeated()`.

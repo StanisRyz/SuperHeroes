@@ -250,7 +250,7 @@ Implemented foundation:
 - **Improved CharacterSelect** — Selected hero button turns green; locked hero buttons are gray.
 - **CharacterSelect hero detail cards** — hero cards now show display name, playstyle, and compact state markers; the selected hero detail card shows subtitle, description, ability names, strengths, and read-only per-hero Training summary.
 - **CharacterSelect scrollable details** — hero detail cards stay inside a bounded right-side scroll panel so Back and Start Run remain visible.
-- **Improved StageSelect** — Selected stage button turns green.
+- **Improved StageSelect** — stage cards now show display name, difficulty, threat identity, and remembered-stage state; selected stage details are bounded in a scrollable right panel so Back / Start Run remain visible.
 - **Help overlay section titles** — Section titles are uppercase amber with horizontal separators between sections.
 - **Pause / Restart / Exit Safety QoL** — active-run Restart and Main Menu actions now use a reusable confirmation dialog, Escape / Back behavior is centralized across pause/settings/help overlays, and duplicate transition guards prevent repeated restarts, exits, reward screens, or Arena creation from rapid clicks.
 - **Main Menu Rework** — Settings now sits top-left, Help / Controls top-right, and Select Hero plus Training are grouped as a bottom horizontal interface. Existing menu, training, settings, help, hero/stage select, and run flows are preserved.
@@ -389,11 +389,12 @@ Not implemented yet (meta):
 
 ### Bosses, Stages & Content Expansion v1
 
-- **StageSelect** screen between CharacterSelect and Arena; shows stage list (left) and detail panel (right: color swatch, name, subtitle, difficulty, description, final boss name). Back returns to CharacterSelect; Start Run advances to Arena.
+- **StageSelect** screen between CharacterSelect and Arena; shows stage list cards (left) and a scrollable detail panel (right: color swatch, name, subtitle, difficulty, description, threat summary, run objective, recommended playstyle, and final boss preview). Back returns to CharacterSelect; Start Run advances to Arena with the original stage id.
 - **StageDataProvider** owns 3 hardcoded stage presets:
-  - **City Rooftop** (Normal difficulty, `balanced` event profile, final boss: Titan Guardian, 10 min run)
-  - **Neon Lab** (Hard difficulty, `ranged_support` event profile, final boss: Prism Overlord, 8 min run)
-  - **Wasteland Gate** (Hard difficulty, `swarm_exploder` event profile, final boss: Molten Colossus, 9 min run)
+  - **City Rooftop** - balanced rooftop pressure, Normal difficulty, `balanced` event profile, final boss: Titan Guardian, 10 min run.
+  - **Neon Lab** - ranged support pressure, Hard difficulty, `ranged_support` event profile, final boss: Prism Overlord, 10 min run.
+  - **Wasteland Gate** - swarm / exploder pressure, Hard difficulty, `swarm_exploder` event profile, final boss: Molten Colossus, 10 min run.
+- Stage identity metadata (`threat_summary`, `stage_goal`, `recommended_playstyle`, `enemy_pressure`, `boss_preview`) is display-only. This StageSelect polish does not change stage balance, event profile behavior, final boss behavior, rewards, persistence, or arena hazards.
 - **StageApplier** (static helper) applies the selected stage to Arena at startup: background colors on Ground/CenterGuide/HorizontalGuide/VerticalGuide, run settings to RunManager, event profile to EventDirector + SpawnDirector.
 - **Stage event profiles** in EventDirector: `balanced` uses the default schedule; `ranged_support` adds earlier shooter flanker and support surge events; `swarm_exploder` adds earlier exploder and swarm rush events.
 - **Stage spawn profiles** in SpawnDirector: `ranged_support` gives shooter/support a +25% weight bonus; `swarm_exploder` gives exploder/swarm a +30% weight bonus.

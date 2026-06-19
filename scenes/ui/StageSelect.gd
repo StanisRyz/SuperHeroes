@@ -18,10 +18,14 @@ var _subtitle_label: Label
 var _last_selected_label: Label
 var _description_label: Label
 var _difficulty_label: Label
+var _threat_label: Label
+var _goal_label: Label
+var _playstyle_label: Label
 var _final_boss_label: Label
 var _start_button: Button
 var _back_button: Button
 var _color_swatch: ColorRect
+var _details_scroll: ScrollContainer
 
 
 func _ready() -> void:
@@ -95,11 +99,24 @@ func _build_ui() -> void:
 	content.add_theme_constant_override("separation", 20)
 	main.add_child(content)
 
+	var stage_list_panel := PanelContainer.new()
+	stage_list_panel.name = "StageListPanel"
+	stage_list_panel.custom_minimum_size = Vector2(380, 0)
+	stage_list_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(stage_list_panel)
+
+	var stage_list_margin := MarginContainer.new()
+	stage_list_margin.name = "StageListMargin"
+	stage_list_margin.add_theme_constant_override("margin_left", 12)
+	stage_list_margin.add_theme_constant_override("margin_top", 12)
+	stage_list_margin.add_theme_constant_override("margin_right", 12)
+	stage_list_margin.add_theme_constant_override("margin_bottom", 12)
+	stage_list_panel.add_child(stage_list_margin)
+
 	_cards_box = VBoxContainer.new()
 	_cards_box.name = "StageList"
-	_cards_box.custom_minimum_size = Vector2(360, 0)
 	_cards_box.add_theme_constant_override("separation", 12)
-	content.add_child(_cards_box)
+	stage_list_margin.add_child(_cards_box)
 
 	var details_panel := PanelContainer.new()
 	details_panel.name = "DetailsPanel"
@@ -107,10 +124,27 @@ func _build_ui() -> void:
 	details_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(details_panel)
 
+	_details_scroll = ScrollContainer.new()
+	_details_scroll.name = "DetailsScroll"
+	_details_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_details_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_details_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	details_panel.add_child(_details_scroll)
+
+	var details_margin := MarginContainer.new()
+	details_margin.name = "DetailsMargin"
+	details_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details_margin.add_theme_constant_override("margin_left", 16)
+	details_margin.add_theme_constant_override("margin_top", 16)
+	details_margin.add_theme_constant_override("margin_right", 16)
+	details_margin.add_theme_constant_override("margin_bottom", 16)
+	_details_scroll.add_child(details_margin)
+
 	var details := VBoxContainer.new()
 	details.name = "Details"
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.add_theme_constant_override("separation", 12)
-	details_panel.add_child(details)
+	details_margin.add_child(details)
 
 	_color_swatch = ColorRect.new()
 	_color_swatch.custom_minimum_size = Vector2(0, 18)
@@ -135,12 +169,18 @@ func _build_ui() -> void:
 	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	details.add_child(_description_label)
 
-	_final_boss_label = Label.new()
-	details.add_child(_final_boss_label)
+	_threat_label = _create_detail_label()
+	details.add_child(_threat_label)
 
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	details.add_child(spacer)
+	_goal_label = _create_detail_label()
+	details.add_child(_goal_label)
+
+	_playstyle_label = _create_detail_label()
+	details.add_child(_playstyle_label)
+
+	_final_boss_label = Label.new()
+	_final_boss_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	details.add_child(_final_boss_label)
 
 	var buttons := HBoxContainer.new()
 	buttons.name = "Buttons"
@@ -179,9 +219,18 @@ func _reload_stages() -> void:
 	for stage in _stages:
 		var button := Button.new()
 		var stage_id := str(stage.get("id", ""))
-		var diff := str(stage.get("difficulty_label", "Normal"))
+		var diff: String = str(stage.get("difficulty_label", "Normal"))
+		var threat_line: String = str(stage.get("enemy_pressure", stage.get("subtitle", "")))
+		var markers: Array[String] = []
+		if not _preferred_stage_id.is_empty() and stage_id == _preferred_stage_id:
+			markers.append("Last")
+		if _is_stage_locked(stage):
+			markers.append("Locked")
+		var marker_text: String = ""
+		if not markers.is_empty():
+			marker_text = "  [%s]" % ", ".join(markers)
 		button.custom_minimum_size = Vector2(320, 72)
-		button.text = "%s\n[%s]" % [stage.get("display_name", "Stage"), diff]
+		button.text = "%s%s\n%s - %s" % [stage.get("display_name", "Stage"), marker_text, diff, threat_line]
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.pressed.connect(_select_stage.bind(stage_id))
 		_cards_box.add_child(button)
@@ -210,9 +259,19 @@ func _refresh_details() -> void:
 		_last_selected_label.visible = not _preferred_stage_id.is_empty() and _selected_stage_id == _preferred_stage_id
 	_difficulty_label.text = "Difficulty: %s" % stage.get("difficulty_label", "Normal")
 	_description_label.text = str(stage.get("description", ""))
+	_threat_label.text = "Threats\n%s\nPressure: %s" % [
+		str(stage.get("threat_summary", "Stage pressure follows its selected event profile.")),
+		str(stage.get("enemy_pressure", "Standard")),
+	]
+	_goal_label.text = "Run Objective\n%s" % str(stage.get("stage_goal", _build_default_stage_goal(stage)))
+	_playstyle_label.text = "Recommended\n%s" % str(stage.get("recommended_playstyle", "Use the build that fits your selected hero."))
 
 	var boss_id := str(stage.get("final_boss_id", ""))
-	_final_boss_label.text = "Final Boss: %s" % _format_boss_name(boss_id)
+	var boss_name: String = _format_boss_name(boss_id)
+	_final_boss_label.text = "Final Boss\n%s\n%s" % [
+		boss_name,
+		str(stage.get("boss_preview", "%s waits at the end of the run." % boss_name)),
+	]
 
 	var bg_colors: Dictionary = stage.get("background_colors", {})
 	var ground_color: Color = bg_colors.get("ground", Color(0.08, 0.10, 0.14, 1.0))
@@ -234,6 +293,20 @@ func _format_boss_name(boss_id: String) -> String:
 			if boss_id.is_empty():
 				return "Unknown"
 			return boss_id.capitalize()
+
+
+func _create_detail_label() -> Label:
+	var label := Label.new()
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return label
+
+
+func _build_default_stage_goal(stage: Dictionary) -> String:
+	var settings: Dictionary = stage.get("run_settings", {})
+	var target_seconds: float = float(settings.get("target_run_time", 600.0))
+	var minutes: int = int(round(target_seconds / 60.0))
+	return "Survive %d:00, then defeat the final boss." % minutes
 
 
 func _get_selected_stage() -> Dictionary:
