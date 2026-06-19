@@ -223,6 +223,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - CharacterSelect is display-only: it reads HeroDataProvider, displays heroes, and emits `hero_confirmed(hero_id)`.
 - CharacterSelect hero cards must show display name, playstyle, and compact locked/last-selected state without owning navigation or persistence.
 - CharacterSelect selected hero detail cards must show name, subtitle, description, playstyle, hero-specific ability display names from hero data, compact stat traits, and a read-only per-hero Training summary when MetaProgressionManager is available.
+- CharacterSelect selected hero detail content must stay inside a bounded `ScrollContainer`; long details should scroll inside the right panel and must never push Back / Start Run below the screen.
+- CharacterSelect bottom navigation buttons must remain fixed below the main hero list/details content and visible at 16:9 landscape sizes.
 - CharacterSelect must never mutate Training/meta data, buy upgrades, write saves, change hero stats, or change balance values.
 - HeroDataProvider owns hardcoded hero dictionaries for now; do not migrate to Resources until explicitly requested.
 - Guardian is an original solar/flying powerhouse fantasy with strength, beam, durability, and aerial-impact presentation.

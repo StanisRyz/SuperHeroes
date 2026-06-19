@@ -131,15 +131,23 @@ func _build_ui() -> void:
 	details_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(details_panel)
 
+	var details_scroll := ScrollContainer.new()
+	details_scroll.name = "DetailsScroll"
+	details_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	details_panel.add_child(details_scroll)
+
 	var details_margin := MarginContainer.new()
+	details_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details_margin.add_theme_constant_override("margin_left", 16)
 	details_margin.add_theme_constant_override("margin_top", 14)
 	details_margin.add_theme_constant_override("margin_right", 16)
 	details_margin.add_theme_constant_override("margin_bottom", 14)
-	details_panel.add_child(details_margin)
+	details_scroll.add_child(details_margin)
 
 	var details := VBoxContainer.new()
 	details.name = "Details"
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.add_theme_constant_override("separation", 10)
 	details_margin.add_child(details)
 
@@ -169,10 +177,6 @@ func _build_ui() -> void:
 	_ability_label = _create_section_label(details, "Abilities")
 	_traits_label = _create_section_label(details, "Strengths")
 	_training_label = _create_section_label(details, "Training")
-
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	details.add_child(spacer)
 
 	var buttons := HBoxContainer.new()
 	buttons.name = "Buttons"

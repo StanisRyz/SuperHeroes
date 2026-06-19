@@ -248,6 +248,7 @@ Implemented foundation:
 - **Improved Training shop** — Buy button green when affordable, gray when not affordable or maxed.
 - **Improved CharacterSelect** — Selected hero button turns green; locked hero buttons are gray.
 - **CharacterSelect hero detail cards** — hero cards now show display name, playstyle, and compact state markers; the selected hero detail card shows subtitle, description, ability names, strengths, and read-only per-hero Training summary.
+- **CharacterSelect scrollable details** — hero detail cards stay inside a bounded right-side scroll panel so Back and Start Run remain visible.
 - **Improved StageSelect** — Selected stage button turns green.
 - **Help overlay section titles** — Section titles are uppercase amber with horizontal separators between sections.
 - **Pause / Restart / Exit Safety QoL** — active-run Restart and Main Menu actions now use a reusable confirmation dialog, Escape / Back behavior is centralized across pause/settings/help overlays, and duplicate transition guards prevent repeated restarts, exits, reward screens, or Arena creation from rapid clicks.

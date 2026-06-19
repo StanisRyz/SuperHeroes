@@ -205,6 +205,8 @@ Run these before adding new gameplay systems.
 | 8 | Press Start Run | Existing MainMenu -> CharacterSelect -> StageSelect/Arena flow remains unchanged |
 | 9 | Press Back | Returns to MainMenu without changing hero stats, Training, saves, rewards, stage values, enemy values, or persistence |
 | 10 | Inspect at 16:9 landscape | Hero cards and detail sections fit without text overlap |
+| 11 | Select each hero with the window at 16:9 landscape | Detail content remains bounded inside the right panel and Back / Start Run stay visible |
+| 12 | Add enough detail text or Training levels to exceed the right panel height | Detail panel scrolls vertically; mouse wheel/touchpad scrolling works; no horizontal scrolling is needed |
 
 ---
 
