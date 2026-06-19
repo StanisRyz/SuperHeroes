@@ -34,6 +34,8 @@ Run these before adding new gameplay systems.
 | 3 | Pick up an upgrade | Build / weapon stats update within 0.25s |
 | 4 | Disable Debug Mode | Overlay hides |
 | 5 | Press F7 | Overlay refreshes immediately |
+| 6 | Pick a build-defining upgrade | Overlay shows build-defining picked/available counts |
+| 7 | Pick ability/dash/bounce synergy upgrades | Overlay shows Nova/Laser/Slam synergy flags, dash trail flag, and projectile bounce count |
 
 ---
 
@@ -86,6 +88,21 @@ Run these before adding new gameplay systems.
 | 3 | Meet synergy prerequisites | Synergy upgrade (e.g. "Split Barrage") appears in upgrade pool |
 | 4 | Apply synergy upgrade | Multiple stat effects applied at once |
 | 5 | F7 or debug overlay | Shows dominant archetype and archetype point counts |
+| 6 | Meet build-defining prerequisites | Upgrade option appears with `BUILD DEFINING` marker |
+| 7 | Pick a build-defining upgrade | Debug overlay selected build-defining count increments |
+
+---
+
+## Ability & Build Synergy v4
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Pick **Aftershock Zone**, then cast Nova Pulse | Initial Nova damage happens immediately; a delayed aftershock damages enemies at the original cast position; aftershock feedback ring appears |
+| 2 | Pick **Double Pulse**, then cast Laser Beam | Initial beam fires immediately; a delayed weaker second beam fires from the original origin/direction |
+| 3 | Pick **Seismic Echo**, then cast Hero Slam | Initial slam fires immediately; delayed second wave damages enemies at the original slam position |
+| 4 | Pick **Comet Dash**, then dash into enemies | Nearby enemies take damage when dash ends; dash cooldown/invulnerability behavior remains unchanged |
+| 5 | Pick **Bouncing Bolts**, then shoot clustered enemies | Projectile bounces from the hit enemy to another nearby valid enemy without repeatedly damaging the same enemy instance |
+| 6 | Use F7 / DebugStatsOverlay after each pick | New flags and counts reflect the picked build-defining effects |
 
 ---
 

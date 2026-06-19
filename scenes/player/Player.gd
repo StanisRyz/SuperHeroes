@@ -18,6 +18,9 @@ signal invulnerability_changed(is_invulnerable: bool)
 @export var dash_cooldown: float = 1.2
 @export var dash_invulnerability_duration: float = 0.25
 @export var dash_burst_scene: PackedScene
+@export var dash_damage_trail_enabled: bool = false
+@export var dash_trail_damage: int = 18
+@export var dash_trail_radius: float = 80.0
 
 var current_health: int
 var current_xp: int = 0
@@ -61,6 +64,7 @@ func _physics_process(delta: float) -> void:
 		velocity = dash_direction * speed * dash_speed_multiplier
 		if dash_time_remaining <= 0.0:
 			is_dashing = false
+			_apply_dash_trail_damage()
 			dash_finished.emit()
 	else:
 		var direction := _get_current_move_direction()
@@ -291,6 +295,20 @@ func _spawn_dash_burst() -> void:
 		burst.play(global_position, dash_direction)
 	else:
 		burst.global_position = global_position
+
+
+func _apply_dash_trail_damage() -> void:
+	if not dash_damage_trail_enabled:
+		return
+
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if not node is Node2D or not is_instance_valid(node) or node.is_queued_for_deletion():
+			continue
+		if not node.has_method("take_damage"):
+			continue
+		var enemy := node as Node2D
+		if global_position.distance_to(enemy.global_position) <= dash_trail_radius:
+			enemy.take_damage(dash_trail_damage)
 
 
 func _update_invulnerability_visual(enabled: bool) -> void:

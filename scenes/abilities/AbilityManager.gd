@@ -8,6 +8,11 @@ signal ability_cast(slot: int, ability_id: String)
 @export var nova_radius: float = 220.0
 @export var nova_cooldown: float = 6.0
 @export var pulse_feedback_scene: PackedScene
+@export var nova_aftershock_feedback_scene: PackedScene
+@export var nova_aftershock_enabled: bool = false
+@export var nova_aftershock_damage: int = 8
+@export var nova_aftershock_radius: float = 180.0
+@export var nova_aftershock_delay: float = 0.45
 
 # Slot 2: Laser Beam
 @export var laser_damage: int = 35
@@ -15,12 +20,19 @@ signal ability_cast(slot: int, ability_id: String)
 @export var laser_width: float = 80.0
 @export var laser_cooldown: float = 7.0
 @export var laser_feedback_scene: PackedScene
+@export var laser_double_pulse_enabled: bool = false
+@export var laser_second_pulse_delay: float = 0.22
+@export var laser_second_pulse_damage_multiplier: float = 0.55
 
 # Slot 3: Hero Slam
 @export var slam_damage: int = 45
 @export var slam_radius: float = 180.0
 @export var slam_cooldown: float = 9.0
 @export var slam_feedback_scene: PackedScene
+@export var slam_second_wave_enabled: bool = false
+@export var slam_second_wave_delay: float = 0.35
+@export var slam_second_wave_damage_multiplier: float = 0.55
+@export var slam_second_wave_radius_multiplier: float = 1.25
 
 var player: Node2D
 var enemy_container: Node
@@ -113,9 +125,12 @@ func _guard_cast(slot: int) -> bool:
 func _try_cast_nova_pulse() -> void:
 	if not _guard_cast(1):
 		return
-	if not _damage_enemies_in_radius(nova_damage, nova_radius):
+	var cast_position := player.global_position
+	if not _damage_enemies_in_radius_at(cast_position, nova_damage, nova_radius):
 		return
 	_spawn_pulse_feedback()
+	if nova_aftershock_enabled:
+		_schedule_nova_aftershock(cast_position)
 	if player.has_method("shake_camera"):
 		player.shake_camera(5.0, 0.14)
 	_cooldowns[1] = maxf(nova_cooldown, 0.0)
@@ -127,9 +142,12 @@ func _try_cast_laser_beam() -> void:
 	if not _guard_cast(2):
 		return
 	var direction := _get_player_aim_direction()
-	if not _damage_enemies_in_laser(direction):
+	var origin := player.global_position
+	if not _damage_enemies_in_laser(origin, direction, laser_damage, laser_range, laser_width):
 		return
 	_spawn_laser_feedback(direction)
+	if laser_double_pulse_enabled:
+		_schedule_laser_second_pulse(origin, direction)
 	_cooldowns[2] = maxf(laser_cooldown, 0.0)
 	ability_cast.emit(2, "laser_beam")
 	_emit_cooldown_changed(2, true)
@@ -138,9 +156,12 @@ func _try_cast_laser_beam() -> void:
 func _try_cast_hero_slam() -> void:
 	if not _guard_cast(3):
 		return
-	if not _damage_enemies_in_radius(slam_damage, slam_radius):
+	var cast_position := player.global_position
+	if not _damage_enemies_in_radius_at(cast_position, slam_damage, slam_radius):
 		return
 	_spawn_slam_feedback()
+	if slam_second_wave_enabled:
+		_schedule_slam_second_wave(cast_position)
 	if player.has_method("shake_camera"):
 		player.shake_camera(7.0, 0.18)
 	_cooldowns[3] = maxf(slam_cooldown, 0.0)
@@ -149,31 +170,36 @@ func _try_cast_hero_slam() -> void:
 
 
 func _damage_enemies_in_radius(damage: int, radius: float) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	return _damage_enemies_in_radius_at(player.global_position, damage, radius)
+
+
+func _damage_enemies_in_radius_at(world_position: Vector2, damage: int, radius: float) -> bool:
 	if enemy_container == null or not is_instance_valid(enemy_container):
 		push_warning("AbilityManager is missing EnemyContainer reference.")
 		return false
 	for enemy in enemy_container.get_children():
-		if _is_valid_enemy(enemy) and player.global_position.distance_to(enemy.global_position) <= radius:
+		if _is_valid_enemy(enemy) and world_position.distance_to(enemy.global_position) <= radius:
 			enemy.take_damage(damage)
 	return true
 
 
-func _damage_enemies_in_laser(direction: Vector2) -> bool:
+func _damage_enemies_in_laser(origin: Vector2, direction: Vector2, damage: int, beam_range: float, beam_width: float) -> bool:
 	if enemy_container == null or not is_instance_valid(enemy_container):
 		push_warning("AbilityManager is missing EnemyContainer reference.")
 		return false
-	var half_width := laser_width * 0.5
-	var origin := player.global_position
+	var half_width := beam_width * 0.5
 	var perp_axis := direction.orthogonal()
 	for enemy in enemy_container.get_children():
 		if not _is_valid_enemy(enemy):
 			continue
 		var to_enemy: Vector2 = (enemy as Node2D).global_position - origin
 		var proj: float = to_enemy.dot(direction)
-		if proj < 0.0 or proj > laser_range:
+		if proj < 0.0 or proj > beam_range:
 			continue
 		if absf(to_enemy.dot(perp_axis)) <= half_width:
-			enemy.take_damage(laser_damage)
+			enemy.take_damage(damage)
 	return true
 
 
@@ -224,6 +250,79 @@ func _spawn_slam_feedback() -> void:
 	player.get_parent().add_child(feedback)
 	if feedback.has_method("play"):
 		feedback.play(player.global_position, slam_radius)
+
+
+func _spawn_aftershock_feedback(world_position: Vector2, radius: float) -> void:
+	if nova_aftershock_feedback_scene == null or player == null:
+		return
+	var feedback_node := nova_aftershock_feedback_scene.instantiate()
+	if not feedback_node is Node2D:
+		push_warning("Nova Aftershock feedback scene root must be Node2D.")
+		feedback_node.queue_free()
+		return
+	var feedback := feedback_node as Node2D
+	player.get_parent().add_child(feedback)
+	if feedback.has_method("play"):
+		feedback.play(world_position, radius)
+
+
+func _schedule_nova_aftershock(world_position: Vector2) -> void:
+	var timer := get_tree().create_timer(nova_aftershock_delay)
+	timer.timeout.connect(func() -> void:
+		if not is_inside_tree():
+			return
+		_damage_enemies_in_radius_at(world_position, nova_aftershock_damage, nova_aftershock_radius)
+		_spawn_aftershock_feedback(world_position, nova_aftershock_radius)
+	)
+
+
+func _schedule_laser_second_pulse(origin: Vector2, direction: Vector2) -> void:
+	var timer := get_tree().create_timer(laser_second_pulse_delay)
+	timer.timeout.connect(func() -> void:
+		if not is_inside_tree():
+			return
+		var second_damage := maxi(roundi(float(laser_damage) * laser_second_pulse_damage_multiplier), 1)
+		_damage_enemies_in_laser(origin, direction, second_damage, laser_range, laser_width)
+		_spawn_laser_feedback_at(origin, direction, laser_range, laser_width)
+	)
+
+
+func _schedule_slam_second_wave(world_position: Vector2) -> void:
+	var timer := get_tree().create_timer(slam_second_wave_delay)
+	timer.timeout.connect(func() -> void:
+		if not is_inside_tree():
+			return
+		var second_damage := maxi(roundi(float(slam_damage) * slam_second_wave_damage_multiplier), 1)
+		var second_radius := slam_radius * slam_second_wave_radius_multiplier
+		_damage_enemies_in_radius_at(world_position, second_damage, second_radius)
+		_spawn_slam_feedback_at(world_position, second_radius)
+	)
+
+
+func _spawn_laser_feedback_at(origin: Vector2, direction: Vector2, beam_range: float, beam_width: float) -> void:
+	if laser_feedback_scene == null or player == null:
+		return
+	var feedback_node := laser_feedback_scene.instantiate()
+	if not feedback_node is Node2D:
+		feedback_node.queue_free()
+		return
+	var feedback := feedback_node as Node2D
+	player.get_parent().add_child(feedback)
+	if feedback.has_method("play"):
+		feedback.play(origin, direction, beam_range, beam_width)
+
+
+func _spawn_slam_feedback_at(world_position: Vector2, radius: float) -> void:
+	if slam_feedback_scene == null or player == null:
+		return
+	var feedback_node := slam_feedback_scene.instantiate()
+	if not feedback_node is Node2D:
+		feedback_node.queue_free()
+		return
+	var feedback := feedback_node as Node2D
+	player.get_parent().add_child(feedback)
+	if feedback.has_method("play"):
+		feedback.play(world_position, radius)
 
 
 func _is_valid_enemy(node: Node) -> bool:

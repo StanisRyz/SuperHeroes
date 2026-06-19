@@ -11,6 +11,7 @@ const DASH_INVULNERABILITY_MAX := 0.6
 const PROJECTILE_COUNT_MAX := 7
 const PROJECTILE_SIZE_MAX := 2.0
 const PROJECTILE_EXPLOSION_RADIUS_MAX := 180.0
+const PROJECTILE_BOUNCE_MAX := 5
 
 var player: Node
 var auto_attack: Node
@@ -413,6 +414,102 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effects": [
 			{"target": "player", "property": "speed", "operation": "add", "value": 18.0}
 		]
+	},
+	# в”Ђв”Ђ BUILD-DEFINING SYNERGY UPGRADES v4 в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+	{
+		"id": "nova_aftershock_zone",
+		"title": "Aftershock Zone",
+		"rarity": "epic",
+		"weight": 0.24,
+		"max_level": 2,
+		"description_template": "Nova Pulse creates a delayed aftershock zone.",
+		"effect_value": 0,
+		"archetype": "nova",
+		"tags": ["ability", "synergy", "aoe", "build_defining"],
+		"is_build_defining": true,
+		"prerequisites": {
+			"any_of": [
+				{"upgrade_levels": {"nova_aftershock": 1}},
+				{"archetype_points": {"nova": 3}}
+			]
+		},
+		"effects": [
+			{"target": "ability_manager", "property": "nova_aftershock_enabled", "operation": "set", "value": true},
+			{"target": "ability_manager", "property": "nova_aftershock_damage", "operation": "add", "value": 4},
+			{"target": "ability_manager", "property": "nova_aftershock_radius", "operation": "add", "value": 20.0}
+		]
+	},
+	{
+		"id": "laser_double_pulse",
+		"title": "Double Pulse",
+		"rarity": "epic",
+		"weight": 0.24,
+		"max_level": 2,
+		"description_template": "Laser Beam fires a delayed weaker second pulse.",
+		"effect_value": 0,
+		"archetype": "laser",
+		"tags": ["ability", "synergy", "beam", "build_defining"],
+		"is_build_defining": true,
+		"prerequisites": {"archetype_points": {"laser": 3}},
+		"effects": [
+			{"target": "ability_manager", "property": "laser_double_pulse_enabled", "operation": "set", "value": true},
+			{"target": "ability_manager", "property": "laser_second_pulse_damage_multiplier", "operation": "add", "value": 0.1, "max_value": 0.85}
+		]
+	},
+	{
+		"id": "slam_second_wave",
+		"title": "Seismic Echo",
+		"rarity": "epic",
+		"weight": 0.24,
+		"max_level": 2,
+		"description_template": "Hero Slam creates a delayed second wave at the cast position.",
+		"effect_value": 0,
+		"archetype": "slam",
+		"tags": ["ability", "synergy", "aoe", "build_defining"],
+		"is_build_defining": true,
+		"prerequisites": {"archetype_points": {"slam": 3}},
+		"effects": [
+			{"target": "ability_manager", "property": "slam_second_wave_enabled", "operation": "set", "value": true},
+			{"target": "ability_manager", "property": "slam_second_wave_damage_multiplier", "operation": "add", "value": 0.1, "max_value": 0.85},
+			{"target": "ability_manager", "property": "slam_second_wave_radius_multiplier", "operation": "add", "value": 0.1, "max_value": 1.6}
+		]
+	},
+	{
+		"id": "dash_damage_trail",
+		"title": "Comet Dash",
+		"rarity": "epic",
+		"weight": 0.26,
+		"max_level": 2,
+		"description_template": "Dash end damages nearby enemies.",
+		"effect_value": 0,
+		"archetype": "dash",
+		"tags": ["mobility", "damage", "synergy", "build_defining"],
+		"is_build_defining": true,
+		"prerequisites": {"archetype_points": {"dash": 2}},
+		"effects": [
+			{"target": "player", "property": "dash_damage_trail_enabled", "operation": "set", "value": true},
+			{"target": "player", "property": "dash_trail_damage", "operation": "add", "value": 8},
+			{"target": "player", "property": "dash_trail_radius", "operation": "add", "value": 15.0}
+		]
+	},
+	{
+		"id": "bouncing_bolts",
+		"title": "Bouncing Bolts",
+		"rarity": "epic",
+		"weight": 0.26,
+		"max_level": 3,
+		"description_template": "Projectiles can bounce to another nearby enemy.",
+		"effect_value": 0,
+		"archetype": "projectile",
+		"tags": ["weapon", "bounce", "synergy", "build_defining"],
+		"is_build_defining": true,
+		"prerequisites": {
+			"archetype_points": {"projectile": 3},
+			"any_upgrade_levels": {"projectile_pierce_up": 1, "multishot_up": 1}
+		},
+		"effects": [
+			{"target": "auto_attack", "property": "projectile_bounce", "operation": "add", "value": 1, "max_value": 5}
+		]
 	}
 ]
 
@@ -590,6 +687,15 @@ func _meets_prerequisites(definition: Dictionary) -> bool:
 	var prerequisites: Dictionary = definition.get("prerequisites", {})
 	if prerequisites.is_empty():
 		return true
+	if prerequisites.has("any_of"):
+		var any_of: Array = prerequisites["any_of"]
+		var any_nested_met := false
+		for nested in any_of:
+			if nested is Dictionary and _meets_prerequisites({"prerequisites": nested}):
+				any_nested_met = true
+				break
+		if not any_nested_met:
+			return false
 
 	# All listed archetype point thresholds must be met (AND)
 	if prerequisites.has("archetype_points"):
@@ -604,6 +710,15 @@ func _meets_prerequisites(definition: Dictionary) -> bool:
 		for upg_id in level_reqs:
 			if not _has_upgrade_level(str(upg_id), int(level_reqs[upg_id])):
 				return false
+	if prerequisites.has("any_upgrade_levels"):
+		var level_reqs: Dictionary = prerequisites["any_upgrade_levels"]
+		var any_met := false
+		for upg_id in level_reqs:
+			if _has_upgrade_level(str(upg_id), int(level_reqs[upg_id])):
+				any_met = true
+				break
+		if not any_met:
+			return false
 
 	# At least one of the listed archetype point thresholds must be met (OR)
 	if prerequisites.has("any_archetype_points"):
@@ -640,11 +755,18 @@ func _has_upgrade_level(upgrade_id: String, min_level: int = 1) -> bool:
 
 func debug_get_build_state() -> Dictionary:
 	var synergy_ids: Array[String] = []
+	var build_defining_available: Array[String] = []
+	var build_defining_selected: Array[String] = []
 	for definition in _upgrade_definitions:
 		var uid := str(definition.get("id", ""))
 		var tags: Array = definition.get("tags", [])
 		if tags.has("synergy") and get_upgrade_level(uid) > 0:
 			synergy_ids.append(uid)
+		if bool(definition.get("is_build_defining", false)):
+			if is_upgrade_available(uid):
+				build_defining_available.append(uid)
+			if get_upgrade_level(uid) > 0:
+				build_defining_selected.append(uid)
 
 	return {
 		"dominant_archetype": get_dominant_archetype(),
@@ -652,6 +774,8 @@ func debug_get_build_state() -> Dictionary:
 		"selected_upgrade_history_size": selected_upgrade_history.size(),
 		"available_upgrade_count": debug_get_available_upgrade_ids().size(),
 		"unlocked_synergy_upgrade_ids": synergy_ids,
+		"unlocked_build_defining_upgrade_ids": build_defining_available,
+		"selected_build_defining_upgrade_ids": build_defining_selected,
 	}
 
 
@@ -728,7 +852,8 @@ func _build_option(definition: Dictionary) -> Dictionary:
 		"level": current_level,
 		"max_level": max_level,
 		"description": description,
-		"is_synergy": is_synergy
+		"is_synergy": is_synergy,
+		"is_build_defining": bool(definition.get("is_build_defining", false))
 	}
 
 
@@ -799,19 +924,28 @@ func _apply_effects_array(effects: Array) -> bool:
 
 		if target_node == null:
 			push_warning("UpgradeManager: target '%s' is not set." % target_id)
-			continue
+			return false
 
 		var current = target_node.get(property)
 		if current == null:
 			push_warning("UpgradeManager: property '%s' not found on %s." % [property, target_id])
-			continue
+			return false
 
-		if current is int:
+		if current is bool:
+			if operation != "set":
+				push_warning("UpgradeManager: bool property '%s' requires operation 'set'." % property)
+				return false
+			target_node.set(property, bool(value))
+		elif current is int:
 			var int_val: int = int(current)
 			match operation:
 				"add":      int_val += int(value)
 				"subtract": int_val -= int(value)
 				"multiply": int_val = int(float(current) * float(value))
+				"set":      int_val = int(value)
+				_:
+					push_warning("UpgradeManager: unsupported operation '%s'." % operation)
+					return false
 			if max_value != null:
 				int_val = mini(int_val, int(max_value))
 			if min_value != null:
@@ -823,6 +957,10 @@ func _apply_effects_array(effects: Array) -> bool:
 				"add":      float_val += float(value)
 				"subtract": float_val -= float(value)
 				"multiply": float_val *= float(value)
+				"set":      float_val = float(value)
+				_:
+					push_warning("UpgradeManager: unsupported operation '%s'." % operation)
+					return false
 			if max_value != null:
 				float_val = minf(float_val, float(max_value))
 			if min_value != null:

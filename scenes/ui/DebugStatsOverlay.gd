@@ -87,9 +87,11 @@ func _build_stats_text() -> String:
 		var spd: float = _player.get("speed") if _player.get("speed") != null else 0.0
 		var dash_cd: float = _player.get("dash_cooldown_remaining") if _player.get("dash_cooldown_remaining") != null else 0.0
 		var invu: bool = _player.get("debug_invulnerable") if _player.get("debug_invulnerable") != null else false
+		var dash_trail: bool = _player.get("dash_damage_trail_enabled") if _player.get("dash_damage_trail_enabled") != null else false
 		lines.append("HP: %d/%d  Lvl: %d" % [hp, max_hp, lvl])
 		lines.append("XP: %d/%d  Speed: %.0f" % [xp, xp_next, spd])
 		lines.append("Dash CD: %.2fs  DBG Invu: %s" % [dash_cd, invu])
+		lines.append("Dash trail damage: %s" % dash_trail)
 	else:
 		lines.append("-- Player: null --")
 
@@ -103,9 +105,10 @@ func _build_stats_text() -> String:
 		var spread: float = _auto_attack.get("projectile_spread_degrees") if _auto_attack.get("projectile_spread_degrees") != null else 0.0
 		var size_m: float = _auto_attack.get("projectile_size_multiplier") if _auto_attack.get("projectile_size_multiplier") != null else 1.0
 		var expl: float = _auto_attack.get("projectile_explosion_radius") if _auto_attack.get("projectile_explosion_radius") != null else 0.0
+		var bounce: int = _auto_attack.get("projectile_bounce") if _auto_attack.get("projectile_bounce") != null else 0
 		lines.append("DMG: %d  Interval: %.2f  Count: %d" % [dmg, interval, count])
 		lines.append("Pierce: %d  Spread: %.0f  Size: %.2f" % [pierce, spread, size_m])
-		lines.append("Explosion R: %.0f" % expl)
+		lines.append("Explosion R: %.0f  Bounce: %d" % [expl, bounce])
 	else:
 		lines.append("-- Weapon: null --")
 
@@ -122,6 +125,9 @@ func _build_stats_text() -> String:
 		var slam_dmg: int = _ability_manager.get("slam_damage") if _ability_manager.get("slam_damage") != null else 0
 		var slam_r: float = _ability_manager.get("slam_radius") if _ability_manager.get("slam_radius") != null else 0.0
 		var slam_cd: float = _ability_manager.get("slam_cooldown") if _ability_manager.get("slam_cooldown") != null else 0.0
+		var nova_aftershock: bool = _ability_manager.get("nova_aftershock_enabled") if _ability_manager.get("nova_aftershock_enabled") != null else false
+		var laser_double: bool = _ability_manager.get("laser_double_pulse_enabled") if _ability_manager.get("laser_double_pulse_enabled") != null else false
+		var slam_second: bool = _ability_manager.get("slam_second_wave_enabled") if _ability_manager.get("slam_second_wave_enabled") != null else false
 
 		var nova_cd_remaining: float = 0.0
 		var laser_cd_remaining: float = 0.0
@@ -134,6 +140,7 @@ func _build_stats_text() -> String:
 		lines.append("Nova: dmg=%d r=%.0f cd=%.1f/%.1f" % [nova_dmg, nova_r, nova_cd_remaining, nova_cd])
 		lines.append("Laser: dmg=%d r=%.0f w=%.0f cd=%.1f/%.1f" % [laser_dmg, laser_r, laser_w, laser_cd_remaining, laser_cd])
 		lines.append("Slam: dmg=%d r=%.0f cd=%.1f/%.1f" % [slam_dmg, slam_r, slam_cd_remaining, slam_cd])
+		lines.append("Synergy: nova=%s laser2=%s slam2=%s" % [nova_aftershock, laser_double, slam_second])
 	else:
 		lines.append("-- Abilities: null --")
 
@@ -151,6 +158,10 @@ func _build_stats_text() -> String:
 			lines.append("Upgrades: %d  Synergies: %d" % [
 				build.get("selected_upgrade_history_size", 0),
 				build.get("unlocked_synergy_upgrade_ids", []).size()
+			])
+			lines.append("Build-def: %d picked / %d available" % [
+				build.get("selected_build_defining_upgrade_ids", []).size(),
+				build.get("unlocked_build_defining_upgrade_ids", []).size()
 			])
 		elif _upgrade_manager.has_method("get_dominant_archetype"):
 			lines.append("Dominant: %s" % _upgrade_manager.get_dominant_archetype())

@@ -24,6 +24,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/abilities/AbilityManager.gd` - 3-slot active ability logic, Nova/Laser/Slam, cooldown tracking, cast signals.
 - `scenes/abilities/NovaPulseFeedback.tscn` - simple in-world Nova Pulse feedback scene.
 - `scenes/abilities/NovaPulseFeedback.gd` - Nova Pulse feedback tween and cleanup logic.
+- `scenes/abilities/NovaAftershockFeedback.tscn` - delayed Nova aftershock feedback scene.
+- `scenes/abilities/NovaAftershockFeedback.gd` - aftershock ring tween and cleanup logic.
 - `scenes/abilities/LaserBeamFeedback.tscn` - in-world Laser Beam feedback scene (built-in Line2D).
 - `scenes/abilities/LaserBeamFeedback.gd` - Laser Beam feedback fade tween and cleanup logic.
 - `scenes/abilities/HeroSlamFeedback.tscn` - in-world Hero Slam feedback scene (built-in ring Line2D).
@@ -41,7 +43,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/pickups/ExperienceGem.tscn` - XP pickup scene.
 - `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
-- `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, enemy hit damage, pierce, and explosion logic.
+- `scenes/projectiles/PlayerProjectile.gd` - projectile movement, lifetime, enemy hit damage, pierce, explosion, and bounce logic.
 - `scenes/projectiles/EnemyProjectile.tscn` - enemy projectile scene.
 - `scenes/projectiles/EnemyProjectile.gd` - non-homing enemy projectile damage and lifetime logic.
 - `scenes/upgrades/UpgradeManager.tscn` - runtime upgrade manager scene.
@@ -90,7 +92,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/effects/AttackTelegraph.tscn` - short-lived visual warning zone scene (Node2D root).
 - `scenes/effects/AttackTelegraph.gd` - plays circle or line danger zone using dynamically created Line2D; fades/pulses and queue_frees; never applies damage.
 - `scenes/ui/DebugStatsOverlay.tscn` - minimal CanvasLayer root scene for the debug stats panel; all UI built programmatically in _ready().
-- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage, build archetype/points/synergies, buff/shield state, spawner wiring. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
+- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, buff/shield state, spawner wiring. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
 - `scenes/ui/VictoryScreen.tscn` - pause-time victory UI scene.
 - `scenes/ui/VictoryScreen.gd` - displays run summary on victory and emits restart_requested / quit_to_menu_requested.
 - `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, expected console log patterns).
@@ -375,15 +377,17 @@ The game is an original superhero survivors-like: the player moves around an are
 - `build_changed(dominant_archetype, points)` signal is emitted after every successful upgrade application.
 - Build-aware weighted selection: archetype bias multiplier = `1.0 + min(archetype_points * 0.12, 0.6)`. The system remains non-deterministic.
 - Diversity protection: `get_upgrade_options` tries to ensure at least 1 option from outside the dominant archetype when enough off-archetype candidates exist.
-- Synergy upgrades carry a `prerequisites` dictionary with optional keys: `archetype_points` (AND), `upgrade_levels` (AND), `any_archetype_points` (OR).
+- Synergy upgrades carry a `prerequisites` dictionary with optional keys: `archetype_points` (AND), `upgrade_levels` (AND), `any_archetype_points` (OR), `any_upgrade_levels` (OR), and `any_of` (OR over nested prerequisite dictionaries).
 - `is_upgrade_available` checks max_level AND prerequisites. Locked synergy upgrades never appear in the option pool.
-- Synergy upgrades use an `effects: Array[Dictionary]` field; `_apply_effects_array` handles them with per-property int/float awareness and optional min/max clamping.
+- Synergy upgrades use an `effects: Array[Dictionary]` field; `_apply_effects_array` handles bool/int/float properties, supports `add`, `subtract`, `multiply`, and `set`, applies optional min/max clamping, and fails safely on invalid target/property/operation.
+- Build-defining synergy upgrades set `is_build_defining = true`; LevelUpScreen appends `BUILD DEFINING`, and DebugStatsOverlay reports selected/available build-defining counts.
+- Build-defining v4 upgrades: Aftershock Zone, Double Pulse, Seismic Echo, Comet Dash, and Bouncing Bolts.
 - Base upgrades retain their `effect_value` + match-statement path unchanged.
 - `heroic_endurance` uses the existing `_apply_max_health_upgrade` helper via the match statement.
 - Public methods added: `get_archetype_points`, `get_dominant_archetype`, `get_selected_upgrade_history`, `get_upgrade_definition_summary`.
 - Prerequisite helpers: `_meets_prerequisites`, `_get_tag_count`, `_get_archetype_count`, `_has_upgrade_level`.
 - Debug helpers (not bound to keys): `debug_get_available_upgrade_ids`, `debug_print_upgrade_pool`.
-- `LevelUpScreen._format_option_text` now shows `[RARITY] [ARCHETYPE]` and appends `SYNERGY` for synergy upgrades.
+- `LevelUpScreen._format_option_text` now shows `[RARITY] [ARCHETYPE]`, appends `SYNERGY` for synergy upgrades, and appends `BUILD DEFINING` for build-defining upgrades.
 - `GameHUD` connects to `build_changed` via `setup_upgrade_manager(upgrade_manager)` and displays "Build: Archetype" or "Build: Mixed".
 - Arena calls `hud.setup_upgrade_manager(upgrade_manager)` inside `_setup_level_up_flow` after `upgrade_manager.setup(...)`.
 - UpgradeManager remains the owner of the upgrade pool and all run build state.
@@ -444,6 +448,17 @@ The game is an original superhero survivors-like: the player moves around an are
 - Cooldowns pause naturally while the tree is paused.
 - `Player.get_aim_direction()` returns the last non-zero movement direction; Laser Beam uses this as its cast direction.
 - Ability enemy scans happen only on cast, not every frame.
+- Ability synergy delayed hits are owned by AbilityManager and stay anchored to their original cast origin/direction.
+- Nova Aftershock uses `NovaAftershockFeedback`; Laser Double Pulse and Slam Second Wave reuse the existing Laser/Slam feedback scenes at the delayed cast position.
+
+## Build Synergy v4 Notes
+
+- `AbilityManager` owns Nova Aftershock, Laser Double Pulse, and Slam Second Wave runtime state/effects.
+- `Player` owns dash damage trail state and applies the Comet Dash damage burst when dash ends.
+- `PlayerAutoAttack` owns bounce configuration and passes it into spawned `PlayerProjectile` instances.
+- `PlayerProjectile` owns per-projectile bounce target selection and never damages the same enemy twice from the same projectile instance.
+- `UpgradeManager` owns all build-defining unlock rules and effect application.
+- `LevelUpScreen`, `GameHUD`, and `DebugStatsOverlay` are display-only for build/synergy information.
 
 ## Input Flow
 
@@ -482,9 +497,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - Upgrade codex or full upgrade history UI.
 - Persistent builds or meta-progression.
 - Data-driven Resource upgrade files.
-- Secondary delayed damage on abilities.
 - Stun or knockback from abilities.
-- Bounce or chain-lightning projectiles.
+- Chain-lightning projectiles.
 - Permanent shield regeneration.
 - New pickup types.
 - Boss-specific art assets.
@@ -499,12 +513,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - Pickup object pooling.
 - Advanced particle effects for powerups.
 - Upgrade icons or Resource-backed data.
-- Bounce projectiles.
 - Chain lightning.
 - Critical hits.
 - Elemental/status effects.
 - Projectile pooling.
-- Dash damage.
 - Dash trail particles.
 - Stamina.
 - Advanced dodge perks.

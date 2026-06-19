@@ -221,6 +221,17 @@ Implemented foundation:
   - UpgradeManager.debug_get_build_state(): returns dominant_archetype, archetype_points, history size, available count, unlocked synergy IDs.
   - docs/validation/gameplay_validation.md: manual test checklist for all systems.
 
+### Ability & Build Synergy v4
+
+- **Build-defining upgrades** - synergy upgrades can now be marked as build-defining; LevelUpScreen displays `BUILD DEFINING` on those options.
+- **Nova Aftershock Zone** - Nova Pulse can create a delayed second area hit at the cast position with its own feedback ring.
+- **Laser Double Pulse** - Laser Beam can fire a delayed weaker second beam from the original cast origin and direction.
+- **Slam Second Wave** - Hero Slam can create a delayed second wave at the original slam position.
+- **Comet Dash** - dash can damage nearby enemies when the dash ends.
+- **Bouncing Bolts** - player projectiles can bounce from a hit enemy to another nearby valid enemy.
+- UpgradeManager effect arrays now support `set` operations for bool/int/float properties and fail safely when a target/property/operation is invalid.
+- DebugStatsOverlay shows dash trail state, projectile bounce count, ability synergy flags, and build-defining option counts.
+
 ### Run Progression & Victory
 
 - **Run target duration** — 10 minutes (600 seconds) by default, configurable per RunManager inspector.
@@ -261,12 +272,10 @@ Not implemented yet:
 - Powerup upgrade scaling.
 - Pickup object pooling.
 - Advanced particle effects for powerups.
-- Bounce projectiles.
 - Chain lightning.
 - Critical hits.
 - Elemental/status effects.
 - Projectile pooling.
-- Dash damage.
 - Dash trail particles.
 - Stamina.
 - Advanced dodge perks.

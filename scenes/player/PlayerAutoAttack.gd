@@ -11,6 +11,8 @@ extends Node
 @export var projectile_size_multiplier: float = 1.0
 @export var projectile_explosion_radius: float = 0.0
 @export var projectile_explosion_damage_multiplier: float = 0.6
+@export var projectile_bounce: int = 0
+@export var projectile_bounce_range: float = 260.0
 @export var projectile_scene: PackedScene
 
 var projectile_container: Node
@@ -157,6 +159,8 @@ func _spawn_projectile(enemy: Node2D, direction: Vector2, spawn_offset: Vector2 
 			"size_multiplier": projectile_size_multiplier,
 			"explosion_radius": projectile_explosion_radius,
 			"explosion_damage_multiplier": projectile_explosion_damage_multiplier,
+			"bounce": projectile_bounce,
+			"bounce_range": projectile_bounce_range,
 			"homing_enabled": homing_enabled,
 			"attack_id": attack_id,
 			"projectile_index": projectile_index,
@@ -213,6 +217,7 @@ func get_weapon_stats() -> Dictionary:
 		"projectile_pierce": projectile_pierce,
 		"projectile_size_multiplier": projectile_size_multiplier,
 		"projectile_explosion_radius": projectile_explosion_radius,
+		"projectile_bounce": projectile_bounce,
 	}
 
 

@@ -1,12 +1,14 @@
-[gd_scene load_steps=5 format=3 uid="uid://ability_manager_superheroes"]
+[gd_scene load_steps=6 format=3 uid="uid://ability_manager_superheroes"]
 
 [ext_resource type="Script" path="res://scenes/abilities/AbilityManager.gd" id="1_ability_manager_script"]
 [ext_resource type="PackedScene" path="res://scenes/abilities/NovaPulseFeedback.tscn" id="2_nova_pulse_feedback"]
 [ext_resource type="PackedScene" path="res://scenes/abilities/LaserBeamFeedback.tscn" id="3_laser_beam_feedback"]
 [ext_resource type="PackedScene" path="res://scenes/abilities/HeroSlamFeedback.tscn" id="4_hero_slam_feedback"]
+[ext_resource type="PackedScene" path="res://scenes/abilities/NovaAftershockFeedback.tscn" id="5_aftershock_feedback"]
 
 [node name="AbilityManager" type="Node"]
 script = ExtResource("1_ability_manager_script")
 pulse_feedback_scene = ExtResource("2_nova_pulse_feedback")
+nova_aftershock_feedback_scene = ExtResource("5_aftershock_feedback")
 laser_feedback_scene = ExtResource("3_laser_beam_feedback")
 slam_feedback_scene = ExtResource("4_hero_slam_feedback")

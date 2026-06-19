@@ -15,6 +15,8 @@ var pierce_remaining: int = 0
 var size_multiplier: float = 1.0
 var explosion_radius: float = 0.0
 var explosion_damage_multiplier: float = 0.6
+var bounce_remaining: int = 0
+var bounce_range: float = 260.0
 var homing_enabled: bool = true
 var attack_id: int = -1
 var projectile_index: int = 0
@@ -48,6 +50,10 @@ func setup(origin: Vector2, new_target: Node2D, new_damage: int, extra_data: Dic
 		explosion_radius = maxf(float(extra_data["explosion_radius"]), 0.0)
 	if extra_data.has("explosion_damage_multiplier"):
 		explosion_damage_multiplier = maxf(float(extra_data["explosion_damage_multiplier"]), 0.0)
+	if extra_data.has("bounce"):
+		bounce_remaining = maxi(int(extra_data["bounce"]), 0)
+	if extra_data.has("bounce_range"):
+		bounce_range = maxf(float(extra_data["bounce_range"]), 0.0)
 	if extra_data.has("homing_enabled"):
 		homing_enabled = bool(extra_data["homing_enabled"])
 	if extra_data.has("attack_id"):
@@ -91,6 +97,9 @@ func _on_body_entered(body: Node2D) -> void:
 	if not _try_hit_enemy(body):
 		return
 
+	if _try_bounce_to_next_enemy(body):
+		return
+
 	if _should_destroy_after_hit():
 		queue_free()
 	else:
@@ -124,6 +133,37 @@ func _register_enemy_hit(enemy: Node2D) -> void:
 
 func _should_destroy_after_hit() -> bool:
 	return pierce_remaining <= 0
+
+
+func _try_bounce_to_next_enemy(hit_enemy: Node2D) -> bool:
+	if bounce_remaining <= 0 or bounce_range <= 0.0:
+		return false
+
+	var next_enemy := _find_nearest_bounce_enemy(hit_enemy.global_position)
+	if next_enemy == null:
+		return false
+
+	bounce_remaining -= 1
+	target = next_enemy
+	homing_enabled = true
+	var offset := next_enemy.global_position - global_position
+	if not offset.is_zero_approx():
+		direction = offset.normalized()
+	return true
+
+
+func _find_nearest_bounce_enemy(origin: Vector2) -> Node2D:
+	var nearest: Node2D
+	var nearest_distance := INF
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if _hit_enemies.has(node) or not _is_valid_enemy(node):
+			continue
+		var enemy := node as Node2D
+		var distance := origin.distance_squared_to(enemy.global_position)
+		if distance <= bounce_range * bounce_range and distance < nearest_distance:
+			nearest_distance = distance
+			nearest = enemy
+	return nearest
 
 
 func _spawn_hit_spark(world_position: Vector2) -> void:

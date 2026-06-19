@@ -41,6 +41,7 @@ func _format_option_text(option: Dictionary) -> String:
 	var rarity := str(option.get("rarity", "common")).to_upper()
 	var archetype := str(option.get("archetype", ""))
 	var is_synergy := bool(option.get("is_synergy", false))
+	var is_build_defining := bool(option.get("is_build_defining", false))
 	var title := str(option.get("title", "Upgrade"))
 	var level := int(option.get("level", 0))
 	var max_level := int(option.get("max_level", 1))
@@ -51,6 +52,8 @@ func _format_option_text(option: Dictionary) -> String:
 		header = "[%s] [%s]" % [rarity, archetype.to_upper()]
 	if is_synergy:
 		header = "%s  SYNERGY" % header
+	if is_build_defining:
+		header = "%s  BUILD DEFINING" % header
 
 	return "%s %s\nLevel %d -> %d / %d\n%s" % [
 		header,
