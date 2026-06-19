@@ -107,7 +107,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, buff/shield state, spawner wiring. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
 - `scenes/ui/VictoryScreen.tscn` - pause-time victory UI scene.
 - `scenes/ui/VictoryScreen.gd` - displays run summary on victory and emits restart_requested / quit_to_menu_requested.
-- `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, expected console log patterns).
+- `scenes/meta/MetaProgressionManager.tscn` - persistent meta manager node scene (instantiated at runtime by Main).
+- `scenes/meta/MetaProgressionManager.gd` - owns soft currency, meta upgrade levels, hero unlock state, lifetime stats, and save/load to user://superheroes_meta_progress.json. Calculates and applies run rewards. Never called directly by Arena.
+- `scenes/meta/MetaApplier.gd` - static helper; applies purchased meta bonuses to Player, AutoAttack, and pickup_radius_bonus. Called by Arena after HeroApplier at run start.
+- `scenes/ui/PostRunRewardsScreen.tscn` - post-run reward display CanvasLayer scene (instantiated at runtime by Main).
+- `scenes/ui/PostRunRewardsScreen.gd` - display-only reward breakdown screen. Emits continue_requested. Shown between V/GO result screen and the next action (restart or menu).
+- `scenes/ui/MetaUpgradeShop.tscn` - meta upgrade shop CanvasLayer scene (instantiated at runtime by Main).
+- `scenes/ui/MetaUpgradeShop.gd` - display-only Training shop UI. Shows meta upgrade levels and costs. Emits buy_requested; Main handles the purchase. Accessed via "Training" button on MainMenu.
+- `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, meta progression/rewards, expected console log patterns).
 
 ## Miniboss Combat Architecture
 
@@ -194,6 +201,22 @@ The game is an original superhero survivors-like: the player moves around an are
 - Evolutions are runtime-only and reset naturally with every new Arena.
 - Miniboss defeat is the main evolution reward path; elite rewards are optional through `elite_reward_chance` and default to off.
 - Do not add persistence, meta-progression, evolution unlock storage, or evolution art assets unless explicitly requested.
+
+## Meta Progression Architecture
+
+- `Main` owns `MetaProgressionManager`, `PostRunRewardsScreen`, and `MetaUpgradeShop`. All three are loaded and instantiated at runtime in `Main._ready()` via `load().instantiate()` — do not add them to Main.tscn directly.
+- `Arena` emits `run_result_ready(summary: Dictionary)` before pausing the tree for the V/GO result screen. Arena never calls MetaProgressionManager directly.
+- `Main._on_run_result_ready(summary)` calls `MetaProgressionManager.apply_run_result(summary)`, stores the reward data, and marks rewards as pending (`_rewards_shown = false`).
+- When the player clicks Restart or Menu from the V/GO screen, Main intercepts via `_check_and_show_rewards(pending_action)`. If rewards have not been shown, it re-pauses the tree, opens PostRunRewardsScreen, and defers the action as `_pending_action`.
+- `PostRunRewardsScreen.continue_requested` → Main hides the screen, unpauses, and executes the pending action (`_do_restart_run` or `_do_quit_to_menu`).
+- `MetaApplier.apply_meta_progression(meta_manager, player, auto_attack, ability_manager)` is called by Arena after `_apply_selected_hero`, applying bonuses in this order: GameplayTuning → HeroApplier → MetaApplier. MetaApplier is loaded dynamically via `load("res://scenes/meta/MetaApplier.gd")`.
+- `MetaUpgradeShop` emits `buy_requested(upgrade_id)` → `Main._on_meta_buy_requested(upgrade_id)` → `MetaProgressionManager.buy_meta_upgrade(upgrade_id)`. The shop is display-only.
+- `MainMenu` emits `meta_shop_requested` → `Main._open_meta_shop()` hides MainMenu and opens MetaUpgradeShop. Shop back → `Main._close_meta_shop()` closes shop and re-shows MainMenu.
+- `CharacterSelect.setup(hero_data_provider, meta_progression_manager)` accepts optional MetaProgressionManager. If provided and `is_hero_unlocked()` returns false, the hero button shows "[LOCKED — N currency]" and the start button is disabled. Currently all heroes are `unlocked_by_default: true` so no locking occurs in practice.
+- `Player.pickup_radius_bonus` is a `@export float = 0.0`. `ExperienceGem._update_target_player()` reads it safely via `player_node.get("pickup_radius_bonus") or 0.0` to extend the magnet radius without hard coupling.
+- `MetaProgressionManager` save format: JSON, versioned (`save_version: 1`). Keys: `currency`, `meta_upgrades` (dict of id→level), `unlocked_heroes` (array), `total_runs`, `total_victories`, `best_kill_count`, `total_kills`, `total_currency_earned`. Corrupt or missing saves start fresh.
+- `reset_progress()` is available for remote console use only. No key binding.
+- `DebugStatsOverlay.setup_meta_manager(meta_manager)` wires the overlay to show currency, run/win counts, and non-zero upgrade levels in a "-- Meta --" section (visible while F12 debug mode is active).
 
 ## Implemented Systems
 
@@ -549,7 +572,6 @@ The game is an original superhero survivors-like: the player moves around an are
 - Stage-specific evolutions.
 - Stage selection.
 - Arena hazards.
-- Persistent builds or meta-progression.
 - Data-driven Resource upgrade files.
 - Stun or knockback from abilities.
 - Chain-lightning projectiles.
@@ -600,13 +622,13 @@ The game is an original superhero survivors-like: the player moves around an are
 - XP vacuum upgrades.
 - Bosses.
 - Biome or arena progression.
-- Persistent records.
-- Persistent high scores or saved run history.
-- Persistent progression.
-- Save persistence.
-- Meta-progression.
-- Yandex SDK integration.
-- Ads, payments, monetization, leaderboards, or saves.
+- Advanced hero unlock purchase UI (hero is visible as locked but no buy flow beyond the shop exists yet).
+- Online leaderboard.
+- Cloud save / Yandex save.
+- Ads, paid purchases, or monetization.
+- Achievements.
+- Prestige or season resets.
+- Persistent high scores or saved run history beyond total_runs/total_victories.
 
 ## Validation Notes
 
@@ -619,9 +641,9 @@ The game is an original superhero survivors-like: the player moves around an are
 
 - README.md and Agents.md must be updated on every task.
 - docs/validation/gameplay_validation.md must be updated for new gameplay flows.
-- Do not add persistence unless explicitly requested.
 - Do not add arena hazards.
-- Do not add meta-progression or persistence.
+- Do not add online backend, leaderboards, cloud save, ads, or paid purchases.
+- Meta-progression save is local only (user://superheroes_meta_progress.json). Do not add Yandex or cloud save unless explicitly requested.
 - Do not re-enable Player/Enemy physical body collisions.
 - Debug tools (F3–F8) must only do anything while Debug Mode is ON (F12/F10). Normal gameplay must remain unchanged.
 - Arena coordinates all debug actions. DebugManager owns debug state and emits request signals. DebugStatsOverlay is display-only.

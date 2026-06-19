@@ -252,6 +252,31 @@ Implemented foundation:
 - Selected hero appears in GameHUD and in Victory/GameOver run summaries.
 - Restart from Victory/GameOver keeps the same selected hero; returning to MainMenu allows choosing a different hero.
 
+### Post-Run Rewards & Meta Progression v1
+
+- **Soft currency** — earned after every run (victory or defeat) and persisted in `user://superheroes_meta_progress.json`.
+- **Reward formula**: base participation (10) + time bonus (floor(time/30)×2) + kill bonus (floor(kills/10)) + elite kills (×5) + miniboss kills (×15) + victory bonus (+40) + evolution bonus (×10) + reward-training bonus.
+- **PostRunRewardsScreen** — appears between the Victory/GameOver result screen and the next action (restart or main menu). Shows the full reward breakdown and new currency total. Display-only; Continue button returns to the pending action.
+- **MetaProgressionManager** — persistent Node in Main; owns save/load, currency, meta upgrades, hero unlock state, and lifetime stats. Saves to `user://superheroes_meta_progress.json` (JSON, versioned). Handles corrupt/missing save safely by starting fresh.
+- **MetaUpgradeShop (Training)** — accessible from MainMenu via the new "Training" button. Shows all meta upgrade definitions with current level, next cost, and a Buy button. Display-only except emitting buy intent to Main.
+- **Meta upgrades** (persist between runs):
+  - **Training: Vitality** — +5 max HP per level (max 10).
+  - **Training: Power** — +1 starting attack damage per level (max 10).
+  - **Training: Awareness** — +8 XP pickup/magnet radius per level (max 8).
+  - **Training: Mobility** — +3 starting movement speed per level (max 8).
+  - **Training: Rewards** — +2 currency after each run per level (max 5).
+- **MetaApplier** — static helper called at Arena start (after HeroApplier) to apply purchased meta bonuses to Player, AutoAttack, and pickup radius.
+- **Hero unlock foundation** — heroes carry `unlocked_by_default` and `unlock_cost` fields. CharacterSelect accepts optional MetaProgressionManager and shows locked state. All three heroes are currently unlocked by default to avoid blocking testing.
+- **Persistent local save** — `user://superheroes_meta_progress.json`. Saved after every purchase and every run result. Safe to delete to reset manually. No cloud save, no online services.
+
+Not implemented yet (meta):
+- Advanced hero unlock purchase UI.
+- Online leaderboard.
+- Cloud save / Yandex save.
+- Ads, paid purchases, or monetization.
+- Achievements.
+- Prestige or season resets.
+
 ### Weapon / Ability Evolution System
 
 - **EvolutionManager** owns runtime-only evolution definitions and applied evolution state for the current run.

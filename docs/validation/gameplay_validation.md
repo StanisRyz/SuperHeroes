@@ -238,6 +238,44 @@ Remember to uncheck `use_debug_run_duration` before building for release.
 
 ---
 
+## Meta Progression / Rewards
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Finish a run with defeat | PostRunRewardsScreen appears before restart/menu; currency is awarded |
+| 2 | Finish a run with victory | Victory bonus (+40) appears in reward screen; currency earned |
+| 3 | Kill elites before run ends | Elite reward (+5 per kill) reflected in reward breakdown |
+| 4 | Kill miniboss before run ends | Miniboss reward (+15) reflected in reward breakdown |
+| 5 | Apply evolutions during run | Evolution bonus (+10 per) shown in reward breakdown |
+| 6 | Click Continue on reward screen | Returns to pending action (restart or main menu) |
+| 7 | Restart run after rewards | New run starts; reward screen does NOT appear again for same run |
+| 8 | Main Menu after rewards | Returns to MainMenu; currency persists |
+| 9 | Start game a second time | Currency from previous run is still shown in Training shop |
+| 10 | Press Training from MainMenu | MetaUpgradeShop opens with upgrade list and current currency |
+| 11 | Buy an upgrade (enough currency) | Currency decreases; upgrade level increases; buy button updates |
+| 12 | Buy same upgrade again | Cost increases; next level reflected correctly |
+| 13 | Try to buy maxed upgrade | Buy button shows MAX and is disabled |
+| 14 | Try to buy with insufficient currency | Buy button is disabled; purchase rejected |
+| 15 | Start new run after buying max health | Player starts with +5 HP per level purchased |
+| 16 | Start new run after buying attack damage | Auto attack damage starts higher than base |
+| 17 | Start new run after buying move speed | Player moves noticeably faster at run start |
+| 18 | Start new run after buying reward bonus | Reward bonus row shows +2 per level in next reward screen |
+| 19 | Delete save file (user://superheroes_meta_progress.json) and restart | Game starts fresh with 0 currency and default unlocked heroes |
+| 20 | Corrupt save file contents and restart | push_warning in console; game starts fresh with defaults |
+| 21 | Enable Debug Mode (F12) | DebugStatsOverlay shows -- Meta -- section with currency and run counts |
+| 22 | Buy upgrade then check F7 / overlay | Overlay reflects updated meta upgrade levels |
+| 23 | Reset progress via MetaProgressionManager.reset_progress() in remote console | Currency resets to 0; save file updated |
+
+### How to reset progress (debug only)
+In the Godot remote inspector or editor console, call:
+```gdscript
+get_tree().current_scene.meta_progression_manager.reset_progress()
+```
+Or access it from Main node in the scene tree inspector and call reset_progress() from the Remote tab.
+Do NOT bind a key to reset_progress in gameplay code; this could cause accidental data loss.
+
+---
+
 ## Console Diagnostic Patterns
 
 Expected log lines only when verbose debug/powerup logging is enabled in the Inspector:

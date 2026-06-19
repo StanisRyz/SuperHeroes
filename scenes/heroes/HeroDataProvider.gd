@@ -9,6 +9,8 @@ var _heroes: Array[Dictionary] = [
 		"subtitle": "Steady protector",
 		"description": "Balanced and beginner-friendly. Starts slightly tankier for safer early runs.",
 		"playstyle": "Balanced / beginner-friendly",
+		"unlocked_by_default": true,
+		"unlock_cost": 0,
 		"stats": {
 			"max_health": 120,
 			"speed": 245.0,
@@ -25,6 +27,8 @@ var _heroes: Array[Dictionary] = [
 		"subtitle": "Projectile specialist",
 		"description": "Projectile-focused hero. Starts with extra firepower and one additional projectile.",
 		"playstyle": "Projectile-focused",
+		"unlocked_by_default": true,
+		"unlock_cost": 100,
 		"stats": {
 			"max_health": 90,
 			"speed": 265.0,
@@ -41,6 +45,8 @@ var _heroes: Array[Dictionary] = [
 		"subtitle": "Burst ability striker",
 		"description": "Ability-focused hero. Trades no durability for stronger bursts and faster cooldowns.",
 		"playstyle": "Ability / burst-focused",
+		"unlocked_by_default": true,
+		"unlock_cost": 150,
 		"stats": {
 			"max_health": 100,
 			"speed": 275.0,

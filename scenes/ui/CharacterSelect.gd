@@ -4,6 +4,7 @@ signal hero_confirmed(hero_id: String)
 signal back_requested
 
 var hero_data_provider: Node
+var meta_progression_manager: Node = null
 var _heroes: Array[Dictionary] = []
 var _selected_hero_id: String = ""
 var _hero_buttons: Dictionary = {}
@@ -25,8 +26,9 @@ func _ready() -> void:
 	hide()
 
 
-func setup(new_hero_data_provider: Node) -> void:
+func setup(new_hero_data_provider: Node, new_meta_progression_manager: Node = null) -> void:
 	hero_data_provider = new_hero_data_provider
+	meta_progression_manager = new_meta_progression_manager
 	_reload_heroes()
 
 
@@ -162,10 +164,15 @@ func _reload_heroes() -> void:
 
 	for hero in _heroes:
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(320, 72)
-		button.text = "%s\n%s" % [hero.get("display_name", "Hero"), hero.get("playstyle", "")]
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		var hero_id := str(hero.get("id", ""))
+		var locked := _is_hero_locked(hero)
+		button.custom_minimum_size = Vector2(320, 72)
+		if locked:
+			var unlock_cost := int(hero.get("unlock_cost", 0))
+			button.text = "%s\n[LOCKED — %d currency]" % [hero.get("display_name", "Hero"), unlock_cost]
+		else:
+			button.text = "%s\n%s" % [hero.get("display_name", "Hero"), hero.get("playstyle", "")]
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.pressed.connect(_select_hero.bind(hero_id))
 		_cards_box.add_child(button)
 		_hero_buttons[hero_id] = button
@@ -215,6 +222,11 @@ func _refresh_details() -> void:
 		lines.append("Slam damage: +%d" % int(stats.get("slam_damage_bonus", 0)))
 	_stats_label.text = "\n".join(lines)
 
+	var selected_locked := _is_hero_locked(hero)
+	if _start_button != null:
+		_start_button.disabled = selected_locked
+		_start_button.text = "Start Run" if not selected_locked else "Locked"
+
 	for hero_id in _hero_buttons:
 		var button := _hero_buttons[hero_id] as Button
 		button.disabled = hero_id == _selected_hero_id
@@ -234,9 +246,21 @@ func _has_hero(hero_id: String) -> bool:
 	return false
 
 
+func _is_hero_locked(hero: Dictionary) -> bool:
+	if bool(hero.get("unlocked_by_default", true)):
+		return false
+	if meta_progression_manager == null or not meta_progression_manager.has_method("is_hero_unlocked"):
+		return false
+	return not meta_progression_manager.is_hero_unlocked(str(hero.get("id", "")))
+
+
 func _on_start_pressed() -> void:
-	if not _selected_hero_id.is_empty():
-		hero_confirmed.emit(_selected_hero_id)
+	if _selected_hero_id.is_empty():
+		return
+	var hero := _get_selected_hero()
+	if not hero.is_empty() and _is_hero_locked(hero):
+		return
+	hero_confirmed.emit(_selected_hero_id)
 
 
 func _on_back_pressed() -> void:

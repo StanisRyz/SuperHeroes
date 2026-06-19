@@ -13,6 +13,7 @@ var _enemy_container: Node = null
 var _projectile_container: Node = null
 var _pickup_container: Node = null
 var _evolution_manager: Node = null
+var _meta_manager: Node = null
 
 var _debug_enabled: bool = false
 var _refresh_timer: float = 0.0
@@ -30,14 +31,14 @@ func _build_ui() -> void:
 	var bg := ColorRect.new()
 	bg.color = Color(0.0, 0.0, 0.0, 0.68)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.size = Vector2(336.0, 590.0)
+	bg.size = Vector2(336.0, 650.0)
 	bg.position = Vector2(4.0, 4.0)
 	add_child(bg)
 
 	_stats_label = Label.new()
 	_stats_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stats_label.position = Vector2(10.0, 8.0)
-	_stats_label.size = Vector2(320.0, 580.0)
+	_stats_label.size = Vector2(320.0, 640.0)
 	_stats_label.add_theme_font_size_override("font_size", 11)
 	_stats_label.text = "DEBUG OFF"
 	add_child(_stats_label)
@@ -58,6 +59,10 @@ func setup(p_player: Node, p_auto_attack: Node, p_ability_manager: Node, p_upgra
 
 func setup_evolution_manager(evolution_manager: Node) -> void:
 	_evolution_manager = evolution_manager
+
+
+func setup_meta_manager(meta_manager: Node) -> void:
+	_meta_manager = meta_manager
 
 
 func set_debug_enabled(enabled: bool) -> void:
@@ -241,6 +246,28 @@ func _build_stats_text() -> String:
 			lines.append("(no wiring state method)")
 	else:
 		lines.append("-- Spawner: null --")
+
+	if _meta_manager != null and is_instance_valid(_meta_manager):
+		lines.append("-- Meta --")
+		if _meta_manager.has_method("get_currency"):
+			lines.append("Currency: %d" % int(_meta_manager.get_currency()))
+		if _meta_manager.has_method("get_progress_summary"):
+			var ps: Dictionary = _meta_manager.get_progress_summary()
+			lines.append("Runs: %d  Wins: %d" % [int(ps.get("total_runs", 0)), int(ps.get("total_victories", 0))])
+		if _meta_manager.has_method("get_meta_upgrade_definitions"):
+			var defs: Array[Dictionary] = _meta_manager.get_meta_upgrade_definitions()
+			var ups: PackedStringArray = []
+			for def in defs:
+				var uid := str(def.get("id", ""))
+				var lvl := 0
+				if _meta_manager.has_method("get_meta_upgrade_level"):
+					lvl = int(_meta_manager.get_meta_upgrade_level(uid))
+				if lvl > 0:
+					ups.append("%s:%d" % [uid.replace("meta_", ""), lvl])
+			if ups.is_empty():
+				lines.append("Upgrades: none")
+			else:
+				lines.append("Upgrades: %s" % ", ".join(ups))
 
 	return "\n".join(lines)
 

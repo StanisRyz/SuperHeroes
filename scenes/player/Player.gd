@@ -17,6 +17,7 @@ signal invulnerability_changed(is_invulnerable: bool)
 @export var dash_duration: float = 0.16
 @export var dash_cooldown: float = 1.2
 @export var dash_invulnerability_duration: float = 0.25
+@export var pickup_radius_bonus: float = 0.0
 @export var dash_burst_scene: PackedScene
 @export var dash_damage_trail_enabled: bool = false
 @export var dash_trail_damage: int = 18

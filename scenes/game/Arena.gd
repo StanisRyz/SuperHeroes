@@ -2,15 +2,18 @@ extends Node2D
 
 signal restart_run_requested
 signal quit_to_menu_requested
+signal run_result_ready(summary: Dictionary)
 
 @export var arena_size: Vector2 = Vector2(4000.0, 4000.0)
 @export var debug_input_logging: bool = false
 
 var settings_manager: Node
 var audio_manager: Node
+var meta_manager: Node = null
 var hero_data: Dictionary = {}
 var hero_id: String = ""
 var hero_display_name: String = ""
+var _run_result_emitted := false
 
 @onready var player: Node = get_node_or_null("Player")
 @onready var enemy_container: Node = get_node_or_null("EnemyContainer")
@@ -46,9 +49,10 @@ const DEBUG_XP_AMOUNT: int = 50
 const EVOLUTION_REWARD_OPTION_COUNT: int = 3
 
 
-func setup(new_settings_manager: Node = null, new_audio_manager: Node = null, selected_hero: Dictionary = {}) -> void:
+func setup(new_settings_manager: Node = null, new_audio_manager: Node = null, selected_hero: Dictionary = {}, new_meta_manager: Node = null) -> void:
 	settings_manager = new_settings_manager
 	audio_manager = new_audio_manager
+	meta_manager = new_meta_manager
 	hero_data = selected_hero.duplicate(true)
 	hero_id = str(hero_data.get("id", ""))
 	hero_display_name = str(hero_data.get("display_name", ""))
@@ -81,6 +85,7 @@ func _ready() -> void:
 	var ability_manager := player.get_node_or_null("AbilityManager")
 	var auto_attack := player.get_node_or_null("AutoAttack")
 	_apply_selected_hero(auto_attack, ability_manager)
+	_apply_meta_progression(auto_attack, ability_manager)
 
 	if ability_manager == null:
 		push_warning("Arena could not find Player/AbilityManager node.")
@@ -166,6 +171,16 @@ func _apply_selected_hero(auto_attack: Node, ability_manager: Node) -> void:
 	applier_script.apply_hero(hero_data, player, auto_attack, ability_manager)
 	if hero_display_name.is_empty():
 		hero_display_name = str(hero_data.get("display_name", ""))
+
+
+func _apply_meta_progression(auto_attack: Node, ability_manager: Node) -> void:
+	if meta_manager == null:
+		return
+	var applier_script: Script = load("res://scenes/meta/MetaApplier.gd")
+	if applier_script == null:
+		push_warning("Arena: MetaApplier.gd not found.")
+		return
+	applier_script.apply_meta_progression(meta_manager, player, auto_attack, ability_manager)
 
 
 # Upgrade and player systems
@@ -492,6 +507,10 @@ func _on_victory_reached(stats: Dictionary) -> void:
 	var summary := _build_run_summary(stats)
 	summary["result"] = "victory"
 
+	if not _run_result_emitted:
+		_run_result_emitted = true
+		run_result_ready.emit(summary)
+
 	if level_up_screen != null:
 		level_up_screen.hide()
 	if pause_menu != null and pause_menu.has_method("close"):
@@ -633,6 +652,8 @@ func _setup_debug_stats_overlay() -> void:
 		_debug_stats_overlay.setup(player, auto_attack, ability_manager, upgrade_manager, powerup_manager, enemy_spawner, run_manager, enemy_container, projectile_container, pickup_container)
 		if _debug_stats_overlay.has_method("setup_evolution_manager"):
 			_debug_stats_overlay.setup_evolution_manager(evolution_manager)
+		if _debug_stats_overlay.has_method("setup_meta_manager"):
+			_debug_stats_overlay.setup_meta_manager(meta_manager)
 
 	var is_debug: bool = debug_manager != null and debug_manager.has_method("is_debug_enabled") and debug_manager.is_debug_enabled()
 	if _debug_stats_overlay.has_method("set_debug_enabled"):
@@ -749,6 +770,10 @@ func _on_player_died() -> void:
 
 	var summary := _build_run_summary(stats)
 	summary["result"] = "defeat"
+
+	if not _run_result_emitted:
+		_run_result_emitted = true
+		run_result_ready.emit(summary)
 
 	if level_up_screen != null:
 		level_up_screen.hide()
