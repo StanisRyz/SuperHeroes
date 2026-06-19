@@ -144,6 +144,8 @@ func _ready() -> void:
 			hud.set_hero_name(hero_display_name)
 		if hud.has_method("set_stage_name"):
 			hud.set_stage_name(stage_display_name)
+		if hud.has_method("set_primary_weapon_name") and auto_attack != null and auto_attack.has_method("get_primary_weapon_display_name"):
+			hud.set_primary_weapon_name(auto_attack.get_primary_weapon_display_name())
 		if hud.has_method("setup_evolution_manager"):
 			hud.setup_evolution_manager(evolution_manager)
 	else:

@@ -468,6 +468,25 @@ The game is an original superhero survivors-like: the player moves around an are
 - EventAnnouncement fade-in/out label for event names.
 - Guaranteed powerup drop for elite and miniboss enemies.
 
+## Primary Weapon / Autoattack Architecture
+
+- `HeroDataProvider` stores a `primary_weapon` dictionary on every hero: `weapon_id` (stable string id), `display_name`, and weapon-specific default property overrides (`projectile_speed`, `projectile_size_multiplier`, `projectile_pierce`, `projectile_bounce`, `attack_range`, `direct_damage`).
+- Stable hero primary weapon ids: `guardian` → `solar_bolt`, `blaster` → `gadget_darts`, `vanguard` → `shockwave_strike`.
+- `HeroApplier.apply_hero()` calls `PlayerAutoAttack.set_primary_weapon(hero_id, weapon_id, weapon_data)` as the final step, after all stat bonuses have been applied. It also calls `PlayerAutoAttack.set_ability_manager_ref(ability_manager)` so gadget_darts can read the Tactical Mark.
+- `PlayerAutoAttack.set_primary_weapon()` stores `_primary_weapon_id` and `_primary_weapon_data`, then applies weapon-specific property defaults. It does NOT override `attack_damage` or `attack_interval` — those are owned by HeroApplier stats and UpgradeManager.
+- `PlayerAutoAttack._physics_process` routes by `_primary_weapon_id` after the cooldown check:
+  - `"solar_bolt"` / empty / unknown → `_tick_solar_bolt(enemy)` — standard projectile spawn via `_spawn_projectiles()`.
+  - `"gadget_darts"` → `_tick_gadget_darts()` — tries `_find_marked_target()` first, then nearest enemy; spawns projectiles.
+  - `"shockwave_strike"` → `_tick_shockwave_strike()` — direct `take_damage()` on all enemies in `_enemies_in_range`; no projectile spawned.
+- Stable upgrade hooks that must not be renamed: `attack_damage`, `attack_interval`, `attack_range`, `projectile_count`, `projectile_pierce`, `projectile_size_multiplier`, `projectile_explosion_radius`, `projectile_bounce`, `projectile_speed`. All apply on top of weapon defaults regardless of weapon mode.
+- Projectile-specific upgrades (`projectile_count`, `projectile_pierce`, `projectile_bounce`, `projectile_explosion_radius`, `projectile_size_multiplier`, `projectile_speed`) do not crash `shockwave_strike`; they simply have no effect since no projectile is spawned.
+- `PlayerAutoAttack.get_primary_weapon_id()` returns the current weapon id string.
+- `PlayerAutoAttack.get_primary_weapon_display_name()` returns the `display_name` from weapon data.
+- `GameHUD.set_primary_weapon_name(display_name)` dynamically adds a `WeaponLabel` child to `BuildPanel`.
+- `Arena._ready()` calls `hud.set_primary_weapon_name(auto_attack.get_primary_weapon_display_name())` inside the HUD setup block, after `_apply_selected_hero`.
+- `DebugStatsOverlay` Weapon section now shows `Primary: <weapon_id>`, then `DMG / Interval / Range`, then `Count / Pierce / Bounce`, then `Spread / Size / Expl R`.
+- No arena hazards were added. Build Evolution and Stage Objectives are not included in this patch.
+
 ## Weapon Modifier Notes
 
 - PlayerAutoAttack owns weapon stats: `projectile_count`, `projectile_spread_degrees`, `projectile_pierce`, `projectile_size_multiplier`, and `projectile_explosion_radius`.
@@ -806,7 +825,6 @@ The game is an original superhero survivors-like: the player moves around an are
 - Stamina.
 - Advanced dodge perks.
 - Controller remapping.
-- Primary Weapon Rework.
 - Build Evolution rework.
 - Stage Objectives.
 - Enemy projectile patterns.

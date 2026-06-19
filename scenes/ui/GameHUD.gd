@@ -262,6 +262,20 @@ func set_hero_name(hero_name: String) -> void:
 	hero_label.text = "Hero: %s" % display_name
 
 
+func set_primary_weapon_name(weapon_display_name: String) -> void:
+	if weapon_display_name.is_empty():
+		return
+	var build_panel := get_node_or_null("Root/BuildPanel")
+	if build_panel == null:
+		return
+	var weapon_label := build_panel.get_node_or_null("WeaponLabel") as Label
+	if weapon_label == null:
+		weapon_label = Label.new()
+		weapon_label.name = "WeaponLabel"
+		build_panel.add_child(weapon_label)
+	weapon_label.text = "Weapon: %s" % weapon_display_name
+
+
 func set_stage_name(stage_name: String) -> void:
 	if stage_name.is_empty():
 		return

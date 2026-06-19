@@ -122,7 +122,31 @@ Run these before adding new gameplay systems.
 | 11 | Fury Vanguard: cast Titan Slam with Rage | Slam scales, spends Rage, and creates a delayed shockwave when Rage or second-wave support is present |
 | 12 | Check DebugStatsOverlay for all heroes | Overlay shows kit id plus Solar Charge, Tactical Mark, or Rage |
 | 13 | Pick Nova/Laser/Slam upgrades | Slot 1/2/3 upgrade hooks still affect the corresponding hero abilities |
-| 14 | Inspect scope | No Enemy Roles, Boss Rework, Build Evolution, Primary Weapon Rework, Stage Objectives, arena hazards, enemy/stage/reward/save/meta changes |
+| 14 | Inspect scope | No Enemy Roles, Boss Rework, Build Evolution, Stage Objectives, arena hazards, enemy/stage/reward/save/meta changes |
+
+---
+
+## Primary Weapon / Autoattack Rework
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start **Solar Guardian** and let autoattack fire | Slower, heavier bolt fires toward nearest enemy; projectile is visibly larger (1.35× size) |
+| 2 | Start **Night Tactician** and let autoattack fire | Faster darts fire; default bounce means darts hop to a second enemy when hit connects |
+| 3 | Start **Fury Vanguard** and stand near enemies | Close-range shockwave deals damage directly with no visible projectile; floating damage numbers appear |
+| 4 | Fury Vanguard: step out of range of all enemies | Shockwave does not fire; cooldown does not tick down from a no-target state |
+| 5 | Night Tactician: mark a target with Grapnel Shot, then wait for autoattack | Darts should prioritize the marked target if it is within range |
+| 6 | Pick `attack_damage_up` upgrade on any hero | Autoattack damage increases for all three weapon modes |
+| 7 | Pick `attack_speed_up` upgrade on any hero | Cooldown between attacks decreases for all three weapon modes |
+| 8 | Pick `attack_range_up` upgrade on any hero | Range area grows; Solar and Tactician target enemies further away; Vanguard shockwave reaches further |
+| 9 | Pick `projectile_count` (multishot) upgrade on Solar Guardian / Night Tactician | Multiple projectiles fire per attack; Fury Vanguard is unaffected (no crash) |
+| 10 | Pick `projectile_pierce` upgrade on Solar Guardian | Bolt passes through an enemy and hits the next one |
+| 11 | Pick `projectile_bounce` upgrade on any hero | Solar/Tactician darts bounce; Fury Vanguard direct damage is unaffected (no crash) |
+| 12 | Pick `projectile_explosion_radius` upgrade on any hero | Solar/Tactician projectiles explode on hit; Fury Vanguard direct damage is unaffected (no crash) |
+| 13 | Enable Debug Mode (F12) | DebugStatsOverlay Weapon section shows `Primary: solar_bolt`, `gadget_darts`, or `shockwave_strike`; range, interval, count, pierce, bounce all display correctly |
+| 14 | Check GameHUD BuildPanel | `Weapon: Solar Bolt`, `Weapon: Gadget Darts`, or `Weapon: Shockwave Strike` label is visible |
+| 15 | Restart run keeping same hero | Weapon identity, range, and stat bonuses reset and re-apply correctly to the fresh run |
+| 16 | Restart run changing hero | New hero's weapon mode, range, speed, and bounce defaults apply; no stale values from previous hero |
+| 17 | Inspect diff | No saves, rewards, stages, arena hazards, enemy roles/wave director, boss flow, meta economy, or Build Evolution changes |
 
 ---
 

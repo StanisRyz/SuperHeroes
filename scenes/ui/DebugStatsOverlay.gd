@@ -136,17 +136,23 @@ func _build_stats_text() -> String:
 	# Weapon
 	if _auto_attack != null and is_instance_valid(_auto_attack):
 		lines.append("-- Weapon --")
+		var weapon_id := ""
+		if _auto_attack.has_method("get_primary_weapon_id"):
+			weapon_id = str(_auto_attack.get_primary_weapon_id())
+		if not weapon_id.is_empty():
+			lines.append("Primary: %s" % weapon_id)
 		var dmg: int = _auto_attack.get("attack_damage") if _auto_attack.get("attack_damage") != null else 0
 		var interval: float = _auto_attack.get("attack_interval") if _auto_attack.get("attack_interval") != null else 0.0
+		var rng: float = _auto_attack.get("attack_range") if _auto_attack.get("attack_range") != null else 0.0
 		var count: int = _auto_attack.get("projectile_count") if _auto_attack.get("projectile_count") != null else 0
 		var pierce: int = _auto_attack.get("projectile_pierce") if _auto_attack.get("projectile_pierce") != null else 0
 		var spread: float = _auto_attack.get("projectile_spread_degrees") if _auto_attack.get("projectile_spread_degrees") != null else 0.0
 		var size_m: float = _auto_attack.get("projectile_size_multiplier") if _auto_attack.get("projectile_size_multiplier") != null else 1.0
 		var expl: float = _auto_attack.get("projectile_explosion_radius") if _auto_attack.get("projectile_explosion_radius") != null else 0.0
 		var bounce: int = _auto_attack.get("projectile_bounce") if _auto_attack.get("projectile_bounce") != null else 0
-		lines.append("DMG: %d  Interval: %.2f  Count: %d" % [dmg, interval, count])
-		lines.append("Pierce: %d  Spread: %.0f  Size: %.2f" % [pierce, spread, size_m])
-		lines.append("Explosion R: %.0f  Bounce: %d" % [expl, bounce])
+		lines.append("DMG: %d  Interval: %.2f  Range: %.0f" % [dmg, interval, rng])
+		lines.append("Count: %d  Pierce: %d  Bounce: %d" % [count, pierce, bounce])
+		lines.append("Spread: %.0f  Size: %.2f  Expl R: %.0f" % [spread, size_m, expl])
 	else:
 		lines.append("-- Weapon: null --")
 

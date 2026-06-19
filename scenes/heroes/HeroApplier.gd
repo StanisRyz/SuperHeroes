@@ -44,6 +44,15 @@ static func apply_hero(hero: Dictionary, player: Node, auto_attack: Node, abilit
 		_add_number(ability_manager, "slam_damage", stats.get("slam_damage_bonus", 0))
 		_add_number(ability_manager, "slam_radius", stats.get("slam_radius_bonus", 0.0))
 
+	if auto_attack != null:
+		var weapon_data: Dictionary = hero.get("primary_weapon", {})
+		if not weapon_data.is_empty() and auto_attack.has_method("set_primary_weapon"):
+			var hero_id_str := str(hero.get("id", ""))
+			var weapon_id_str := str(weapon_data.get("weapon_id", ""))
+			auto_attack.set_primary_weapon(hero_id_str, weapon_id_str, weapon_data)
+		if ability_manager != null and auto_attack.has_method("set_ability_manager_ref"):
+			auto_attack.set_ability_manager_ref(ability_manager)
+
 
 static func _apply_cooldown_multiplier(target: Node, property_name: String, multiplier: float) -> void:
 	if target.get(property_name) == null:

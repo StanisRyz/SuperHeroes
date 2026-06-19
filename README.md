@@ -233,6 +233,29 @@ Implemented foundation:
 - UpgradeManager effect arrays now support `set` operations for bool/int/float properties and fail safely when a target/property/operation is invalid.
 - DebugStatsOverlay shows dash trail state, projectile bounce count, ability synergy flags, and build-defining option counts.
 
+### Primary Weapon / Autoattack Rework
+
+Each hero now has a distinct primary weapon identity routed by `PlayerAutoAttack`. The upgrade system is fully compatible: all existing upgrade hooks (`attack_damage`, `attack_interval`, `attack_range`, `projectile_count`, `projectile_pierce`, `projectile_size_multiplier`, `projectile_explosion_radius`, `projectile_bounce`, `projectile_speed`) apply on top of per-hero weapon defaults.
+
+#### Hero Primary Weapons
+
+| Hero | Weapon ID | Style |
+|------|-----------|-------|
+| Solar Guardian | `solar_bolt` | Slow, heavy, large-size homing bolt. Strong single-hit damage. Pierce upgrades apply. |
+| Night Tactician | `gadget_darts` | Fast, light, bouncing darts. Multi-shot favored. Prefers Tactical Mark target when in range. |
+| Fury Vanguard | `shockwave_strike` | Close-range direct shockwave. Hits all enemies in a short radius. No projectile spawned. |
+
+#### Architecture
+
+- `HeroDataProvider` stores a `primary_weapon` dict per hero (`weapon_id`, `display_name`, and weapon-specific property defaults).
+- `HeroApplier.apply_hero()` calls `PlayerAutoAttack.set_primary_weapon(hero_id, weapon_id, weapon_data)` and wires the AbilityManager reference for Tactical Mark access.
+- `PlayerAutoAttack._physics_process` routes by `_primary_weapon_id`: `solar_bolt` / default → `_tick_solar_bolt`, `gadget_darts` → `_tick_gadget_darts`, `shockwave_strike` → `_tick_shockwave_strike`.
+- The generic projectile path remains the fallback for any unrecognized weapon id.
+- `GameHUD` shows `Weapon: <display name>` in the BuildPanel.
+- `DebugStatsOverlay` shows `Primary: <weapon_id>`, plus damage, interval, range, count, pierce, and bounce.
+
+Build Evolution and Stage Objectives are not included in this patch. No arena hazards were added.
+
 ### Hero Signature Kits Real Mechanics
 
 - **AbilityManager hero-kit routing** - active ability inputs and public cast methods remain `ability_1` / `ability_2` / `ability_3`, but casts now route by the selected hero's `kit_id`.
@@ -243,7 +266,7 @@ Implemented foundation:
 - Existing upgrade hooks remain stable: `nova_*`, `laser_*`, and `slam_*` properties still tune slot 1/2/3, so current UpgradeManager effects and hero-flavored upgrade text keep working.
 - DebugStatsOverlay shows current kit and passive resource/mark state when Debug Mode is enabled.
 - Level-up upgrade selection now hides the LevelUpScreen before Arena resumes, fixing a paused-with-no-modal regression after choosing an upgrade.
-- This patch does not add Enemy Roles, Boss Rework, Build Evolution, Primary Weapon Rework, Stage Objectives, arena hazards, enemy changes, stage changes, reward changes, meta economy changes, or save-format changes.
+- This patch does not add Enemy Roles, Boss Rework, Build Evolution, Stage Objectives, arena hazards, enemy changes, stage changes, reward changes, meta economy changes, or save-format changes. Primary Weapon Rework was added in the subsequent patch.
 
 ### UI Readability Polish
 

@@ -25,6 +25,13 @@ var _enemies_in_range: Array[Node2D] = []
 var _missing_projectile_warning_shown := false
 var _attack_sequence_id: int = 0
 
+# Primary weapon identity set by HeroApplier via set_primary_weapon().
+# Defaults to empty so existing scenes with no hero selected fall back to
+# the generic projectile path (_tick_solar_bolt).
+var _primary_weapon_id: String = ""
+var _primary_weapon_data: Dictionary = {}
+var _ability_manager_ref: Node = null
+
 @onready var attack_range_area: Area2D = get_node_or_null("AttackRangeArea")
 @onready var attack_shape: CollisionShape2D = get_node_or_null("AttackRangeArea/CollisionShape2D")
 @onready var owner_body: Node2D = get_parent() as Node2D
@@ -53,11 +60,19 @@ func _physics_process(delta: float) -> void:
 	if owner_body.has_method("is_dead") and owner_body.is_dead():
 		return
 
-	var enemy := _find_nearest_enemy()
-	if enemy == null:
-		return
+	var attacked := false
+	match _primary_weapon_id:
+		"shockwave_strike":
+			attacked = _tick_shockwave_strike()
+		"gadget_darts":
+			attacked = _tick_gadget_darts()
+		_:
+			# "solar_bolt" and generic/fallback path
+			var enemy := _find_nearest_enemy()
+			if enemy != null:
+				attacked = _tick_solar_bolt(enemy)
 
-	if _spawn_projectiles(enemy):
+	if attacked:
 		_cooldown = attack_interval
 
 
@@ -67,6 +82,96 @@ func setup_projectile_container(container: Node) -> void:
 
 func setup_audio_manager(new_audio_manager: Node) -> void:
 	audio_manager = new_audio_manager
+
+
+# Called by HeroApplier after hero stats are applied. Sets weapon identity and
+# applies weapon-specific property defaults (speed, size, range, bounce).
+# Upgrade hooks (attack_damage, attack_interval, attack_range, projectile_count,
+# projectile_pierce, projectile_size_multiplier, projectile_explosion_radius,
+# projectile_bounce, projectile_speed) remain fully effective on top of these.
+func set_primary_weapon(hero_id: String, weapon_id: String, weapon_data: Dictionary) -> void:
+	_primary_weapon_id = weapon_id
+	_primary_weapon_data = weapon_data
+
+	if weapon_data.has("projectile_speed"):
+		projectile_speed = float(weapon_data["projectile_speed"])
+	if weapon_data.has("projectile_size_multiplier"):
+		projectile_size_multiplier = float(weapon_data["projectile_size_multiplier"])
+	if weapon_data.has("projectile_pierce"):
+		projectile_pierce = maxi(int(weapon_data["projectile_pierce"]), 0)
+	if weapon_data.has("projectile_bounce"):
+		projectile_bounce = clampi(int(weapon_data["projectile_bounce"]), 0, max_projectile_bounce)
+	if weapon_data.has("attack_range"):
+		attack_range = float(weapon_data["attack_range"])
+		_update_attack_range_shape()
+
+
+func set_ability_manager_ref(manager: Node) -> void:
+	_ability_manager_ref = manager
+
+
+func get_primary_weapon_id() -> String:
+	return _primary_weapon_id
+
+
+func get_primary_weapon_display_name() -> String:
+	return str(_primary_weapon_data.get("display_name", _primary_weapon_id))
+
+
+# ── Per-weapon tick methods ───────────────────────────────────────────────────
+
+# Solar Guardian: slow heavy homing bolt. Uses standard projectile path with
+# the slower speed + larger size set by weapon data. Pierce upgrades apply.
+func _tick_solar_bolt(enemy: Node2D) -> bool:
+	return _spawn_projectiles(enemy)
+
+
+# Night Tactician: fast light darts with default bounce. Prefers the
+# ability manager's Tactical Mark target when it is in range.
+func _tick_gadget_darts() -> bool:
+	var target := _find_marked_target()
+	if target == null:
+		target = _find_nearest_enemy()
+	if target == null:
+		return false
+	return _spawn_projectiles(target)
+
+
+# Fury Vanguard: close-range shockwave. Damages all enemies currently in the
+# (shorter) attack range area directly. No projectile is spawned.
+# Projectile-specific upgrades are safely ignored here; attack_damage and
+# attack_interval still apply normally.
+func _tick_shockwave_strike() -> bool:
+	_cleanup_invalid_enemies()
+	if _enemies_in_range.is_empty():
+		return false
+
+	var hit_any := false
+	for enemy in _enemies_in_range:
+		if not _is_valid_enemy(enemy):
+			continue
+		enemy.take_damage(attack_damage)
+		hit_any = true
+
+	return hit_any
+
+
+# Returns the Tactical Mark target from AbilityManager if it is valid and
+# within current attack range. Returns null otherwise.
+func _find_marked_target() -> Node2D:
+	if _ability_manager_ref == null or not is_instance_valid(_ability_manager_ref):
+		return null
+	var mark_target = _ability_manager_ref.get("tactical_mark_target")
+	if not mark_target is Node2D or not is_instance_valid(mark_target as Node2D):
+		return null
+	var target := mark_target as Node2D
+	if not _is_valid_enemy(target):
+		return null
+	if owner_body != null:
+		var dist_sq := owner_body.global_position.distance_squared_to(target.global_position)
+		if dist_sq > attack_range * attack_range:
+			return null
+	return target
 
 
 func _on_attack_range_area_body_entered(body: Node2D) -> void:
