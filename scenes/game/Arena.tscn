@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://arena_scene_superheroes"]
+[gd_scene load_steps=11 format=3 uid="uid://arena_scene_superheroes"]
 
 [ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="1_player"]
 [ext_resource type="Script" path="res://scenes/game/Arena.gd" id="1_arena_script"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://scenes/game/RunManager.tscn" id="6_run_manager"]
 [ext_resource type="PackedScene" path="res://scenes/ui/GameOverScreen.tscn" id="7_game_over_screen"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/SpawnDirector.tscn" id="8_spawn_director"]
+[ext_resource type="PackedScene" path="res://scenes/ui/MobileControls.tscn" id="9_mobile_controls"]
 
 [node name="Arena" type="Node2D"]
 script = ExtResource("1_arena_script")
@@ -50,3 +51,5 @@ polygon = PackedVector2Array(-8, -2000, 8, -2000, 8, 2000, -8, 2000)
 [node name="LevelUpScreen" parent="." instance=ExtResource("5_level_up_screen")]
 
 [node name="GameOverScreen" parent="." instance=ExtResource("7_game_over_screen")]
+
+[node name="MobileControls" parent="." instance=ExtResource("9_mobile_controls")]

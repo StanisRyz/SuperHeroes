@@ -13,6 +13,7 @@ extends Node2D
 @onready var upgrade_manager: Node = get_node_or_null("UpgradeManager")
 @onready var level_up_screen: Node = get_node_or_null("LevelUpScreen")
 @onready var game_over_screen: Node = get_node_or_null("GameOverScreen")
+@onready var mobile_controls: Node = get_node_or_null("MobileControls")
 
 func _ready() -> void:
 	var playable_rect := get_playable_rect()
@@ -38,6 +39,8 @@ func _ready() -> void:
 		ability_manager.setup(player, enemy_container)
 	else:
 		push_warning("AbilityManager does not implement setup(player, enemy_container).")
+
+	_setup_mobile_controls(ability_manager)
 
 	if hud == null:
 		push_warning("Arena could not find GameHUD node.")
@@ -102,6 +105,33 @@ func _setup_spawn_director() -> void:
 		push_warning("SpawnDirector does not implement setup(run_manager).")
 
 
+func _setup_mobile_controls(ability_manager: Node) -> void:
+	if mobile_controls == null:
+		push_warning("Arena could not find MobileControls node.")
+		return
+
+	if mobile_controls.has_signal("movement_changed"):
+		if player.has_method("set_external_move_vector"):
+			if not mobile_controls.movement_changed.is_connected(player.set_external_move_vector):
+				mobile_controls.movement_changed.connect(player.set_external_move_vector)
+		else:
+			push_warning("Player does not implement set_external_move_vector(direction).")
+	else:
+		push_warning("MobileControls is missing movement_changed signal.")
+
+	if mobile_controls.has_signal("ability_1_pressed"):
+		if ability_manager != null and ability_manager.has_method("cast_ability_1"):
+			if not mobile_controls.ability_1_pressed.is_connected(ability_manager.cast_ability_1):
+				mobile_controls.ability_1_pressed.connect(ability_manager.cast_ability_1)
+		else:
+			push_warning("AbilityManager does not implement cast_ability_1().")
+	else:
+		push_warning("MobileControls is missing ability_1_pressed signal.")
+
+	if mobile_controls.has_method("setup_ability_manager"):
+		mobile_controls.setup_ability_manager(ability_manager)
+
+
 func _on_player_level_up_available(_level: int) -> void:
 	if _is_player_dead() or _is_game_over_visible():
 		return
@@ -115,6 +145,7 @@ func _on_player_level_up_available(_level: int) -> void:
 		return
 
 	get_tree().paused = true
+	_reset_mobile_controls()
 	level_up_screen.show_options(upgrade_manager.get_upgrade_options(3))
 
 
@@ -156,6 +187,7 @@ func _on_player_died() -> void:
 		level_up_screen.hide()
 
 	get_tree().paused = true
+	_reset_mobile_controls()
 	if game_over_screen != null and game_over_screen.has_method("show_stats"):
 		game_over_screen.show_stats(stats)
 	else:
@@ -173,3 +205,8 @@ func _is_player_dead() -> bool:
 
 func _is_game_over_visible() -> bool:
 	return game_over_screen != null and game_over_screen.visible
+
+
+func _reset_mobile_controls() -> void:
+	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
+		mobile_controls.reset_controls()

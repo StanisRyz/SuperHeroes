@@ -13,6 +13,7 @@ signal died
 var current_health: int
 var current_xp: int = 0
 var level: int = 1
+var external_move_vector: Vector2 = Vector2.ZERO
 var _playable_rect: Rect2
 var _has_playable_rect := false
 var _hit_flash_tween: Tween
@@ -30,7 +31,9 @@ func _physics_process(_delta: float) -> void:
 		velocity = Vector2.ZERO
 		return
 
-	var direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var keyboard_direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var direction := external_move_vector if not external_move_vector.is_zero_approx() else keyboard_direction
+	direction = direction.limit_length(1.0)
 	velocity = direction * speed
 	move_and_slide()
 	_clamp_to_playable_rect()
@@ -69,7 +72,11 @@ func add_experience(amount: int) -> void:
 
 	experience_changed.emit(current_xp, xp_to_next_level, level)
 	for gained_level in gained_levels:
-		level_up_available.emit(gained_level)
+			level_up_available.emit(gained_level)
+
+
+func set_external_move_vector(direction: Vector2) -> void:
+	external_move_vector = direction.limit_length(1.0)
 
 
 func set_playable_rect(rect: Rect2) -> void:

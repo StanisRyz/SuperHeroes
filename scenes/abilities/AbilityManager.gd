@@ -30,7 +30,11 @@ func _process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ability_1"):
-		_try_cast_nova_pulse()
+		cast_ability_1()
+
+
+func cast_ability_1() -> void:
+	_try_cast_nova_pulse()
 
 
 func _try_cast_nova_pulse() -> void:

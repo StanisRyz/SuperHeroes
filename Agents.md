@@ -25,6 +25,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade options and application logic.
 - `scenes/ui/GameHUD.tscn` - player HP, XP, time, and kill counter HUD scene.
 - `scenes/ui/GameHUD.gd` - player and run HUD binding.
+- `scenes/ui/MobileControls.tscn` - mobile virtual joystick and Nova Pulse button scene.
+- `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source.
 - `scenes/ui/LevelUpScreen.tscn` - pause-time upgrade selection UI.
 - `scenes/ui/LevelUpScreen.gd` - displays options and emits selected upgrade IDs.
 - `scenes/ui/GameOverScreen.tscn` - pause-time game over UI.
@@ -73,6 +75,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - Nova Pulse active ability.
 - Ability cooldown HUD display.
 - Simple Nova Pulse visual feedback.
+- Virtual joystick mobile movement foundation.
+- Mobile Nova Pulse button.
+- Keyboard and mobile input coexist.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
 
 ## Level-Up Flow
@@ -110,6 +115,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - HUD listens to `ability_cooldown_changed` and displays Nova Pulse readiness or remaining cooldown.
 - Cooldowns pause naturally while the tree is paused.
 
+## Input Flow
+
+- Keyboard movement and ability input still use the Godot InputMap.
+- `MobileControls` emits a movement signal instead of moving the Player directly.
+- Arena wires `MobileControls.movement_changed` to `Player.set_external_move_vector`.
+- Arena wires the mobile ability button to `AbilityManager.cast_ability_1`.
+- `MobileControls` may listen to AbilityManager cooldown changes to update its button text.
+
 ## Collision Notes
 
 - Player body uses the Player layer and should not physically collide with Enemy bodies.
@@ -123,7 +136,10 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Not Implemented Yet
 
 - Upgrade icons, rarities, weights, or Resource-backed data.
-- Mobile ability buttons.
+- Mobile ability buttons for multiple abilities.
+- Mobile pause button.
+- Input rebinding.
+- Settings menu.
 - Multiple active abilities.
 - Ability icons.
 - Ability targeting indicators.
@@ -155,7 +171,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not use copyrighted superhero names, brands, logos, or specific existing characters.
 - Keep desktop browser and mobile landscape browser in mind.
 - Keep 16:9 and wide 20:9 landscape layouts in mind.
-- Do not add mobile ability buttons unless explicitly requested.
+- Do not add additional mobile ability buttons unless explicitly requested.
+- Do not make `MobileControls` directly mutate gameplay except through signals.
 
 ## Validation
 
