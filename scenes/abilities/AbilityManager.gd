@@ -46,6 +46,8 @@ const KIT_GENERIC := "generic"
 @export var solar_empower_damage_multiplier: float = 1.35
 @export var solar_empower_radius_multiplier: float = 1.18
 @export var aerial_impact_invulnerability: float = 0.35
+@export var solar_empowered_heal: int = 8
+@export var aerial_impact_distance: float = 130.0
 
 @export var tactical_mark_damage_multiplier: float = 1.45
 @export var tactical_mark_refresh_radius: float = 760.0
@@ -53,13 +55,17 @@ const KIT_GENERIC := "generic"
 @export var smoke_slow_multiplier: float = 0.72
 @export var shock_trap_delay: float = 0.28
 @export var shock_trap_radius_multiplier: float = 0.9
+@export var shock_trap_duration: float = 2.2
 
 @export var rage_max: float = 100.0
 @export var rage_per_damage_taken: float = 2.0
 @export var rage_per_hit: float = 6.0
+@export var rage_per_damage_dealt: float = 0.08
 @export var rage_decay_per_second: float = 4.0
 @export var rage_damage_multiplier_at_max: float = 1.45
 @export var rage_spend_fraction: float = 0.45
+@export var crushing_leap_distance: float = 165.0
+@export var crushing_leap_invulnerability: float = 0.22
 
 var player: Node2D
 var enemy_container: Node
@@ -71,6 +77,7 @@ var _kit_data: Dictionary = {}
 var solar_charge: float = 0.0
 var rage: float = 0.0
 var tactical_mark_target: Node2D = null
+var _active_shock_traps: Array[Dictionary] = []
 
 var _cooldowns := {1: 0.0, 2: 0.0, 3: 0.0}
 var _last_emitted := {1: -1.0, 2: -1.0, 3: -1.0}
@@ -114,6 +121,7 @@ func _process(delta: float) -> void:
 			_emit_cooldown_changed(slot, false)
 	if current_kit_id == KIT_VANGUARD and rage > 0.0:
 		rage = maxf(rage - rage_decay_per_second * delta, 0.0)
+	_tick_shock_traps(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -297,8 +305,10 @@ func _try_cast_solar_burst() -> void:
 	var hits := _damage_enemies_in_radius_at(player.global_position, damage, radius)
 	if hits > 0 and not empowered:
 		_add_solar_charge(hits * solar_charge_per_hit)
+	if empowered:
+		_apply_solar_defense()
 	_spawn_pulse_feedback_at(player.global_position, radius)
-	_status("CHARGE BURST" if empowered else ("SOLAR +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "SOLAR MISS"), player.global_position + Vector2.UP * 42.0)
+	_status("SOLAR CHARGED" if empowered else ("SOLAR +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "SOLAR MISS"), player.global_position + Vector2.UP * 42.0)
 	if nova_aftershock_enabled:
 		_schedule_nova_aftershock(player.global_position)
 	_shake(5.5, 0.14)
@@ -312,12 +322,13 @@ func _try_cast_solar_beam() -> void:
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
 	var damage := _scale_int(laser_damage, solar_empower_damage_multiplier if empowered else 1.0)
-	var beam_width := laser_width * (1.1 if empowered else 0.92)
-	var hits := _damage_enemies_in_laser(origin, direction, damage, laser_range, beam_width)
+	var beam_width := laser_width * (1.18 if empowered else 0.55)
+	var beam_range := laser_range * (1.18 if empowered else 1.05)
+	var hits := _damage_enemies_in_laser(origin, direction, damage, beam_range, beam_width)
 	if hits > 0 and not empowered:
 		_add_solar_charge(hits * solar_charge_per_hit)
-	_spawn_laser_feedback_at(origin, direction, laser_range, beam_width)
-	_status("CHARGED BEAM" if empowered else ("BEAM +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "BEAM MISS"), origin + Vector2.UP * 42.0)
+	_spawn_laser_feedback_at(origin, direction, beam_range, beam_width)
+	_status("SOLAR CHARGED" if empowered else ("FOCUSED BEAM +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "FOCUSED BEAM"), origin + Vector2.UP * 42.0)
 	if laser_double_pulse_enabled:
 		_schedule_laser_second_pulse(origin, direction)
 	_finish_cast(2, "solar_beam", laser_cooldown)
@@ -328,7 +339,10 @@ func _try_cast_aerial_impact() -> void:
 		return
 	var empowered := _consume_solar_empower()
 	var direction := _get_player_aim_direction()
-	var impact_position := player.global_position + direction * 90.0
+	var start_position := player.global_position
+	var leap_distance := aerial_impact_distance * (1.35 if empowered else 1.0)
+	_move_player_safely(direction, leap_distance)
+	var impact_position := player.global_position
 	var damage := _scale_int(slam_damage, 1.25 if empowered else 0.95)
 	var radius := slam_radius * (1.25 if empowered else 0.85)
 	var hits := _damage_enemies_in_radius_at(impact_position, damage, radius)
@@ -336,9 +350,10 @@ func _try_cast_aerial_impact() -> void:
 		_add_solar_charge(hits * solar_charge_per_hit)
 	_grant_brief_invulnerability(aerial_impact_invulnerability)
 	_spawn_slam_feedback_at(impact_position, radius)
+	_spawn_laser_feedback_at(start_position, direction, start_position.distance_to(impact_position), maxf(laser_width * 0.45, 24.0))
 	if slam_second_wave_enabled:
 		_schedule_slam_second_wave(impact_position)
-	_status("AERIAL GUARD" if empowered else ("IMPACT +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "IMPACT MISS"), player.global_position + Vector2.UP * 42.0)
+	_status("AERIAL GUARD" if empowered else ("AERIAL +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "AERIAL SHIFT"), player.global_position + Vector2.UP * 42.0)
 	_shake(7.5, 0.18)
 	_finish_cast(3, "aerial_impact", slam_cooldown)
 
@@ -346,11 +361,12 @@ func _try_cast_aerial_impact() -> void:
 func _try_cast_smoke_charge() -> void:
 	if not _guard_cast(1):
 		return
-	_refresh_tactical_mark()
+	_refresh_tactical_mark(true)
 	var hits := _damage_enemies_in_radius_at(player.global_position, nova_damage, nova_radius * 0.9)
 	_apply_enemy_modifier_in_radius(player.global_position, nova_radius, "smoke_slow", {"speed_multiplier": smoke_slow_multiplier}, smoke_slow_duration)
+	_grant_brief_invulnerability(0.18)
 	_spawn_pulse_feedback_at(player.global_position, nova_radius * 0.9)
-	_status("SMOKE" if hits > 0 else "SMOKE COVER", player.global_position + Vector2.UP * 42.0)
+	_status("MARKED SMOKE" if _is_valid_enemy(tactical_mark_target) else ("SMOKE" if hits > 0 else "SMOKE COVER"), player.global_position + Vector2.UP * 42.0)
 	if nova_aftershock_enabled:
 		_schedule_nova_aftershock(player.global_position)
 	_shake(4.0, 0.12)
@@ -360,11 +376,13 @@ func _try_cast_smoke_charge() -> void:
 func _try_cast_grapnel_shot() -> void:
 	if not _guard_cast(2):
 		return
-	_refresh_tactical_mark()
+	_refresh_tactical_mark(true)
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
-	var hits := _damage_enemies_in_laser(origin, direction, laser_damage, laser_range * 1.08, maxf(laser_width * 0.55, 24.0), tactical_mark_target, tactical_mark_damage_multiplier)
-	_spawn_laser_feedback_at(origin, direction, laser_range * 1.08, maxf(laser_width * 0.55, 24.0))
+	var grapnel_width := maxf(laser_width * 0.34, 18.0)
+	var grapnel_damage := _scale_int(laser_damage, 1.12)
+	var hits := _damage_enemies_in_laser(origin, direction, grapnel_damage, laser_range * 1.1, grapnel_width, tactical_mark_target, tactical_mark_damage_multiplier)
+	_spawn_laser_feedback_at(origin, direction, laser_range * 1.1, grapnel_width)
 	_status("MARK HIT" if hits > 0 and _is_valid_enemy(tactical_mark_target) else ("GRAPNEL" if hits > 0 else "GRAPNEL MISS"), origin + Vector2.UP * 42.0)
 	if laser_double_pulse_enabled:
 		_schedule_laser_second_pulse(origin, direction)
@@ -374,18 +392,19 @@ func _try_cast_grapnel_shot() -> void:
 func _try_cast_shock_trap() -> void:
 	if not _guard_cast(3):
 		return
-	_refresh_tactical_mark()
-	var trap_position := player.global_position
+	_refresh_tactical_mark(true)
+	var trap_position := player.global_position + _get_player_aim_direction() * 72.0
+	var trap_radius := slam_radius * shock_trap_radius_multiplier
 	_spawn_slam_feedback_at(trap_position, slam_radius * shock_trap_radius_multiplier)
-	_status("TRAP", trap_position + Vector2.UP * 42.0)
-	var timer := get_tree().create_timer(shock_trap_delay)
-	timer.timeout.connect(func() -> void:
-		if not is_inside_tree():
-			return
-		var hits := _damage_enemies_in_radius_at(trap_position, slam_damage, slam_radius * shock_trap_radius_multiplier, tactical_mark_target, tactical_mark_damage_multiplier)
-		if hits > 0:
-			_spawn_slam_feedback_at(trap_position, slam_radius * shock_trap_radius_multiplier)
-	)
+	_status("SHOCK TRAP", trap_position + Vector2.UP * 42.0)
+	_active_shock_traps.append({
+		"position": trap_position,
+		"radius": trap_radius,
+		"damage": slam_damage,
+		"remaining": shock_trap_duration,
+		"arming": shock_trap_delay,
+		"mark": tactical_mark_target,
+	})
 	if slam_second_wave_enabled:
 		_schedule_slam_second_wave(trap_position)
 	_finish_cast(3, "shock_trap", slam_cooldown)
@@ -395,10 +414,11 @@ func _try_cast_rage_burst() -> void:
 	if not _guard_cast(1):
 		return
 	var multiplier := _get_rage_damage_multiplier()
-	var hits := _damage_enemies_in_radius_at(player.global_position, _scale_int(nova_damage, multiplier), nova_radius * (1.0 + 0.12 * _rage_ratio()))
-	if hits > 0:
-		_add_rage(hits * rage_per_hit)
-	_spawn_pulse_feedback_at(player.global_position, nova_radius * (1.0 + 0.12 * _rage_ratio()))
+	var damage := _scale_int(nova_damage, multiplier)
+	var radius := nova_radius * (1.0 + 0.22 * _rage_ratio())
+	var hits := _damage_enemies_in_radius_at(player.global_position, damage, radius)
+	_add_rage_from_ability_damage(hits, damage)
+	_spawn_pulse_feedback_at(player.global_position, radius)
 	_status("RAGE %.0f" % rage if hits > 0 else "RAGE ROAR", player.global_position + Vector2.UP * 42.0)
 	if nova_aftershock_enabled:
 		_schedule_nova_aftershock(player.global_position)
@@ -411,14 +431,19 @@ func _try_cast_crushing_leap() -> void:
 		return
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
-	var impact_position := origin + direction * 145.0
-	var impact_width := maxf(laser_width * 0.9, 60.0)
-	var hits := _damage_enemies_in_laser(origin, direction, _scale_int(laser_damage, _get_rage_damage_multiplier()), laser_range * 0.72, impact_width)
-	hits += _damage_enemies_in_radius_at(impact_position, maxi(roundi(float(laser_damage) * 0.55), 1), slam_radius * 0.55)
-	if hits > 0:
-		_add_rage(hits * rage_per_hit)
-	_spawn_laser_feedback_at(origin, direction, laser_range * 0.72, impact_width)
-	_spawn_slam_feedback_at(impact_position, slam_radius * 0.55)
+	var path_width := maxf(laser_width * 0.55, 42.0)
+	var path_damage := _scale_int(laser_damage, 0.62 + 0.25 * _rage_ratio())
+	var path_hits := _damage_enemies_in_laser(origin, direction, path_damage, crushing_leap_distance, path_width)
+	_grant_brief_invulnerability(crushing_leap_invulnerability)
+	_move_player_safely(direction, crushing_leap_distance)
+	var impact_position := player.global_position
+	var impact_damage := _scale_int(laser_damage, _get_rage_damage_multiplier())
+	var impact_hits := _damage_enemies_in_radius_at(impact_position, impact_damage, slam_radius * 0.62)
+	var hits := path_hits + impact_hits
+	_add_rage_from_ability_damage(path_hits, path_damage)
+	_add_rage_from_ability_damage(impact_hits, impact_damage)
+	_spawn_laser_feedback_at(origin, direction, origin.distance_to(impact_position), path_width)
+	_spawn_slam_feedback_at(impact_position, slam_radius * 0.62)
 	_status("LEAP" if hits > 0 else "LEAP MISS", origin + Vector2.UP * 42.0)
 	if laser_double_pulse_enabled:
 		_schedule_laser_second_pulse(origin, direction)
@@ -430,15 +455,16 @@ func _try_cast_titan_slam() -> void:
 	if not _guard_cast(3):
 		return
 	var multiplier := _get_rage_damage_multiplier()
-	var radius := slam_radius * (1.0 + 0.25 * _rage_ratio())
-	var hits := _damage_enemies_in_radius_at(player.global_position, _scale_int(slam_damage, multiplier), radius)
-	if hits > 0:
-		_add_rage(hits * rage_per_hit)
-	_spend_rage_fraction()
+	var rage_before_spend := _rage_ratio()
+	var radius := slam_radius * (1.0 + 0.35 * rage_before_spend)
+	var damage := _scale_int(slam_damage, multiplier + 0.25 * rage_before_spend)
+	var spent_rage := _spend_rage_fraction()
+	var hits := _damage_enemies_in_radius_at(player.global_position, damage, radius)
+	_add_rage_from_ability_damage(hits, damage)
 	_spawn_slam_feedback_at(player.global_position, radius)
-	if slam_second_wave_enabled:
-		_schedule_slam_second_wave(player.global_position)
-	_status("TITAN SLAM" if hits > 0 else "TITAN SLAM MISS", player.global_position + Vector2.UP * 42.0)
+	if slam_second_wave_enabled or spent_rage > 0.0:
+		_schedule_titan_shockwave(player.global_position, radius * 1.18, maxi(roundi(float(damage) * 0.45), 1))
+	_status("TITAN SPEND %.0f" % spent_rage if spent_rage > 0.0 else ("TITAN SLAM" if hits > 0 else "TITAN SLAM MISS"), player.global_position + Vector2.UP * 42.0)
 	_shake(8.5, 0.2)
 	_finish_cast(3, "titan_slam", slam_cooldown)
 
@@ -592,6 +618,18 @@ func _schedule_slam_second_wave(world_position: Vector2) -> void:
 	)
 
 
+func _schedule_titan_shockwave(world_position: Vector2, radius: float, damage: int) -> void:
+	var timer := get_tree().create_timer(slam_second_wave_delay)
+	timer.timeout.connect(func() -> void:
+		if not is_inside_tree():
+			return
+		var hits := _damage_enemies_in_radius_at(world_position, damage, radius)
+		_add_rage_from_ability_damage(hits, damage)
+		_spawn_slam_feedback_at(world_position, radius)
+		_status("SHOCKWAVE" if hits > 0 else "SHOCKWAVE MISS", world_position + Vector2.UP * 42.0)
+	)
+
+
 func _spawn_laser_feedback_at(origin: Vector2, direction: Vector2, beam_range: float, beam_width: float) -> void:
 	if laser_feedback_scene == null:
 		return
@@ -635,12 +673,55 @@ func _is_valid_enemy(node) -> bool:
 	)
 
 
-func _refresh_tactical_mark() -> void:
-	if _is_valid_enemy(tactical_mark_target):
+func _tick_shock_traps(delta: float) -> void:
+	if _active_shock_traps.is_empty():
+		return
+
+	var remaining_traps: Array[Dictionary] = []
+	for trap in _active_shock_traps:
+		var trap_position: Vector2 = trap.get("position", Vector2.ZERO)
+		var radius := float(trap.get("radius", 0.0))
+		var arming := maxf(float(trap.get("arming", 0.0)) - delta, 0.0)
+		var remaining := maxf(float(trap.get("remaining", 0.0)) - delta, 0.0)
+		trap["arming"] = arming
+		trap["remaining"] = remaining
+
+		var should_trigger := arming <= 0.0 and _has_enemy_in_radius(trap_position, radius)
+		should_trigger = should_trigger or remaining <= 0.0
+		if should_trigger:
+			_trigger_shock_trap(trap)
+		else:
+			remaining_traps.append(trap)
+
+	_active_shock_traps = remaining_traps
+
+
+func _trigger_shock_trap(trap: Dictionary) -> void:
+	var trap_position: Vector2 = trap.get("position", Vector2.ZERO)
+	var radius := float(trap.get("radius", slam_radius * shock_trap_radius_multiplier))
+	var damage := int(trap.get("damage", slam_damage))
+	var mark = trap.get("mark", null)
+	var hits := _damage_enemies_in_radius_at(trap_position, damage, radius, mark, tactical_mark_damage_multiplier)
+	_apply_enemy_modifier_in_radius(trap_position, radius, "shock_trap_slow", {"speed_multiplier": 0.58}, smoke_slow_duration)
+	_spawn_slam_feedback_at(trap_position, radius)
+	_status("TRAP HIT" if hits > 0 else "TRAP DISCHARGE", trap_position + Vector2.UP * 42.0)
+
+
+func _has_enemy_in_radius(world_position: Vector2, radius: float) -> bool:
+	if enemy_container == null or not is_instance_valid(enemy_container):
+		return false
+	for enemy in enemy_container.get_children():
+		if _is_valid_enemy(enemy) and world_position.distance_to((enemy as Node2D).global_position) <= radius:
+			return true
+	return false
+
+
+func _refresh_tactical_mark(force: bool = false) -> void:
+	if not force and _is_valid_enemy(tactical_mark_target):
 		return
 	tactical_mark_target = _find_priority_enemy()
 	if _is_valid_enemy(tactical_mark_target):
-		_status("MARK", tactical_mark_target.global_position + Vector2.UP * 30.0)
+		_status("MARKED", tactical_mark_target.global_position + Vector2.UP * 30.0)
 
 
 func _find_priority_enemy() -> Node2D:
@@ -669,7 +750,20 @@ func _find_priority_enemy() -> Node2D:
 
 
 func _add_solar_charge(amount: float) -> void:
+	var was_charged := solar_charge >= solar_empower_threshold
 	solar_charge = clampf(solar_charge + amount, 0.0, solar_charge_max)
+	if not was_charged and solar_charge >= solar_empower_threshold and player != null:
+		_status("SOLAR CHARGED", player.global_position + Vector2.UP * 48.0)
+
+
+func _apply_solar_defense() -> void:
+	if player == null:
+		return
+	if player.has_method("heal"):
+		player.heal(solar_empowered_heal)
+		if _feedback_manager != null and _feedback_manager.has_method("show_heal"):
+			_feedback_manager.show_heal(solar_empowered_heal, player.global_position + Vector2.UP * 36.0)
+	_grant_brief_invulnerability(aerial_impact_invulnerability)
 
 
 func _consume_solar_empower() -> bool:
@@ -680,11 +774,22 @@ func _consume_solar_empower() -> bool:
 
 
 func _add_rage(amount: float) -> void:
+	var was_high := rage >= rage_max * 0.6
 	rage = clampf(rage + amount, 0.0, rage_max)
+	if not was_high and rage >= rage_max * 0.6 and player != null:
+		_status("RAGE", player.global_position + Vector2.UP * 48.0)
 
 
-func _spend_rage_fraction() -> void:
-	rage = maxf(rage - rage_max * rage_spend_fraction, 0.0)
+func _add_rage_from_ability_damage(hit_count: int, damage: int) -> void:
+	if hit_count <= 0 or damage <= 0:
+		return
+	_add_rage(float(hit_count * damage) * rage_per_damage_dealt + float(hit_count) * rage_per_hit)
+
+
+func _spend_rage_fraction() -> float:
+	var spent := minf(rage, rage_max * rage_spend_fraction)
+	rage = maxf(rage - spent, 0.0)
+	return spent
 
 
 func _get_rage_damage_multiplier() -> float:
@@ -708,6 +813,14 @@ func _grant_brief_invulnerability(duration: float) -> void:
 		player.set("invulnerability_time_remaining", maxf(float(player.get("invulnerability_time_remaining")), duration))
 	if player.has_signal("invulnerability_changed"):
 		player.invulnerability_changed.emit(true)
+
+
+func _move_player_safely(direction: Vector2, distance: float) -> void:
+	if player == null or not is_instance_valid(player) or direction.is_zero_approx() or distance <= 0.0:
+		return
+	player.global_position += direction.normalized() * distance
+	if player.has_method("_clamp_to_playable_rect"):
+		player.call("_clamp_to_playable_rect")
 
 
 func _status(text: String, world_position: Vector2) -> void:

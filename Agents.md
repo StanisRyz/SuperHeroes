@@ -248,7 +248,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - HeroApplier must pass selected hero kit info into AbilityManager. AbilityManager owns all hero-specific active ability behavior and passive combat resources.
 - Global input slots and public methods remain stable: `ability_1`/`cast_ability_1`, `ability_2`/`cast_ability_2`, `ability_3`/`cast_ability_3`.
 - AbilityManager must keep `nova_*`, `laser_*`, and `slam_*` properties as shared slot 1/2/3 tuning hooks so UpgradeManager effects remain compatible.
-- Solar Guardian uses Solar Charge; Night Tactician uses Tactical Mark; Fury Vanguard uses Rage. These runtime passive resources reset naturally with each Arena.
+- Solar Guardian uses Solar Charge from ability hits; high charge empowers and is consumed by the next active ability. Empowered casts may add a small heal or brief defensive window through existing Player APIs.
+- Night Tactician uses Tactical Mark, refreshed on tactician ability casts. Mark selection should prefer miniboss/elite/boss-like threats when detectable, otherwise the nearest valid enemy in range.
+- Fury Vanguard uses Rage from ability damage dealt and real player damage taken. Rage decays slowly; high Rage increases damage/radius; Titan Slam can spend Rage for a stronger slam.
+- These runtime passive resources reset naturally with each Arena.
 - Ready ability casts must not silently fail because zero enemies were hit. If `_guard_cast(slot)` allows the cast, AbilityManager should provide available feedback/status, start cooldown, emit `ability_cast`, and emit `ability_cooldown_changed`.
 - UI, HUD, mobile controls, debug overlays, and debug logs must prefer hero-specific ability display names from AbilityManager state instead of hardcoded global ability labels.
 - Level-up option descriptions may substitute hero-specific ability display names at presentation time, but upgrade ids, archetypes, effects, weights, and save-facing data must stay stable.
@@ -628,9 +631,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - Slot 1 uses `ability_1` (J) with hero-specific area behavior routed by kit id.
 - Slot 2 uses `ability_2` (K) with hero-specific forward behavior routed by kit id.
 - Slot 3 uses `ability_3` (L) with hero-specific impact/control behavior routed by kit id.
-- Solar Guardian: Solar Burst / Solar Beam / Aerial Impact build or spend Solar Charge; Aerial Impact may grant brief invulnerability.
-- Night Tactician: Smoke Charge / Grapnel Shot / Shock Trap refresh Tactical Mark; Grapnel Shot and Shock Trap can deal bonus damage to the marked target.
-- Fury Vanguard: Rage Burst / Crushing Leap / Titan Slam build from hits and real player damage taken; Rage decays and Titan Slam spends part of it.
+- Solar Guardian: Solar Burst is a radial charge builder/spender, Solar Beam is a focused forward impulse, and Aerial Impact uses a short aim-direction shift plus landing impact and invulnerability.
+- Night Tactician: Smoke Charge is control/escape with slow and safety feedback, Grapnel Shot is a narrow precision line with marked-target payoff, and Shock Trap persists briefly before triggering or discharging.
+- Fury Vanguard: Rage Burst scales close pressure with Rage, Crushing Leap moves forward with path/landing impact, and Titan Slam spends Rage for a heavy slam plus delayed shockwave when supported.
 - All abilities are available from run start; no unlock system.
 - HUD listens to `ability_cooldown_changed` and displays readiness for all 3 slots.
 - MobileControls emits ability intents (ability_1/2/3_pressed) only; Arena wires them to AbilityManager.
@@ -642,6 +645,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Nova Aftershock uses `NovaAftershockFeedback`; Laser Double Pulse and Slam Second Wave reuse the existing Laser/Slam feedback scenes at the delayed cast position.
 - Hero-kit routing must not change enemies, stages, reward formulas, meta economy, save format, arena hazards, primary autoattack identity, or Build Evolution unless explicitly requested.
 - In hotfixes for ability reliability, keep the scope to AbilityManager/input/UI pause flow; do not add arena hazards, Build Evolution, or primary autoattack reworks.
+- Do not introduce Enemy Roles, Boss Rework, Stage Objectives, arena hazards, licensed superhero names, or DC/Marvel/Superman/Batman/Hulk references in hero-kit work.
 
 ## Build Synergy v4 Notes
 

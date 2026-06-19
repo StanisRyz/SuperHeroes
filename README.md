@@ -233,17 +233,17 @@ Implemented foundation:
 - UpgradeManager effect arrays now support `set` operations for bool/int/float properties and fail safely when a target/property/operation is invalid.
 - DebugStatsOverlay shows dash trail state, projectile bounce count, ability synergy flags, and build-defining option counts.
 
-### Hero Signature Kits Rework Foundation
+### Hero Signature Kits Real Mechanics
 
 - **AbilityManager hero-kit routing** - active ability inputs and public cast methods remain `ability_1` / `ability_2` / `ability_3`, but casts now route by the selected hero's `kit_id`.
 - **Regression hotfix** - ready ability casts no longer silently fail when they hit zero enemies. A valid press now plays available feedback/status, enters cooldown, emits `ability_cast`, and updates cooldown UI immediately.
-- **Solar Guardian kit** - passive Solar Charge builds from ability hits. Solar Burst, Solar Beam, and Aerial Impact can spend high charge for stronger damage/radius, and Aerial Impact grants a brief invulnerability window.
-- **Night Tactician kit** - passive Tactical Mark selects a priority enemy when ability logic runs. Smoke Charge damages and slows nearby enemies, Grapnel Shot is a narrower precision line with mark bonus damage, and Shock Trap places a delayed close-range trap.
-- **Fury Vanguard kit** - passive Rage builds from real damage taken and ability hits, then decays slowly. Rage Burst, Crushing Leap, and Titan Slam scale as bruiser impact abilities, with Titan Slam spending part of Rage after use.
+- **Solar Guardian kit** - passive Solar Charge builds from ability hits and empowers the next active ability at threshold. Solar Burst becomes a larger defensive burst with a small heal/invulnerability window, Solar Beam is a narrow focused impulse that becomes wider/longer when charged, and Aerial Impact performs a short aim-direction shift before landing damage.
+- **Night Tactician kit** - passive Tactical Mark refreshes on tactician casts, preferring miniboss/elite threats before nearest enemies. Smoke Charge creates a slow/control escape zone with brief safety, Grapnel Shot is a narrow marked-target payoff strike, and Shock Trap is a persistent trap that triggers on enemies or discharges after its duration.
+- **Fury Vanguard kit** - passive Rage builds from real player damage taken and ability damage dealt, then decays slowly. Rage Burst scales radius/damage with Rage, Crushing Leap moves forward with path and landing impact damage, and Titan Slam spends Rage for a stronger slam plus delayed shockwave.
 - Existing upgrade hooks remain stable: `nova_*`, `laser_*`, and `slam_*` properties still tune slot 1/2/3, so current UpgradeManager effects and hero-flavored upgrade text keep working.
 - DebugStatsOverlay shows current kit and passive resource/mark state when Debug Mode is enabled.
 - Level-up upgrade selection now hides the LevelUpScreen before Arena resumes, fixing a paused-with-no-modal regression after choosing an upgrade.
-- This foundation does not add Build Evolution, a primary weapon rework, arena hazards, enemy changes, stage changes, reward changes, meta economy changes, or save-format changes.
+- This patch does not add Enemy Roles, Boss Rework, Build Evolution, Primary Weapon Rework, Stage Objectives, arena hazards, enemy changes, stage changes, reward changes, meta economy changes, or save-format changes.
 
 ### UI Readability Polish
 

@@ -105,6 +105,27 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Hero Signature Kits Real Mechanics
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Solar Guardian: hit enemies with Solar Burst | Solar Charge increases and "SOLAR CHARGED" appears when threshold is reached |
+| 2 | Solar Guardian: cast empowered Solar Burst | Charge is consumed; burst radius/damage increase; small heal/defensive window triggers |
+| 3 | Solar Guardian: cast Solar Beam with and without charge | Normal beam is narrow/focused; empowered beam is stronger and visibly wider/longer |
+| 4 | Solar Guardian: cast Aerial Impact | Player shifts in aim direction, gains brief invulnerability, and impact damage lands at the new position |
+| 5 | Night Tactician: cast Smoke Charge near enemies | Smoke/control zone damages and slows supported enemies; player gets brief safety feedback |
+| 6 | Night Tactician: cast Grapnel Shot after a mark appears | Narrow line fires; marked target receives bonus damage when hit |
+| 7 | Night Tactician: place Shock Trap | Trap persists, triggers on enemies entering radius, or discharges safely after duration |
+| 8 | Fury Vanguard: take damage and deal ability damage | Rage rises from both sources and decays over time |
+| 9 | Fury Vanguard: cast Rage Burst at low/high Rage | Damage/radius noticeably scale with current Rage |
+| 10 | Fury Vanguard: cast Crushing Leap | Player moves forward with brief invulnerability; path/landing impact damage fires |
+| 11 | Fury Vanguard: cast Titan Slam with Rage | Slam scales, spends Rage, and creates a delayed shockwave when Rage or second-wave support is present |
+| 12 | Check DebugStatsOverlay for all heroes | Overlay shows kit id plus Solar Charge, Tactical Mark, or Rage |
+| 13 | Pick Nova/Laser/Slam upgrades | Slot 1/2/3 upgrade hooks still affect the corresponding hero abilities |
+| 14 | Inspect scope | No Enemy Roles, Boss Rework, Build Evolution, Primary Weapon Rework, Stage Objectives, arena hazards, enemy/stage/reward/save/meta changes |
+
+---
+
 ## Controls Help Overlay
 
 | # | Test | Expected |
