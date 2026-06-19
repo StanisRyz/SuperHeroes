@@ -138,6 +138,14 @@ Implemented foundation:
 - Active buff HUD display (shield charges, move speed timer, attack speed timer).
 - Enemy death rolls a 6% chance to drop a random powerup pickup.
 - BombBurst visual effect on bomb pickup.
+- PowerupPickup scene is assigned in EnemySpawner.tscn (was missing — was the root bug).
+- BombBurst scene is assigned in PowerupManager.tscn (was missing).
+- Elite and miniboss guaranteed powerup drops now actually spawn (fixed via scene assignment).
+- PowerupPickup collision_mask explicitly set to player layer 1.
+- Powerup ids have distinct placeholder colors (heal=green, shield=blue, bomb=red, magnet=purple, speed=cyan, haste=yellow).
+- Powerup spawn diagnostics: POWERUP_WIRING, POWERUP_ROLL, POWERUP_SPAWNED logs active while being verified.
+- Guaranteed drop fallback to "heal" if roll unexpectedly returns empty.
+- EnemySpawner.debug_spawn_powerup(id) helper for quick console verification.
 - EventDirector with a timed event schedule (Runner Rush, Tank Wave, Elite, Miniboss).
 - Timed events apply spawn modifier boosts through SpawnDirector.
 - Elite enemy spawning with health, damage, XP, and color overrides.

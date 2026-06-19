@@ -24,6 +24,33 @@ func _ready() -> void:
 func setup(new_powerup_id: String, new_powerup_manager: Node) -> void:
 	powerup_id = new_powerup_id
 	powerup_manager = new_powerup_manager
+	_apply_powerup_color()
+
+
+func _apply_powerup_color() -> void:
+	var body := get_node_or_null("Body") as Polygon2D
+	var core := get_node_or_null("Core") as Polygon2D
+	if body == null:
+		return
+	match powerup_id:
+		"heal":
+			body.color = Color(0.1, 0.85, 0.3, 1.0)
+			if core != null: core.color = Color(0.04, 0.42, 0.14, 1.0)
+		"shield":
+			body.color = Color(0.2, 0.5, 1.0, 1.0)
+			if core != null: core.color = Color(0.08, 0.22, 0.55, 1.0)
+		"bomb":
+			body.color = Color(1.0, 0.3, 0.1, 1.0)
+			if core != null: core.color = Color(0.55, 0.12, 0.02, 1.0)
+		"magnet_burst":
+			body.color = Color(0.72, 0.1, 0.92, 1.0)
+			if core != null: core.color = Color(0.36, 0.04, 0.46, 1.0)
+		"move_speed_boost":
+			body.color = Color(0.1, 0.9, 0.9, 1.0)
+			if core != null: core.color = Color(0.04, 0.44, 0.44, 1.0)
+		"attack_speed_boost":
+			body.color = Color(1.0, 0.9, 0.1, 1.0)
+			if core != null: core.color = Color(0.52, 0.44, 0.02, 1.0)
 
 
 func _physics_process(delta: float) -> void:

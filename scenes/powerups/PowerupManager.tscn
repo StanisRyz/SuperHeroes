@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://powerup_manager_superheroes"]
+[gd_scene load_steps=3 format=3 uid="uid://powerup_manager_superheroes"]
 
 [ext_resource type="Script" path="res://scenes/powerups/PowerupManager.gd" id="1_powerup_manager_script"]
+[ext_resource type="PackedScene" path="res://scenes/effects/BombBurst.tscn" id="2_bomb_burst"]
 
 [node name="PowerupManager" type="Node"]
 script = ExtResource("1_powerup_manager_script")
+bomb_burst_scene = ExtResource("2_bomb_burst")

@@ -112,6 +112,15 @@ The game is an original superhero survivors-like: the player moves around an are
 - Elite and miniboss enemies always drop a powerup pickup on death (guaranteed drop).
 - SpawnDirector reads `active_event_modifiers` in `get_spawn_interval`, `get_max_alive_enemies`, and `get_enemy_variant`.
 
+## Powerup Wiring Notes
+
+- `EnemySpawner.tscn` MUST assign `powerup_pickup_scene` — the original bug was this assignment missing, causing all powerup drops to silently return early.
+- `PowerupManager.tscn` MUST assign `bomb_burst_scene` for the bomb visual to work.
+- `PowerupPickup` detects the player via `body_entered`; its `collision_mask` must include the player layer (layer 1). `collision_layer = 0` is correct.
+- `POWERUP_WIRING`, `POWERUP_ROLL`, `POWERUP_SPAWNED` diagnostics logs are intentionally active; remove only after drops are confirmed working in the target environment.
+- `EnemySpawner.debug_spawn_powerup(powerup_id)` can be called from the Godot remote console or editor to spawn a powerup pickup near the player without waiting for an enemy death.
+- Powerup drops silently fail if scene/manager/container are missing; diagnostics reveal which dependency is absent.
+
 ## Powerup System Architecture
 
 - `ExperienceGem` remains XP-only; it exposes `force_magnet_to_player(player)` for magnet burst but does not apply powerup effects.
@@ -446,6 +455,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Miniboss damage must always go through Player.take_damage() or existing EnemyProjectile collision logic.
 - Do not re-enable Player/Enemy physical body collisions.
 - Do not add persistence unless explicitly requested.
+- Do not remove POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED diagnostic logs until powerup drops are confirmed working.
 - Inspect the current project before changing files.
 - Do not duplicate existing systems.
 - Keep patches small and focused.

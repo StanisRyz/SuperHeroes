@@ -15,6 +15,7 @@ const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 @export var min_spawn_distance_from_player: float = 500.0
 @export var max_spawn_attempts: int = 12
 @export var base_powerup_drop_chance: float = 0.06
+@export var powerup_debug_logging: bool = true
 
 var player: Node2D
 var playable_rect: Rect2
@@ -55,6 +56,13 @@ func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: No
 	floating_text_spawner = new_floating_text_spawner
 	audio_manager = new_audio_manager
 	powerup_manager = new_powerup_manager
+
+	if powerup_debug_logging:
+		print("POWERUP_WIRING: pickup_scene=%s manager=%s drop_chance=%s" % [
+			powerup_pickup_scene != null,
+			powerup_manager != null,
+			base_powerup_drop_chance
+		])
 
 	spawn_timer.wait_time = _get_current_spawn_interval()
 	if _can_spawn():
@@ -195,7 +203,12 @@ func _on_enemy_died(enemy: Node) -> void:
 		return
 
 	var guaranteed: bool = enemy.get("guaranteed_powerup") == true or enemy.get("is_elite") == true or enemy.get("is_miniboss") == true
-	call_deferred("_spawn_death_feedback_and_drop", enemy_node.global_position, dropped_experience, _roll_powerup_id(guaranteed))
+	var powerup_id := _roll_powerup_id(guaranteed)
+	if guaranteed and powerup_id == "":
+		powerup_id = "heal"
+	if powerup_debug_logging:
+		print("POWERUP_ROLL: guaranteed=%s dropped=%s" % [guaranteed, powerup_id if powerup_id != "" else "(none)"])
+	call_deferred("_spawn_death_feedback_and_drop", enemy_node.global_position, dropped_experience, powerup_id)
 
 
 func _spawn_death_feedback_and_drop(world_position: Vector2, dropped_experience: int, powerup_id: String = "") -> void:
@@ -224,14 +237,22 @@ func _spawn_death_feedback_and_drop(world_position: Vector2, dropped_experience:
 
 
 func _spawn_powerup_pickup(world_position: Vector2, powerup_id: String) -> void:
-	if powerup_pickup_scene == null or powerup_manager == null:
+	if powerup_pickup_scene == null:
+		if powerup_debug_logging:
+			push_warning("POWERUP_SPAWN: powerup_pickup_scene is null — assign it in EnemySpawner.tscn.")
+		return
+	if powerup_manager == null:
+		if powerup_debug_logging:
+			push_warning("POWERUP_SPAWN: powerup_manager is null — not passed in setup().")
 		return
 	if not is_instance_valid(pickup_container):
+		if powerup_debug_logging:
+			push_warning("POWERUP_SPAWN: pickup_container is invalid.")
 		return
 
 	var pickup_node := powerup_pickup_scene.instantiate()
 	if not pickup_node is Node2D:
-		push_warning("EnemySpawner powerup_pickup_scene root must be Node2D.")
+		push_warning("POWERUP_SPAWN: powerup_pickup_scene root must be Node2D.")
 		pickup_node.queue_free()
 		return
 
@@ -241,6 +262,17 @@ func _spawn_powerup_pickup(world_position: Vector2, powerup_id: String) -> void:
 	pickup.global_position = world_position + offset
 	if pickup.has_method("setup"):
 		pickup.setup(powerup_id, powerup_manager)
+	if powerup_debug_logging:
+		print("POWERUP_SPAWNED: id=%s position=%s" % [powerup_id, pickup.global_position])
+
+
+func debug_spawn_powerup(powerup_id: String = "heal") -> void:
+	print("POWERUP_DEBUG: debug_spawn_powerup called id=%s" % powerup_id)
+	if not is_instance_valid(player):
+		push_warning("POWERUP_DEBUG: player not valid, cannot spawn.")
+		return
+	var spawn_pos := player.global_position + Vector2(60.0, 0.0)
+	_spawn_powerup_pickup(spawn_pos, powerup_id)
 
 
 func _roll_powerup_id(guaranteed: bool = false) -> String:

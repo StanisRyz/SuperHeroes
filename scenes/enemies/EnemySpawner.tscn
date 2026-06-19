@@ -1,14 +1,16 @@
-[gd_scene load_steps=5 format=3 uid="uid://enemy_spawner_scene_superheroes"]
+[gd_scene load_steps=6 format=3 uid="uid://enemy_spawner_scene_superheroes"]
 
 [ext_resource type="Script" path="res://scenes/enemies/EnemySpawner.gd" id="1_spawner_script"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/Enemy.tscn" id="2_enemy"]
 [ext_resource type="PackedScene" path="res://scenes/pickups/ExperienceGem.tscn" id="3_experience_gem"]
 [ext_resource type="PackedScene" path="res://scenes/effects/DeathBurst.tscn" id="4_death_burst"]
+[ext_resource type="PackedScene" path="res://scenes/pickups/PowerupPickup.tscn" id="5_powerup_pickup"]
 
 [node name="EnemySpawner" type="Node"]
 script = ExtResource("1_spawner_script")
 enemy_scene = ExtResource("2_enemy")
 experience_gem_scene = ExtResource("3_experience_gem")
 death_burst_scene = ExtResource("4_death_burst")
+powerup_pickup_scene = ExtResource("5_powerup_pickup")
 
 [node name="SpawnTimer" type="Timer" parent="."]
