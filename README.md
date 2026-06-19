@@ -192,6 +192,13 @@ Implemented foundation:
 - EnemySpawner.debug_spawn_powerup(id) helper for quick console verification.
 - EventDirector with a timed event schedule (Runner Rush, Tank Wave, Elite, Miniboss).
 - Timed events apply spawn modifier boosts through SpawnDirector.
+- Enemy Content v2: Shooter stand-ground behavior, closer ring-based spawning, Exploder, Swarm, Shielded, and Support enemies.
+- Exploder enemies chase, wind up near the player, and deal explosion damage through `Player.take_damage()`.
+- Swarm enemies approach and orbit around the player using simple deterministic movement.
+- Shielded enemies absorb incoming damage with shield value before HP damage.
+- Support enemies periodically apply temporary speed/contact damage buffs to nearby non-support enemies.
+- Enemy waves added: Exploder Wave, Swarm Incoming, Shielded Front, and Support Units.
+- `EnemySpawner.debug_spawn_enemy_variant("exploder"|"swarm"|"shielded"|"support")` is available for console validation.
 - Elite enemy spawning with health, damage, XP, and color overrides.
 - Miniboss enemy spawning with large stat multipliers and a dedicated health bar.
 - MinibossHealthBar UI tracks a miniboss enemy and hides when it dies.
@@ -264,8 +271,12 @@ Not implemented yet:
 - Stamina.
 - Advanced dodge perks.
 - Controller remapping.
-- Exploder enemies.
-- Swarm/orbit enemies.
+- Enemy art assets.
+- Enemy sound effects.
+- Advanced support healing.
+- Flocking AI.
+- Enemy pathfinding.
+- Enemy spawn warning indicators.
 - Enemy projectile patterns.
 - Status effects.
 - Real audio assets.

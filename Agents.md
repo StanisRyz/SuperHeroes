@@ -410,8 +410,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - Enemy variants are currently hardcoded dictionaries, not Resources.
 - Enemy variant dictionaries include `behavior_id`.
 - Spawn interval and max alive enemy limits scale from run time.
-- Grunt is available from run start, Runner opens after about 30 seconds, Charger after about 45 seconds, Tank after about 60 seconds, and Shooter after about 75 seconds.
+- Grunt is available from run start, Runner opens after about 30 seconds, Charger after about 45 seconds, Tank after about 60 seconds, Shooter after about 75 seconds, Exploder after about 120 seconds, Swarm after about 150 seconds, Shielded after about 180 seconds, and Support after about 210 seconds.
 - Variant XP values are copied onto the dropped `ExperienceGem`.
+- Enemies should spawn near the player using `EnemySpawner` ring spawn, but never directly on top of the player.
 
 ## Enemy Behavior Notes
 
@@ -420,6 +421,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - SpawnDirector owns unlock timing and weighted selection.
 - EnemySpawner should stay behavior-agnostic.
 - EnemyProjectile should detect Player only.
+- Shooter must approach into preferred range, stand ground, and never retreat away from the player.
+- Exploder uses `behavior_id = "exploder"` and deals explosion damage through `Player.take_damage()`.
+- Swarm uses `behavior_id = "swarm"` and combines approach with simple orbit movement.
+- Support uses `behavior_id = "support"` and applies temporary enemy modifiers to nearby non-support enemies.
+- Shielded enemies use `shield_value` / `max_shield_value`; shield absorbs damage before HP.
+- Support modifiers must remain temporary; reapplying the same modifier refreshes duration rather than stacking permanent stats.
+- `EnemySpawner.debug_spawn_enemy_variant(variant_id)` can spawn specific enemy variants for remote console testing.
+- EventDirector owns enemy wave timing; SpawnDirector owns temporary event weight modifiers.
 
 ## Active Ability Flow
 
@@ -561,6 +570,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not add extra debug cheats unless explicitly requested.
 - Enemy variants are currently dictionaries, not Resource assets.
 - Keep long-term difficulty formulas in `SpawnDirector`, not `EnemySpawner`.
+- Keep spawn positioning and instancing in `EnemySpawner`.
 - Do not add monetization unless explicitly requested.
 - Do not use copyrighted superhero names, brands, logos, or specific existing characters.
 - Keep desktop browser and mobile landscape browser in mind.

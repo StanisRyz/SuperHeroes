@@ -43,6 +43,38 @@ var _event_schedule: Array = [
 		"type": "miniboss",
 		"modifier": {}
 	},
+	{
+		"id": "exploder_wave",
+		"trigger_time": 180.0,
+		"duration": 15.0,
+		"announcement": "Exploder Wave!",
+		"type": "timed",
+		"modifier": {"boost_variant_weights": {"exploder": 4.0}, "spawn_pressure": 1.15}
+	},
+	{
+		"id": "swarm_wave",
+		"trigger_time": 240.0,
+		"duration": 15.0,
+		"announcement": "Swarm Incoming!",
+		"type": "timed",
+		"modifier": {"boost_variant_weights": {"swarm": 4.0}, "spawn_pressure": 1.35}
+	},
+	{
+		"id": "shielded_wave",
+		"trigger_time": 300.0,
+		"duration": 18.0,
+		"announcement": "Shielded Front!",
+		"type": "timed",
+		"modifier": {"boost_variant_weights": {"shielded": 4.0}, "max_alive_bonus": 2}
+	},
+	{
+		"id": "support_wave",
+		"trigger_time": 360.0,
+		"duration": 18.0,
+		"announcement": "Support Units!",
+		"type": "timed",
+		"modifier": {"boost_variant_weights": {"support": 4.0}, "spawn_pressure": 1.15}
+	},
 ]
 
 func setup(new_run_manager: Node) -> void:

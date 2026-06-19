@@ -12,7 +12,8 @@ const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 @export var powerup_pickup_scene: PackedScene
 @export var spawn_interval: float = 1.5
 @export var max_alive_enemies: int = 12
-@export var min_spawn_distance_from_player: float = 500.0
+@export var min_spawn_distance_from_player: float = 320.0
+@export var max_spawn_distance_from_player: float = 900.0
 @export var max_spawn_attempts: int = 12
 @export var base_powerup_drop_chance: float = 0.06
 @export var powerup_debug_logging: bool = true
@@ -281,6 +282,25 @@ func debug_spawn_powerup(powerup_id: String = "heal") -> void:
 	_spawn_powerup_pickup(spawn_pos, powerup_id)
 
 
+func debug_spawn_enemy_variant(variant_id: String) -> void:
+	if not _can_spawn():
+		push_warning("EnemySpawner: cannot debug spawn enemy variant right now.")
+		return
+
+	var variant := {}
+	if spawn_director != null and spawn_director.has_method("get_enemy_variant_by_id"):
+		variant = spawn_director.get_enemy_variant_by_id(variant_id)
+	if not variant is Dictionary or variant.is_empty():
+		push_warning("EnemySpawner: unknown debug enemy variant: %s" % variant_id)
+		return
+
+	var pos := _find_spawn_position()
+	if pos == NO_SPAWN_POSITION:
+		return
+
+	_spawn_enemy_with_variant(variant, pos)
+
+
 func debug_get_powerup_wiring_state() -> Dictionary:
 	return {
 		"pickup_scene_assigned": powerup_pickup_scene != null,
@@ -339,6 +359,15 @@ func _can_spawn() -> bool:
 
 
 func _find_spawn_position() -> Vector2:
+	if is_instance_valid(player):
+		for attempt in range(max_spawn_attempts):
+			var angle := randf_range(0.0, TAU)
+			var distance := randf_range(min_spawn_distance_from_player, max_spawn_distance_from_player)
+			var point := player.global_position + Vector2.RIGHT.rotated(angle) * distance
+			point = _clamp_point_to_playable_rect(point)
+			if point.distance_to(player.global_position) >= min_spawn_distance_from_player:
+				return point
+
 	for attempt in range(max_spawn_attempts):
 		var point := Vector2(
 			randf_range(playable_rect.position.x, playable_rect.end.x),
@@ -349,6 +378,13 @@ func _find_spawn_position() -> Vector2:
 			return point
 
 	return NO_SPAWN_POSITION
+
+
+func _clamp_point_to_playable_rect(point: Vector2) -> Vector2:
+	return Vector2(
+		clampf(point.x, playable_rect.position.x, playable_rect.end.x),
+		clampf(point.y, playable_rect.position.y, playable_rect.end.y)
+	)
 
 
 func _get_current_spawn_interval() -> float:

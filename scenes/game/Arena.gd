@@ -714,6 +714,13 @@ func _on_debug_spawn_miniboss_requested() -> void:
 	print("DEBUG_ACTION: spawned miniboss")
 
 
+func debug_spawn_enemy_variant(variant_id: String) -> void:
+	if enemy_spawner == null or not enemy_spawner.has_method("debug_spawn_enemy_variant"):
+		push_warning("Arena: EnemySpawner missing debug_spawn_enemy_variant().")
+		return
+	enemy_spawner.debug_spawn_enemy_variant(variant_id)
+
+
 func _on_debug_add_xp_requested() -> void:
 	if player == null:
 		return

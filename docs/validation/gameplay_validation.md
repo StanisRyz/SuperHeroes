@@ -100,6 +100,31 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Enemy Content v2
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Wait for Shooter enemies or debug spawn a shooter | Shooter approaches into range, shoots, and does not retreat when the player gets close |
+| 2 | Observe normal spawns | Enemies appear closer than before, roughly in a ring around the player, but not directly on top of the player |
+| 3 | Remote call `debug_spawn_enemy_variant("exploder")` | Exploder chases, winds up near the player, pulses visually, explodes, and damages through `Player.take_damage()` |
+| 4 | Remote call `debug_spawn_enemy_variant("swarm")` | Swarm approaches, then moves partly around the player instead of straight-line chasing only |
+| 5 | Remote call `debug_spawn_enemy_variant("shielded")` | Shielded enemy absorbs damage with shield before HP decreases |
+| 6 | Remote call `debug_spawn_enemy_variant("support")` near other enemies | Support periodically buffs nearby non-support enemies; buff expires naturally |
+| 7 | Reach ~3:00, ~4:00, ~5:00, ~6:00 | Exploder Wave, Swarm Incoming, Shielded Front, and Support Units announcements trigger once |
+| 8 | Use debug/dash/shield invulnerability against Exploder and Shooter | Damage goes through existing `Player.take_damage()` protections |
+| 9 | Reach final phase/victory timing | Final phase and victory still trigger with the expanded enemy mix |
+
+Remote console examples:
+
+```gdscript
+debug_spawn_enemy_variant("exploder")
+debug_spawn_enemy_variant("swarm")
+debug_spawn_enemy_variant("shielded")
+debug_spawn_enemy_variant("support")
+```
+
+---
+
 ## Run Flow
 
 | # | Test | Expected |
