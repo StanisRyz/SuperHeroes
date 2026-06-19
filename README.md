@@ -107,6 +107,8 @@ Implemented foundation:
 - Weapon modifier upgrades.
 - Multishot uses a visible minimum spread by default when no spread upgrade is active.
 - Projectile homing is disabled for spread and multishot shots so fired projectiles do not collapse back onto one line.
+- Separate multishot projectile instances can damage the same enemy independently.
+- Per-projectile hit lists only prevent duplicate hits from the same projectile instance.
 - Weapon upgrade direction generation has a headless sanity check at `scripts/tests/WeaponUpgradeSanityCheck.gd`.
 
 Not implemented yet:

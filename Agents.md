@@ -151,7 +151,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - PlayerProjectile handles pierce and explosion.
 - PlayerProjectile uses `homing_enabled` to decide whether it follows the target after launch.
 - PlayerProjectile should only damage enemies.
-- PlayerProjectile should not damage the same enemy twice per projectile.
+- PlayerProjectile hit lists are local per projectile instance; do not add global same-target blocking.
+- Multishot projectile instances must each be able to apply direct damage to the same enemy.
+- PlayerProjectile should not damage the same enemy twice from the same projectile instance.
+- `attack_id` and `projectile_index` can be used with `debug_hits` for local hit testing.
 - Weapon modifier upgrades are runtime-only.
 
 ## Player Dash Notes

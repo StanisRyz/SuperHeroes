@@ -1,5 +1,16 @@
 extends SceneTree
 
+class FakeEnemy:
+	extends Node2D
+
+	var damage_received := 0
+
+	func take_damage(amount: int) -> void:
+		damage_received += amount
+
+	func die() -> void:
+		pass
+
 func _init() -> void:
 	var auto_attack = load("res://scenes/player/PlayerAutoAttack.gd").new()
 	auto_attack.projectile_count = 3
@@ -28,5 +39,32 @@ func _init() -> void:
 		quit(1)
 		return
 
+	var enemy := FakeEnemy.new()
+	var projectile_script = load("res://scenes/projectiles/PlayerProjectile.gd")
+	var first_projectile = projectile_script.new()
+	var second_projectile = projectile_script.new()
+	first_projectile.setup(Vector2.ZERO, enemy, 5, {"attack_id": 7, "projectile_index": 0})
+	second_projectile.setup(Vector2.ZERO, enemy, 5, {"attack_id": 7, "projectile_index": 1})
+
+	if not first_projectile._try_hit_enemy(enemy):
+		push_error("Expected first projectile instance to damage the enemy.")
+		quit(1)
+		return
+	if first_projectile._try_hit_enemy(enemy):
+		push_error("Expected one projectile instance to reject duplicate same-enemy damage.")
+		quit(1)
+		return
+	if not second_projectile._try_hit_enemy(enemy):
+		push_error("Expected separate projectile instance to damage the same enemy.")
+		quit(1)
+		return
+	if enemy.damage_received != 10:
+		push_error("Expected two separate projectile hits to apply damage independently.")
+		quit(1)
+		return
+
 	auto_attack.free()
+	enemy.free()
+	first_projectile.free()
+	second_projectile.free()
 	quit(0)

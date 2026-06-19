@@ -18,6 +18,7 @@ var audio_manager: Node
 var _cooldown := 0.0
 var _enemies_in_range: Array[Node2D] = []
 var _missing_projectile_warning_shown := false
+var _attack_sequence_id: int = 0
 
 @onready var attack_range_area: Area2D = get_node_or_null("AttackRangeArea")
 @onready var attack_shape: CollisionShape2D = get_node_or_null("AttackRangeArea/CollisionShape2D")
@@ -120,15 +121,19 @@ func _spawn_projectiles(enemy: Node2D) -> bool:
 	var effective_spread := _get_effective_spread_degrees(safe_count)
 	var homing_enabled := not (safe_count > 1 or effective_spread > 0.0)
 	var directions := _get_projectile_directions(base_direction, safe_count, effective_spread)
+	var next_attack_id := _attack_sequence_id + 1
 	for index in range(directions.size()):
 		var spawn_offset := _get_multishot_spawn_offset(base_direction, index, safe_count)
-		if _spawn_projectile(enemy, directions[index], spawn_offset, homing_enabled):
+		if _spawn_projectile(enemy, directions[index], spawn_offset, homing_enabled, next_attack_id, index):
 			spawned_any = true
+
+	if spawned_any:
+		_attack_sequence_id = next_attack_id
 
 	return spawned_any
 
 
-func _spawn_projectile(enemy: Node2D, direction: Vector2, spawn_offset: Vector2 = Vector2.ZERO, homing_enabled: bool = true) -> bool:
+func _spawn_projectile(enemy: Node2D, direction: Vector2, spawn_offset: Vector2 = Vector2.ZERO, homing_enabled: bool = true, attack_id: int = -1, projectile_index: int = 0) -> bool:
 	var projectile_node := projectile_scene.instantiate()
 	if not projectile_node is Node2D:
 		push_warning("PlayerAutoAttack projectile_scene root must be Node2D.")
@@ -153,6 +158,8 @@ func _spawn_projectile(enemy: Node2D, direction: Vector2, spawn_offset: Vector2 
 			"explosion_radius": projectile_explosion_radius,
 			"explosion_damage_multiplier": projectile_explosion_damage_multiplier,
 			"homing_enabled": homing_enabled,
+			"attack_id": attack_id,
+			"projectile_index": projectile_index,
 		})
 	else:
 		push_warning("Player projectile does not implement setup(origin, target, damage).")

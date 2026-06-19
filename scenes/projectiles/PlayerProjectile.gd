@@ -5,6 +5,7 @@ extends Area2D
 @export var hit_radius: float = 10.0
 @export var hit_spark_scene: PackedScene
 @export var explosion_burst_scene: PackedScene
+@export var debug_hits: bool = false
 
 var damage: int
 var target: Node2D
@@ -15,7 +16,11 @@ var size_multiplier: float = 1.0
 var explosion_radius: float = 0.0
 var explosion_damage_multiplier: float = 0.6
 var homing_enabled: bool = true
+var attack_id: int = -1
+var projectile_index: int = 0
 var _lifetime := 0.0
+# Per projectile instance only: prevents one projectile from damaging the same enemy twice,
+# but separate projectiles can still damage the same enemy independently.
 var _hit_enemies: Array[Node] = []
 
 @onready var collision_shape: CollisionShape2D = get_node_or_null("CollisionShape2D")
@@ -45,6 +50,10 @@ func setup(origin: Vector2, new_target: Node2D, new_damage: int, extra_data: Dic
 		explosion_damage_multiplier = maxf(float(extra_data["explosion_damage_multiplier"]), 0.0)
 	if extra_data.has("homing_enabled"):
 		homing_enabled = bool(extra_data["homing_enabled"])
+	if extra_data.has("attack_id"):
+		attack_id = int(extra_data["attack_id"])
+	if extra_data.has("projectile_index"):
+		projectile_index = int(extra_data["projectile_index"])
 
 	if is_instance_valid(target):
 		var offset := target.global_position - global_position
@@ -79,20 +88,42 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node2D) -> void:
-	if not _is_valid_enemy(body) or _hit_enemies.has(body):
+	if not _try_hit_enemy(body):
 		return
 
-	_hit_enemies.append(body)
-	body.take_damage(damage)
+	if _should_destroy_after_hit():
+		queue_free()
+	else:
+		pierce_remaining -= 1
+
+
+func _try_hit_enemy(enemy: Node2D) -> bool:
+	if not _is_valid_enemy(enemy) or _hit_enemies.has(enemy):
+		return false
+
+	_register_enemy_hit(enemy)
+	enemy.take_damage(damage)
+	if debug_hits:
+		print("PlayerProjectile hit attack_id=%d projectile_index=%d enemy=%s damage=%d" % [
+			attack_id,
+			projectile_index,
+			enemy.name,
+			damage,
+		])
+	_spawn_hit_spark(enemy.global_position)
+	_apply_explosion(enemy)
 	if audio_manager != null and audio_manager.has_method("play_projectile_hit"):
 		audio_manager.play_projectile_hit()
-	_spawn_hit_spark(body.global_position)
-	_apply_explosion(body)
 
-	if pierce_remaining > 0:
-		pierce_remaining -= 1
-	else:
-		queue_free()
+	return true
+
+
+func _register_enemy_hit(enemy: Node2D) -> void:
+	_hit_enemies.append(enemy)
+
+
+func _should_destroy_after_hit() -> bool:
+	return pierce_remaining <= 0
 
 
 func _spawn_hit_spark(world_position: Vector2) -> void:
