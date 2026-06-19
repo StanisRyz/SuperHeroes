@@ -176,6 +176,13 @@ func debug_gain_one_level() -> void:
 	level_up_available.emit(level)
 
 
+func debug_add_experience(amount: int) -> void:
+	if is_dead() or amount <= 0:
+		return
+	print("DEBUG_PLAYER: add_experience amount=%d" % amount)
+	add_experience(amount)
+
+
 func get_aim_direction() -> Vector2:
 	return last_aim_direction if not last_aim_direction.is_zero_approx() else Vector2.RIGHT
 

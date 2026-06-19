@@ -89,6 +89,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/enemies/MinibossAttackController.gd` - owns miniboss attack timing, attack selection, nova/barrage/charge execution, 2-phase logic, and phase_changed signal.
 - `scenes/effects/AttackTelegraph.tscn` - short-lived visual warning zone scene (Node2D root).
 - `scenes/effects/AttackTelegraph.gd` - plays circle or line danger zone using dynamically created Line2D; fades/pulses and queue_frees; never applies damage.
+- `scenes/ui/DebugStatsOverlay.tscn` - minimal CanvasLayer root scene for the debug stats panel; all UI built programmatically in _ready().
+- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage, build archetype/points/synergies, buff/shield state, spawner wiring. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
+- `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, expected console log patterns).
 
 ## Miniboss Combat Architecture
 
@@ -274,22 +277,29 @@ The game is an original superhero survivors-like: the player moves around an are
 - DebugManager owns debug state and signals, not keyboard handling.
 - Arena._input() uses `_input` (not `_unhandled_input`) for debug keys to intercept before UI.
 - Direct raw key detection for F12/F10/F1/F2 is checked first; InputMap actions are a fallback.
+- F3–F8 debug validation keys use InputMap action names and raw keycode fallbacks; they are blocked by `_is_debug_action_blocked()` (paused / game-over / player-dead / debug-off).
 - A single `handled_debug_key` boolean prevents double-processing the same key press.
 - Debug toggle supports F12 with F10 fallback; debug level supports F1 with F2 fallback.
 - Debug level keys should not work while paused, game-over, level-up, or player-dead.
 - DebugOverlay only displays DEBUG ON and does not own debug rules.
-- Player owns `debug_invulnerable` and `debug_gain_one_level()`.
-- Arena wires DebugManager to Player and DebugOverlay.
+- DebugStatsOverlay is display-only: it reads state from references, never mutates gameplay.
+- DebugStatsOverlay is instantiated at runtime in Arena._setup_debug_stats_overlay() by loading the scene via `load()`. It is NOT added to Arena.tscn.
+- Player owns `debug_invulnerable`, `debug_gain_one_level()`, and `debug_add_experience(amount)`.
+- Arena wires DebugManager to Player, DebugOverlay, and DebugStatsOverlay.
 - Debug Mode is runtime-only, not persisted, and not exposed in SettingsMenu.
+- DebugManager.request_*() methods check debug_enabled, print accept/reject reason, then emit signals. DebugManager never spawns objects or modifies gameplay state directly.
+- Arena connects all DebugManager validation signals in _setup_debug_flow() and handles each action.
 - Do not add debug cheats unless explicitly requested.
 
 ### Debug Diagnostics
 
-- `DEBUG_INPUT:` — Arena prints raw key detection for F12/F10/F1/F2 on every non-echo press or release, before any condition checks.
-- `DEBUG_WIRING:` — Arena prints whether DebugManager, DebugOverlay, and Player debug APIs were found and whether signals were connected.
+- `DEBUG_INPUT:` — Arena prints raw key detection for F12/F10/F1/F2 on every non-echo press or release, before any condition checks. Also prints `action=debug_spawn_powerup` etc. for F3–F8.
+- `DEBUG_WIRING:` — Arena prints whether DebugManager, DebugOverlay, DebugStatsOverlay, and Player debug APIs were found and whether signals were connected.
 - `DEBUG_MODE:` — DebugManager logs every toggle with the resulting enabled state.
 - `DEBUG_LEVEL:` — DebugManager logs each request (accepted) or rejection with a short reason (disabled, tree paused, missing player, player dead).
-- `DEBUG_PLAYER:` — Player logs `set_debug_invulnerable` changes and `debug_gain_one_level` level values.
+- `DEBUG_ACTION:` — DebugManager logs each validation request (accepted or rejected with reason). Arena logs the result: `spawned powerup <id>`, `spawned elite`, `spawned miniboss`, `added XP <n>`, `killed nearby enemies count=<n>`.
+- `DEBUG_PLAYER:` — Player logs `set_debug_invulnerable` changes, `debug_gain_one_level` level values, and `debug_add_experience` amounts.
+- `POWERUP_WIRING:`, `POWERUP_ROLL:`, `POWERUP_SPAWNED:`, `POWERUP_DEBUG:` — EnemySpawner powerup diagnostics; keep active until powerup drops are confirmed.
 - Diagnostic logs remain active until Debug Mode reliability is confirmed. Do not remove them prematurely.
 
 ### Old Naruto-Clicker Comparison
@@ -496,10 +506,22 @@ The game is an original superhero survivors-like: the player moves around an are
 - Yandex SDK integration.
 - Ads, payments, monetization, leaderboards, or saves.
 
+## Validation Notes
+
+- Use debug tools (F3–F8) to verify gameplay systems before adding new content.
+- Keep POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED diagnostics until powerup drops are confirmed working in the target environment.
+- docs/validation/gameplay_validation.md is the canonical manual test checklist; update it when systems change.
+- Run `godot --headless --editor --quit` from the repo root to confirm no parse errors after every patch.
+
 ## Development Rules
 
 - README.md and Agents.md must be updated on every task.
 - Do not add persistence unless explicitly requested.
+- Debug tools (F3–F8) must only do anything while Debug Mode is ON (F12/F10). Normal gameplay must remain unchanged.
+- Arena coordinates all debug actions. DebugManager owns debug state and emits request signals. DebugStatsOverlay is display-only.
+- Do not add new enemy types unless explicitly requested.
+- Do not add arena hazards.
+- Do not add meta-progression or persistence.
 - Do not re-enable Player/Enemy physical body collisions.
 - Miniboss damage must always go through Player.take_damage() or existing EnemyProjectile collision logic.
 - Do not re-enable Player/Enemy physical body collisions.

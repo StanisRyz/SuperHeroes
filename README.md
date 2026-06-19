@@ -23,7 +23,30 @@ SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game 
 
 ## Development Status
 
-The project is currently in the foundation stage. It has the first playable loop pieces, projectile-based player autoattack, health feedback, XP pickup, a first level-up upgrade selection flow, basic run lifecycle handling, time-based spawn progression, the first active ability foundation, and basic mobile controls, but no Yandex SDK integration yet.
+The project is currently in the gameplay balance & debug validation stage. Core systems (combat, XP, upgrades, powerups, miniboss, mobile controls) are implemented. This patch adds debug tools for fast validation without redesigning any systems.
+
+### Gameplay Validation / Debug Pass
+
+A debug toolset has been added to help verify all gameplay systems quickly without waiting for natural game time:
+
+- **DebugStatsOverlay** — top-left panel that shows live player stats, weapon values, ability cooldowns, build archetype, buff state, and powerup wiring. Visible only while Debug Mode is ON.
+- **F3–F8 debug actions** — in-game keyboard shortcuts active only while Debug Mode is ON (F12/F10).
+- **docs/validation/gameplay_validation.md** — manual test checklist for all systems.
+
+#### Debug Keys
+
+| Key | Action | Notes |
+|-----|--------|-------|
+| F12 / F10 | Toggle Debug Mode | F10 is a browser/editor fallback |
+| F1 / F2 | +1 Level (debug) | Only while Debug Mode ON |
+| F3 | Spawn powerup near player | Cycles: heal → shield → bomb → magnet → speed → haste |
+| F4 | Spawn elite enemy | Uses existing spawn_elite_enemy() |
+| F5 | Spawn miniboss | HP bar wires automatically |
+| F6 | Add 50 XP to player | Goes through normal XP/level-up flow |
+| F7 | Print stats to console + refresh overlay | Only when requested |
+| F8 | Kill enemies within 500px | Uses take_damage() so drops/effects still work |
+
+All F3–F8 keys do nothing when Debug Mode is OFF, when the tree is paused, or when the player is dead.
 
 Implemented foundation:
 
@@ -181,6 +204,15 @@ Implemented foundation:
 - AttackTelegraph: short-lived visual warning zone (circle or line) using built-in Line2D nodes only; never applies damage.
 - 2-phase miniboss: phase 2 starts at 50% HP, reduces cooldowns, increases barrage count and nova radius, and shows "Miniboss Enraged!" announcement.
 - Miniboss defeated announcement: "Miniboss Defeated!" shown via EventAnnouncement on miniboss death.
+
+- Gameplay balance & debug validation pass:
+  - DebugStatsOverlay (scenes/ui/DebugStatsOverlay.tscn / .gd): live stats panel for player, weapon, abilities, build, buffs, and spawner wiring. Shown only in Debug Mode.
+  - Debug input actions F3–F8 added to project.godot and routed through Arena/DebugManager.
+  - DebugManager: 6 new validation signals and request methods (spawn powerup, spawn elite, spawn miniboss, add XP, print stats, kill nearby).
+  - Player.debug_add_experience(amount): adds XP through normal level-up flow.
+  - EnemySpawner.debug_get_powerup_wiring_state(): returns pickup_scene/manager/container/drop_chance snapshot.
+  - UpgradeManager.debug_get_build_state(): returns dominant_archetype, archetype_points, history size, available count, unlocked synergy IDs.
+  - docs/validation/gameplay_validation.md: manual test checklist for all systems.
 
 Not implemented yet:
 

@@ -275,6 +275,15 @@ func debug_spawn_powerup(powerup_id: String = "heal") -> void:
 	_spawn_powerup_pickup(spawn_pos, powerup_id)
 
 
+func debug_get_powerup_wiring_state() -> Dictionary:
+	return {
+		"pickup_scene_assigned": powerup_pickup_scene != null,
+		"powerup_manager_assigned": powerup_manager != null,
+		"pickup_container_valid": is_instance_valid(pickup_container),
+		"drop_chance": base_powerup_drop_chance,
+	}
+
+
 func _roll_powerup_id(guaranteed: bool = false) -> String:
 	if not guaranteed and randf() > base_powerup_drop_chance:
 		return ""

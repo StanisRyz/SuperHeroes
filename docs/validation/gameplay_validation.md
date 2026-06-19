@@ -1,0 +1,136 @@
+# Gameplay Validation Checklist
+
+Manual test cases for the debug & balance validation pass.
+Run these before adding new gameplay systems.
+
+---
+
+## Debug Mode
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press **F12** (or F10) during a run | "DEBUG ON" overlay appears; player becomes invulnerable; DebugStatsOverlay appears top-left |
+| 2 | Press **F12** again | Overlay hides; invulnerability removed |
+| 3 | Press **F1** (or F2) while Debug Mode ON | Level-up screen opens (+1 level) |
+| 4 | Press **F1** while Debug Mode OFF | Nothing happens |
+| 5 | Press **F3** while Debug Mode ON | Powerup pickup spawns near player, cycles through types each press; console: `DEBUG_ACTION: spawned powerup <id>` |
+| 6 | Press **F4** while Debug Mode ON | Elite enemy spawns; console: `DEBUG_ACTION: spawned elite` |
+| 7 | Press **F5** while Debug Mode ON | Miniboss spawns; HP bar appears at top of screen; console: `DEBUG_ACTION: spawned miniboss` |
+| 8 | Press **F6** while Debug Mode ON | Player gains 50 XP (may trigger level-up); console: `DEBUG_ACTION: added XP 50` |
+| 9 | Press **F7** while Debug Mode ON | Compact stats print to console; DebugStatsOverlay refreshes immediately |
+| 10 | Press **F8** while Debug Mode ON | All enemies within ~500px die with drop effects; console: `DEBUG_ACTION: killed nearby enemies count=N` |
+| 11 | Any F3-F8 while Debug Mode OFF | Nothing happens |
+| 12 | Any F3-F8 while tree is paused | Nothing happens |
+| 13 | Any F3-F8 while player is dead | Nothing happens |
+
+---
+
+## DebugStatsOverlay
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable Debug Mode (F12) | Overlay visible top-left; shows player HP/level/XP/speed, weapon stats, ability stats, build archetype, spawner wiring |
+| 2 | Take damage | HP value updates within 0.25s |
+| 3 | Pick up an upgrade | Build / weapon stats update within 0.25s |
+| 4 | Disable Debug Mode | Overlay hides |
+| 5 | Press F7 | Overlay refreshes immediately |
+
+---
+
+## Powerups
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Walk into **heal** pickup | HP restored (capped at max); "+HP" text appears |
+| 2 | Walk into **shield** pickup | Shield charges increase in HUD |
+| 3 | Take damage with shield active | Shield absorbs hit; no HP loss |
+| 4 | Walk into **bomb** pickup | Enemies near player take 50 damage; BombBurst visual appears |
+| 5 | Walk into **magnet** pickup | All nearby XP gems rush toward player |
+| 6 | Walk into **speed** pickup | Player visibly speeds up for 6s; "Speed: X.Xs" shown in HUD |
+| 7 | Walk into **haste** pickup | Attack rate increases for 6s; "Haste: X.Xs" shown in HUD |
+| 8 | Press F3 repeatedly | Powerup types cycle: heal → shield → bomb → magnet_burst → move_speed_boost → attack_speed_boost → heal … |
+| 9 | Check console on game start | `POWERUP_WIRING: pickup_scene=True manager=True drop_chance=0.06` |
+
+---
+
+## Abilities
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press **J** (Nova Pulse) near enemies | Enemies in radius take damage; ring visual plays; cooldown shows in HUD |
+| 2 | Press **K** (Laser Beam) with enemies ahead | Enemies in beam line take damage; laser visual plays; cooldown shows in HUD |
+| 3 | Press **L** (Hero Slam) near enemies | Enemies in radius take damage; ring visual plays; cooldown shows in HUD |
+| 4 | Press ability key during cooldown | Nothing happens |
+| 5 | Press ability key while tree is paused | Nothing happens |
+
+---
+
+## Weapon Upgrades
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Take **multishot** upgrade | Second projectile fires per attack |
+| 2 | Take **pierce** upgrade | Projectile passes through one enemy |
+| 3 | Take **explosion** upgrade | Projectile explodes on impact |
+| 4 | Take **size** upgrade | Projectile visibly larger |
+| 5 | F7 after each upgrade | Weapon stats in console/overlay reflect changed values |
+
+---
+
+## Build Archetypes
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Take 2+ projectile upgrades | "Build: Projectile" shown in GameHUD |
+| 2 | Take 2+ nova upgrades | "Build: Nova" shown |
+| 3 | Meet synergy prerequisites | Synergy upgrade (e.g. "Split Barrage") appears in upgrade pool |
+| 4 | Apply synergy upgrade | Multiple stat effects applied at once |
+| 5 | F7 or debug overlay | Shows dominant archetype and archetype point counts |
+
+---
+
+## Miniboss
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press **F5** with Debug Mode ON | Miniboss spawns; large purple enemy visible; HP bar appears at top |
+| 2 | Miniboss at 50% HP | "Miniboss Enraged!" announcement shows; attacks become faster |
+| 3 | Miniboss dies | "Miniboss Defeated!" announcement; guaranteed powerup drop; HP bar hides |
+| 4 | Natural spawn (2:30 into run) | Same as above without F5 |
+
+---
+
+## Run Flow
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press **Escape** during run | Pause menu opens; time stops |
+| 2 | Resume from pause | Game resumes; no state corruption |
+| 3 | Open Settings from pause | Settings menu overlays pause |
+| 4 | Player HP reaches 0 | Game over screen shows time/kills/level |
+| 5 | Restart from game over | Fresh arena, all debug keys still work |
+| 6 | Quit to menu | Returns to main menu |
+
+---
+
+## Console Diagnostic Patterns
+
+Expected log lines to verify at startup (Debug Mode OFF):
+
+```
+DEBUG_WIRING: DebugManager exists=true
+DEBUG_WIRING: DebugOverlay exists=true
+DEBUG_WIRING: Player.set_debug_invulnerable=true
+DEBUG_WIRING: Player.debug_gain_one_level=true
+DEBUG_WIRING: Player.debug_add_experience=true
+DEBUG_WIRING: signals connected=true
+DEBUG_WIRING: DebugStatsOverlay instantiated=true
+POWERUP_WIRING: pickup_scene=True manager=True drop_chance=0.06
+```
+
+Expected on F12 press:
+```
+DEBUG_INPUT: key=F12 physical=4194347 ...
+DEBUG_MODE: enabled=true
+DEBUG_PLAYER: invulnerable=true
+```

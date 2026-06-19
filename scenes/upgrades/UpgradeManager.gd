@@ -638,6 +638,23 @@ func _has_upgrade_level(upgrade_id: String, min_level: int = 1) -> bool:
 
 # ── DEBUG HELPERS ─────────────────────────────────────────────────────────────
 
+func debug_get_build_state() -> Dictionary:
+	var synergy_ids: Array[String] = []
+	for definition in _upgrade_definitions:
+		var uid := str(definition.get("id", ""))
+		var tags: Array = definition.get("tags", [])
+		if tags.has("synergy") and get_upgrade_level(uid) > 0:
+			synergy_ids.append(uid)
+
+	return {
+		"dominant_archetype": get_dominant_archetype(),
+		"archetype_points": archetype_points.duplicate(),
+		"selected_upgrade_history_size": selected_upgrade_history.size(),
+		"available_upgrade_count": debug_get_available_upgrade_ids().size(),
+		"unlocked_synergy_upgrade_ids": synergy_ids,
+	}
+
+
 func debug_get_available_upgrade_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for definition in _upgrade_definitions:
