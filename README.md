@@ -267,6 +267,16 @@ Not implemented yet (UI):
 - Help does not open over Settings, LevelUpScreen, EvolutionRewardScreen, VictoryScreen, or GameOverScreen.
 - The content is centralized in `ControlsHelpContent.gd` and covers basic controls, active abilities, run systems, meta progression, debug mode, and mobile controls.
 
+### Remember Last Choice QoL
+
+- **UserPreferencesManager** stores small non-gameplay preferences separately from meta progression and settings.
+- Last confirmed hero and stage are saved to `user://superheroes_user_preferences.json`.
+- CharacterSelect preselects the remembered hero when it is valid and playable; otherwise it falls back to the default hero.
+- StageSelect preselects the remembered stage when it is valid; otherwise it falls back to the default stage.
+- MainMenu shows a compact `Last: Hero / Stage` hint when remembered choices are available.
+- Restart keeps the current run hero/stage, while returning to MainMenu and starting a new flow uses the remembered choices.
+- Preference reset is available through `UserPreferencesManager.reset_preferences()` and does not reset meta progression or settings.
+
 ### Balance / Cleanup / Production Readiness
 
 - **GameplayTuning** (`scenes/game/GameplayTuning.tscn`) centralizes exported balance defaults for debug logging, run timing, spawn distances/caps, powerup drop chance, core ability values, and player defaults.
@@ -366,6 +376,10 @@ Not implemented yet:
 - Localized help text.
 - Icon-based controls guide.
 - Runtime input remapping UI.
+- Cloud sync for user preferences.
+- Settings UI reset button for user preferences.
+- Last build preset.
+- Favorite heroes or stages.
 - Stage unlocks (all 3 stages are unlocked by default).
 - Arena hazards / floor zones / obstacles.
 - Leaderboard.

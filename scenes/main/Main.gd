@@ -7,6 +7,7 @@ var current_run: Node
 var main_menu: Node
 var settings_manager: Node
 var audio_manager: Node
+var user_preferences_manager: Node
 var hero_data_provider: Node
 var character_select: Node
 var stage_data_provider: Node
@@ -29,6 +30,7 @@ func _ready() -> void:
 	get_tree().paused = false
 	settings_manager = get_node_or_null("SettingsManager")
 	audio_manager = get_node_or_null("AudioManager")
+	user_preferences_manager = get_node_or_null("UserPreferencesManager")
 	hero_data_provider = get_node_or_null("HeroDataProvider")
 	character_select = get_node_or_null("CharacterSelect")
 	stage_data_provider = get_node_or_null("StageDataProvider")
@@ -36,6 +38,12 @@ func _ready() -> void:
 
 	if settings_manager != null and settings_manager.has_method("load_settings"):
 		settings_manager.load_settings()
+
+	if user_preferences_manager != null and user_preferences_manager.has_method("load_preferences"):
+		user_preferences_manager.load_preferences()
+	if user_preferences_manager != null and user_preferences_manager.has_signal("last_choices_changed"):
+		if not user_preferences_manager.last_choices_changed.is_connected(_on_last_choices_changed):
+			user_preferences_manager.last_choices_changed.connect(_on_last_choices_changed)
 
 	if audio_manager != null and audio_manager.has_method("setup"):
 		audio_manager.setup(settings_manager)
@@ -53,7 +61,7 @@ func _ready() -> void:
 
 	if character_select != null:
 		if character_select.has_method("setup"):
-			character_select.setup(hero_data_provider, meta_progression_manager)
+			character_select.setup(hero_data_provider, meta_progression_manager, user_preferences_manager)
 		if character_select.has_signal("hero_confirmed") and not character_select.hero_confirmed.is_connected(_on_hero_confirmed):
 			character_select.hero_confirmed.connect(_on_hero_confirmed)
 		if character_select.has_signal("back_requested") and not character_select.back_requested.is_connected(_on_character_select_back_requested):
@@ -61,7 +69,7 @@ func _ready() -> void:
 
 	if stage_select != null:
 		if stage_select.has_method("setup"):
-			stage_select.setup(stage_data_provider)
+			stage_select.setup(stage_data_provider, user_preferences_manager)
 		if stage_select.has_signal("stage_confirmed") and not stage_select.stage_confirmed.is_connected(_on_stage_confirmed):
 			stage_select.stage_confirmed.connect(_on_stage_confirmed)
 		if stage_select.has_signal("back_requested") and not stage_select.back_requested.is_connected(_on_stage_select_back_requested):
@@ -122,6 +130,9 @@ func _show_main_menu() -> void:
 
 	if main_menu.has_method("setup"):
 		main_menu.setup(settings_manager, audio_manager)
+	if main_menu.has_method("set_last_choice_hint"):
+		var hint_names := _get_last_choice_hint_names()
+		main_menu.set_last_choice_hint(str(hint_names.get("hero_name", "")), str(hint_names.get("stage_name", "")))
 
 	if main_menu.has_signal("start_requested") and not main_menu.start_requested.is_connected(_show_character_select):
 		main_menu.start_requested.connect(_show_character_select)
@@ -151,6 +162,7 @@ func _input(event: InputEvent) -> void:
 
 func _show_character_select() -> void:
 	_close_settings_menu_if_open()
+	_refresh_selection_preferences()
 	if main_menu != null:
 		main_menu.hide()
 	if character_select != null and character_select.has_method("open"):
@@ -168,12 +180,15 @@ func _on_character_select_back_requested() -> void:
 
 func _on_hero_confirmed(hero_id: String) -> void:
 	selected_hero_id = hero_id
+	if user_preferences_manager != null and user_preferences_manager.has_method("set_last_hero_id"):
+		user_preferences_manager.set_last_hero_id(hero_id)
 	if character_select != null and character_select.has_method("close"):
 		character_select.close()
 	_show_stage_select()
 
 
 func _show_stage_select() -> void:
+	_refresh_selection_preferences()
 	if stage_select != null and stage_select.has_method("open"):
 		stage_select.open()
 	else:
@@ -182,6 +197,8 @@ func _show_stage_select() -> void:
 
 func _on_stage_confirmed(stage_id: String) -> void:
 	selected_stage_id = stage_id
+	if user_preferences_manager != null and user_preferences_manager.has_method("set_last_stage_id"):
+		user_preferences_manager.set_last_stage_id(stage_id)
 	if stage_select != null and stage_select.has_method("close"):
 		stage_select.close()
 	_start_run_with_hero_and_stage(selected_hero_id, selected_stage_id)
@@ -397,3 +414,52 @@ func _get_stage_data(stage_id: String) -> Dictionary:
 	if stage_data_provider.has_method("get_default_stage"):
 		return stage_data_provider.get_default_stage()
 	return {}
+
+
+func _on_last_choices_changed(_hero_id: String, _stage_id: String) -> void:
+	_refresh_selection_preferences()
+	if main_menu != null and main_menu.has_method("set_last_choice_hint"):
+		var hint_names := _get_last_choice_hint_names()
+		main_menu.set_last_choice_hint(str(hint_names.get("hero_name", "")), str(hint_names.get("stage_name", "")))
+
+
+func _get_last_choice_hint_names() -> Dictionary:
+	var hero_id := ""
+	var stage_id := ""
+	if user_preferences_manager != null:
+		if user_preferences_manager.has_method("get_last_hero_id"):
+			hero_id = user_preferences_manager.get_last_hero_id()
+		if user_preferences_manager.has_method("get_last_stage_id"):
+			stage_id = user_preferences_manager.get_last_stage_id()
+
+	return {
+		"hero_name": _get_hero_display_name(hero_id),
+		"stage_name": _get_stage_display_name(stage_id),
+	}
+
+
+func _get_hero_display_name(hero_id: String) -> String:
+	if hero_id.is_empty() or hero_data_provider == null:
+		return ""
+	if hero_data_provider.has_method("get_hero"):
+		var hero: Dictionary = hero_data_provider.get_hero(hero_id)
+		return str(hero.get("display_name", ""))
+	return ""
+
+
+func _get_stage_display_name(stage_id: String) -> String:
+	if stage_id.is_empty() or stage_data_provider == null:
+		return ""
+	if stage_data_provider.has_method("get_stage"):
+		var stage: Dictionary = stage_data_provider.get_stage(stage_id)
+		return str(stage.get("display_name", ""))
+	return ""
+
+
+func _refresh_selection_preferences() -> void:
+	if user_preferences_manager == null:
+		return
+	if character_select != null and character_select.has_method("set_preferred_hero_id") and user_preferences_manager.has_method("get_last_hero_id"):
+		character_select.set_preferred_hero_id(user_preferences_manager.get_last_hero_id())
+	if stage_select != null and stage_select.has_method("set_preferred_stage_id") and user_preferences_manager.has_method("get_last_stage_id"):
+		stage_select.set_preferred_stage_id(user_preferences_manager.get_last_stage_id())

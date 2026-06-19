@@ -6,13 +6,16 @@ signal back_requested
 const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
 
 var _stage_data_provider: Node = null
+var _user_preferences_manager: Node = null
 var _stages: Array[Dictionary] = []
 var _selected_stage_id: String = ""
+var _preferred_stage_id: String = ""
 var _stage_buttons: Dictionary = {}
 
 var _cards_box: VBoxContainer
 var _name_label: Label
 var _subtitle_label: Label
+var _last_selected_label: Label
 var _description_label: Label
 var _difficulty_label: Label
 var _final_boss_label: Label
@@ -27,8 +30,11 @@ func _ready() -> void:
 	hide()
 
 
-func setup(stage_data_provider: Node) -> void:
+func setup(stage_data_provider: Node, user_preferences_manager: Node = null) -> void:
 	_stage_data_provider = stage_data_provider
+	_user_preferences_manager = user_preferences_manager
+	if _user_preferences_manager != null and _user_preferences_manager.has_method("get_last_stage_id"):
+		set_preferred_stage_id(_user_preferences_manager.get_last_stage_id())
 	_reload_stages()
 
 
@@ -45,6 +51,10 @@ func close() -> void:
 
 func get_selected_stage_id() -> String:
 	return _selected_stage_id
+
+
+func set_preferred_stage_id(stage_id: String) -> void:
+	_preferred_stage_id = stage_id
 
 
 func _build_ui() -> void:
@@ -113,6 +123,11 @@ func _build_ui() -> void:
 	_subtitle_label = Label.new()
 	details.add_child(_subtitle_label)
 
+	_last_selected_label = Label.new()
+	_last_selected_label.text = "Last selected"
+	_last_selected_label.visible = false
+	details.add_child(_last_selected_label)
+
 	_difficulty_label = Label.new()
 	details.add_child(_difficulty_label)
 
@@ -172,11 +187,7 @@ func _reload_stages() -> void:
 		_cards_box.add_child(button)
 		_stage_buttons[stage_id] = button
 
-	if _selected_stage_id.is_empty() or not _has_stage(_selected_stage_id):
-		if _stage_data_provider != null and _stage_data_provider.has_method("get_default_stage"):
-			_selected_stage_id = str(_stage_data_provider.get_default_stage().get("id", ""))
-		elif not _stages.is_empty():
-			_selected_stage_id = str(_stages[0].get("id", ""))
+	_selected_stage_id = _get_initial_stage_id()
 
 	_select_stage(_selected_stage_id)
 
@@ -195,6 +206,8 @@ func _refresh_details() -> void:
 
 	_name_label.text = str(stage.get("display_name", "Stage"))
 	_subtitle_label.text = str(stage.get("subtitle", ""))
+	if _last_selected_label != null:
+		_last_selected_label.visible = not _preferred_stage_id.is_empty() and _selected_stage_id == _preferred_stage_id
 	_difficulty_label.text = "Difficulty: %s" % stage.get("difficulty_label", "Normal")
 	_description_label.text = str(stage.get("description", ""))
 
@@ -234,6 +247,40 @@ func _has_stage(stage_id: String) -> bool:
 	for stage in _stages:
 		if str(stage.get("id", "")) == stage_id:
 			return true
+	return false
+
+
+func _get_initial_stage_id() -> String:
+	if _is_stage_playable_id(_preferred_stage_id):
+		return _preferred_stage_id
+
+	if _stage_data_provider != null and _stage_data_provider.has_method("get_default_stage"):
+		var default_stage: Dictionary = _stage_data_provider.get_default_stage()
+		var default_id := str(default_stage.get("id", ""))
+		if _is_stage_playable_id(default_id):
+			return default_id
+
+	for stage: Dictionary in _stages:
+		var stage_id := str(stage.get("id", ""))
+		if _is_stage_playable_id(stage_id):
+			return stage_id
+	return ""
+
+
+func _is_stage_playable_id(stage_id: String) -> bool:
+	if stage_id.is_empty():
+		return false
+	for stage: Dictionary in _stages:
+		if str(stage.get("id", "")) == stage_id:
+			return not _is_stage_locked(stage)
+	return false
+
+
+func _is_stage_locked(stage: Dictionary) -> bool:
+	if bool(stage.get("unlocked_by_default", true)):
+		return false
+	if _stage_data_provider != null and _stage_data_provider.has_method("is_stage_unlocked"):
+		return not _stage_data_provider.is_stage_unlocked(str(stage.get("id", "")))
 	return false
 
 

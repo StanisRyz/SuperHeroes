@@ -10,6 +10,7 @@ var settings_manager: Node
 var audio_manager: Node
 
 @onready var start_button: Button = get_node_or_null("Root/Panel/VBoxContainer/StartButton")
+@onready var last_choice_label: Label = get_node_or_null("Root/Panel/VBoxContainer/LastChoiceLabel")
 @onready var settings_button: Button = get_node_or_null("Root/Panel/VBoxContainer/SettingsButton")
 @onready var help_button: Button = get_node_or_null("Root/Panel/VBoxContainer/HelpButton")
 @onready var training_button: Button = get_node_or_null("Root/Panel/VBoxContainer/TrainingButton")
@@ -45,6 +46,19 @@ func _ready() -> void:
 func setup(new_settings_manager: Node = null, new_audio_manager: Node = null) -> void:
 	settings_manager = new_settings_manager
 	audio_manager = new_audio_manager
+
+
+func set_last_choice_hint(hero_name: String, stage_name: String) -> void:
+	if last_choice_label == null:
+		return
+	if hero_name.is_empty() and stage_name.is_empty():
+		last_choice_label.hide()
+		return
+
+	var hero_part := hero_name if not hero_name.is_empty() else "Hero"
+	var stage_part := stage_name if not stage_name.is_empty() else "Stage"
+	last_choice_label.text = "Last: %s / %s" % [hero_part, stage_part]
+	last_choice_label.show()
 
 
 func _on_start_button_pressed() -> void:

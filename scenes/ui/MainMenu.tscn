@@ -50,6 +50,12 @@ layout_mode = 2
 text = "Hero survivor arena"
 horizontal_alignment = 1
 
+[node name="LastChoiceLabel" type="Label" parent="Root/Panel/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Last: Guardian / City Rooftop"
+horizontal_alignment = 1
+
 [node name="StartButton" type="Button" parent="Root/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(320, 56)
 layout_mode = 2

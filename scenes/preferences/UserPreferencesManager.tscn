@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://user_preferences_manager_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/preferences/UserPreferencesManager.gd" id="1_user_preferences_manager_script"]
+
+[node name="UserPreferencesManager" type="Node"]
+script = ExtResource("1_user_preferences_manager_script")

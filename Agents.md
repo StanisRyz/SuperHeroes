@@ -17,6 +17,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/evolution/EvolutionManager.gd` - evolution definitions, prerequisites, effects, and applied run state.
 - `scenes/settings/SettingsManager.tscn` - local settings manager scene.
 - `scenes/settings/SettingsManager.gd` - `user://settings.cfg` load/save helper for settings only.
+- `scenes/preferences/UserPreferencesManager.tscn` - local non-gameplay user preferences manager scene.
+- `scenes/preferences/UserPreferencesManager.gd` - JSON preference save/load helper for remembered hero/stage choices.
 - `scenes/audio/AudioManager.tscn` - audio playback manager scene.
 - `scenes/audio/AudioManager.gd` - volume/mute application and optional SFX playback hooks.
 - `scenes/debug/DebugManager.tscn` - runtime-only debug state manager scene.
@@ -445,6 +447,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - Opening help from PauseMenu keeps PauseMenu state intact; closing help returns to the paused menu.
 - Help must not open over SettingsMenu, LevelUpScreen, EvolutionRewardScreen, VictoryScreen, or GameOverScreen.
 
+## User Preferences Flow
+
+- `UserPreferencesManager` stores non-gameplay preferences only in `user://superheroes_user_preferences.json`.
+- `MetaProgressionManager` stores gameplay progression only in `user://superheroes_meta_progress.json`.
+- `SettingsManager` keeps settings in `user://settings.cfg`.
+- Main owns `UserPreferencesManager`, loads preferences during `_ready()`, and saves confirmed hero/stage choices.
+- CharacterSelect and StageSelect may read preferred ids and show "Last selected", but they must not own saving.
+- Restart keeps the current hero/stage already stored on Main; Quit to MainMenu keeps preferences for the next run flow.
+- Preference reset must call `UserPreferencesManager.reset_preferences()` only and must not reset meta progression or settings.
+
 ## Frontend Flow
 
 - Main owns frontend flow and run scene replacement.
@@ -727,6 +739,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not add status effects or knockback to abilities unless explicitly requested.
 - Do not make `MobileControls` directly mutate gameplay except through signals.
 - Do not make ControlsHelpOverlay own gameplay pause decisions; Arena/Main own flow and state.
+- Do not store run temporary state, currency, meta upgrades, run upgrades, or evolutions in UserPreferencesManager.
+- Do not change gameplay values in QoL preference patches.
 - Do not use Yandex storage until explicitly requested.
 - Do not add real audio assets unless explicitly requested.
 - Do not add bosses unless explicitly requested.
@@ -772,5 +786,6 @@ Manual playtest checklist:
 - Player death pauses gameplay and shows the game over screen.
 - Game over screen displays time survived, enemies defeated, and player level.
 - Help / Controls opens from MainMenu, PauseMenu, and H/F11 during allowed states.
+- Remembered hero/stage preselect correctly in CharacterSelect and StageSelect.
 - Restart button reloads the current run.
 - No script errors appear.

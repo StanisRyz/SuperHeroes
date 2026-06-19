@@ -162,6 +162,33 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Remember Last Choice QoL
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select **Blaster** and **Neon Lab**, then start a run | Run starts with Blaster on Neon Lab |
+| 2 | Quit to MainMenu, then press **Select Hero** again | CharacterSelect preselects Blaster and shows `Last selected` |
+| 3 | Confirm Blaster | StageSelect preselects Neon Lab and shows `Last selected` |
+| 4 | Restart from a run result | Fresh run keeps the same current hero/stage without reopening selection |
+| 5 | Close and reopen the game | Last hero/stage are still remembered from `user://superheroes_user_preferences.json` |
+| 6 | Delete `user://superheroes_user_preferences.json`, then start game | Default hero/stage are selected safely |
+| 7 | Corrupt `user://superheroes_user_preferences.json`, then start game | Warning is printed; default hero/stage are selected safely |
+| 8 | Call `UserPreferencesManager.reset_preferences()` from editor/remote console | Remembered hero/stage reset only; meta progression and settings remain unchanged |
+| 9 | Press Training after preferences exist | Training shop still opens and currency/meta upgrades remain intact |
+| 10 | MainMenu after remembered choices exist | Compact `Last: Hero / Stage` hint appears |
+
+### How to reset preferences
+
+In the Godot remote inspector or editor console, call:
+
+```gdscript
+get_tree().current_scene.get_node("UserPreferencesManager").reset_preferences()
+```
+
+This resets only `user://superheroes_user_preferences.json`. It does not reset `user://superheroes_meta_progress.json` or `user://settings.cfg`.
+
+---
+
 ## Evolution System
 
 | # | Test | Expected |

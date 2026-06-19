@@ -7,14 +7,17 @@ const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
 
 var hero_data_provider: Node
 var meta_progression_manager: Node = null
+var user_preferences_manager: Node = null
 var _heroes: Array[Dictionary] = []
 var _selected_hero_id: String = ""
+var _preferred_hero_id: String = ""
 var _hero_buttons: Dictionary = {}
 
 var _cards_box: VBoxContainer
 var _name_label: Label
 var _subtitle_label: Label
 var _description_label: Label
+var _last_selected_label: Label
 var _playstyle_label: Label
 var _stats_label: Label
 var _start_button: Button
@@ -28,9 +31,12 @@ func _ready() -> void:
 	hide()
 
 
-func setup(new_hero_data_provider: Node, new_meta_progression_manager: Node = null) -> void:
+func setup(new_hero_data_provider: Node, new_meta_progression_manager: Node = null, new_user_preferences_manager: Node = null) -> void:
 	hero_data_provider = new_hero_data_provider
 	meta_progression_manager = new_meta_progression_manager
+	user_preferences_manager = new_user_preferences_manager
+	if user_preferences_manager != null and user_preferences_manager.has_method("get_last_hero_id"):
+		set_preferred_hero_id(user_preferences_manager.get_last_hero_id())
 	_reload_heroes()
 
 
@@ -47,6 +53,10 @@ func close() -> void:
 
 func get_selected_hero_id() -> String:
 	return _selected_hero_id
+
+
+func set_preferred_hero_id(hero_id: String) -> void:
+	_preferred_hero_id = hero_id
 
 
 func _build_ui() -> void:
@@ -115,6 +125,11 @@ func _build_ui() -> void:
 	_subtitle_label = Label.new()
 	details.add_child(_subtitle_label)
 
+	_last_selected_label = Label.new()
+	_last_selected_label.text = "Last selected"
+	_last_selected_label.visible = false
+	details.add_child(_last_selected_label)
+
 	_playstyle_label = Label.new()
 	details.add_child(_playstyle_label)
 
@@ -181,11 +196,7 @@ func _reload_heroes() -> void:
 		_cards_box.add_child(button)
 		_hero_buttons[hero_id] = button
 
-	if _selected_hero_id.is_empty() or not _has_hero(_selected_hero_id):
-		if hero_data_provider != null and hero_data_provider.has_method("get_default_hero"):
-			_selected_hero_id = str(hero_data_provider.get_default_hero().get("id", ""))
-		elif not _heroes.is_empty():
-			_selected_hero_id = str(_heroes[0].get("id", ""))
+	_selected_hero_id = _get_initial_hero_id()
 
 	_select_hero(_selected_hero_id)
 
@@ -204,6 +215,8 @@ func _refresh_details() -> void:
 
 	_name_label.text = str(hero.get("display_name", "Hero"))
 	_subtitle_label.text = str(hero.get("subtitle", ""))
+	if _last_selected_label != null:
+		_last_selected_label.visible = not _preferred_hero_id.is_empty() and _selected_hero_id == _preferred_hero_id
 	_playstyle_label.text = "Playstyle: %s" % hero.get("playstyle", "")
 	_description_label.text = str(hero.get("description", ""))
 	_color_swatch.color = hero.get("color", Color.WHITE)
@@ -257,6 +270,32 @@ func _has_hero(hero_id: String) -> bool:
 	for hero in _heroes:
 		if str(hero.get("id", "")) == hero_id:
 			return true
+	return false
+
+
+func _get_initial_hero_id() -> String:
+	if _is_hero_playable_id(_preferred_hero_id):
+		return _preferred_hero_id
+
+	if hero_data_provider != null and hero_data_provider.has_method("get_default_hero"):
+		var default_hero: Dictionary = hero_data_provider.get_default_hero()
+		var default_id := str(default_hero.get("id", ""))
+		if _is_hero_playable_id(default_id):
+			return default_id
+
+	for hero: Dictionary in _heroes:
+		var hero_id := str(hero.get("id", ""))
+		if _is_hero_playable_id(hero_id):
+			return hero_id
+	return ""
+
+
+func _is_hero_playable_id(hero_id: String) -> bool:
+	if hero_id.is_empty():
+		return false
+	for hero: Dictionary in _heroes:
+		if str(hero.get("id", "")) == hero_id:
+			return not _is_hero_locked(hero)
 	return false
 
 
