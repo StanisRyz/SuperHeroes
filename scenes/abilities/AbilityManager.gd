@@ -36,6 +36,7 @@ signal ability_cast(slot: int, ability_id: String)
 
 var player: Node2D
 var enemy_container: Node
+var _feedback_manager: Node = null
 
 var _cooldowns := {1: 0.0, 2: 0.0, 3: 0.0}
 var _last_emitted := {1: -1.0, 2: -1.0, 3: -1.0}
@@ -44,6 +45,10 @@ var _last_emitted := {1: -1.0, 2: -1.0, 3: -1.0}
 func setup(new_player: Node2D, new_enemy_container: Node) -> void:
 	player = new_player
 	enemy_container = new_enemy_container
+
+
+func setup_feedback_manager(fm: Node) -> void:
+	_feedback_manager = fm
 	_emit_cooldown_changed(1, true)
 	_emit_cooldown_changed(2, true)
 	_emit_cooldown_changed(3, true)
@@ -131,8 +136,7 @@ func _try_cast_nova_pulse() -> void:
 	_spawn_pulse_feedback()
 	if nova_aftershock_enabled:
 		_schedule_nova_aftershock(cast_position)
-	if player.has_method("shake_camera"):
-		player.shake_camera(5.0, 0.14)
+	_shake(5.0, 0.14)
 	_cooldowns[1] = maxf(nova_cooldown, 0.0)
 	ability_cast.emit(1, "nova_pulse")
 	_emit_cooldown_changed(1, true)
@@ -162,11 +166,17 @@ func _try_cast_hero_slam() -> void:
 	_spawn_slam_feedback()
 	if slam_second_wave_enabled:
 		_schedule_slam_second_wave(cast_position)
-	if player.has_method("shake_camera"):
-		player.shake_camera(7.0, 0.18)
+	_shake(7.0, 0.18)
 	_cooldowns[3] = maxf(slam_cooldown, 0.0)
 	ability_cast.emit(3, "hero_slam")
 	_emit_cooldown_changed(3, true)
+
+
+func _shake(intensity: float, duration: float) -> void:
+	if _feedback_manager != null and _feedback_manager.has_method("shake"):
+		_feedback_manager.shake(intensity, duration)
+	elif player != null and player.has_method("shake_camera"):
+		player.shake_camera(intensity, duration)
 
 
 func _damage_enemies_in_radius(damage: int, radius: float) -> bool:

@@ -14,6 +14,7 @@ var _projectile_container: Node = null
 var _pickup_container: Node = null
 var _evolution_manager: Node = null
 var _meta_manager: Node = null
+var _settings_manager: Node = null
 
 var _debug_enabled: bool = false
 var _refresh_timer: float = 0.0
@@ -63,6 +64,10 @@ func setup_evolution_manager(evolution_manager: Node) -> void:
 
 func setup_meta_manager(meta_manager: Node) -> void:
 	_meta_manager = meta_manager
+
+
+func setup_settings_manager(settings_manager: Node) -> void:
+	_settings_manager = settings_manager
 
 
 func set_debug_enabled(enabled: bool) -> void:
@@ -268,6 +273,16 @@ func _build_stats_text() -> String:
 				lines.append("Upgrades: none")
 			else:
 				lines.append("Upgrades: %s" % ", ".join(ups))
+
+	# Feedback settings
+	if _settings_manager != null and is_instance_valid(_settings_manager):
+		lines.append("-- Feedback --")
+		var shake_on: bool = bool(_settings_manager.get_setting("screen_shake_enabled", true))
+		var shake_int: float = float(_settings_manager.get_setting("screen_shake_intensity", 1.0))
+		var ft_on: bool = bool(_settings_manager.get_setting("floating_text_enabled", true))
+		var flash_on: bool = bool(_settings_manager.get_setting("impact_flash_enabled", true))
+		lines.append("Shake: %s  Intensity: %.2f" % [shake_on, shake_int])
+		lines.append("FloatText: %s  ImpactFlash: %s" % [ft_on, flash_on])
 
 	return "\n".join(lines)
 

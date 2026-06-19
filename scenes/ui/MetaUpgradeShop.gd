@@ -156,6 +156,7 @@ func _build_row(upgrade_id: String, def: Dictionary) -> PanelContainer:
 		"max_level": int(def.get("max_level", 1)),
 		"level_lbl": level_lbl,
 		"buy_btn": buy_btn,
+		"panel": panel,
 	}
 	_rows.append(row_data)
 	return panel
@@ -204,6 +205,20 @@ func _on_currency_changed(_amount: int) -> void:
 		refresh()
 
 
-func _on_meta_upgrade_changed(_upgrade_id: String, _level: int) -> void:
+func _on_meta_upgrade_changed(upgrade_id: String, _level: int) -> void:
 	if visible:
 		refresh()
+		_flash_row(upgrade_id)
+
+
+func _flash_row(upgrade_id: String) -> void:
+	for row in _rows:
+		if str(row.get("id", "")) != upgrade_id:
+			continue
+		var panel := row.get("panel") as CanvasItem
+		if panel == null or not is_instance_valid(panel):
+			return
+		var tween := panel.create_tween()
+		tween.tween_property(panel, "modulate", Color(0.6, 1.0, 0.6, 1.0), 0.0)
+		tween.tween_property(panel, "modulate", Color.WHITE, 0.35)
+		return

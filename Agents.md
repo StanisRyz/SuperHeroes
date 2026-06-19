@@ -131,6 +131,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/BossHealthBar.gd` - tracks a final boss enemy; shows "FINAL BOSS", name, HP bar, HP text. Positioned below MinibossHealthBar.
 - `scenes/ui/UIFormat.gd` - display formatting helpers (RefCounted, static methods only): format_time, format_cooldown, format_percent, format_list, format_title_id. No gameplay logic.
 - `scenes/ui/UIStateColors.gd` - color state helpers (RefCounted, static methods only): ready_color, cooldown_color, warning_color, danger_color, muted_color, positive_color, boss_color, final_phase_color. Built-in Color values only; no external assets.
+- `scenes/feedback/FeedbackManager.tscn` - central feedback manager scene (Node root).
+- `scenes/feedback/FeedbackManager.gd` - non-gameplay feedback router: show_damage, show_heal, show_powerup, show_status, show_announcement, shake, flash_node. Respects SettingsManager for shake/floating-text/impact-flash toggles. Contains per-frame throttle cap for floating text spam. Arena instantiates and wires it at startup. Never applies damage or owns gameplay state.
 
 ## Miniboss Combat Architecture
 
@@ -606,8 +608,21 @@ The game is an original superhero survivors-like: the player moves around an are
 - Enemy emits `damage_taken`; UI/effects nodes handle display.
 - EnemySpawner coordinates enemy death effects and XP drops.
 - `ExperienceGem` owns magnet movement toward valid living players.
-- Player owns the Camera2D shake helper.
+- Player owns the Camera2D shake helper (`shake_camera`); FeedbackManager wraps it and applies `screen_shake_intensity` scaling.
 - Feedback scenes use built-in nodes only and do not own gameplay rules.
+
+## Feedback Architecture (Feedback Polish Pack)
+
+- `FeedbackManager` owns visual/audio feedback routing only. It never applies damage or changes gameplay state.
+- Gameplay scripts (Player, PowerupManager, Arena) request feedback from FeedbackManager; they do not duplicate floating-text or shake logic.
+- `SettingsManager` owns persistence for `screen_shake_enabled`, `screen_shake_intensity`, `floating_text_enabled`, and `impact_flash_enabled`. FeedbackManager reads these on every call.
+- `FloatingTextSpawner` owns text visuals only. FeedbackManager delegates text spawning to it. Typed helpers: `spawn_damage_text`, `spawn_heal_text`, `spawn_powerup_text`, `spawn_status_text`. Legacy `show_damage` / `show_pickup` are preserved for backward compatibility.
+- Arena instantiates FeedbackManager at runtime (loaded via `load()`, not in .tscn) during `_setup_feedback_manager()`, called before `_setup_spawn_director()`. Arena passes FeedbackManager to Player, AbilityManager, PowerupManager, and EnemySpawner.
+- FeedbackManager throttles non-critical floating text to `MAX_FLOATING_TEXTS_PER_FRAME = 6` per `THROTTLE_WINDOW = 0.08s`. Critical texts (player damage, heal, powerup, evolution) bypass the throttle.
+- Duplicate announcement guard: same text within 0.5 s is suppressed inside FeedbackManager.`show_announcement`.
+- `EnemySpawner` connects `enemy.damage_taken` to `feedback_manager.show_damage` when available; falls back to `floating_text_spawner.show_damage`.
+- Enemy hit flash updated: normal damage → red-white flash over 0.12 s; shield-absorbed hit → blue-white flash.
+- Player `take_damage` routes shield-block feedback through FeedbackManager (`show_status("BLOCK")`) and real damage through `shake` + `show_damage`.
 
 ## Not Implemented Yet
 
@@ -743,6 +758,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not change gameplay values in QoL preference patches.
 - Do not use Yandex storage until explicitly requested.
 - Do not add real audio assets unless explicitly requested.
+- Do not change gameplay damage values, cooldowns, drop rates, or enemy stats in feedback patches.
+- FeedbackManager must not own game state or apply damage. It is a pure feedback router.
+- SettingsManager owns feedback settings persistence; FeedbackManager reads settings on every call (never caches them).
+- When adding new feedback calls, always use FeedbackManager methods; do not call FloatingTextSpawner or Player.shake_camera directly from gameplay scripts.
 - Do not add bosses unless explicitly requested.
 - Do not persist debug mode.
 - Do not add debug cheats unless explicitly requested.

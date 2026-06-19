@@ -417,3 +417,39 @@ DEBUG_PLAYER: invulnerable=true
 | 25 | StageSelect: select a stage | Selected stage button turns green and is disabled; other stage buttons are white |
 | 26 | Open Help / Controls overlay | Section titles are uppercase amber, separated by horizontal lines; body text is white; scroll works; Close button visible |
 | 27 | No gameplay values changed | Ability cooldowns, enemy stats, XP thresholds, reward formula all unchanged from pre-polish values |
+
+---
+
+## Feedback Polish Pack
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Walk into **heal** powerup | `+25 HP` floating text appears in green near pickup position |
+| 2 | Walk into **shield** powerup | `SHIELD` floating text appears in blue near pickup position |
+| 3 | Walk into **bomb** powerup | `BOMB` floating text appears; BombBurst visual; brief screen shake |
+| 4 | Walk into **magnet_burst** powerup | `MAGNET` floating text appears in purple; XP gems attracted |
+| 5 | Walk into **speed** powerup | `SPEED` floating text appears in cyan |
+| 6 | Walk into **haste** powerup | `HASTE` floating text appears in yellow |
+| 7 | Player takes real HP damage | Brief red flash on player; small screen shake; damage number floats up |
+| 8 | Player damage is blocked by dash invulnerability | No flash, no shake, no damage text |
+| 9 | Player damage is blocked by debug invulnerability | No flash, no shake, no damage text |
+| 10 | Player shield absorbs a hit | `BLOCK` status text floats up; no HP damage text |
+| 11 | Enemy takes normal damage | Hit flash brightens briefly to white-red and fades over ~0.12s; original color restores |
+| 12 | Shielded enemy absorbs a hit fully | Blue-white flash instead of red-white flash |
+| 13 | Enemy dies | Death burst visual still plays normally |
+| 14 | Nova Pulse fires | Brief screen shake; Nova ring visible |
+| 15 | Hero Slam fires | Stronger brief screen shake; slam ring visible |
+| 16 | Elite enemy spawns | `Elite Incoming!` announcement; brief screen shake |
+| 17 | Miniboss enemy spawns | `Miniboss Incoming!` announcement; medium screen shake |
+| 18 | Final boss spawns | `Final Boss Incoming!` announcement; strong screen shake |
+| 19 | Miniboss defeated | `Miniboss Defeated!` announcement |
+| 20 | Final boss defeated | `Final Boss Defeated!` announcement; screen shake |
+| 21 | Evolution applied | `Evolution: [Name]!` announcement; `EVOLVED` floating text near player in gold; small shake |
+| 22 | Settings → disable Screen Shake | No shakes from any source (player damage, boss spawn, abilities) |
+| 23 | Settings → Shake Intensity slider at 0.5 | Shakes noticeably weaker but still present |
+| 24 | Settings → disable Floating Text | No floating text spawns at all during gameplay |
+| 25 | Settings → disable Impact Flash | Enemy hit flashes and player hit flash do not appear |
+| 26 | Heavy projectile build (multishot+pierce+bounce) | Damage numbers appear but do not saturate screen; throttle limits non-critical texts to ~6 per 0.08s window |
+| 27 | Debug F7 with settings configured | DebugStatsOverlay `-- Feedback --` section shows current shake/text/flash toggles and intensity |
+| 28 | MetaUpgradeShop: buy an upgrade | Row briefly flashes green; level updates; buy button turns gray if maxed |
+| 29 | No gameplay damage/cooldown values changed | All ability cooldowns, enemy stats, powerup values, drop rates identical to pre-patch |

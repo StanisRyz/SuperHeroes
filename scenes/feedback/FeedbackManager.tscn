@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://feedback_manager_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/feedback/FeedbackManager.gd" id="1_feedback_manager_script"]
+
+[node name="FeedbackManager" type="Node"]
+script = ExtResource("1_feedback_manager_script")

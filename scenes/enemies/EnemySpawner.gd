@@ -33,6 +33,7 @@ var spawn_director: Node
 var floating_text_spawner: Node
 var audio_manager: Node
 var powerup_manager: Node
+var feedback_manager: Node
 
 const POWERUP_WEIGHTS: Dictionary = {
 	"heal": 30,
@@ -51,7 +52,7 @@ func _ready() -> void:
 	spawn_timer.one_shot = false
 
 
-func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null, new_audio_manager: Node = null, new_powerup_manager: Node = null, new_projectile_container: Node = null) -> void:
+func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null, new_audio_manager: Node = null, new_powerup_manager: Node = null, new_projectile_container: Node = null, new_feedback_manager: Node = null) -> void:
 	player = new_player
 	playable_rect = new_playable_rect
 	enemy_container = new_enemy_container
@@ -62,6 +63,7 @@ func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: No
 	floating_text_spawner = new_floating_text_spawner
 	audio_manager = new_audio_manager
 	powerup_manager = new_powerup_manager
+	feedback_manager = new_feedback_manager
 
 	if powerup_debug_logging:
 		print("POWERUP_WIRING: pickup_scene=%s manager=%s drop_chance=%s" % [
@@ -126,9 +128,13 @@ func _spawn_enemy_with_variant(variant: Dictionary, spawn_position: Vector2) -> 
 		if not enemy.died.is_connected(_on_enemy_died):
 			enemy.died.connect(_on_enemy_died)
 
-	if enemy.has_signal("damage_taken") and floating_text_spawner != null and floating_text_spawner.has_method("show_damage"):
-		if not enemy.damage_taken.is_connected(floating_text_spawner.show_damage):
-			enemy.damage_taken.connect(floating_text_spawner.show_damage)
+	if enemy.has_signal("damage_taken"):
+		if feedback_manager != null and feedback_manager.has_method("show_damage"):
+			if not enemy.damage_taken.is_connected(feedback_manager.show_damage):
+				enemy.damage_taken.connect(feedback_manager.show_damage)
+		elif floating_text_spawner != null and floating_text_spawner.has_method("show_damage"):
+			if not enemy.damage_taken.is_connected(floating_text_spawner.show_damage):
+				enemy.damage_taken.connect(floating_text_spawner.show_damage)
 
 	return enemy
 

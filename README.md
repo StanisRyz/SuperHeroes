@@ -277,6 +277,28 @@ Not implemented yet (UI):
 - Restart keeps the current run hero/stage, while returning to MainMenu and starting a new flow uses the remembered choices.
 - Preference reset is available through `UserPreferencesManager.reset_preferences()` and does not reset meta progression or settings.
 
+### Feedback Polish Pack
+
+- **FeedbackManager** (`scenes/feedback/FeedbackManager.gd/.tscn`) — central non-gameplay feedback router. Gameplay scripts request visual/audio feedback without duplicating logic.
+- **Configurable screen shake** — `SettingsManager` stores `screen_shake_enabled` (bool) and `screen_shake_intensity` (float 0–2). SettingsMenu exposes a checkbox and a slider. All shake calls go through FeedbackManager and scale by intensity.
+- **Configurable floating text** — `floating_text_enabled` (bool) in SettingsManager. FeedbackManager gates all floating text spawns; critical texts (player damage, heal, evolution) bypass the cap while the throttle limits non-critical spawns to 6 per 0.08 s window.
+- **Configurable impact flash** — `impact_flash_enabled` (bool) in SettingsManager. Enemy and player hit flashes are routed through FeedbackManager.
+- **Improved powerup feedback** — Each powerup type shows a distinct colored label: `+HP` (green), `SHIELD` (blue), `BOMB` (red), `MAGNET` (purple), `SPEED` (cyan), `HASTE` (yellow). Bomb also triggers a small screen shake.
+- **Improved hit feedback** — Enemy hit flash brightened (red→white over 0.12 s). Shielded enemies show a blue-white flash when shield absorbs a hit instead of the normal red-white flash.
+- **Improved player damage feedback** — Real HP damage triggers small screen shake + floating damage number. Shield block shows `BLOCK` floating text instead. Dash/debug invulnerability suppresses all feedback.
+- **Improved ability feedback** — Nova Pulse and Hero Slam casts route their shakes through FeedbackManager to respect the intensity setting.
+- **Improved boss/evolution feedback** — Elite, miniboss, and final boss spawns show announcements with shake. Evolution shows `EVOLVED` floating text near player + small shake.
+- **Improved MetaUpgradeShop** — Purchased row briefly flashes green on successful buy.
+- **DebugStatsOverlay** — `-- Feedback --` section shows current screen shake, intensity, floating text, and impact flash settings when Debug Mode is ON (F12).
+
+Not implemented yet (feedback):
+- Custom VFX asset pack.
+- Sound effect pack.
+- Object pooling for floating text.
+- Advanced particles.
+- Hit stop.
+- Controller rumble.
+
 ### Balance / Cleanup / Production Readiness
 
 - **GameplayTuning** (`scenes/game/GameplayTuning.tscn`) centralizes exported balance defaults for debug logging, run timing, spawn distances/caps, powerup drop chance, core ability values, and player defaults.

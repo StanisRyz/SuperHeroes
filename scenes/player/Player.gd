@@ -24,6 +24,8 @@ signal invulnerability_changed(is_invulnerable: bool)
 @export var dash_trail_radius: float = 80.0
 @export var debug_player_logging: bool = false
 
+var _feedback_manager: Node = null
+
 var current_health: int
 var current_xp: int = 0
 var level: int = 1
@@ -85,6 +87,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
+func setup_feedback_manager(fm: Node) -> void:
+	_feedback_manager = fm
+
+
 func take_damage(amount: int) -> void:
 	if amount <= 0 or is_dead() or is_invulnerable() or debug_invulnerable:
 		return
@@ -92,6 +98,8 @@ func take_damage(amount: int) -> void:
 	var buff_manager := get_node_or_null("PlayerBuffManager")
 	if buff_manager != null and buff_manager.has_method("consume_shield_charge"):
 		if buff_manager.consume_shield_charge():
+			if _feedback_manager != null and _feedback_manager.has_method("show_status"):
+				_feedback_manager.show_status("BLOCK", global_position + Vector2.UP * 30.0)
 			return
 
 	var previous_health := current_health
@@ -100,6 +108,11 @@ func take_damage(amount: int) -> void:
 	if current_health != previous_health:
 		health_changed.emit(current_health, max_health)
 		_play_hit_flash()
+		if _feedback_manager != null:
+			if _feedback_manager.has_method("shake"):
+				_feedback_manager.shake(4.0, 0.14)
+			if _feedback_manager.has_method("show_damage"):
+				_feedback_manager.show_damage(amount, global_position + Vector2.UP * 30.0)
 
 	if current_health == 0:
 		died.emit()

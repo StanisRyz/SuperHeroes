@@ -12,6 +12,9 @@ var _is_syncing := false
 @onready var mute_checkbox: CheckBox = get_node_or_null("Root/Panel/VBoxContainer/MuteCheckbox")
 @onready var mobile_checkbox: CheckBox = get_node_or_null("Root/Panel/VBoxContainer/MobileCheckbox")
 @onready var shake_checkbox: CheckBox = get_node_or_null("Root/Panel/VBoxContainer/ShakeCheckbox")
+@onready var shake_intensity_slider: HSlider = get_node_or_null("Root/Panel/VBoxContainer/ShakeIntensityRow/ShakeIntensitySlider")
+@onready var floating_text_checkbox: CheckBox = get_node_or_null("Root/Panel/VBoxContainer/FloatingTextCheckbox")
+@onready var impact_flash_checkbox: CheckBox = get_node_or_null("Root/Panel/VBoxContainer/ImpactFlashCheckbox")
 @onready var back_button: Button = get_node_or_null("Root/Panel/VBoxContainer/BackButton")
 
 
@@ -31,6 +34,12 @@ func _ready() -> void:
 		mobile_checkbox.toggled.connect(_on_mobile_toggled)
 	if shake_checkbox != null:
 		shake_checkbox.toggled.connect(_on_shake_toggled)
+	if shake_intensity_slider != null:
+		shake_intensity_slider.value_changed.connect(_on_shake_intensity_changed)
+	if floating_text_checkbox != null:
+		floating_text_checkbox.toggled.connect(_on_floating_text_toggled)
+	if impact_flash_checkbox != null:
+		impact_flash_checkbox.toggled.connect(_on_impact_flash_toggled)
 	if back_button != null:
 		back_button.pressed.connect(_on_back_pressed)
 
@@ -74,6 +83,12 @@ func _sync_from_settings() -> void:
 		mobile_checkbox.button_pressed = bool(settings_manager.get_setting("force_mobile_controls", false))
 	if shake_checkbox != null:
 		shake_checkbox.button_pressed = bool(settings_manager.get_setting("screen_shake_enabled", true))
+	if shake_intensity_slider != null:
+		shake_intensity_slider.value = float(settings_manager.get_setting("screen_shake_intensity", 1.0))
+	if floating_text_checkbox != null:
+		floating_text_checkbox.button_pressed = bool(settings_manager.get_setting("floating_text_enabled", true))
+	if impact_flash_checkbox != null:
+		impact_flash_checkbox.button_pressed = bool(settings_manager.get_setting("impact_flash_enabled", true))
 	_is_syncing = false
 
 
@@ -108,6 +123,18 @@ func _on_mobile_toggled(enabled: bool) -> void:
 
 func _on_shake_toggled(enabled: bool) -> void:
 	_set_setting("screen_shake_enabled", enabled)
+
+
+func _on_shake_intensity_changed(value: float) -> void:
+	_set_setting("screen_shake_intensity", value)
+
+
+func _on_floating_text_toggled(enabled: bool) -> void:
+	_set_setting("floating_text_enabled", enabled)
+
+
+func _on_impact_flash_toggled(enabled: bool) -> void:
+	_set_setting("impact_flash_enabled", enabled)
 
 
 func _on_back_pressed() -> void:

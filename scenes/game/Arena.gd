@@ -50,6 +50,7 @@ var _run_result_emitted := false
 @onready var controls_help_overlay: Node = get_node_or_null("ControlsHelpOverlay")
 
 var _debug_stats_overlay: Node = null
+var _feedback_manager: Node = null
 var _debug_powerup_cycle_index: int = 0
 var _help_overlay_paused_game: bool = false
 const DEBUG_POWERUP_CYCLE: Array = ["heal", "shield", "bomb", "magnet_burst", "move_speed_boost", "attack_speed_boost"]
@@ -140,10 +141,11 @@ func _ready() -> void:
 	if powerup_manager == null:
 		push_warning("Arena could not find PowerupManager node.")
 	elif powerup_manager.has_method("setup"):
-		powerup_manager.setup(player, auto_attack, enemy_container, pickup_container, floating_text_spawner, audio_manager)
+		powerup_manager.setup(player, auto_attack, enemy_container, pickup_container, floating_text_spawner, audio_manager, _feedback_manager)
 	else:
 		push_warning("PowerupManager does not implement setup(...).")
 
+	_setup_feedback_manager()
 	_setup_spawn_director()
 	_setup_level_up_flow(auto_attack, ability_manager)
 	_setup_evolution_flow(auto_attack, ability_manager)
@@ -172,12 +174,28 @@ func _ready() -> void:
 	elif enemy_spawner == null:
 		push_warning("Arena could not find EnemySpawner node.")
 	elif enemy_spawner.has_method("setup"):
-		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner, audio_manager, powerup_manager, projectile_container)
+		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner, audio_manager, powerup_manager, projectile_container, _feedback_manager)
 	else:
 		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner).")
 
 	_setup_debug_stats_overlay()
 	_run_project_health_check()
+
+
+func _setup_feedback_manager() -> void:
+	var fm_scene: PackedScene = load("res://scenes/feedback/FeedbackManager.tscn")
+	if fm_scene == null:
+		push_warning("Arena: FeedbackManager.tscn not found.")
+		return
+	_feedback_manager = fm_scene.instantiate()
+	add_child(_feedback_manager)
+	if _feedback_manager.has_method("setup"):
+		_feedback_manager.setup(settings_manager, floating_text_spawner, event_announcement, player)
+	if player != null and player.has_method("setup_feedback_manager"):
+		player.setup_feedback_manager(_feedback_manager)
+	var ability_manager := player.get_node_or_null("AbilityManager") if player != null else null
+	if ability_manager != null and ability_manager.has_method("setup_feedback_manager"):
+		ability_manager.setup_feedback_manager(_feedback_manager)
 
 
 func get_playable_rect() -> Rect2:
@@ -465,11 +483,19 @@ func _on_event_finished(event_id: String) -> void:
 func _on_elite_spawn_requested(event_data: Dictionary) -> void:
 	if enemy_spawner != null and enemy_spawner.has_method("spawn_elite_enemy"):
 		enemy_spawner.spawn_elite_enemy(event_data)
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Elite Incoming!", 2.0)
+	if _feedback_manager != null and _feedback_manager.has_method("shake"):
+		_feedback_manager.shake(4.0, 0.14)
 
 
 func _on_miniboss_spawn_requested(event_data: Dictionary) -> void:
 	if enemy_spawner != null and enemy_spawner.has_method("spawn_miniboss_enemy"):
 		enemy_spawner.spawn_miniboss_enemy(event_data)
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Miniboss Incoming!", 3.0)
+	if _feedback_manager != null and _feedback_manager.has_method("shake"):
+		_feedback_manager.shake(7.0, 0.22)
 
 
 func _on_miniboss_phase_changed(phase: int) -> void:
@@ -486,6 +512,8 @@ func _on_miniboss_defeated() -> void:
 func _on_boss_phase_triggered() -> void:
 	if event_announcement != null and event_announcement.has_method("show_announcement"):
 		event_announcement.show_announcement("Final Boss Incoming!", 3.5)
+	if _feedback_manager != null and _feedback_manager.has_method("shake"):
+		_feedback_manager.shake(10.0, 0.3)
 	if enemy_spawner != null and enemy_spawner.has_method("spawn_final_boss"):
 		enemy_spawner.spawn_final_boss(final_boss_id)
 	if run_manager != null and run_manager.has_method("register_final_boss_spawned"):
@@ -517,6 +545,8 @@ func _on_final_boss_defeated(_enemy: Node) -> void:
 		hud.show_final_boss_defeated()
 	if event_announcement != null and event_announcement.has_method("show_announcement"):
 		event_announcement.show_announcement("Final Boss Defeated!", 3.5)
+	if _feedback_manager != null and _feedback_manager.has_method("shake"):
+		_feedback_manager.shake(8.0, 0.25)
 
 
 func _on_elite_defeated() -> void:
@@ -566,6 +596,11 @@ func _on_evolution_applied(_evolution_id: String, evolution_data: Dictionary) ->
 	var announcement := str(evolution_data.get("announcement", "Evolution: %s!" % evolution_data.get("title", "")))
 	if event_announcement != null and event_announcement.has_method("show_announcement"):
 		event_announcement.show_announcement(announcement, 2.5)
+	if _feedback_manager != null:
+		if player != null and _feedback_manager.has_method("show_powerup"):
+			_feedback_manager.show_powerup("evolved", (player as Node2D).global_position + Vector2.UP * 40.0)
+		if _feedback_manager.has_method("shake"):
+			_feedback_manager.shake(5.0, 0.16)
 
 
 func _on_final_phase_started() -> void:
@@ -732,6 +767,8 @@ func _setup_debug_stats_overlay() -> void:
 			_debug_stats_overlay.setup_evolution_manager(evolution_manager)
 		if _debug_stats_overlay.has_method("setup_meta_manager"):
 			_debug_stats_overlay.setup_meta_manager(meta_manager)
+		if _debug_stats_overlay.has_method("setup_settings_manager"):
+			_debug_stats_overlay.setup_settings_manager(settings_manager)
 
 	var is_debug: bool = debug_manager != null and debug_manager.has_method("is_debug_enabled") and debug_manager.is_debug_enabled()
 	if _debug_stats_overlay.has_method("set_debug_enabled"):

@@ -269,7 +269,10 @@ func take_damage(amount: int) -> void:
 		damage_taken.emit(actual_damage, global_position)
 		health_changed.emit(current_health, max_health)
 		_update_health_bar()
-		_play_hit_flash()
+		if absorbed_damage > 0 and remaining_damage == 0:
+			_play_hit_flash(true)
+		else:
+			_play_hit_flash(false)
 
 	if current_health == 0:
 		die()
@@ -538,7 +541,7 @@ func _update_health_bar() -> void:
 	health_bar.visible = current_health < max_health
 
 
-func _play_hit_flash() -> void:
+func _play_hit_flash(shield_absorbed: bool = false) -> void:
 	if _hit_flash_tween != null:
 		_hit_flash_tween.kill()
 
@@ -546,14 +549,18 @@ func _play_hit_flash() -> void:
 	if visuals.is_empty():
 		return
 
+	# Shield-absorbed hit: blue-white flash. Normal hit: bright white flash.
+	var flash_color := Color(0.6, 0.85, 1.0, 1.0) if shield_absorbed else Color(1.0, 1.0, 1.0, 1.0)
+	var start_color := Color(0.5, 0.75, 1.0, 1.0) if shield_absorbed else Color(1.0, 0.35, 0.35, 1.0)
+
 	for visual in visuals:
-		visual.modulate = Color(1.0, 1.0, 1.0, 1.0)
+		visual.modulate = flash_color
 
 	_hit_flash_tween = create_tween()
 	for visual in visuals:
-		_hit_flash_tween.parallel().tween_property(visual, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.04)
+		_hit_flash_tween.parallel().tween_property(visual, "modulate", flash_color, 0.0)
 	for visual in visuals:
-		_hit_flash_tween.parallel().tween_property(visual, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.08).from(Color(1.0, 0.75, 0.75, 1.0))
+		_hit_flash_tween.parallel().tween_property(visual, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.12).from(start_color)
 	_hit_flash_tween.finished.connect(_reset_hit_flash)
 
 

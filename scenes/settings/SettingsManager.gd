@@ -12,6 +12,9 @@ var _settings := {
 	"mute_all": false,
 	"force_mobile_controls": false,
 	"screen_shake_enabled": true,
+	"screen_shake_intensity": 1.0,
+	"floating_text_enabled": true,
+	"impact_flash_enabled": true,
 }
 
 
