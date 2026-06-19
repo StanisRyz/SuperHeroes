@@ -12,6 +12,7 @@ var _run_manager: Node = null
 var _enemy_container: Node = null
 var _projectile_container: Node = null
 var _pickup_container: Node = null
+var _evolution_manager: Node = null
 
 var _debug_enabled: bool = false
 var _refresh_timer: float = 0.0
@@ -53,6 +54,10 @@ func setup(p_player: Node, p_auto_attack: Node, p_ability_manager: Node, p_upgra
 	_enemy_container = p_enemy_container
 	_projectile_container = p_projectile_container
 	_pickup_container = p_pickup_container
+
+
+func setup_evolution_manager(evolution_manager: Node) -> void:
+	_evolution_manager = evolution_manager
 
 
 func set_debug_enabled(enabled: bool) -> void:
@@ -190,6 +195,14 @@ func _build_stats_text() -> String:
 			lines.append("Dominant: %s" % _upgrade_manager.get_dominant_archetype())
 	else:
 		lines.append("-- Build: null --")
+
+	if _evolution_manager != null and is_instance_valid(_evolution_manager):
+		lines.append("-- Evolutions --")
+		if _evolution_manager.has_method("debug_get_evolution_state"):
+			var evo: Dictionary = _evolution_manager.debug_get_evolution_state()
+			lines.append("Available: %d" % int(evo.get("available_count", 0)))
+			var titles: Array = evo.get("applied_titles", [])
+			lines.append("Applied: %s" % (", ".join(titles) if not titles.is_empty() else "None"))
 
 	# Shield / buffs from PlayerBuffManager
 	if _player != null and is_instance_valid(_player):

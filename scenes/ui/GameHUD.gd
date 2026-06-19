@@ -3,6 +3,7 @@ extends CanvasLayer
 var player: Node
 var _run_manager: Node = null
 var _target_run_time: float = 600.0
+var _evolution_manager: Node = null
 
 @onready var health_bar: ProgressBar = get_node_or_null("Root/HealthPanel/PlayerHealthBar")
 @onready var health_label: Label = get_node_or_null("Root/HealthPanel/PlayerHealthLabel")
@@ -24,6 +25,7 @@ var _target_run_time: float = 600.0
 @onready var attack_speed_label: Label = get_node_or_null("Root/BuffPanel/AttackSpeedLabel")
 @onready var build_label: Label = get_node_or_null("Root/BuildPanel/BuildLabel")
 @onready var hero_label: Label = get_node_or_null("Root/BuildPanel/HeroLabel")
+@onready var evolution_label: Label = get_node_or_null("Root/BuildPanel/EvolutionLabel")
 
 func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null, buff_manager: Node = null) -> void:
 	player = new_player
@@ -216,6 +218,40 @@ func set_hero_name(hero_name: String) -> void:
 		return
 	var display_name := hero_name if not hero_name.is_empty() else "Guardian"
 	hero_label.text = "Hero: %s" % display_name
+
+
+func setup_evolution_manager(evolution_manager: Node) -> void:
+	_evolution_manager = evolution_manager
+	_update_evolution_label(evolution_manager)
+	if evolution_manager == null:
+		return
+	if evolution_manager.has_signal("evolution_applied") and not evolution_manager.evolution_applied.is_connected(_on_evolution_applied):
+		evolution_manager.evolution_applied.connect(_on_evolution_applied)
+	if evolution_manager.has_signal("evolution_state_changed") and not evolution_manager.evolution_state_changed.is_connected(_on_evolution_state_changed):
+		evolution_manager.evolution_state_changed.connect(_on_evolution_state_changed)
+
+
+func _on_evolution_applied(_evolution_id: String, _evolution_data: Dictionary) -> void:
+	_update_evolution_label(_evolution_manager)
+
+
+func _on_evolution_state_changed() -> void:
+	_update_evolution_label(_evolution_manager)
+
+
+func _update_evolution_label(evolution_manager: Node) -> void:
+	if evolution_label == null:
+		return
+	if evolution_manager == null or not evolution_manager.has_method("get_applied_evolution_titles"):
+		evolution_label.text = "Evolution: None"
+		return
+	var titles: Array = evolution_manager.get_applied_evolution_titles()
+	if titles.is_empty():
+		evolution_label.text = "Evolution: None"
+	elif titles.size() == 1:
+		evolution_label.text = "Evolved: %s" % titles[0]
+	else:
+		evolution_label.text = "Evolved: %d" % titles.size()
 
 
 func _setup_buff_manager(buff_manager: Node) -> void:

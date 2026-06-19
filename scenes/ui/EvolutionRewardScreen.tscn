@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/EvolutionRewardScreen.gd" id="1_evolution_reward_screen"]
+
+[node name="EvolutionRewardScreen" type="CanvasLayer"]
+visible = false
+script = ExtResource("1_evolution_reward_screen")

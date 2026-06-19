@@ -11,6 +11,7 @@ func run(arena: Node) -> void:
 	_check(arena, "SpawnDirector")
 	_check(arena, "RunManager")
 	_check(arena, "UpgradeManager")
+	_check(arena, "EvolutionManager")
 	_check_nested(arena, "Player/AbilityManager", "AbilityManager")
 	_check(arena, "PowerupManager")
 	_check(arena, "PickupContainer")
@@ -18,6 +19,7 @@ func run(arena: Node) -> void:
 	_check(arena, "GameHUD")
 	_check(arena, "VictoryScreen")
 	_check(arena, "GameOverScreen")
+	_check(arena, "EvolutionRewardScreen")
 	_check(arena, "DebugManager")
 	if arena.get("_debug_stats_overlay") == null:
 		push_warning("ProjectHealthCheck: DebugStatsOverlay is missing.")

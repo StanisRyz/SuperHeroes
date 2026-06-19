@@ -13,6 +13,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/heroes/HeroDataProvider.tscn` - runtime hero definition provider scene.
 - `scenes/heroes/HeroDataProvider.gd` - dictionary-backed Guardian / Blaster / Vanguard definitions.
 - `scenes/heroes/HeroApplier.gd` - run-only helper for applying selected hero stats to Player, AutoAttack, and AbilityManager.
+- `scenes/evolution/EvolutionManager.tscn` - runtime evolution manager scene.
+- `scenes/evolution/EvolutionManager.gd` - evolution definitions, prerequisites, effects, and applied run state.
 - `scenes/settings/SettingsManager.tscn` - local settings manager scene.
 - `scenes/settings/SettingsManager.gd` - `user://settings.cfg` load/save helper for settings only.
 - `scenes/audio/AudioManager.tscn` - audio playback manager scene.
@@ -62,6 +64,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MainMenu.gd` - main menu start and quit intent signals.
 - `scenes/ui/CharacterSelect.tscn` - hero selection screen between MainMenu and Arena.
 - `scenes/ui/CharacterSelect.gd` - display-only hero list/details UI; emits selected hero id.
+- `scenes/ui/EvolutionRewardScreen.tscn` - paused evolution reward choice screen.
+- `scenes/ui/EvolutionRewardScreen.gd` - display-only evolution option UI; emits selected evolution id.
 - `scenes/ui/PauseMenu.tscn` - pause-time run menu scene.
 - `scenes/ui/PauseMenu.gd` - pause menu resume, restart, and quit intent signals.
 - `scenes/ui/SettingsMenu.tscn` - pause-capable settings menu scene.
@@ -180,6 +184,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - Arena stores selected hero data for the active run summary and HUD display.
 - Restart from GameOver/Victory should reuse the same selected hero id; Quit to Menu should allow choosing a different hero next run.
 - Do not persist selected hero or add hero unlocks/meta-progression unless explicitly requested.
+
+## Evolution System Architecture
+
+- UpgradeManager owns level-up upgrade options, upgrade history, archetype points, and synergy/build-defining upgrade state.
+- EvolutionManager owns evolution definitions, prerequisite checks, effect application, and applied evolution state.
+- EvolutionRewardScreen is display-only; it never applies evolutions directly.
+- Arena coordinates opening the reward screen, pausing/resuming, applying selected evolutions, and announcements.
+- Evolutions are runtime-only and reset naturally with every new Arena.
+- Miniboss defeat is the main evolution reward path; elite rewards are optional through `elite_reward_chance` and default to off.
+- Do not add persistence, meta-progression, evolution unlock storage, or evolution art assets unless explicitly requested.
 
 ## Implemented Systems
 
@@ -528,7 +542,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - Hero portraits.
 - Hero-specific unique abilities.
 - Persistent selected hero.
-- Weapon/ability evolution.
+- Persistent evolution unlocks.
+- Evolution art/icons.
+- Evolution sound effects.
+- Evolution chest animation.
+- Stage-specific evolutions.
 - Stage selection.
 - Arena hazards.
 - Persistent builds or meta-progression.

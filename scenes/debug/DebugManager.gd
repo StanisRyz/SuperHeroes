@@ -8,6 +8,7 @@ signal debug_spawn_miniboss_requested
 signal debug_add_xp_requested
 signal debug_print_stats_requested
 signal debug_kill_nearby_enemies_requested
+signal debug_open_evolution_reward_requested
 
 @export var debug_input_logging: bool = false
 
@@ -129,3 +130,11 @@ func request_kill_nearby_enemies() -> void:
 	if debug_input_logging:
 		print("DEBUG_ACTION: kill_nearby_enemies accepted")
 	debug_kill_nearby_enemies_requested.emit()
+
+
+func request_open_evolution_reward() -> void:
+	if not _can_request_action("open_evolution_reward"):
+		return
+	if debug_input_logging:
+		print("DEBUG_ACTION: open_evolution_reward accepted")
+	debug_open_evolution_reward_requested.emit()

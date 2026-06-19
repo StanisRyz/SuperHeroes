@@ -637,6 +637,17 @@ func get_upgrade_level(upgrade_id: String) -> int:
 	return int(upgrade_levels.get(upgrade_id, 0))
 
 
+func has_upgrade(upgrade_id: String, min_level: int = 1) -> bool:
+	return get_upgrade_level(upgrade_id) >= min_level
+
+
+func get_selected_upgrade_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for entry in selected_upgrade_history:
+		ids.append(str(entry.get("id", "")))
+	return ids
+
+
 func is_upgrade_available(upgrade_id: String) -> bool:
 	var definition := _get_upgrade_definition(upgrade_id)
 	if definition.is_empty():

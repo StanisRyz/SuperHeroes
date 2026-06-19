@@ -22,7 +22,9 @@ var hero_display_name: String = ""
 @onready var gameplay_tuning: Node = get_node_or_null("GameplayTuning")
 @onready var hud: Node = get_node_or_null("GameHUD")
 @onready var upgrade_manager: Node = get_node_or_null("UpgradeManager")
+@onready var evolution_manager: Node = get_node_or_null("EvolutionManager")
 @onready var level_up_screen: Node = get_node_or_null("LevelUpScreen")
+@onready var evolution_reward_screen: Node = get_node_or_null("EvolutionRewardScreen")
 @onready var game_over_screen: Node = get_node_or_null("GameOverScreen")
 @onready var mobile_controls: Node = get_node_or_null("MobileControls")
 @onready var floating_text_spawner: Node = get_node_or_null("FloatingTextSpawner")
@@ -41,6 +43,7 @@ var _debug_powerup_cycle_index: int = 0
 const DEBUG_POWERUP_CYCLE: Array = ["heal", "shield", "bomb", "magnet_burst", "move_speed_boost", "attack_speed_boost"]
 const DEBUG_KILL_RADIUS: float = 500.0
 const DEBUG_XP_AMOUNT: int = 50
+const EVOLUTION_REWARD_OPTION_COUNT: int = 3
 
 
 func setup(new_settings_manager: Node = null, new_audio_manager: Node = null, selected_hero: Dictionary = {}) -> void:
@@ -102,6 +105,8 @@ func _ready() -> void:
 		hud.setup(player, run_manager, ability_manager, player_buff_manager)
 		if hud.has_method("set_hero_name"):
 			hud.set_hero_name(hero_display_name)
+		if hud.has_method("setup_evolution_manager"):
+			hud.setup_evolution_manager(evolution_manager)
 	else:
 		push_warning("GameHUD does not implement setup(player, run_manager, ability_manager).")
 
@@ -114,6 +119,7 @@ func _ready() -> void:
 
 	_setup_spawn_director()
 	_setup_level_up_flow(auto_attack, ability_manager)
+	_setup_evolution_flow(auto_attack, ability_manager)
 	_setup_run_lifecycle()
 	_setup_pause_menu()
 	_setup_settings_menu()
@@ -183,6 +189,25 @@ func _setup_level_up_flow(auto_attack: Node, ability_manager: Node) -> void:
 		level_up_screen.upgrade_selected.connect(_on_upgrade_selected)
 		if level_up_screen.has_method("setup_audio_manager"):
 			level_up_screen.setup_audio_manager(audio_manager)
+
+
+func _setup_evolution_flow(auto_attack: Node, ability_manager: Node) -> void:
+	if evolution_manager == null:
+		push_warning("Arena could not find EvolutionManager node.")
+	elif evolution_manager.has_method("setup"):
+		evolution_manager.setup(player, auto_attack, ability_manager, upgrade_manager)
+		if evolution_manager.has_signal("evolution_applied") and not evolution_manager.evolution_applied.is_connected(_on_evolution_applied):
+			evolution_manager.evolution_applied.connect(_on_evolution_applied)
+	else:
+		push_warning("EvolutionManager does not implement setup(...).")
+
+	if evolution_reward_screen == null:
+		push_warning("Arena could not find EvolutionRewardScreen node.")
+		return
+	if evolution_reward_screen.has_signal("evolution_selected") and not evolution_reward_screen.evolution_selected.is_connected(_on_evolution_selected):
+		evolution_reward_screen.evolution_selected.connect(_on_evolution_selected)
+	if evolution_reward_screen.has_signal("closed_without_selection") and not evolution_reward_screen.closed_without_selection.is_connected(_on_evolution_reward_closed_without_selection):
+		evolution_reward_screen.closed_without_selection.connect(_on_evolution_reward_closed_without_selection)
 
 
 func _setup_spawn_director() -> void:
@@ -363,6 +388,8 @@ func _setup_event_director() -> void:
 			enemy_spawner.miniboss_phase_changed.connect(_on_miniboss_phase_changed)
 		if enemy_spawner.has_signal("miniboss_defeated") and not enemy_spawner.miniboss_defeated.is_connected(_on_miniboss_defeated):
 			enemy_spawner.miniboss_defeated.connect(_on_miniboss_defeated)
+		if enemy_spawner.has_signal("elite_defeated") and not enemy_spawner.elite_defeated.is_connected(_on_elite_defeated):
+			enemy_spawner.elite_defeated.connect(_on_elite_defeated)
 
 
 func _on_event_started(event_data: Dictionary) -> void:
@@ -399,6 +426,56 @@ func _on_miniboss_phase_changed(phase: int) -> void:
 func _on_miniboss_defeated() -> void:
 	if event_announcement != null and event_announcement.has_method("show_announcement"):
 		event_announcement.show_announcement("Miniboss Defeated!", 3.0)
+	_try_open_evolution_reward_screen()
+
+
+func _on_elite_defeated() -> void:
+	if evolution_manager == null or evolution_manager.get("elite_reward_chance") == null:
+		return
+	if randf() <= float(evolution_manager.get("elite_reward_chance")):
+		_try_open_evolution_reward_screen()
+
+
+func _try_open_evolution_reward_screen() -> void:
+	if _is_player_dead() or _is_game_over_visible() or _is_victory_visible():
+		return
+	if evolution_manager == null or evolution_reward_screen == null:
+		return
+	if not evolution_manager.has_method("get_available_evolutions") or not evolution_reward_screen.has_method("show_options"):
+		return
+	var options: Array = evolution_manager.get_available_evolutions()
+	if options.is_empty():
+		print("Evolution reward: no evolution available yet.")
+		return
+	options = options.slice(0, EVOLUTION_REWARD_OPTION_COUNT)
+	get_tree().paused = true
+	_reset_mobile_controls()
+	evolution_reward_screen.show_options(options)
+
+
+func _on_evolution_selected(evolution_id: String) -> void:
+	if evolution_manager != null and evolution_manager.has_method("apply_evolution"):
+		evolution_manager.apply_evolution(evolution_id)
+	if evolution_reward_screen != null and evolution_reward_screen.has_method("hide_screen"):
+		evolution_reward_screen.hide_screen()
+	_resume_after_evolution_reward()
+
+
+func _on_evolution_reward_closed_without_selection() -> void:
+	if evolution_reward_screen != null and evolution_reward_screen.has_method("hide_screen"):
+		evolution_reward_screen.hide_screen()
+	_resume_after_evolution_reward()
+
+
+func _resume_after_evolution_reward() -> void:
+	if not _is_player_dead() and not _is_game_over_visible() and not _is_victory_visible():
+		get_tree().paused = false
+
+
+func _on_evolution_applied(_evolution_id: String, evolution_data: Dictionary) -> void:
+	var announcement := str(evolution_data.get("announcement", "Evolution: %s!" % evolution_data.get("title", "")))
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement(announcement, 2.5)
 
 
 func _on_final_phase_started() -> void:
@@ -467,6 +544,15 @@ func _build_run_summary(base_stats: Dictionary) -> Dictionary:
 		summary["selected_upgrade_history"] = []
 		summary["selected_upgrade_count"] = 0
 
+	if evolution_manager != null and is_instance_valid(evolution_manager):
+		if evolution_manager.has_method("get_applied_evolutions"):
+			summary["applied_evolutions"] = evolution_manager.get_applied_evolutions()
+		if evolution_manager.has_method("get_applied_evolution_titles"):
+			summary["applied_evolution_titles"] = evolution_manager.get_applied_evolution_titles()
+	else:
+		summary["applied_evolutions"] = []
+		summary["applied_evolution_titles"] = []
+
 	return summary
 
 
@@ -514,6 +600,7 @@ func _setup_debug_flow() -> void:
 	_connect_debug_signal("debug_add_xp_requested", _on_debug_add_xp_requested)
 	_connect_debug_signal("debug_print_stats_requested", _on_debug_print_stats_requested)
 	_connect_debug_signal("debug_kill_nearby_enemies_requested", _on_debug_kill_nearby_enemies_requested)
+	_connect_debug_signal("debug_open_evolution_reward_requested", _on_debug_open_evolution_reward_requested)
 
 	if debug_input_logging:
 		print("DEBUG_WIRING: signals connected=%s" % signals_connected)
@@ -544,6 +631,8 @@ func _setup_debug_stats_overlay() -> void:
 
 	if _debug_stats_overlay.has_method("setup"):
 		_debug_stats_overlay.setup(player, auto_attack, ability_manager, upgrade_manager, powerup_manager, enemy_spawner, run_manager, enemy_container, projectile_container, pickup_container)
+		if _debug_stats_overlay.has_method("setup_evolution_manager"):
+			_debug_stats_overlay.setup_evolution_manager(evolution_manager)
 
 	var is_debug: bool = debug_manager != null and debug_manager.has_method("is_debug_enabled") and debug_manager.is_debug_enabled()
 	if _debug_stats_overlay.has_method("set_debug_enabled"):
@@ -630,6 +719,12 @@ func _input(event: InputEvent) -> void:
 			print("DEBUG_INPUT: action=debug_kill_nearby_enemies")
 		if debug_manager != null and debug_manager.has_method("request_kill_nearby_enemies"):
 			debug_manager.request_kill_nearby_enemies()
+		handled_debug_key = true
+	elif kc == KEY_F9 or event.is_action_pressed("debug_open_evolution_reward"):
+		if debug_input_logging:
+			print("DEBUG_INPUT: action=debug_open_evolution_reward")
+		if debug_manager != null and debug_manager.has_method("request_open_evolution_reward"):
+			debug_manager.request_open_evolution_reward()
 		handled_debug_key = true
 
 	if handled_debug_key:
@@ -821,6 +916,10 @@ func _on_debug_kill_nearby_enemies_requested() -> void:
 		print("DEBUG_ACTION: killed nearby enemies count=%d" % killed_count)
 
 
+func _on_debug_open_evolution_reward_requested() -> void:
+	_try_open_evolution_reward_screen()
+
+
 func _print_compact_stats() -> void:
 	print("=== DEBUG STATS ===")
 	if player != null and is_instance_valid(player):
@@ -861,6 +960,9 @@ func _print_compact_stats() -> void:
 			wiring.get("pickup_container_valid", false),
 			wiring.get("drop_chance", 0.0)
 		])
+	if evolution_manager != null and is_instance_valid(evolution_manager) and evolution_manager.has_method("debug_get_evolution_state"):
+		var evo: Dictionary = evolution_manager.debug_get_evolution_state()
+		print("Evolutions: available=%d applied=%s" % [evo.get("available_count", 0), str(evo.get("applied_titles", []))])
 	print("==================")
 
 

@@ -12,6 +12,7 @@ var audio_manager: Node
 @onready var level_label: Label = get_node_or_null("Root/Panel/VBoxContainer/LevelLabel")
 @onready var hero_label: Label = get_node_or_null("Root/Panel/VBoxContainer/HeroLabel")
 @onready var build_label: Label = get_node_or_null("Root/Panel/VBoxContainer/BuildLabel")
+@onready var evolutions_label: Label = get_node_or_null("Root/Panel/VBoxContainer/EvolutionsLabel")
 @onready var restart_button: Button = get_node_or_null("Root/Panel/VBoxContainer/RestartButton")
 @onready var menu_button: Button = get_node_or_null("Root/Panel/VBoxContainer/MenuButton")
 
@@ -51,6 +52,9 @@ func show_stats(stats: Dictionary) -> void:
 		hero_label.text = "Hero: %s" % hero_name
 	if build_label != null:
 		build_label.text = "Build: %s" % (dominant.capitalize() if not dominant.is_empty() else "Mixed")
+	if evolutions_label != null:
+		var titles: Array = stats.get("applied_evolution_titles", [])
+		evolutions_label.text = "Evolutions: %s" % (", ".join(titles) if not titles.is_empty() else "None")
 
 	show()
 	if restart_button != null:

@@ -11,6 +11,7 @@ signal quit_to_menu_requested
 @onready var hero_label: Label = get_node_or_null("Root/Panel/VBoxContainer/HeroLabel")
 @onready var build_label: Label = get_node_or_null("Root/Panel/VBoxContainer/BuildLabel")
 @onready var upgrades_label: Label = get_node_or_null("Root/Panel/VBoxContainer/UpgradesLabel")
+@onready var evolutions_label: Label = get_node_or_null("Root/Panel/VBoxContainer/EvolutionsLabel")
 @onready var restart_button: Button = get_node_or_null("Root/Panel/VBoxContainer/RestartButton")
 @onready var menu_button: Button = get_node_or_null("Root/Panel/VBoxContainer/MenuButton")
 
@@ -51,6 +52,9 @@ func show_stats(stats: Dictionary) -> void:
 		build_label.text = "Build: %s" % (dominant.capitalize() if not dominant.is_empty() else "Mixed")
 	if upgrades_label != null:
 		upgrades_label.text = "Upgrades taken: %d" % upgrade_count
+	if evolutions_label != null:
+		var titles: Array = stats.get("applied_evolution_titles", [])
+		evolutions_label.text = "Evolutions: %s" % (", ".join(titles) if not titles.is_empty() else "None")
 
 	show()
 	if restart_button != null:

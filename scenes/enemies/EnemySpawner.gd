@@ -3,6 +3,7 @@ extends Node
 signal miniboss_spawned(enemy: Node)
 signal miniboss_phase_changed(phase: int)
 signal miniboss_defeated
+signal elite_defeated
 
 const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 
@@ -204,6 +205,7 @@ func _on_enemy_died(enemy: Node) -> void:
 	if enemy != null and enemy.get("is_elite") == true:
 		if run_manager != null and run_manager.has_method("register_elite_kill"):
 			run_manager.register_elite_kill()
+		emit_signal("elite_defeated")
 
 	if enemy != null and enemy.get("is_miniboss") == true:
 		if run_manager != null and run_manager.has_method("register_miniboss_kill"):

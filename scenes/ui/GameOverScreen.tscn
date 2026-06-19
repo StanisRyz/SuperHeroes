@@ -81,6 +81,11 @@ layout_mode = 2
 text = "Build: Mixed"
 horizontal_alignment = 1
 
+[node name="EvolutionsLabel" type="Label" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+text = "Evolutions: None"
+horizontal_alignment = 1
+
 [node name="RestartButton" type="Button" parent="Root/Panel/VBoxContainer"]
 custom_minimum_size = Vector2(420, 48)
 layout_mode = 2

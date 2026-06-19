@@ -144,6 +144,22 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Evolution System
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Build projectile archetype points and meet a projectile prerequisite | Projectile Storm appears as an available evolution |
+| 2 | Kill miniboss with an available evolution | EvolutionRewardScreen opens after the miniboss defeated announcement |
+| 3 | Select **Projectile Storm** | HUD updates to show the applied evolution; projectile stats increase moderately |
+| 4 | Continue the run after selecting evolution | Game resumes; no extra pause remains |
+| 5 | Reach Victory/GameOver after evolution | Summary lists applied evolutions |
+| 6 | Kill another miniboss after applying the same evolution | Already applied evolution does not appear again |
+| 7 | Press F9 while Debug Mode ON and an evolution is available | EvolutionRewardScreen opens without auto-applying anything |
+| 8 | Press F9 while no prerequisites are met | Console prints that no evolution is available; no screen opens |
+| 9 | Restart run | Applied evolutions reset naturally |
+
+---
+
 ## Miniboss
 
 | # | Test | Expected |

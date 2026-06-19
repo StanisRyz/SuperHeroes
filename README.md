@@ -252,6 +252,16 @@ Implemented foundation:
 - Selected hero appears in GameHUD and in Victory/GameOver run summaries.
 - Restart from Victory/GameOver keeps the same selected hero; returning to MainMenu allows choosing a different hero.
 
+### Weapon / Ability Evolution System
+
+- **EvolutionManager** owns runtime-only evolution definitions and applied evolution state for the current run.
+- **EvolutionRewardScreen** is a display-only paused reward screen; Arena opens it and applies selected evolutions.
+- Evolutions added: Projectile Storm, Supernova Core, Prism Laser, Earthbreaker Slam, and Comet Engine.
+- Miniboss defeat checks available evolutions and opens the reward screen when prerequisites are met.
+- Elite evolution rewards are supported behind `EvolutionManager.elite_reward_chance`, defaulting to `0.0`.
+- GameHUD shows current evolution state, and Victory/GameOver summaries list applied evolutions.
+- Debug Mode F9 can open the evolution reward screen when evolutions are available.
+
 ### Run Progression & Victory
 
 - **Run target duration** — 10 minutes (600 seconds) by default, configurable per RunManager inspector.
@@ -271,7 +281,11 @@ Not implemented yet:
 - Hero portraits.
 - Hero-specific unique abilities.
 - Persistent selected hero.
-- Weapon/ability evolution.
+- Persistent evolution unlocks.
+- Evolution art/icons.
+- Evolution sound effects.
+- Evolution chest animation.
+- Stage-specific evolutions.
 - Stage selection.
 - Arena hazards.
 - Leaderboard.

@@ -135,7 +135,7 @@ layout_mode = 0
 offset_left = 64.0
 offset_top = 384.0
 offset_right = 340.0
-offset_bottom = 432.0
+offset_bottom = 456.0
 
 [node name="HeroLabel" type="Label" parent="Root/BuildPanel"]
 layout_mode = 2
@@ -144,3 +144,7 @@ text = "Hero: Guardian"
 [node name="BuildLabel" type="Label" parent="Root/BuildPanel"]
 layout_mode = 2
 text = "Build: Mixed"
+
+[node name="EvolutionLabel" type="Label" parent="Root/BuildPanel"]
+layout_mode = 2
+text = "Evolution: None"
