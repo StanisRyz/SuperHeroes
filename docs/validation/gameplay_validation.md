@@ -180,7 +180,7 @@ Run these before adding new gameplay systems.
 | 1 | Press **Select Hero** in MainMenu | CharacterSelect opens instead of starting Arena directly |
 | 2 | Press **Back** from CharacterSelect | Returns to MainMenu |
 | 3 | Select **Solar Guardian**, then Start Run | Run starts with Guardian id, solar color, and 130 max HP |
-| 4 | Select **Blaster**, then Start Run | Run starts with 90 max HP and +1 projectile in weapon stats |
+| 4 | Select **Night Tactician**, then Start Run | Run starts with Blaster id, 90 max HP, +1 projectile, and tactical tool tuning |
 | 5 | Select **Vanguard**, then Start Run | Run starts with faster ability cooldowns and stronger Nova/Slam damage |
 | 6 | Start any hero | HUD shows `Hero: <name>` |
 | 7 | Reach Victory/GameOver | Summary screen shows `Hero: <name>` |
@@ -203,9 +203,28 @@ Run these before adding new gameplay systems.
 | 6 | Press ability_3 / L as Guardian near enemies | Impact burst casts, damages enemies, and cooldown updates |
 | 7 | Enable mobile controls while Guardian is selected | Ability buttons use Guardian-specific labels and still cast slots 1/2/3 |
 | 8 | Open DebugStatsOverlay during Guardian run | Ability stats still display without errors |
-| 9 | Start a Blaster run | Blaster keeps existing Nova/Laser/Slam behavior and labels |
+| 9 | Start a Night Tactician run | Blaster uses Smoke Charge, Grapnel Shot, and Shock Trap presentation without changing ability ids |
 | 10 | Start a Vanguard run | Vanguard keeps existing Nova/Laser/Slam behavior and labels |
 | 11 | Check Training with Guardian selected | Per-Hero Training still applies only Guardian Training |
+| 12 | Inspect changed text | No licensed superhero names or protected character identities are used |
+
+---
+
+## Blaster Ability Rework
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open CharacterSelect | Blaster appears as Night Tactician with dark gadget tactician role text |
+| 2 | Select Blaster and start a run | Run starts normally with hero id `blaster` |
+| 3 | Check GameHUD ability panel | Slot labels show Smoke Charge, Grapnel Shot, and Shock Trap presentation |
+| 4 | Press ability_1 / J as Blaster near enemies | Tactical burst zone casts, damages enemies, and cooldown updates |
+| 5 | Press ability_2 / K as Blaster with enemies ahead | Precision line strike casts, damages enemies, and cooldown updates |
+| 6 | Press ability_3 / L as Blaster near enemies | Close control impact casts, damages enemies, and cooldown updates |
+| 7 | Enable mobile controls while Blaster is selected | Ability buttons use Blaster-specific labels and still cast slots 1/2/3 |
+| 8 | Open DebugStatsOverlay during Blaster run | Ability stats still display without errors |
+| 9 | Start a Solar Guardian run | Guardian-specific ability names still work |
+| 10 | Start a Vanguard run | Vanguard keeps existing Nova/Laser/Slam behavior and labels |
+| 11 | Check Training with Blaster selected | Per-Hero Training still applies only Blaster Training |
 | 12 | Inspect changed text | No licensed superhero names or protected character identities are used |
 
 ---

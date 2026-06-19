@@ -328,10 +328,11 @@ Not implemented yet (feedback):
 - **CharacterSelect** sits between MainMenu and Arena; Main owns the menu/selection/run transition.
 - **HeroDataProvider** owns three hardcoded starter heroes for now: Guardian, Blaster, and Vanguard.
 - **Solar Guardian** is an original solar/flying powerhouse archetype: durable, strong, and focused on radiant burst, beam, and impact abilities.
-- **Blaster** is projectile-focused: 90 HP, 265 speed, +3 attack damage, +1 starting projectile, slightly slower attack interval.
+- **Night Tactician** keeps the `blaster` hero id and is an original dark gadget tactician: 90 HP, 275 speed, +2 attack damage, +1 starting projectile, slightly faster attacks, faster tool cooldowns, and precise controlled ability tuning.
 - **Vanguard** is ability/burst-focused: 100 HP, 275 speed, 0.9x ability cooldowns, +4 Nova damage, +6 Slam damage.
 - **HeroApplier** applies run-only starting stats to Player, AutoAttack, and AbilityManager before gameplay systems start.
-- Guardian uses hero-specific ability presentation names while preserving the global ability slots and ids. Blaster and Vanguard keep the existing Nova/Laser/Slam presentation.
+- Solar Guardian and Night Tactician use hero-specific ability presentation names while preserving the global ability slots and ids. Vanguard keeps the existing Nova/Laser/Slam presentation.
+- Night Tactician presents slot 1/2/3 as Smoke Charge, Grapnel Shot, and Shock Trap. The underlying ability ids and input actions remain unchanged.
 - Selected hero appears in GameHUD and in Victory/GameOver run summaries.
 - Restart from Victory/GameOver keeps the same selected hero; returning to MainMenu allows choosing a different hero.
 - No licensed superhero names, brands, or protected character identities are used.

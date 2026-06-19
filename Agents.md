@@ -224,7 +224,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - HeroDataProvider owns hardcoded hero dictionaries for now; do not migrate to Resources until explicitly requested.
 - Guardian is an original solar/flying powerhouse fantasy with strength, beam, durability, and aerial-impact presentation.
 - Guardian may override ability display names through hero data, but global input slots and ability ids must stay stable.
-- Blaster and Vanguard keep the existing global Nova/Laser/Slam presentation unless explicitly reworked.
+- Blaster keeps the `blaster` id and is an original dark gadget tactician fantasy with precision tools, tactical mobility, controlled burst damage, and close control presentation.
+- Blaster may override ability display names through hero data as Smoke Charge, Grapnel Shot, and Shock Trap, but global input slots and ability ids must stay stable.
+- Vanguard keeps the existing global Nova/Laser/Slam presentation unless explicitly reworked.
 - HeroApplier applies run-only selected hero stats to Player, AutoAttack, and AbilityManager.
 - Arena stores selected hero data for the active run summary and HUD display.
 - Restart from GameOver/Victory should reuse the same selected hero id; Quit to Menu should allow choosing a different hero next run.
