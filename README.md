@@ -332,6 +332,80 @@ Not implemented yet (feedback):
 - Hit stop.
 - Controller rumble.
 
+### Enemy Roles & Wave Director 2.0
+
+Waves now feel intentional, role-based, and stage-specific. This patch sits entirely inside `SpawnDirector` and `EnemySpawner`; hero kits, bosses, upgrades, rewards, and saves are unchanged.
+
+#### Enemy Roles
+
+Each enemy variant now carries a `role` field used by the Wave Director for package selection:
+
+| Role | Variants | Pressure style |
+|------|----------|---------------|
+| swarmer | grunt, swarm | Weak mass pressure |
+| hunter | runner, charger | Fast chase pressure |
+| bruiser | tank, shielded | Slow durable body-block |
+| shooter | shooter | Ranged pressure |
+| disruptor | exploder, support | Special / area pressure |
+
+All existing `behavior_id` values remain unchanged.
+
+#### Wave Director
+
+A Wave Director layer inside `SpawnDirector` selects and builds **wave packages** on a separate timer (every 8–14 s depending on run time). `EnemySpawner` spawns each package sequentially while respecting `max_alive_enemies` and `max_alive_enemies_cap`.
+
+Available packages:
+
+| Package | Role | Variants | Count | Unlock |
+|---------|------|----------|-------|--------|
+| early_grunts | swarmer | grunt | 2–3 | 0 s |
+| runner_pack | hunter | runner | 2–3 | 30 s |
+| bruiser_wall | bruiser | tank | 1–2 | 60 s |
+| shooter_screen | shooter | shooter | 1–2 | 75 s |
+| exploder_pressure | disruptor | exploder | 1–2 | 120 s |
+| swarm_rush | swarmer | swarm | 2–4 | 150 s |
+| shielded_push | bruiser | shielded | 1–2 | 180 s |
+| support_pair | disruptor | support | 1–2 | 210 s |
+| mixed_late_wave | mixed | runner/tank/shooter | 2–3 | 240 s |
+
+Count scales up by +1 after 300 s (late game).
+
+#### Stage Wave Identity
+
+Stage event profiles bias package selection via `profile_bonus` weights:
+
+| Stage | Profile | Favoured packages |
+|-------|---------|------------------|
+| City Rooftop | balanced | Mixed — no extreme bias; bruiser_wall and mixed_late_wave get a small bonus |
+| Neon Lab | ranged_support | shooter_screen ×1.5, support_pair ×1.4, individual shooter/support variants ×1.25 |
+| Wasteland Gate | swarm_exploder | swarm_rush ×1.5, exploder_pressure ×1.5, individual swarm/exploder variants ×1.3 |
+
+#### Pressure Pacing
+
+- **Early (0–120 s)**: early_grunts, runner_pack only. Wave interval: 14 s.
+- **Mid (120–300 s)**: bruiser_wall, shooter_screen, exploder_pressure, swarm_rush, shielded_push. Wave interval: 10–12 s.
+- **Late (300 s+)**: all packages including support_pair and mixed_late_wave. Wave interval: 8 s.
+
+#### Spawn Safety
+
+- Every package spawn checks `enemy_container.get_child_count() >= _get_current_max_alive_enemies()` before each enemy.
+- If the cap is reached mid-package the remaining enemies are skipped (no burst overflow).
+- Package size is capped at `max_count + 2` even at maximum time scaling.
+- Individual per-enemy timer continues alongside wave packages; together they respect the cap.
+
+#### Debug
+
+`DebugStatsOverlay` (F12) now shows in the Spawner section:
+- `Profile: <stage_profile>`
+- `MaxAlive: <current cap>`
+- `Interval: <single spawn interval>`
+- `WaveEvery: <package interval in seconds>`
+- `Last pkg: <last wave package id>`
+
+`EnemySpawner.spawn_debug_logging = true` prints `WAVE_PACKAGE: id=... role=... alive=N/M` each time a package fires.
+
+Not included in this patch: Boss Rework, Primary Weapon Rework, Build Evolution, Stage Objectives, arena hazards.
+
 ### Balance / Cleanup / Production Readiness
 
 - **GameplayTuning** (`scenes/game/GameplayTuning.tscn`) centralizes exported balance defaults for debug logging, run timing, spawn distances/caps, powerup drop chance, core ability values, and player defaults.

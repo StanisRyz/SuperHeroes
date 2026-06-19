@@ -35,6 +35,9 @@ var audio_manager: Node
 var powerup_manager: Node
 var feedback_manager: Node
 
+var _last_wave_package_id: String = ""
+var _wave_timer: Timer = null
+
 const POWERUP_WEIGHTS: Dictionary = {
 	"heal": 30,
 	"shield": 20,
@@ -50,6 +53,12 @@ func _ready() -> void:
 	spawn_timer.timeout.connect(_on_spawn_timer_timeout)
 	spawn_timer.wait_time = spawn_interval
 	spawn_timer.one_shot = false
+
+	_wave_timer = Timer.new()
+	_wave_timer.name = "WaveTimer"
+	_wave_timer.one_shot = false
+	_wave_timer.timeout.connect(_on_wave_timer_timeout)
+	add_child(_wave_timer)
 
 
 func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null, new_audio_manager: Node = null, new_powerup_manager: Node = null, new_projectile_container: Node = null, new_feedback_manager: Node = null) -> void:
@@ -76,6 +85,11 @@ func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: No
 	if _can_spawn():
 		spawn_timer.start()
 
+	if is_instance_valid(_wave_timer):
+		_wave_timer.wait_time = _get_current_wave_interval()
+		if _can_spawn():
+			_wave_timer.start()
+
 
 func _on_spawn_timer_timeout() -> void:
 	if not _can_spawn():
@@ -98,6 +112,62 @@ func _on_spawn_timer_timeout() -> void:
 			_get_current_max_alive_enemies(),
 			_get_current_spawn_interval(),
 		])
+
+
+func _on_wave_timer_timeout() -> void:
+	if is_instance_valid(_wave_timer):
+		_wave_timer.wait_time = _get_current_wave_interval()
+
+	if not _can_spawn():
+		return
+
+	var package: Dictionary = {}
+	if spawn_director != null and spawn_director.has_method("get_wave_package"):
+		package = spawn_director.get_wave_package()
+
+	if package.is_empty():
+		return
+
+	_last_wave_package_id = str(package.get("id", ""))
+	_spawn_from_package(package)
+
+	if spawn_debug_logging:
+		print("WAVE_PACKAGE: id=%s role=%s alive=%d/%d" % [
+			_last_wave_package_id,
+			str(package.get("role", "")),
+			enemy_container.get_child_count() if is_instance_valid(enemy_container) else 0,
+			_get_current_max_alive_enemies(),
+		])
+
+
+func _spawn_from_package(package: Dictionary) -> void:
+	var variant_ids: Array = package.get("variant_ids", [])
+	if variant_ids.is_empty():
+		return
+
+	for vid in variant_ids:
+		if not is_instance_valid(enemy_container):
+			break
+		if enemy_container.get_child_count() >= _get_current_max_alive_enemies():
+			break
+
+		var variant: Dictionary = {}
+		if spawn_director != null and spawn_director.has_method("get_enemy_variant_by_id"):
+			variant = spawn_director.get_enemy_variant_by_id(str(vid))
+		if variant.is_empty():
+			continue
+
+		var pos := _find_spawn_position()
+		if pos == NO_SPAWN_POSITION:
+			break
+
+		_spawn_enemy_with_variant(variant, pos)
+
+
+func _get_current_wave_interval() -> float:
+	if spawn_director != null and spawn_director.has_method("get_wave_interval"):
+		return maxf(float(spawn_director.get_wave_interval()), 3.0)
+	return 12.0
 
 
 func _spawn_enemy_with_variant(variant: Dictionary, spawn_position: Vector2) -> Node2D:
@@ -427,13 +497,20 @@ func debug_get_powerup_wiring_state() -> Dictionary:
 
 
 func debug_get_spawn_state() -> Dictionary:
-	return {
+	var result: Dictionary = {
 		"enemy_count": enemy_container.get_child_count() if is_instance_valid(enemy_container) else 0,
 		"max_alive_enemies": _get_current_max_alive_enemies(),
 		"spawn_interval": _get_current_spawn_interval(),
 		"min_spawn_distance": min_spawn_distance_from_player,
 		"max_spawn_distance": max_spawn_distance_from_player,
+		"last_wave_package": _last_wave_package_id,
+		"wave_interval": _get_current_wave_interval(),
+		"stage_profile": "balanced",
 	}
+	if spawn_director != null and spawn_director.has_method("debug_get_wave_state"):
+		var ws: Dictionary = spawn_director.debug_get_wave_state()
+		result["stage_profile"] = ws.get("stage_profile", "balanced")
+	return result
 
 
 func _roll_powerup_id(guaranteed: bool = false) -> String:

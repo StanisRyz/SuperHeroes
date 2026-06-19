@@ -744,3 +744,28 @@ DEBUG_PLAYER: invulnerable=true
 | 27 | Debug F7 with settings configured | DebugStatsOverlay `-- Feedback --` section shows current shake/text/flash toggles and intensity |
 | 28 | MetaUpgradeShop: buy an upgrade | Row briefly flashes green; level updates; buy button turns gray if maxed |
 | 29 | No gameplay damage/cooldown values changed | All ability cooldowns, enemy stats, powerup values, drop rates identical to pre-patch |
+
+---
+
+## Enemy Roles & Wave Director 2.0
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start City Rooftop and play for 3–4 minutes | Waves appear as occasional bursts (every ~10–14 s) of 2–4 same-role enemies alongside the steady individual spawn stream |
+| 2 | Start Neon Lab and watch enemy mix | More shooter and support packages than City Rooftop; `WAVE_PACKAGE: id=shooter_screen` and `support_pair` appear in console when `spawn_debug_logging` is on |
+| 3 | Start Wasteland Gate and watch enemy mix | More swarm and exploder packages; `WAVE_PACKAGE: id=swarm_rush` and `exploder_pressure` appear in console |
+| 4 | Enable Debug Mode (F12) and check DebugStatsOverlay Spawner section | Shows `Profile: <stage_profile>`, `MaxAlive: N`, `Interval: X.XX`, `WaveEvery: Xs`, and `Last pkg: <id>` |
+| 5 | At run start (0–30 s) | Only `early_grunts` package fires; no runners/tanks/shooters in packages yet |
+| 6 | At ~75 s | `runner_pack`, `bruiser_wall`, `shooter_screen` packages begin to appear |
+| 7 | At ~150 s | `swarm_rush` and `exploder_pressure` packages appear (both stage-profile dependent) |
+| 8 | At ~210 s | `support_pair` package appears |
+| 9 | At ~240 s | `mixed_late_wave` (runner/tank/shooter mix) can appear |
+| 10 | Watch enemy count while packages spawn | Enemy count does not exceed `max_alive_enemies` cap during or after a package spawn |
+| 11 | Play to late game (300 s+) | Packages sometimes spawn 1 extra enemy (late-game size bonus) but still within cap |
+| 12 | Enable `spawn_debug_logging` in Inspector | Console shows `WAVE_PACKAGE: id=... role=... alive=N/M` each time a package fires; `SPAWN: variant=...` lines still appear for individual spawns |
+| 13 | Press F5 to spawn miniboss during active run | Miniboss spawns normally alongside regular enemy pressure; wave packages continue in background |
+| 14 | Press F4 to spawn elite | Elite spawns normally; wave packages unaffected |
+| 15 | Let final boss spawn (debug or natural) | Final boss spawns normally; wave packages continue (run is still active); VictoryScreen shows after boss death |
+| 16 | Use J/K/L abilities during a wave package | Hero abilities still work and hit package enemies normally |
+| 17 | Open level-up screen during run | Tree pauses; wave timer pauses automatically; packages resume after level-up |
+| 18 | Inspect diff | Enemy stats, XP values, behavior_ids, hero kits, upgrade effects, reward formulas, save format, and arena hazards are unchanged |

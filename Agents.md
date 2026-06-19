@@ -599,14 +599,32 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Spawn Progression
 
-- `SpawnDirector` owns time-based spawn scaling and variant selection.
+- `SpawnDirector` owns time-based spawn scaling, variant selection, wave packages, and the Wave Director layer.
 - `EnemySpawner` spawns enemies and drops XP, but should not own long-term difficulty design.
 - Enemy variants are currently hardcoded dictionaries, not Resources.
-- Enemy variant dictionaries include `behavior_id`.
+- Enemy variant dictionaries include `behavior_id` and `role`.
 - Spawn interval and max alive enemy limits scale from run time.
 - Grunt is available from run start, Runner opens after about 30 seconds, Charger after about 45 seconds, Tank after about 60 seconds, Shooter after about 75 seconds, Exploder after about 120 seconds, Swarm after about 150 seconds, Shielded after about 180 seconds, and Support after about 210 seconds.
 - Variant XP values are copied onto the dropped `ExperienceGem`.
 - Enemies should spawn near the player using `EnemySpawner` ring spawn, but never directly on top of the player.
+
+## Wave Director / Enemy Roles Architecture
+
+- Enemy roles are metadata added to each variant dict: `swarmer` (grunt, swarm), `hunter` (runner, charger), `bruiser` (tank, shielded), `shooter` (shooter), `disruptor` (exploder, support). Role is informational and used for package selection weight; it does not change behavior_id or stats.
+- `SpawnDirector.WAVE_PACKAGES` is a constant array of package definitions. Each package defines `id`, `role`, `variant_pool`, `min_count`, `max_count`, `weight`, `unlock_time`, and `profile_bonus` (per-profile weight multiplier).
+- `SpawnDirector.get_wave_package()` selects a package weighted by time + stage profile, builds the final `variant_ids` list (already sized), and returns `{id, role, variant_ids}`. Returns `{}` if no package is available yet.
+- `SpawnDirector.get_wave_interval()` returns the seconds between wave package spawns: 14 s early → 8 s late.
+- `SpawnDirector.debug_get_wave_state()` returns `{stage_profile, last_wave_package, wave_interval}` for the debug overlay.
+- `EnemySpawner._wave_timer` is a `Timer` created programmatically in `_ready()` and started in `setup()`. It fires `_on_wave_timer_timeout()` independently of the regular `SpawnTimer`.
+- `EnemySpawner._on_wave_timer_timeout()` updates `_wave_timer.wait_time`, calls `spawn_director.get_wave_package()`, then calls `_spawn_from_package(package)`.
+- `EnemySpawner._spawn_from_package(package)` iterates `package.variant_ids`, checks `enemy_container.get_child_count() >= _get_current_max_alive_enemies()` before each enemy, and calls `_spawn_enemy_with_variant`. Stops early if cap is reached or no spawn position is found.
+- **Max alive cap is always respected**: both the regular `SpawnTimer` path and the wave package path independently check the cap before each enemy spawn. No burst can overflow the cap.
+- Stage profiles affect package weight via `profile_bonus` on each package. Neon Lab (ranged_support) boosts shooter_screen and support_pair. Wasteland Gate (swarm_exploder) boosts swarm_rush and exploder_pressure. Balanced (City Rooftop) gives a small bonus to bruiser_wall and mixed_late_wave.
+- Stage profiles also continue to affect individual per-enemy variant weights via `_stage_profile_weight_bonuses` in SpawnDirector (unchanged from before).
+- `EnemySpawner.debug_get_spawn_state()` now includes `stage_profile`, `last_wave_package`, and `wave_interval` fields sourced from `SpawnDirector.debug_get_wave_state()`.
+- `DebugStatsOverlay` Spawner section now shows: `Profile: <profile>  MaxAlive: N`, `Interval: X.XX  WaveEvery: Xs`, `Last pkg: <package_id>`.
+- Do not add arena hazards unless explicitly requested.
+- Miniboss and final boss spawning remain unchanged: they are triggered by EventDirector and EnemySpawner dedicated methods, not by wave packages.
 
 ## Enemy Behavior Notes
 
@@ -742,8 +760,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - Stamina.
 - Advanced dodge perks.
 - Controller remapping.
-- Exploder enemies.
-- Swarm/orbit enemies.
+- Boss Rework (not included in Wave Director 2.0 patch).
+- Primary Weapon Rework (not included in Wave Director 2.0 patch).
+- Build Evolution rework (not included in Wave Director 2.0 patch).
+- Stage Objectives (not included in Wave Director 2.0 patch).
 - Enemy projectile patterns.
 - Status effects.
 - Real audio assets.

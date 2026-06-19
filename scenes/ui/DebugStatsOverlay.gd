@@ -254,10 +254,16 @@ func _build_stats_text() -> String:
 		lines.append("-- Spawner --")
 		if _enemy_spawner.has_method("debug_get_spawn_state"):
 			var spawn: Dictionary = _enemy_spawner.debug_get_spawn_state()
-			lines.append("Max alive: %d  Interval: %.2f" % [
+			lines.append("Profile: %s  MaxAlive: %d" % [
+				spawn.get("stage_profile", "?"),
 				int(spawn.get("max_alive_enemies", 0)),
-				float(spawn.get("spawn_interval", 0.0))
 			])
+			lines.append("Interval: %.2f  WaveEvery: %.0fs" % [
+				float(spawn.get("spawn_interval", 0.0)),
+				float(spawn.get("wave_interval", 0.0)),
+			])
+			var last_pkg: String = str(spawn.get("last_wave_package", ""))
+			lines.append("Last pkg: %s" % (last_pkg if last_pkg != "" else "(none yet)"))
 		if _enemy_spawner.has_method("debug_get_powerup_wiring_state"):
 			var wiring: Dictionary = _enemy_spawner.debug_get_powerup_wiring_state()
 			lines.append("Pickup scene: %s" % wiring.get("pickup_scene_assigned", false))
