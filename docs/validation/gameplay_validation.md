@@ -290,6 +290,20 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Hero-Specific Upgrade Flavor
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a Solar Guardian run and trigger LevelUpScreen | Upgrade titles/descriptions use solar/radiant/aerial wording where flavored |
+| 2 | Start a Night Tactician run and trigger LevelUpScreen | Upgrade titles/descriptions use gadget/precision/trap/tactical wording where flavored |
+| 3 | Start a Fury Vanguard run and trigger LevelUpScreen | Upgrade titles/descriptions use rage/bruiser/impact/slam wording where flavored |
+| 4 | Inspect ability upgrades for each hero | Slot 1/2/3 upgrade text uses Solar Burst/Smoke Charge/Rage Burst, Solar Beam/Grapnel Shot/Crushing Leap, and Aerial Impact/Shock Trap/Titan Slam as appropriate |
+| 5 | Select any flavored upgrade | LevelUpScreen emits the original upgrade id and the original effect applies |
+| 6 | Pick synergy and build-defining upgrades | Rarity, archetype, synergy/build-defining markers, prerequisites, and build tracking still work |
+| 7 | Inspect diff | No upgrade effects, weights, rarity, max levels, prerequisites, archetype points, synergies, hero stats, enemies, stages, rewards, saves, or persistence changed |
+
+---
+
 ## Remember Last Choice QoL
 
 | # | Test | Expected |

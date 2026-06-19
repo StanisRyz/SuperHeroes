@@ -237,7 +237,7 @@ func _setup_level_up_flow(auto_attack: Node, ability_manager: Node) -> void:
 	if upgrade_manager == null:
 		push_warning("Arena could not find UpgradeManager node.")
 	elif upgrade_manager.has_method("setup"):
-		upgrade_manager.setup(player, auto_attack, ability_manager)
+		upgrade_manager.setup(player, auto_attack, ability_manager, hero_data)
 	else:
 		push_warning("UpgradeManager does not implement setup(player, auto_attack, ability_manager).")
 

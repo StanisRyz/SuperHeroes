@@ -13,9 +13,133 @@ const PROJECTILE_SIZE_MAX := 2.0
 const PROJECTILE_EXPLOSION_RADIUS_MAX := 180.0
 const PROJECTILE_BOUNCE_MAX := 5
 
+const HERO_UPGRADE_FLAVOR := {
+	"guardian": {
+		"titles": {
+			"attack_damage_up": "Radiant Strike",
+			"attack_speed_up": "Solar Tempo",
+			"attack_range_up": "Skyline Reach",
+			"move_speed_up": "Aerial Momentum",
+			"max_health_up": "Solar Fortitude",
+			"projectile_speed_up": "Sunshot Velocity",
+			"nova_damage_up": "Solar Burst Surge",
+			"nova_cooldown_down": "Radiant Rhythm",
+			"laser_damage_up": "Solar Beam Focus",
+			"laser_cooldown_down": "Solar Beam Charge",
+			"laser_width_up": "Wide Sunray",
+			"slam_damage_up": "Aerial Impact Force",
+			"slam_radius_up": "Impact Halo",
+			"slam_cooldown_down": "Skyfall Ready",
+			"shielded_dash": "Dawn Guard Dash",
+			"heroic_endurance": "Solar Endurance",
+			"power_collector": "Sunlit Collector",
+			"nova_aftershock": "Radiant Aftershock",
+			"laser_overcharge": "Solar Overcharge",
+			"slam_quake": "Aerial Quake",
+			"nova_aftershock_zone": "Radiant Aftershock Zone",
+			"laser_double_pulse": "Twin Sunray",
+			"slam_second_wave": "Second Impact",
+			"dash_damage_trail": "Comet Guard",
+			"bouncing_bolts": "Ricochet Rays",
+		},
+		"descriptions": {
+			"attack_damage_up": "Increase radiant autoattack damage by %s.",
+			"attack_speed_up": "Reduce radiant autoattack interval by %ss.",
+			"attack_range_up": "Increase skyward autoattack targeting range by %s.",
+			"move_speed_up": "Increase aerial movement speed by %s.",
+			"max_health_up": "Increase solar durability and heal by %s.",
+			"projectile_speed_up": "Increase speed of newly fired sunshots by %s.",
+			"shielded_dash": "Extend guarded dash invulnerability and trim dash cooldown.",
+			"heroic_endurance": "Increase solar max health by %s and restore HP.",
+			"power_collector": "Increase movement speed for better radiant pickup reach.",
+		},
+	},
+	"blaster": {
+		"titles": {
+			"attack_damage_up": "Precision Dart",
+			"attack_speed_up": "Tactical Tempo",
+			"attack_range_up": "Optic Rangefinder",
+			"move_speed_up": "Shadow Step",
+			"max_health_up": "Armored Lining",
+			"projectile_speed_up": "Quick-Fire Gadget",
+			"nova_damage_up": "Smoke Charge Payload",
+			"nova_cooldown_down": "Smoke Charge Reset",
+			"laser_damage_up": "Grapnel Shot Focus",
+			"laser_cooldown_down": "Grapnel Reload",
+			"laser_width_up": "Wide Grapnel Arc",
+			"slam_damage_up": "Shock Trap Charge",
+			"slam_radius_up": "Trap Field",
+			"slam_cooldown_down": "Trap Reset",
+			"shielded_dash": "Evasive Guard",
+			"heroic_endurance": "Reinforced Kit",
+			"power_collector": "Utility Sweep",
+			"nova_aftershock": "Smoke Aftercharge",
+			"laser_overcharge": "Grapnel Overdrive",
+			"slam_quake": "Shock Trap Array",
+			"nova_aftershock_zone": "Lingering Smoke",
+			"laser_double_pulse": "Follow-Up Grapnel",
+			"slam_second_wave": "Delayed Trap",
+			"dash_damage_trail": "Tactical Exit",
+			"bouncing_bolts": "Ricochet Tools",
+		},
+		"descriptions": {
+			"attack_damage_up": "Increase precision autoattack damage by %s.",
+			"attack_speed_up": "Reduce tactical autoattack interval by %ss.",
+			"attack_range_up": "Increase targeting range by %s.",
+			"move_speed_up": "Increase tactical movement speed by %s.",
+			"max_health_up": "Increase armor reserves and heal by %s.",
+			"projectile_speed_up": "Increase speed of newly fired gadgets by %s.",
+			"shielded_dash": "Extend evasive invulnerability and trim dash cooldown.",
+			"heroic_endurance": "Increase reinforced max health by %s and restore HP.",
+			"power_collector": "Increase movement speed for cleaner pickup routes.",
+		},
+	},
+	"vanguard": {
+		"titles": {
+			"attack_damage_up": "Bruiser Blow",
+			"attack_speed_up": "Fury Tempo",
+			"attack_range_up": "Long Swing",
+			"move_speed_up": "Heavy Charge",
+			"max_health_up": "Thick Hide",
+			"projectile_speed_up": "Thrown Force",
+			"nova_damage_up": "Rage Burst Power",
+			"nova_cooldown_down": "Rage Recovery",
+			"laser_damage_up": "Crushing Leap Force",
+			"laser_cooldown_down": "Leap Recovery",
+			"laser_width_up": "Broad Leap",
+			"slam_damage_up": "Titan Slam Force",
+			"slam_radius_up": "Rupture Ring",
+			"slam_cooldown_down": "Slam Ready",
+			"shielded_dash": "Braced Charge",
+			"heroic_endurance": "Bruiser Endurance",
+			"power_collector": "Power Rush",
+			"nova_aftershock": "Rage Aftershock",
+			"laser_overcharge": "Crushing Overdrive",
+			"slam_quake": "Titan Quake",
+			"nova_aftershock_zone": "Fury Aftershock",
+			"laser_double_pulse": "Follow-Up Leap",
+			"slam_second_wave": "Second Smash",
+			"dash_damage_trail": "Rampage Dash",
+			"bouncing_bolts": "Rebounding Force",
+		},
+		"descriptions": {
+			"attack_damage_up": "Increase bruiser autoattack damage by %s.",
+			"attack_speed_up": "Reduce heavy autoattack interval by %ss.",
+			"attack_range_up": "Increase close-pressure targeting range by %s.",
+			"move_speed_up": "Increase charging movement speed by %s.",
+			"max_health_up": "Increase bruiser durability and heal by %s.",
+			"projectile_speed_up": "Increase speed of newly hurled force by %s.",
+			"shielded_dash": "Extend braced dash invulnerability and trim dash cooldown.",
+			"heroic_endurance": "Increase bruiser max health by %s and restore HP.",
+			"power_collector": "Increase movement speed for aggressive pickup reach.",
+		},
+	},
+}
+
 var player: Node
 var auto_attack: Node
 var ability_manager: Node
+var hero_data: Dictionary = {}
 var upgrade_levels: Dictionary = {}
 var archetype_points: Dictionary = {}
 var selected_upgrade_history: Array[Dictionary] = []
@@ -516,10 +640,11 @@ var _upgrade_definitions: Array[Dictionary] = [
 ]
 
 
-func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node = null) -> void:
+func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node = null, new_hero_data: Dictionary = {}) -> void:
 	player = new_player
 	auto_attack = new_auto_attack
 	ability_manager = new_ability_manager
+	hero_data = new_hero_data.duplicate(true)
 
 
 func get_upgrade_options(count: int = 3) -> Array[Dictionary]:
@@ -848,18 +973,20 @@ func _build_option(definition: Dictionary) -> Dictionary:
 	var is_synergy := tags.has("synergy")
 
 	var description: String
+	var effect_text := ""
 	var effects_array: Array = definition.get("effects", [])
 	if not effects_array.is_empty():
 		description = str(definition.get("description_template", "Upgrade."))
 	else:
-		var effect_text := _format_effect_value(definition.get("effect_value", 0.0))
+		effect_text = _format_effect_value(definition.get("effect_value", 0.0))
 		description = str(definition.get("description_template", "Upgrade by %s.")) % effect_text
+	description = _apply_hero_flavor_to_description(upgrade_id, description, effect_text)
 	description = _apply_ability_display_names_to_text(description)
 	description = "%s Level %d / %d." % [description, next_level, max_level]
 
 	return {
 		"id": upgrade_id,
-		"title": definition.get("title", "Upgrade"),
+		"title": _get_flavored_upgrade_title(upgrade_id, str(definition.get("title", "Upgrade"))),
 		"rarity": definition.get("rarity", "common"),
 		"archetype": definition.get("archetype", ""),
 		"tags": tags,
@@ -879,6 +1006,28 @@ func _apply_ability_display_names_to_text(text: String) -> String:
 	result = result.replace("Laser Beam", str(ability_manager.get_ability_name(2)))
 	result = result.replace("Hero Slam", str(ability_manager.get_ability_name(3)))
 	return result
+
+
+func _get_flavored_upgrade_title(upgrade_id: String, fallback: String) -> String:
+	var flavor: Dictionary = _get_hero_upgrade_flavor()
+	var titles: Dictionary = flavor.get("titles", {})
+	return str(titles.get(upgrade_id, fallback))
+
+
+func _apply_hero_flavor_to_description(upgrade_id: String, fallback: String, effect_text: String) -> String:
+	var flavor: Dictionary = _get_hero_upgrade_flavor()
+	var descriptions: Dictionary = flavor.get("descriptions", {})
+	if not descriptions.has(upgrade_id):
+		return fallback
+	var text: String = str(descriptions.get(upgrade_id, fallback))
+	if text.find("%s") != -1:
+		return text % effect_text
+	return text
+
+
+func _get_hero_upgrade_flavor() -> Dictionary:
+	var selected_hero_id: String = str(hero_data.get("id", ""))
+	return HERO_UPGRADE_FLAVOR.get(selected_hero_id, {})
 
 
 func _pick_weighted_definition(candidates: Array[Dictionary]) -> Dictionary:
