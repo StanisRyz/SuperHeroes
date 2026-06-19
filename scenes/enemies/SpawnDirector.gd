@@ -6,35 +6,82 @@ const BASE_MAX_ALIVE_ENEMIES := 12
 const MAX_ALIVE_ENEMIES := 60
 
 var run_manager: Node
+var active_event_modifiers: Dictionary = {}
 
 func setup(new_run_manager: Node) -> void:
 	run_manager = new_run_manager
 
 
+func apply_event_modifier(event_data: Dictionary) -> void:
+	active_event_modifiers[event_data["id"]] = event_data.get("modifier", {})
+
+
+func clear_event_modifier(event_id: String) -> void:
+	active_event_modifiers.erase(event_id)
+
+
 func get_spawn_interval() -> float:
 	var seconds := _get_run_time()
 	var progress := clampf(seconds / 240.0, 0.0, 1.0)
-	return lerpf(BASE_SPAWN_INTERVAL, MIN_SPAWN_INTERVAL, progress)
+	var base_interval := lerpf(BASE_SPAWN_INTERVAL, MIN_SPAWN_INTERVAL, progress)
+	# Apply spawn_pressure modifiers from active events
+	var spawn_pressure := 1.0
+	for mod_id in active_event_modifiers:
+		var mod: Dictionary = active_event_modifiers[mod_id]
+		if mod.has("spawn_pressure"):
+			spawn_pressure *= float(mod["spawn_pressure"])
+	if spawn_pressure != 1.0:
+		base_interval = maxf(base_interval / spawn_pressure, 0.05)
+	return base_interval
 
 
 func get_max_alive_enemies() -> int:
 	var seconds := _get_run_time()
 	var progress := clampf(seconds / 300.0, 0.0, 1.0)
-	return int(round(lerpf(BASE_MAX_ALIVE_ENEMIES, MAX_ALIVE_ENEMIES, progress)))
+	var base_max := int(round(lerpf(BASE_MAX_ALIVE_ENEMIES, MAX_ALIVE_ENEMIES, progress)))
+	# Apply max_alive_bonus modifiers from active events
+	var bonus := 0
+	for mod_id in active_event_modifiers:
+		var mod: Dictionary = active_event_modifiers[mod_id]
+		if mod.has("max_alive_bonus"):
+			bonus += int(mod["max_alive_bonus"])
+	return base_max + bonus
 
 
 func get_enemy_variant() -> Dictionary:
 	var seconds := _get_run_time()
 	var variants := _get_available_variants(seconds)
-	var total_weight := 0.0
 
+	# Check for weight boost modifiers from active events
+	var boost_runner := false
+	var boost_tank := false
+	for mod_id in active_event_modifiers:
+		var mod: Dictionary = active_event_modifiers[mod_id]
+		if mod.get("boost_runner_weight", false):
+			boost_runner = true
+		if mod.get("boost_tank_weight", false):
+			boost_tank = true
+
+	var total_weight := 0.0
 	for variant in variants:
-		total_weight += float(variant.get("weight", 1.0))
+		var w := float(variant.get("weight", 1.0))
+		var vid: String = variant.get("id", "")
+		if boost_runner and vid == "runner":
+			w *= 3.0
+		if boost_tank and vid == "tank":
+			w *= 3.0
+		total_weight += w
 
 	var roll := randf() * total_weight
 	var weight_cursor := 0.0
 	for variant in variants:
-		weight_cursor += float(variant.get("weight", 1.0))
+		var w := float(variant.get("weight", 1.0))
+		var vid: String = variant.get("id", "")
+		if boost_runner and vid == "runner":
+			w *= 3.0
+		if boost_tank and vid == "tank":
+			w *= 3.0
+		weight_cursor += w
 		if roll <= weight_cursor:
 			var selected := variant.duplicate()
 			selected.erase("weight")

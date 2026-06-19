@@ -27,6 +27,9 @@ var audio_manager: Node
 @onready var debug_manager: Node = get_node_or_null("DebugManager")
 @onready var debug_overlay: Node = get_node_or_null("DebugOverlay")
 @onready var powerup_manager: Node = get_node_or_null("PowerupManager")
+@onready var event_director: Node = get_node_or_null("EventDirector")
+@onready var event_announcement: Node = get_node_or_null("EventAnnouncement")
+@onready var miniboss_health_bar: Node = get_node_or_null("MinibossHealthBar")
 
 
 func setup(new_settings_manager: Node = null, new_audio_manager: Node = null) -> void:
@@ -92,6 +95,7 @@ func _ready() -> void:
 	_setup_pause_menu()
 	_setup_settings_menu()
 	_setup_debug_flow()
+	_setup_event_director()
 
 	if projectile_container == null:
 		push_warning("Arena could not find ProjectileContainer node.")
@@ -254,6 +258,56 @@ func _setup_settings_menu() -> void:
 
 	if settings_menu.has_method("setup"):
 		settings_menu.setup(settings_manager, audio_manager)
+
+
+func _setup_event_director() -> void:
+	if event_director == null:
+		push_warning("Arena could not find EventDirector node.")
+		return
+	if event_director.has_method("setup"):
+		event_director.setup(run_manager)
+	else:
+		push_warning("EventDirector does not implement setup(run_manager).")
+		return
+
+	if event_director.has_signal("event_started") and not event_director.event_started.is_connected(_on_event_started):
+		event_director.event_started.connect(_on_event_started)
+	if event_director.has_signal("event_finished") and not event_director.event_finished.is_connected(_on_event_finished):
+		event_director.event_finished.connect(_on_event_finished)
+	if event_director.has_signal("elite_spawn_requested") and not event_director.elite_spawn_requested.is_connected(_on_elite_spawn_requested):
+		event_director.elite_spawn_requested.connect(_on_elite_spawn_requested)
+	if event_director.has_signal("miniboss_spawn_requested") and not event_director.miniboss_spawn_requested.is_connected(_on_miniboss_spawn_requested):
+		event_director.miniboss_spawn_requested.connect(_on_miniboss_spawn_requested)
+
+	if enemy_spawner != null and miniboss_health_bar != null:
+		if enemy_spawner.has_signal("miniboss_spawned") and not enemy_spawner.miniboss_spawned.is_connected(miniboss_health_bar.track_enemy):
+			enemy_spawner.miniboss_spawned.connect(miniboss_health_bar.track_enemy)
+
+
+func _on_event_started(event_data: Dictionary) -> void:
+	var announcement: String = event_data.get("announcement", "")
+	var duration: float = event_data.get("duration", 2.0)
+	var display_duration := maxf(duration if duration > 0.0 else 2.0, 2.0)
+	if announcement != "" and event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement(announcement, display_duration)
+	var event_type: String = event_data.get("type", "timed")
+	if event_type == "timed" and spawn_director != null and spawn_director.has_method("apply_event_modifier"):
+		spawn_director.apply_event_modifier(event_data)
+
+
+func _on_event_finished(event_id: String) -> void:
+	if spawn_director != null and spawn_director.has_method("clear_event_modifier"):
+		spawn_director.clear_event_modifier(event_id)
+
+
+func _on_elite_spawn_requested(event_data: Dictionary) -> void:
+	if enemy_spawner != null and enemy_spawner.has_method("spawn_elite_enemy"):
+		enemy_spawner.spawn_elite_enemy(event_data)
+
+
+func _on_miniboss_spawn_requested(event_data: Dictionary) -> void:
+	if enemy_spawner != null and enemy_spawner.has_method("spawn_miniboss_enemy"):
+		enemy_spawner.spawn_miniboss_enemy(event_data)
 
 
 func _setup_debug_flow() -> void:

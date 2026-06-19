@@ -1,5 +1,7 @@
 extends Node
 
+signal miniboss_spawned(enemy: Node)
+
 const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 
 @export var enemy_scene: PackedScene
@@ -67,18 +69,26 @@ func _on_spawn_timer_timeout() -> void:
 	if spawn_position == NO_SPAWN_POSITION:
 		return
 
+	var variant := _get_enemy_variant()
+	_spawn_enemy_with_variant(variant, spawn_position)
+
+
+func _spawn_enemy_with_variant(variant: Dictionary, spawn_position: Vector2) -> Node2D:
+	if enemy_scene == null:
+		push_warning("EnemySpawner enemy_scene is not set.")
+		return null
+
 	var enemy_node := enemy_scene.instantiate()
 	if not enemy_node is Node2D:
 		push_warning("EnemySpawner enemy_scene root must be Node2D.")
 		enemy_node.queue_free()
-		return
+		return null
 
 	var enemy := enemy_node as Node2D
 	enemy_container.add_child(enemy)
 	enemy.global_position = spawn_position
 	enemy.add_to_group("enemies")
 
-	var variant := _get_enemy_variant()
 	if not variant.is_empty() and enemy.has_method("apply_variant"):
 		enemy.apply_variant(variant)
 
@@ -94,6 +104,50 @@ func _on_spawn_timer_timeout() -> void:
 	if enemy.has_signal("damage_taken") and floating_text_spawner != null and floating_text_spawner.has_method("show_damage"):
 		if not enemy.damage_taken.is_connected(floating_text_spawner.show_damage):
 			enemy.damage_taken.connect(floating_text_spawner.show_damage)
+
+	return enemy
+
+
+func spawn_elite_enemy(_event_data: Dictionary = {}) -> void:
+	var variant := _get_enemy_variant()
+	var pos := _find_spawn_position()
+	if pos == NO_SPAWN_POSITION:
+		return
+	var enemy := _spawn_enemy_with_variant(variant, pos)
+	if enemy and enemy.has_method("apply_special_modifier"):
+		enemy.apply_special_modifier({
+			"is_elite": true,
+			"display_name": "Elite " + variant.get("display_name", "Enemy"),
+			"health_multiplier": 3.0,
+			"speed_multiplier": 1.0,
+			"damage_multiplier": 1.2,
+			"scale_multiplier": 1.1,
+			"xp_multiplier": 3.0,
+			"guaranteed_powerup": true,
+			"color_override": Color(1.0, 0.4, 0.0)
+		})
+
+
+func spawn_miniboss_enemy(_event_data: Dictionary = {}) -> void:
+	var variant := _get_enemy_variant()
+	var pos := _find_spawn_position()
+	if pos == NO_SPAWN_POSITION:
+		return
+	var enemy := _spawn_enemy_with_variant(variant, pos)
+	if enemy and enemy.has_method("apply_special_modifier"):
+		enemy.apply_special_modifier({
+			"is_miniboss": true,
+			"display_name": "Miniboss",
+			"health_multiplier": 12.0,
+			"speed_multiplier": 0.8,
+			"damage_multiplier": 2.0,
+			"scale_multiplier": 2.0,
+			"xp_multiplier": 10.0,
+			"guaranteed_powerup": true,
+			"color_override": Color(0.6, 0.0, 1.0)
+		})
+	if enemy:
+		emit_signal("miniboss_spawned", enemy)
 
 
 func _on_enemy_died(enemy: Node) -> void:
@@ -111,7 +165,8 @@ func _on_enemy_died(enemy: Node) -> void:
 	if enemy_node == null:
 		return
 
-	call_deferred("_spawn_death_feedback_and_drop", enemy_node.global_position, dropped_experience, _roll_powerup_id())
+	var guaranteed: bool = enemy.get("guaranteed_powerup") == true or enemy.get("is_elite") == true or enemy.get("is_miniboss") == true
+	call_deferred("_spawn_death_feedback_and_drop", enemy_node.global_position, dropped_experience, _roll_powerup_id(guaranteed))
 
 
 func _spawn_death_feedback_and_drop(world_position: Vector2, dropped_experience: int, powerup_id: String = "") -> void:
@@ -159,8 +214,8 @@ func _spawn_powerup_pickup(world_position: Vector2, powerup_id: String) -> void:
 		pickup.setup(powerup_id, powerup_manager)
 
 
-func _roll_powerup_id() -> String:
-	if randf() > base_powerup_drop_chance:
+func _roll_powerup_id(guaranteed: bool = false) -> String:
+	if not guaranteed and randf() > base_powerup_drop_chance:
 		return ""
 
 	var total_weight := 0

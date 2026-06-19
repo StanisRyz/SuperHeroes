@@ -75,6 +75,25 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/pickups/PowerupPickup.gd` - magnet movement and delegation to PowerupManager on collection.
 - `scenes/effects/BombBurst.tscn` - bomb burst radius visual effect scene.
 - `scenes/effects/BombBurst.gd` - expanding ring tween and cleanup logic.
+- `scenes/game/EventDirector.tscn` - event director scene.
+- `scenes/game/EventDirector.gd` - timed event schedule, elite/miniboss spawn signals, and active timed event tracking.
+- `scenes/ui/EventAnnouncement.tscn` - event announcement overlay scene.
+- `scenes/ui/EventAnnouncement.gd` - fade-in/out label announcement for run events.
+- `scenes/ui/MinibossHealthBar.tscn` - miniboss health bar overlay scene.
+- `scenes/ui/MinibossHealthBar.gd` - tracks a miniboss enemy and displays its name, HP bar, and HP text.
+
+## Event Director System Architecture
+
+- `EventDirector` owns the run event schedule and fires signals when events trigger.
+- Arena wires `EventDirector.setup(run_manager)` and connects all event signals.
+- Timed events (`type: "timed"`) call `SpawnDirector.apply_event_modifier(event_data)` on start and `clear_event_modifier(event_id)` on finish.
+- Elite events (`type: "elite"`) call `EnemySpawner.spawn_elite_enemy(event_data)`.
+- Miniboss events (`type: "miniboss"`) call `EnemySpawner.spawn_miniboss_enemy(event_data)`.
+- `EventAnnouncement` shows a fade-in/out announcement label when an event with a non-empty announcement text starts.
+- `MinibossHealthBar` is wired by Arena to `EnemySpawner.miniboss_spawned` and calls `track_enemy(enemy)`.
+- Elite and miniboss enemies are spawned using the normal variant then `apply_special_modifier()` applies stat multipliers, color overrides, and flags.
+- Elite and miniboss enemies always drop a powerup pickup on death (guaranteed drop).
+- SpawnDirector reads `active_event_modifiers` in `get_spawn_interval`, `get_max_alive_enemies`, and `get_enemy_variant`.
 
 ## Powerup System Architecture
 
@@ -176,6 +195,13 @@ The game is an original superhero survivors-like: the player moves around an are
 - ExperienceGem.force_magnet_to_player() for magnet burst.
 - Player.heal() for non-damaging HP restoration.
 - Shield charge consumption in Player.take_damage() (after dash/debug invulnerability).
+- EventDirector with a timed event schedule (Runner Rush at 30s, Tank Wave at 60s, Elite at 90s, Miniboss at 150s).
+- Timed events boost spawn pressure and variant weights through SpawnDirector active_event_modifiers.
+- Elite enemy spawning: base variant with 3× HP, 3× XP, 1.2× damage, 1.1× scale, orange color override.
+- Miniboss enemy spawning: base variant with 12× HP, 10× XP, 2× damage, 2× scale, purple color override, forced chase behavior.
+- MinibossHealthBar UI tracks live miniboss HP and hides on death.
+- EventAnnouncement fade-in/out label for event names.
+- Guaranteed powerup drop for elite and miniboss enemies.
 
 ## Weapon Modifier Notes
 
@@ -336,7 +362,6 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Not Implemented Yet
 
-- Elite/miniboss guaranteed powerup drops.
 - Buff icons.
 - Powerup rarity tiers.
 - Powerup upgrade scaling.
@@ -376,9 +401,6 @@ The game is an original superhero survivors-like: the player moves around an are
 - Projectile upgrades.
 - XP vacuum upgrades.
 - Bosses.
-- Bosses/minibosses.
-- Elite modifiers.
-- Wave announcements.
 - Biome or arena progression.
 - Persistent records.
 - Persistent high scores or saved run history.

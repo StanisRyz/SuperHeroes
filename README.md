@@ -138,10 +138,16 @@ Implemented foundation:
 - Active buff HUD display (shield charges, move speed timer, attack speed timer).
 - Enemy death rolls a 6% chance to drop a random powerup pickup.
 - BombBurst visual effect on bomb pickup.
+- EventDirector with a timed event schedule (Runner Rush, Tank Wave, Elite, Miniboss).
+- Timed events apply spawn modifier boosts through SpawnDirector.
+- Elite enemy spawning with health, damage, XP, and color overrides.
+- Miniboss enemy spawning with large stat multipliers and a dedicated health bar.
+- MinibossHealthBar UI tracks a miniboss enemy and hides when it dies.
+- EventAnnouncement UI shows timed fade-in/out labels for event names.
+- Guaranteed powerup drop for elite and miniboss enemies.
 
 Not implemented yet:
 
-- Elite/miniboss guaranteed powerup drops.
 - Buff icons.
 - Powerup rarity tiers.
 - Powerup upgrade scaling.
@@ -182,9 +188,6 @@ Not implemented yet:
 - Resource-backed upgrade data files.
 - XP vacuum upgrades.
 - Bosses.
-- Bosses/minibosses.
-- Elite modifiers.
-- Wave announcements.
 - Biome or arena progression.
 - Persistent records.
 - Persistent high scores or saved run history.

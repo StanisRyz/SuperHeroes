@@ -25,6 +25,9 @@ var current_health: int
 var experience_value: int = 1
 var variant_id: String = ""
 var display_name: String = ""
+var is_elite: bool = false
+var is_miniboss: bool = false
+var guaranteed_powerup: bool = false
 var target: Node2D
 var _target_in_contact := false
 var _contact_damage_cooldown := 0.0
@@ -103,6 +106,44 @@ func apply_variant(variant: Dictionary) -> void:
 
 func get_experience_value() -> int:
 	return experience_value
+
+
+func apply_special_modifier(modifier: Dictionary) -> void:
+	is_elite = modifier.get("is_elite", false)
+	is_miniboss = modifier.get("is_miniboss", false)
+	guaranteed_powerup = modifier.get("guaranteed_powerup", false)
+
+	if modifier.has("display_name"):
+		display_name = str(modifier["display_name"])
+
+	if modifier.has("health_multiplier"):
+		max_health = int(max_health * modifier["health_multiplier"])
+		current_health = max_health
+		_update_health_bar()
+
+	if modifier.has("speed_multiplier"):
+		speed *= float(modifier["speed_multiplier"])
+
+	if modifier.has("damage_multiplier"):
+		contact_damage = int(contact_damage * modifier["damage_multiplier"])
+
+	if modifier.has("xp_multiplier"):
+		experience_value = int(experience_value * modifier["xp_multiplier"])
+
+	if modifier.has("scale_multiplier"):
+		scale *= float(modifier["scale_multiplier"])
+
+	if modifier.has("color_override"):
+		var color: Color = modifier["color_override"]
+		if body_visual != null:
+			body_visual.set("color", color)
+		if core_visual != null:
+			# Darken core to match the visual style used by variants
+			core_visual.set("color", color.darkened(0.5))
+
+	# For miniboss, force chase behavior so it always pursues the player
+	if is_miniboss:
+		behavior_id = "chase"
 
 
 func _physics_process(delta: float) -> void:
