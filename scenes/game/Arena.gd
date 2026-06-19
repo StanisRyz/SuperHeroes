@@ -31,16 +31,24 @@ func _ready() -> void:
 	else:
 		push_warning("Player does not implement set_camera_limits(rect).")
 
+	var ability_manager := player.get_node_or_null("AbilityManager")
+	if ability_manager == null:
+		push_warning("Arena could not find Player/AbilityManager node.")
+	elif ability_manager.has_method("setup"):
+		ability_manager.setup(player, enemy_container)
+	else:
+		push_warning("AbilityManager does not implement setup(player, enemy_container).")
+
 	if hud == null:
 		push_warning("Arena could not find GameHUD node.")
 	elif hud.has_method("setup"):
-		hud.setup(player, run_manager)
+		hud.setup(player, run_manager, ability_manager)
 	else:
-		push_warning("GameHUD does not implement setup(player, run_manager).")
+		push_warning("GameHUD does not implement setup(player, run_manager, ability_manager).")
 
 	var auto_attack := player.get_node_or_null("AutoAttack")
 	_setup_spawn_director()
-	_setup_level_up_flow(auto_attack)
+	_setup_level_up_flow(auto_attack, ability_manager)
 	_setup_run_lifecycle()
 
 	if projectile_container == null:
@@ -68,13 +76,13 @@ func get_playable_rect() -> Rect2:
 	return Rect2(-arena_size * 0.5, arena_size)
 
 
-func _setup_level_up_flow(auto_attack: Node) -> void:
+func _setup_level_up_flow(auto_attack: Node, ability_manager: Node) -> void:
 	if upgrade_manager == null:
 		push_warning("Arena could not find UpgradeManager node.")
 	elif upgrade_manager.has_method("setup"):
-		upgrade_manager.setup(player, auto_attack)
+		upgrade_manager.setup(player, auto_attack, ability_manager)
 	else:
-		push_warning("UpgradeManager does not implement setup(player, auto_attack).")
+		push_warning("UpgradeManager does not implement setup(player, auto_attack, ability_manager).")
 
 	if player.has_signal("level_up_available") and not player.level_up_available.is_connected(_on_player_level_up_available):
 		player.level_up_available.connect(_on_player_level_up_available)

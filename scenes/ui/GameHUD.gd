@@ -10,8 +10,9 @@ var player: Node
 @onready var run_time_label: Label = get_node_or_null("Root/RunPanel/RunTimeLabel")
 @onready var kill_count_label: Label = get_node_or_null("Root/RunPanel/KillCountLabel")
 @onready var threat_label: Label = get_node_or_null("Root/RunPanel/ThreatLabel")
+@onready var ability_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/AbilityCooldownLabel")
 
-func setup(new_player: Node, run_manager: Node = null) -> void:
+func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null) -> void:
 	player = new_player
 
 	if player == null:
@@ -41,6 +42,7 @@ func setup(new_player: Node, run_manager: Node = null) -> void:
 		player.experience_changed.connect(_update_player_experience)
 
 	_setup_run_manager(run_manager)
+	_setup_ability_manager(ability_manager)
 
 
 func _update_player_health(current_health: int, max_health: int) -> void:
@@ -79,6 +81,26 @@ func _setup_run_manager(run_manager: Node) -> void:
 		run_manager.run_time_changed.connect(_update_run_time)
 	if run_manager.has_signal("kill_count_changed") and not run_manager.kill_count_changed.is_connected(_update_kill_count):
 		run_manager.kill_count_changed.connect(_update_kill_count)
+
+
+func _setup_ability_manager(ability_manager: Node) -> void:
+	_update_ability_cooldown(1, 0.0, 0.0)
+
+	if ability_manager == null:
+		return
+
+	if ability_manager.has_signal("ability_cooldown_changed") and not ability_manager.ability_cooldown_changed.is_connected(_update_ability_cooldown):
+		ability_manager.ability_cooldown_changed.connect(_update_ability_cooldown)
+
+
+func _update_ability_cooldown(slot: int, cooldown_remaining: float, _cooldown_total: float) -> void:
+	if slot != 1 or ability_cooldown_label == null:
+		return
+
+	if cooldown_remaining <= 0.0:
+		ability_cooldown_label.text = "Nova Pulse (J): Ready"
+	else:
+		ability_cooldown_label.text = "Nova Pulse (J): %.1fs" % cooldown_remaining
 
 
 func _update_run_time(seconds: float) -> void:

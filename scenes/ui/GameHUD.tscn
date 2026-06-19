@@ -71,3 +71,14 @@ text = "Enemies defeated 0"
 [node name="ThreatLabel" type="Label" parent="Root/RunPanel"]
 layout_mode = 2
 text = "Threat 1"
+
+[node name="AbilityPanel" type="VBoxContainer" parent="Root"]
+layout_mode = 0
+offset_left = 64.0
+offset_top = 232.0
+offset_right = 344.0
+offset_bottom = 260.0
+
+[node name="AbilityCooldownLabel" type="Label" parent="Root/AbilityPanel"]
+layout_mode = 2
+text = "Nova Pulse (J): Ready"

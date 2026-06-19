@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://nova_pulse_feedback_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/abilities/NovaPulseFeedback.gd" id="1_nova_pulse_feedback_script"]
+
+[node name="NovaPulseFeedback" type="Node2D"]
+script = ExtResource("1_nova_pulse_feedback_script")
+
+[node name="Ring" type="Line2D" parent="."]
+width = 8.0
+default_color = Color(0.55, 0.9, 1, 0.85)
+closed = true

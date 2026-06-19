@@ -13,6 +13,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup, level-up flow, run lifecycle.
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
 - `scenes/game/RunManager.gd` - run timer, kill counter, and run end signal.
+- `scenes/abilities/AbilityManager.tscn` - player active ability manager scene.
+- `scenes/abilities/AbilityManager.gd` - active ability input, Nova Pulse, cooldown tracking, and cast signals.
+- `scenes/abilities/NovaPulseFeedback.tscn` - simple in-world Nova Pulse feedback scene.
+- `scenes/abilities/NovaPulseFeedback.gd` - Nova Pulse feedback tween and cleanup logic.
 - `scenes/pickups/ExperienceGem.tscn` - XP pickup scene.
 - `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
@@ -64,6 +68,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - Level-up pause screen.
 - Three-option upgrade selection.
 - Basic run upgrades.
+- AbilityManager on the player.
+- Active ability input through `ability_1`.
+- Nova Pulse active ability.
+- Ability cooldown HUD display.
+- Simple Nova Pulse visual feedback.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
 
 ## Level-Up Flow
@@ -93,6 +102,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - Grunt is available from run start, Runner opens after about 30 seconds, and Tank opens after about 60 seconds.
 - Variant XP values are copied onto the dropped `ExperienceGem`.
 
+## Active Ability Flow
+
+- `AbilityManager` is a child of `Player`.
+- Arena wires `AbilityManager` to the Player, EnemyContainer, HUD, and optionally UpgradeManager.
+- Nova Pulse uses `ability_1`.
+- HUD listens to `ability_cooldown_changed` and displays Nova Pulse readiness or remaining cooldown.
+- Cooldowns pause naturally while the tree is paused.
+
 ## Collision Notes
 
 - Player body uses the Player layer and should not physically collide with Enemy bodies.
@@ -106,7 +123,11 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Not Implemented Yet
 
 - Upgrade icons, rarities, weights, or Resource-backed data.
-- Active abilities.
+- Mobile ability buttons.
+- Multiple active abilities.
+- Ability icons.
+- Ability targeting indicators.
+- Ability upgrade tree.
 - Projectile upgrades.
 - XP magnet/vacuum.
 - Floating damage numbers.
@@ -134,6 +155,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not use copyrighted superhero names, brands, logos, or specific existing characters.
 - Keep desktop browser and mobile landscape browser in mind.
 - Keep 16:9 and wide 20:9 landscape layouts in mind.
+- Do not add mobile ability buttons unless explicitly requested.
 
 ## Validation
 

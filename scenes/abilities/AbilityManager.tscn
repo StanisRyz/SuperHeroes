@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://ability_manager_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/abilities/AbilityManager.gd" id="1_ability_manager_script"]
+[ext_resource type="PackedScene" path="res://scenes/abilities/NovaPulseFeedback.tscn" id="2_nova_pulse_feedback"]
+
+[node name="AbilityManager" type="Node"]
+script = ExtResource("1_ability_manager_script")
+pulse_feedback_scene = ExtResource("2_nova_pulse_feedback")

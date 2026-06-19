@@ -1,9 +1,11 @@
 extends Node
 
 const ATTACK_INTERVAL_MIN := 0.2
+const NOVA_COOLDOWN_MIN := 2.0
 
 var player: Node
 var auto_attack: Node
+var ability_manager: Node
 
 var _upgrade_definitions: Array[Dictionary] = [
 	{
@@ -35,12 +37,23 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"id": "projectile_speed_up",
 		"title": "Faster Bolts",
 		"description": "Increase speed of newly fired projectiles."
+	},
+	{
+		"id": "nova_damage_up",
+		"title": "Nova Surge",
+		"description": "Increase Nova Pulse damage."
+	},
+	{
+		"id": "nova_cooldown_down",
+		"title": "Pulse Rhythm",
+		"description": "Reduce Nova Pulse cooldown."
 	}
 ]
 
-func setup(new_player: Node, new_auto_attack: Node) -> void:
+func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node = null) -> void:
 	player = new_player
 	auto_attack = new_auto_attack
+	ability_manager = new_ability_manager
 
 
 func get_upgrade_options(count: int = 3) -> Array[Dictionary]:
@@ -65,6 +78,10 @@ func apply_upgrade(upgrade_id: String) -> void:
 			_apply_max_health_upgrade()
 		"projectile_speed_up":
 			_apply_auto_attack_number("projectile_speed", 80.0)
+		"nova_damage_up":
+			_apply_ability_number("nova_damage", 5.0)
+		"nova_cooldown_down":
+			_apply_nova_cooldown_upgrade()
 		_:
 			push_warning("Unknown upgrade id: %s" % upgrade_id)
 
@@ -95,6 +112,19 @@ func _apply_player_number(property_name: String, amount: float) -> void:
 	player.set(property_name, value + amount)
 
 
+func _apply_ability_number(property_name: String, amount: float) -> void:
+	if ability_manager == null:
+		push_warning("UpgradeManager is missing AbilityManager reference.")
+		return
+
+	var value = ability_manager.get(property_name)
+	if value == null:
+		push_warning("AbilityManager is missing property: %s" % property_name)
+		return
+
+	ability_manager.set(property_name, value + amount)
+
+
 func _apply_attack_speed_upgrade() -> void:
 	if auto_attack == null:
 		push_warning("UpgradeManager is missing AutoAttack reference.")
@@ -106,6 +136,19 @@ func _apply_attack_speed_upgrade() -> void:
 		return
 
 	auto_attack.set("attack_interval", maxf(ATTACK_INTERVAL_MIN, value - 0.08))
+
+
+func _apply_nova_cooldown_upgrade() -> void:
+	if ability_manager == null:
+		push_warning("UpgradeManager is missing AbilityManager reference.")
+		return
+
+	var value = ability_manager.get("nova_cooldown")
+	if value == null:
+		push_warning("AbilityManager is missing nova_cooldown.")
+		return
+
+	ability_manager.set("nova_cooldown", maxf(NOVA_COOLDOWN_MIN, value - 0.5))
 
 
 func _apply_max_health_upgrade() -> void:
