@@ -135,6 +135,18 @@ Implemented foundation:
 - Per-projectile hit lists only prevent duplicate hits from the same projectile instance.
 - Weapon upgrade direction generation has a headless sanity check at `scripts/tests/WeaponUpgradeSanityCheck.gd`.
 
+- Upgrade Pool v3 — Build Archetypes:
+  - Every upgrade definition carries an optional `archetype` (projectile / nova / laser / slam / dash / tank / speed / utility) and `tags` array.
+  - UpgradeManager tracks `archetype_points` (how many upgrades from each archetype the player has taken) and `selected_upgrade_history` per run.
+  - Build-aware weighted option selection: upgrades from the player's dominant archetype receive a small weight bonus (up to +60 %). At least one offered option usually comes from a different archetype when alternatives exist.
+  - Synergy upgrades are epic-rarity upgrades that appear only when `prerequisites` are met (minimum archetype points and/or upgrade levels). They apply multiple effects via an `effects` array.
+  - Projectile synergy upgrades: Split Barrage (multishot + spread), Shrapnel Burst (explosion radius + power), Heavy Piercer (pierce + size).
+  - Ability synergy upgrades: Nova Aftershock (radius + damage), Laser Overcharge (damage + range), Slam Quake (radius + damage).
+  - Defensive synergy upgrades: Shielded Dash (invulnerability + cooldown), Heroic Endurance (max health + heal), Power Collector (movement speed).
+  - Build summary label in GameHUD: shows "Build: Projectile" (or current dominant) / "Build: Mixed" when no archetype leads.
+  - UpgradeManager emits `build_changed(dominant_archetype, points)` whenever an upgrade is applied.
+  - `debug_print_upgrade_pool()` and `debug_get_available_upgrade_ids()` helpers available for console verification.
+
 - PowerupPickup foundation (generic in-run pickup that delegates to PowerupManager).
 - PowerupManager (applies powerup effects to player and world).
 - PlayerBuffManager (owns timed buffs and shield charges).
@@ -172,6 +184,11 @@ Implemented foundation:
 
 Not implemented yet:
 
+- Reroll, skip, or banish upgrade actions (in this patch).
+- Upgrade icons.
+- Upgrade codex / full history UI.
+- Persistent builds or meta-progression.
+- Data-driven Resource upgrade files.
 - Mouse/manual ability aiming.
 - Ability unlock system (all 3 are available by default).
 - Ability icons.
@@ -220,8 +237,6 @@ Not implemented yet:
 - Ability icons.
 - Ability targeting indicators.
 - Ability upgrade tree.
-- Reroll, skip, or banish upgrade actions.
-- Upgrade icons.
 - Resource-backed upgrade data files.
 - XP vacuum upgrades.
 - Bosses.

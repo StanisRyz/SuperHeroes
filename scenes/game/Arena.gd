@@ -132,6 +132,9 @@ func _setup_level_up_flow(auto_attack: Node, ability_manager: Node) -> void:
 	else:
 		push_warning("UpgradeManager does not implement setup(player, auto_attack, ability_manager).")
 
+	if hud != null and hud.has_method("setup_upgrade_manager"):
+		hud.setup_upgrade_manager(upgrade_manager)
+
 	if player.has_signal("level_up_available") and not player.level_up_available.is_connected(_on_player_level_up_available):
 		player.level_up_available.connect(_on_player_level_up_available)
 

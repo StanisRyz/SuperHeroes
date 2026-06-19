@@ -39,13 +39,21 @@ func setup_audio_manager(new_audio_manager: Node) -> void:
 
 func _format_option_text(option: Dictionary) -> String:
 	var rarity := str(option.get("rarity", "common")).to_upper()
+	var archetype := str(option.get("archetype", ""))
+	var is_synergy := bool(option.get("is_synergy", false))
 	var title := str(option.get("title", "Upgrade"))
 	var level := int(option.get("level", 0))
 	var max_level := int(option.get("max_level", 1))
 	var description := str(option.get("description", ""))
 
-	return "[%s] %s\nLevel %d -> %d / %d\n%s" % [
-		rarity,
+	var header := "[%s]" % rarity
+	if not archetype.is_empty():
+		header = "[%s] [%s]" % [rarity, archetype.to_upper()]
+	if is_synergy:
+		header = "%s  SYNERGY" % header
+
+	return "%s %s\nLevel %d -> %d / %d\n%s" % [
+		header,
 		title,
 		level,
 		mini(level + 1, max_level),

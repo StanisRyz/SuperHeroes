@@ -17,6 +17,7 @@ var player: Node
 @onready var shield_label: Label = get_node_or_null("Root/BuffPanel/ShieldLabel")
 @onready var move_speed_label: Label = get_node_or_null("Root/BuffPanel/MoveSpeedLabel")
 @onready var attack_speed_label: Label = get_node_or_null("Root/BuffPanel/AttackSpeedLabel")
+@onready var build_label: Label = get_node_or_null("Root/BuildPanel/BuildLabel")
 
 func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null, buff_manager: Node = null) -> void:
 	player = new_player
@@ -158,6 +159,24 @@ func _format_time(seconds: float) -> String:
 
 func _get_threat_level(seconds: float) -> int:
 	return int(clampf(floor(seconds / 30.0) + 1.0, 1.0, 10.0))
+
+
+func setup_upgrade_manager(upgrade_manager: Node) -> void:
+	if upgrade_manager == null:
+		return
+	if build_label != null:
+		build_label.text = "Build: Mixed"
+	if upgrade_manager.has_signal("build_changed") and not upgrade_manager.build_changed.is_connected(_on_build_changed):
+		upgrade_manager.build_changed.connect(_on_build_changed)
+
+
+func _on_build_changed(dominant_archetype: String, _points: Dictionary) -> void:
+	if build_label == null:
+		return
+	if dominant_archetype.is_empty():
+		build_label.text = "Build: Mixed"
+	else:
+		build_label.text = "Build: %s" % dominant_archetype.capitalize()
 
 
 func _setup_buff_manager(buff_manager: Node) -> void:

@@ -332,12 +332,30 @@ The game is an original superhero survivors-like: the player moves around an are
 - Arena applies the selected upgrade through `UpgradeManager`.
 - Arena unpauses gameplay.
 
-## UpgradeManager V2 Notes
+## UpgradeManager V3 Notes
 
-- Upgrade definitions are still hardcoded dictionaries, not Resource assets.
-- Each upgrade has rarity, weight, max_level, current level, and effect_value.
-- Maxed upgrades are excluded from future option rolls.
-- Arena coordinates level-up pause/resume and does not own upgrade effects.
+- Upgrade definitions remain hardcoded dictionaries (not Resource assets).
+- Each upgrade now optionally carries `archetype`, `tags`, `prerequisites`, `tier`, and `unlock_hint` fields.
+- Supported archetypes: `projectile`, `nova`, `laser`, `slam`, `dash`, `tank`, `speed`, `utility`.
+- `archetype_points: Dictionary` tracks how many upgrades per archetype the player has taken this run.
+- `selected_upgrade_history: Array[Dictionary]` stores compact history entries (id, title, archetype, level_after_pick, tags).
+- Both are run-only state — they reset naturally when Arena reloads. Not saved to disk.
+- `build_changed(dominant_archetype, points)` signal is emitted after every successful upgrade application.
+- Build-aware weighted selection: archetype bias multiplier = `1.0 + min(archetype_points * 0.12, 0.6)`. The system remains non-deterministic.
+- Diversity protection: `get_upgrade_options` tries to ensure at least 1 option from outside the dominant archetype when enough off-archetype candidates exist.
+- Synergy upgrades carry a `prerequisites` dictionary with optional keys: `archetype_points` (AND), `upgrade_levels` (AND), `any_archetype_points` (OR).
+- `is_upgrade_available` checks max_level AND prerequisites. Locked synergy upgrades never appear in the option pool.
+- Synergy upgrades use an `effects: Array[Dictionary]` field; `_apply_effects_array` handles them with per-property int/float awareness and optional min/max clamping.
+- Base upgrades retain their `effect_value` + match-statement path unchanged.
+- `heroic_endurance` uses the existing `_apply_max_health_upgrade` helper via the match statement.
+- Public methods added: `get_archetype_points`, `get_dominant_archetype`, `get_selected_upgrade_history`, `get_upgrade_definition_summary`.
+- Prerequisite helpers: `_meets_prerequisites`, `_get_tag_count`, `_get_archetype_count`, `_has_upgrade_level`.
+- Debug helpers (not bound to keys): `debug_get_available_upgrade_ids`, `debug_print_upgrade_pool`.
+- `LevelUpScreen._format_option_text` now shows `[RARITY] [ARCHETYPE]` and appends `SYNERGY` for synergy upgrades.
+- `GameHUD` connects to `build_changed` via `setup_upgrade_manager(upgrade_manager)` and displays "Build: Archetype" or "Build: Mixed".
+- Arena calls `hud.setup_upgrade_manager(upgrade_manager)` inside `_setup_level_up_flow` after `upgrade_manager.setup(...)`.
+- UpgradeManager remains the owner of the upgrade pool and all run build state.
+- Arena coordinates the level-up flow; LevelUpScreen and GameHUD are display-only.
 
 ## Run Lifecycle
 
@@ -413,6 +431,16 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Not Implemented Yet
 
+- Reroll, skip, or banish upgrade actions.
+- Upgrade icons.
+- Upgrade codex or full upgrade history UI.
+- Persistent builds or meta-progression.
+- Data-driven Resource upgrade files.
+- Secondary delayed damage on abilities.
+- Stun or knockback from abilities.
+- Bounce or chain-lightning projectiles.
+- Permanent shield regeneration.
+- New pickup types.
 - Boss-specific art assets.
 - Boss sound effects.
 - More than 2 miniboss phases.
@@ -471,6 +499,8 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Development Rules
 
 - README.md and Agents.md must be updated on every task.
+- Do not add persistence unless explicitly requested.
+- Do not re-enable Player/Enemy physical body collisions.
 - Miniboss damage must always go through Player.take_damage() or existing EnemyProjectile collision logic.
 - Do not re-enable Player/Enemy physical body collisions.
 - Do not add persistence unless explicitly requested.
