@@ -89,3 +89,23 @@ func _tick_active_events(delta: float) -> void:
 	for event_id in to_finish:
 		_active_timed_events.erase(event_id)
 		emit_signal("event_finished", event_id)
+
+
+func start_final_phase_event() -> void:
+	var event_id := "final_phase_pressure"
+	if _triggered_events.has(event_id):
+		return
+	_triggered_events[event_id] = true
+	var event_data := {
+		"id": event_id,
+		"type": "timed",
+		"announcement": "",
+		"duration": 9999.0,
+		"modifier": {
+			"spawn_pressure": 1.6,
+			"max_alive_bonus": 4,
+			"boost_special_weight": true
+		}
+	}
+	_active_timed_events[event_id] = {"data": event_data, "elapsed": 0.0}
+	emit_signal("event_started", event_data)

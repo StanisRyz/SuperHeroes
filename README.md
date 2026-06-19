@@ -23,7 +23,7 @@ SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game 
 
 ## Development Status
 
-The project is currently in the gameplay balance & debug validation stage. Core systems (combat, XP, upgrades, powerups, miniboss, mobile controls) are implemented. This patch adds debug tools for fast validation without redesigning any systems.
+The project is currently in the run progression & victory condition stage. Core systems (combat, XP, upgrades, powerups, miniboss, mobile controls, events) are implemented. This patch adds a clear win condition, a final run phase, VictoryScreen, and enriched run summary for both victory and defeat.
 
 ### Gameplay Validation / Debug Pass
 
@@ -214,12 +214,29 @@ Implemented foundation:
   - UpgradeManager.debug_get_build_state(): returns dominant_archetype, archetype_points, history size, available count, unlocked synergy IDs.
   - docs/validation/gameplay_validation.md: manual test checklist for all systems.
 
+### Run Progression & Victory
+
+- **Run target duration** — 10 minutes (600 seconds) by default, configurable per RunManager inspector.
+- **Final Phase** — begins at 9 minutes (540 seconds); "Final Phase!" announcement; spawn pressure and max alive enemies increase.
+- **VictoryScreen** — shown when target duration is reached; displays time survived, kills, elite kills, miniboss kills, player level, dominant build, and upgrades taken.
+- **Run Summary** — both VictoryScreen and GameOverScreen receive full enriched stats (time, kills, elites, miniboss kills, level, dominant build, upgrade count).
+- **Elite and miniboss kill tracking** — RunManager counts elite and miniboss kills separately; HUD shows "Elite N | Boss N".
+- **Victory/defeat flow** — reaching target time triggers VictoryScreen; player death before that triggers GameOverScreen. Both have Restart and Main Menu.
+- **Main Menu button** on GameOverScreen — added alongside Restart.
+- **Debug-shortened runs** — set `use_debug_run_duration = true` and `debug_target_run_time = 60` in RunManager inspector for quick local testing (not enabled by default, not persisted).
+
 Not implemented yet:
 
-- Reroll, skip, or banish upgrade actions (in this patch).
+- Persistent records or run history.
+- Meta-progression or rewards after victory.
+- Leaderboard.
+- Persistent high scores.
+- Save system or persistence.
+- Yandex SDK integration.
+- Ads, payments, or monetization.
+- Reroll, skip, or banish upgrade actions.
 - Upgrade icons.
 - Upgrade codex / full history UI.
-- Persistent builds or meta-progression.
 - Data-driven Resource upgrade files.
 - Mouse/manual ability aiming.
 - Ability unlock system (all 3 are available by default).
@@ -227,11 +244,9 @@ Not implemented yet:
 - Complex targeting indicators.
 - Status effects from abilities.
 - Ability loadouts or per-run selection.
-- Persistent ability progression.
 - Boss-specific art assets.
 - Boss sound effects.
 - More than 2 miniboss phases.
-- Boss rewards or meta-progression.
 - Complex bullet patterns or homing projectiles.
 - Boss arena or cutscene.
 - Buff icons.
@@ -273,13 +288,7 @@ Not implemented yet:
 - XP vacuum upgrades.
 - Bosses.
 - Biome or arena progression.
-- Persistent records.
-- Persistent high scores or saved run history.
-- Persistent progression.
-- Save persistence.
-- Meta-progression.
-- Yandex SDK integration.
-- Ads, payments, leaderboards, saves, or monetization.
+- Arena hazards.
 
 ## Architecture Principles
 

@@ -91,7 +91,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/effects/AttackTelegraph.gd` - plays circle or line danger zone using dynamically created Line2D; fades/pulses and queue_frees; never applies damage.
 - `scenes/ui/DebugStatsOverlay.tscn` - minimal CanvasLayer root scene for the debug stats panel; all UI built programmatically in _ready().
 - `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage, build archetype/points/synergies, buff/shield state, spawner wiring. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
-- `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, expected console log patterns).
+- `scenes/ui/VictoryScreen.tscn` - pause-time victory UI scene.
+- `scenes/ui/VictoryScreen.gd` - displays run summary on victory and emits restart_requested / quit_to_menu_requested.
+- `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, expected console log patterns).
 
 ## Miniboss Combat Architecture
 
@@ -137,6 +139,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - `PowerupManager` applies effects and is wired by Arena to Player, AutoAttack, containers, HUD, and EnemySpawner.
 - Shield blocks damage in `Player.take_damage()` after dash and debug invulnerability checks, before HP reduction.
 - Timed buffs pause naturally with the tree and do not persist between runs (fresh Arena on restart).
+
+## Run Victory Architecture
+
+- `RunManager` owns the run objective state (is_final_phase_active, has_victory, elite_kill_count, miniboss_kill_count, target_run_time, final_phase_start_time).
+- `Arena` owns screen coordination: connects RunManager signals, builds enriched run summaries, and shows/hides VictoryScreen and GameOverScreen.
+- `VictoryScreen` and `GameOverScreen` are display-only — they show stats and emit intent signals only.
+- `Main` owns scene replacement for restart and main menu navigation.
+- Run summary is built by `Arena._build_run_summary(base_stats)` on both victory and defeat and is not persisted.
+- Final phase: `RunManager` emits `final_phase_started` → Arena shows announcement → Arena calls `EventDirector.start_final_phase_event()` → EventDirector applies pressure modifier via SpawnDirector.
+- Debug-shortened runs: set `use_debug_run_duration = true` in RunManager inspector; final phase start time scales proportionally. Not persisted. Not enabled by default.
 
 ## Implemented Systems
 
@@ -241,6 +253,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - Player.heal() for non-damaging HP restoration.
 - Shield charge consumption in Player.take_damage() (after dash/debug invulnerability).
 - EventDirector with a timed event schedule (Runner Rush at 30s, Tank Wave at 60s, Elite at 90s, Miniboss at 150s).
+- Run progression and victory condition:
+  - RunManager owns target_run_time (600s), final_phase_start_time (540s), elite_kill_count, miniboss_kill_count, has_victory.
+  - final_phase_started signal triggers "Final Phase!" announcement and EventDirector final pressure event.
+  - victory_reached signal triggers VictoryScreen with full enriched run summary.
+  - special_kill_count_changed signal updates GameHUD elite/boss counter.
+  - VictoryScreen shows time, kills, elite kills, miniboss kills, level, build, upgrade count.
+  - GameOverScreen enriched with elite kills, miniboss kills, and dominant build; has Main Menu button.
+  - GameHUD objective label "Survive: MM:SS / 10:00"; FINAL PHASE label; Elite N | Boss N counter.
+  - Arena._build_run_summary() composes full stats from RunManager, Player, and UpgradeManager.
+  - Debug-shortened runs via use_debug_run_duration / debug_target_run_time in RunManager inspector.
 - Timed events boost spawn pressure and variant weights through SpawnDirector active_event_modifiers.
 - Elite enemy spawning: base variant with 3× HP, 3× XP, 1.2× damage, 1.1× scale, orange color override.
 - Miniboss enemy spawning: base variant with 12× HP, 10× XP, 2× damage, 2× scale, purple color override, forced chase behavior.
@@ -369,12 +391,17 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Run Lifecycle
 
-- `RunManager` tracks active run time and enemy kills.
-- `EnemySpawner` reports enemy deaths to `RunManager`.
+- `RunManager` owns run objective state: timer, kill count, elite kills, miniboss kills, target run time, final phase start time, and victory state.
+- `EnemySpawner` reports enemy deaths to `RunManager` via `register_enemy_kill()`, `register_elite_kill()`, and `register_miniboss_kill()`.
 - Player emits `died` when health reaches zero.
-- Arena ends the run, pauses the tree, hides level-up UI if needed, and shows `GameOverScreen`.
-- `GameOverScreen` displays time survived, enemies defeated, and level reached.
+- `RunManager` emits `final_phase_started` when run_time crosses `final_phase_start_time`; Arena announces it and EventDirector applies final pressure.
+- `RunManager` emits `victory_reached(stats)` when run_time crosses `target_run_time` and `can_trigger_victory()` returns true.
+- Arena ends defeat run, pauses the tree, builds enriched summary, and shows `GameOverScreen`.
+- Arena handles `victory_reached`, builds enriched summary, and shows `VictoryScreen`.
+- `VictoryScreen` and `GameOverScreen` are display-only; they emit restart or quit intents.
 - Restart emits through Arena/Main and creates a fresh run; it does not write saves, high scores, or meta-progression.
+- Run summary (`_build_run_summary`) is run-only and not persisted.
+- Victory screen guards: player death after victory is ignored; duplicate screens are prevented by `has_victory` and `is_run_active` flags.
 
 ## Spawn Progression
 
@@ -516,16 +543,15 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Development Rules
 
 - README.md and Agents.md must be updated on every task.
+- docs/validation/gameplay_validation.md must be updated for new gameplay flows.
 - Do not add persistence unless explicitly requested.
-- Debug tools (F3–F8) must only do anything while Debug Mode is ON (F12/F10). Normal gameplay must remain unchanged.
-- Arena coordinates all debug actions. DebugManager owns debug state and emits request signals. DebugStatsOverlay is display-only.
-- Do not add new enemy types unless explicitly requested.
 - Do not add arena hazards.
 - Do not add meta-progression or persistence.
 - Do not re-enable Player/Enemy physical body collisions.
+- Debug tools (F3–F8) must only do anything while Debug Mode is ON (F12/F10). Normal gameplay must remain unchanged.
+- Arena coordinates all debug actions. DebugManager owns debug state and emits request signals. DebugStatsOverlay is display-only.
+- Do not add new enemy types unless explicitly requested.
 - Miniboss damage must always go through Player.take_damage() or existing EnemyProjectile collision logic.
-- Do not re-enable Player/Enemy physical body collisions.
-- Do not add persistence unless explicitly requested.
 - Do not remove POWERUP_WIRING / POWERUP_ROLL / POWERUP_SPAWNED diagnostic logs until powerup drops are confirmed working.
 - Inspect the current project before changing files.
 - Do not duplicate existing systems.
@@ -546,14 +572,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not add ability unlock systems unless explicitly requested.
 - Do not add status effects or knockback to abilities unless explicitly requested.
 - Do not make `MobileControls` directly mutate gameplay except through signals.
-- Do not add persistence unless explicitly requested.
 - Do not use Yandex storage until explicitly requested.
 - Do not add real audio assets unless explicitly requested.
-- Do not add persistence for gameplay progression unless explicitly requested.
-- Do not add bosses or elite systems unless explicitly requested.
-- Do not re-enable Player/Enemy physical body collisions.
+- Do not add bosses unless explicitly requested.
 - Do not persist debug mode.
 - Do not add debug cheats unless explicitly requested.
+- RunManager owns run objective state; Arena coordinates screen display.
+- VictoryScreen and GameOverScreen are display-only; never restart or load scenes directly.
+- Run summary is not persisted; it resets naturally with Arena reload.
 
 ## Validation
 

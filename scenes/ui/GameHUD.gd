@@ -1,6 +1,8 @@
 extends CanvasLayer
 
 var player: Node
+var _run_manager: Node = null
+var _target_run_time: float = 600.0
 
 @onready var health_bar: ProgressBar = get_node_or_null("Root/HealthPanel/PlayerHealthBar")
 @onready var health_label: Label = get_node_or_null("Root/HealthPanel/PlayerHealthLabel")
@@ -10,6 +12,9 @@ var player: Node
 @onready var run_time_label: Label = get_node_or_null("Root/RunPanel/RunTimeLabel")
 @onready var kill_count_label: Label = get_node_or_null("Root/RunPanel/KillCountLabel")
 @onready var threat_label: Label = get_node_or_null("Root/RunPanel/ThreatLabel")
+@onready var objective_label: Label = get_node_or_null("Root/RunPanel/ObjectiveLabel")
+@onready var special_kills_label: Label = get_node_or_null("Root/RunPanel/SpecialKillsLabel")
+@onready var final_phase_label: Label = get_node_or_null("Root/RunPanel/FinalPhaseLabel")
 @onready var ability_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/AbilityCooldownLabel")
 @onready var laser_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/LaserCooldownLabel")
 @onready var slam_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/SlamCooldownLabel")
@@ -78,9 +83,11 @@ func _update_player_experience(current_xp: int, xp_to_next_level: int, level: in
 
 
 func _setup_run_manager(run_manager: Node) -> void:
+	_run_manager = run_manager
 	if run_manager == null:
 		_update_run_time(0.0)
 		_update_kill_count(0)
+		_update_objective(0.0)
 		return
 
 	var run_time = run_manager.get("run_time")
@@ -88,10 +95,18 @@ func _setup_run_manager(run_manager: Node) -> void:
 	_update_run_time(float(run_time) if run_time != null else 0.0)
 	_update_kill_count(int(kill_count) if kill_count != null else 0)
 
+	if run_manager.has_method("get_target_run_time"):
+		_target_run_time = run_manager.get_target_run_time()
+	_update_objective(float(run_time) if run_time != null else 0.0)
+
 	if run_manager.has_signal("run_time_changed") and not run_manager.run_time_changed.is_connected(_update_run_time):
 		run_manager.run_time_changed.connect(_update_run_time)
 	if run_manager.has_signal("kill_count_changed") and not run_manager.kill_count_changed.is_connected(_update_kill_count):
 		run_manager.kill_count_changed.connect(_update_kill_count)
+	if run_manager.has_signal("final_phase_started") and not run_manager.final_phase_started.is_connected(_on_final_phase_started):
+		run_manager.final_phase_started.connect(_on_final_phase_started)
+	if run_manager.has_signal("special_kill_count_changed") and not run_manager.special_kill_count_changed.is_connected(update_special_kills):
+		run_manager.special_kill_count_changed.connect(update_special_kills)
 
 
 func _setup_ability_manager(ability_manager: Node) -> void:
@@ -143,11 +158,27 @@ func _update_run_time(seconds: float) -> void:
 		run_time_label.text = "Time %s" % _format_time(seconds)
 	if threat_label != null:
 		threat_label.text = "Threat %d" % _get_threat_level(seconds)
+	_update_objective(seconds)
+
+
+func _update_objective(seconds: float) -> void:
+	if objective_label != null:
+		objective_label.text = "Survive: %s / %s" % [_format_time(seconds), _format_time(_target_run_time)]
 
 
 func _update_kill_count(kills: int) -> void:
 	if kill_count_label != null:
 		kill_count_label.text = "Enemies defeated %d" % kills
+
+
+func update_special_kills(elites: int, minibosses: int) -> void:
+	if special_kills_label != null:
+		special_kills_label.text = "Elite %d | Boss %d" % [elites, minibosses]
+
+
+func _on_final_phase_started() -> void:
+	if final_phase_label != null:
+		final_phase_label.visible = true
 
 
 func _format_time(seconds: float) -> String:

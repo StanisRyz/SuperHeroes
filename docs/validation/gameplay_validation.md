@@ -113,6 +113,35 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Run Victory
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a run | HUD shows "Survive: 00:00 / 10:00" (objective label visible) |
+| 2 | Run progresses | Objective label ticks up: "Survive: 01:30 / 10:00" |
+| 3 | Reach 9:00 (final_phase_start_time = 540s) | "Final Phase!" announcement appears; HUD shows "FINAL PHASE"; spawn pressure increases |
+| 4 | Reach 10:00 (target_run_time = 600s) | VictoryScreen appears with: time, kills, elite kills, miniboss kills, level, dominant build, upgrades count |
+| 5 | Kill an elite during run | HUD "Elite N \| Boss 0" increments; VictoryScreen shows correct elite count |
+| 6 | Kill a miniboss during run | HUD "Elite N \| Boss 1" increments; VictoryScreen shows correct miniboss count |
+| 7 | Restart from VictoryScreen | Fresh arena starts; all state reset |
+| 8 | Main Menu from VictoryScreen | Returns to MainMenu; no state persisted |
+| 9 | Player dies before 10:00 | GameOverScreen shows (not VictoryScreen); shows elite/miniboss kills and build |
+| 10 | Main Menu button on GameOverScreen | Returns to MainMenu (same as Restart path via Main) |
+| 11 | Debug: set use_debug_run_duration=true, debug_target_run_time=60 in RunManager inspector | Victory triggers at ~60 seconds; final phase starts at ~54 seconds |
+| 12 | Debug shortened run victory | VictoryScreen appears with correct shorter duration; all stats shown |
+| 13 | VictoryScreen shows after victory | Tree is paused; player cannot take damage or move |
+| 14 | GameOver after VictoryScreen | Should not happen; duplicate screen guard prevents it |
+
+### How to test victory faster (editor only)
+In the Godot editor, select the RunManager node inside Arena.tscn and set:
+- `use_debug_run_duration = true`
+- `debug_target_run_time = 60.0` (or any short value)
+
+Final phase start time scales proportionally (e.g. 90% of target = 54s for a 60s run).
+Remember to uncheck `use_debug_run_duration` before building for release.
+
+---
+
 ## Console Diagnostic Patterns
 
 Expected log lines to verify at startup (Debug Mode OFF):

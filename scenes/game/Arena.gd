@@ -30,6 +30,7 @@ var audio_manager: Node
 @onready var event_director: Node = get_node_or_null("EventDirector")
 @onready var event_announcement: Node = get_node_or_null("EventAnnouncement")
 @onready var miniboss_health_bar: Node = get_node_or_null("MinibossHealthBar")
+@onready var victory_screen: Node = get_node_or_null("VictoryScreen")
 
 var _debug_stats_overlay: Node = null
 var _debug_powerup_cycle_index: int = 0
@@ -216,7 +217,7 @@ func _setup_mobile_controls(ability_manager: Node) -> void:
 
 
 func _on_player_level_up_available(_level: int) -> void:
-	if _is_player_dead() or _is_game_over_visible():
+	if _is_player_dead() or _is_game_over_visible() or _is_victory_visible():
 		return
 
 	if upgrade_manager == null or level_up_screen == null:
@@ -235,7 +236,7 @@ func _on_player_level_up_available(_level: int) -> void:
 
 
 func _on_upgrade_selected(upgrade_id: String) -> void:
-	if _is_player_dead() or _is_game_over_visible():
+	if _is_player_dead() or _is_game_over_visible() or _is_victory_visible():
 		return
 
 	if upgrade_manager != null and upgrade_manager.has_method("apply_upgrade"):
@@ -252,11 +253,29 @@ func _setup_run_lifecycle() -> void:
 
 	if run_manager == null:
 		push_warning("Arena could not find RunManager node.")
+	else:
+		if run_manager.has_signal("final_phase_started") and not run_manager.final_phase_started.is_connected(_on_final_phase_started):
+			run_manager.final_phase_started.connect(_on_final_phase_started)
+		if run_manager.has_signal("victory_reached") and not run_manager.victory_reached.is_connected(_on_victory_reached):
+			run_manager.victory_reached.connect(_on_victory_reached)
+		if run_manager.has_signal("special_kill_count_changed") and not run_manager.special_kill_count_changed.is_connected(_on_special_kill_count_changed):
+			run_manager.special_kill_count_changed.connect(_on_special_kill_count_changed)
 
 	if game_over_screen == null:
 		push_warning("Arena could not find GameOverScreen node.")
-	elif game_over_screen.has_signal("restart_requested") and not game_over_screen.restart_requested.is_connected(_on_restart_requested):
-		game_over_screen.restart_requested.connect(_on_restart_requested)
+	else:
+		if game_over_screen.has_signal("restart_requested") and not game_over_screen.restart_requested.is_connected(_on_restart_requested):
+			game_over_screen.restart_requested.connect(_on_restart_requested)
+		if game_over_screen.has_signal("quit_to_menu_requested") and not game_over_screen.quit_to_menu_requested.is_connected(_on_quit_to_menu_requested):
+			game_over_screen.quit_to_menu_requested.connect(_on_quit_to_menu_requested)
+
+	if victory_screen == null:
+		push_warning("Arena could not find VictoryScreen node.")
+	else:
+		if victory_screen.has_signal("restart_requested") and not victory_screen.restart_requested.is_connected(_on_restart_requested):
+			victory_screen.restart_requested.connect(_on_restart_requested)
+		if victory_screen.has_signal("quit_to_menu_requested") and not victory_screen.quit_to_menu_requested.is_connected(_on_quit_to_menu_requested):
+			victory_screen.quit_to_menu_requested.connect(_on_quit_to_menu_requested)
 
 
 func _setup_pause_menu() -> void:
@@ -349,6 +368,73 @@ func _on_miniboss_phase_changed(phase: int) -> void:
 func _on_miniboss_defeated() -> void:
 	if event_announcement != null and event_announcement.has_method("show_announcement"):
 		event_announcement.show_announcement("Miniboss Defeated!", 3.0)
+
+
+func _on_final_phase_started() -> void:
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Final Phase!", 3.0)
+	if event_director != null and event_director.has_method("start_final_phase_event"):
+		event_director.start_final_phase_event()
+
+
+func _on_victory_reached(stats: Dictionary) -> void:
+	if _is_player_dead():
+		return
+
+	var summary := _build_run_summary(stats)
+	summary["result"] = "victory"
+
+	if level_up_screen != null:
+		level_up_screen.hide()
+	if pause_menu != null and pause_menu.has_method("close"):
+		pause_menu.close()
+	if game_over_screen != null:
+		game_over_screen.hide()
+
+	_reset_mobile_controls()
+	get_tree().paused = true
+
+	if victory_screen != null and victory_screen.has_method("show_stats"):
+		victory_screen.show_stats(summary)
+	else:
+		push_warning("Arena: VictoryScreen missing or no show_stats().")
+
+
+func _on_special_kill_count_changed(elites: int, minibosses: int) -> void:
+	if hud != null and hud.has_method("update_special_kills"):
+		hud.update_special_kills(elites, minibosses)
+
+
+func _build_run_summary(base_stats: Dictionary) -> Dictionary:
+	var summary := base_stats.duplicate()
+
+	if player != null and is_instance_valid(player):
+		summary["player_level"] = int(player.get("level") or 1)
+		summary["current_xp"] = int(player.get("current_xp") or 0)
+		summary["max_health"] = int(player.get("max_health") or 0)
+		summary["current_health"] = int(player.get("current_health") or 0)
+	else:
+		summary["player_level"] = 1
+		summary["current_xp"] = 0
+		summary["max_health"] = 0
+		summary["current_health"] = 0
+
+	if upgrade_manager != null and is_instance_valid(upgrade_manager):
+		if upgrade_manager.has_method("get_dominant_archetype"):
+			summary["dominant_archetype"] = upgrade_manager.get_dominant_archetype()
+		if upgrade_manager.has_method("get_archetype_points"):
+			summary["archetype_points"] = upgrade_manager.get_archetype_points()
+		if upgrade_manager.has_method("get_selected_upgrade_history"):
+			var history = upgrade_manager.get_selected_upgrade_history()
+			summary["selected_upgrade_history"] = history
+			summary["selected_upgrade_count"] = history.size()
+	else:
+		summary["dominant_archetype"] = ""
+		summary["archetype_points"] = {}
+		summary["selected_upgrade_history"] = []
+		summary["selected_upgrade_count"] = 0
+
+	return summary
 
 
 func _setup_debug_flow() -> void:
@@ -502,13 +588,17 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_player_died() -> void:
+	if run_manager != null and run_manager.get("has_victory") == true:
+		return
+
 	var stats := {}
 	if run_manager != null and run_manager.has_method("end_run"):
 		run_manager.end_run()
 	if run_manager != null and run_manager.has_method("get_stats"):
 		stats = run_manager.get_stats()
 
-	stats["level"] = int(player.get("level")) if player.get("level") != null else 1
+	var summary := _build_run_summary(stats)
+	summary["result"] = "defeat"
 
 	if level_up_screen != null:
 		level_up_screen.hide()
@@ -520,7 +610,7 @@ func _on_player_died() -> void:
 	if game_over_screen != null and game_over_screen.has_method("setup_audio_manager"):
 		game_over_screen.setup_audio_manager(audio_manager)
 	if game_over_screen != null and game_over_screen.has_method("show_stats"):
-		game_over_screen.show_stats(stats)
+		game_over_screen.show_stats(summary)
 	else:
 		push_warning("GameOverScreen does not implement show_stats(stats).")
 
@@ -530,8 +620,13 @@ func _on_restart_requested() -> void:
 	restart_run_requested.emit()
 
 
+func _on_quit_to_menu_requested() -> void:
+	get_tree().paused = false
+	quit_to_menu_requested.emit()
+
+
 func _request_pause_menu() -> void:
-	if get_tree().paused or _is_player_dead() or _is_level_up_visible() or _is_game_over_visible():
+	if get_tree().paused or _is_player_dead() or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible():
 		return
 
 	get_tree().paused = true
@@ -735,6 +830,8 @@ func _is_debug_action_blocked() -> bool:
 		return true
 	if _is_game_over_visible():
 		return true
+	if _is_victory_visible():
+		return true
 	if _is_player_dead():
 		return true
 	if debug_manager == null or not debug_manager.has_method("is_debug_enabled") or not debug_manager.is_debug_enabled():
@@ -743,11 +840,11 @@ func _is_debug_action_blocked() -> bool:
 
 
 func _is_debug_toggle_blocked() -> bool:
-	return get_tree().paused or _is_level_up_visible() or _is_game_over_visible() or _is_player_dead()
+	return get_tree().paused or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible() or _is_player_dead()
 
 
 func _is_debug_level_blocked() -> bool:
-	return get_tree().paused or _is_level_up_visible() or _is_game_over_visible() or _is_player_dead()
+	return get_tree().paused or _is_level_up_visible() or _is_game_over_visible() or _is_victory_visible() or _is_player_dead()
 
 
 func _is_player_dead() -> bool:
@@ -756,6 +853,10 @@ func _is_player_dead() -> bool:
 
 func _is_game_over_visible() -> bool:
 	return game_over_screen != null and game_over_screen.visible
+
+
+func _is_victory_visible() -> bool:
+	return victory_screen != null and victory_screen.visible
 
 
 func _is_level_up_visible() -> bool:

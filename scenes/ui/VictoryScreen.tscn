@@ -1,11 +1,11 @@
-[gd_scene load_steps=2 format=3 uid="uid://game_over_screen_scene_superheroes"]
+[gd_scene load_steps=2 format=3 uid="uid://victory_screen_scene_superheroes"]
 
-[ext_resource type="Script" path="res://scenes/ui/GameOverScreen.gd" id="1_game_over_screen_script"]
+[ext_resource type="Script" path="res://scenes/ui/VictoryScreen.gd" id="1_victory_screen_script"]
 
-[node name="GameOverScreen" type="CanvasLayer"]
+[node name="VictoryScreen" type="CanvasLayer"]
 process_mode = 3
 visible = false
-script = ExtResource("1_game_over_screen_script")
+script = ExtResource("1_victory_screen_script")
 
 [node name="Root" type="Control" parent="."]
 layout_mode = 3
@@ -22,7 +22,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.68)
+color = Color(0, 0.06, 0, 0.8)
 
 [node name="Panel" type="PanelContainer" parent="Root"]
 layout_mode = 1
@@ -31,10 +31,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -260.0
-offset_top = -200.0
-offset_right = 260.0
-offset_bottom = 200.0
+offset_left = -280.0
+offset_top = -230.0
+offset_right = 280.0
+offset_bottom = 230.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -43,12 +43,12 @@ layout_mode = 2
 
 [node name="Title" type="Label" parent="Root/Panel/VBoxContainer"]
 layout_mode = 2
-text = "RUN OVER"
+text = "VICTORY"
 horizontal_alignment = 1
 
 [node name="TimeLabel" type="Label" parent="Root/Panel/VBoxContainer"]
 layout_mode = 2
-text = "Time: 00:00"
+text = "Time survived: 00:00"
 horizontal_alignment = 1
 
 [node name="KillsLabel" type="Label" parent="Root/Panel/VBoxContainer"]
@@ -74,6 +74,11 @@ horizontal_alignment = 1
 [node name="BuildLabel" type="Label" parent="Root/Panel/VBoxContainer"]
 layout_mode = 2
 text = "Build: Mixed"
+horizontal_alignment = 1
+
+[node name="UpgradesLabel" type="Label" parent="Root/Panel/VBoxContainer"]
+layout_mode = 2
+text = "Upgrades taken: 0"
 horizontal_alignment = 1
 
 [node name="RestartButton" type="Button" parent="Root/Panel/VBoxContainer"]
