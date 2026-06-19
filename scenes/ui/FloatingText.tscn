@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3 uid="uid://floating_text_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/ui/FloatingText.gd" id="1_floating_text_script"]
+
+[node name="FloatingText" type="Node2D"]
+z_index = 80
+script = ExtResource("1_floating_text_script")
+
+[node name="Label" type="Label" parent="."]
+offset_left = -40.0
+offset_top = -18.0
+offset_right = 40.0
+offset_bottom = 18.0
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1

@@ -4,6 +4,7 @@ const NO_SPAWN_POSITION := Vector2(1.0e20, 1.0e20)
 
 @export var enemy_scene: PackedScene
 @export var experience_gem_scene: PackedScene
+@export var death_burst_scene: PackedScene
 @export var spawn_interval: float = 1.5
 @export var max_alive_enemies: int = 12
 @export var min_spawn_distance_from_player: float = 500.0
@@ -15,6 +16,7 @@ var enemy_container: Node
 var pickup_container: Node
 var run_manager: Node
 var spawn_director: Node
+var floating_text_spawner: Node
 
 @onready var spawn_timer: Timer = $SpawnTimer
 
@@ -24,13 +26,14 @@ func _ready() -> void:
 	spawn_timer.one_shot = false
 
 
-func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null) -> void:
+func setup(new_player: Node2D, new_playable_rect: Rect2, new_enemy_container: Node, new_pickup_container: Node = null, new_run_manager: Node = null, new_spawn_director: Node = null, new_floating_text_spawner: Node = null) -> void:
 	player = new_player
 	playable_rect = new_playable_rect
 	enemy_container = new_enemy_container
 	pickup_container = new_pickup_container
 	run_manager = new_run_manager
 	spawn_director = new_spawn_director
+	floating_text_spawner = new_floating_text_spawner
 
 	spawn_timer.wait_time = _get_current_spawn_interval()
 	if _can_spawn():
@@ -70,7 +73,12 @@ func _on_spawn_timer_timeout() -> void:
 		push_warning("Spawned enemy does not implement set_target(new_target).")
 
 	if enemy.has_signal("died"):
-		enemy.died.connect(_on_enemy_died)
+		if not enemy.died.is_connected(_on_enemy_died):
+			enemy.died.connect(_on_enemy_died)
+
+	if enemy.has_signal("damage_taken") and floating_text_spawner != null and floating_text_spawner.has_method("show_damage"):
+		if not enemy.damage_taken.is_connected(floating_text_spawner.show_damage):
+			enemy.damage_taken.connect(floating_text_spawner.show_damage)
 
 
 func _on_enemy_died(enemy: Node) -> void:
@@ -81,11 +89,13 @@ func _on_enemy_died(enemy: Node) -> void:
 	if enemy != null and enemy.has_method("get_experience_value"):
 		dropped_experience = int(enemy.get_experience_value())
 
-	if experience_gem_scene == null or not is_instance_valid(pickup_container):
-		return
-
 	var enemy_node := enemy as Node2D
 	if enemy_node == null:
+		return
+
+	_spawn_death_burst(enemy_node.global_position)
+
+	if experience_gem_scene == null or not is_instance_valid(pickup_container):
 		return
 
 	var gem_node := experience_gem_scene.instantiate()
@@ -100,6 +110,24 @@ func _on_enemy_died(enemy: Node) -> void:
 
 	pickup_container.add_child(gem)
 	gem.global_position = enemy_node.global_position
+
+
+func _spawn_death_burst(world_position: Vector2) -> void:
+	if death_burst_scene == null:
+		return
+
+	var burst_node := death_burst_scene.instantiate()
+	if not burst_node is Node2D:
+		push_warning("DeathBurst scene root must be Node2D.")
+		burst_node.queue_free()
+		return
+
+	var burst := burst_node as Node2D
+	get_tree().current_scene.add_child(burst)
+	if burst.has_method("play"):
+		burst.play(world_position, Color(1.0, 0.35, 0.28, 1.0))
+	else:
+		burst.global_position = world_position
 
 
 func _can_spawn() -> bool:

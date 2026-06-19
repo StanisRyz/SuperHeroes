@@ -17,6 +17,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/abilities/AbilityManager.gd` - active ability input, Nova Pulse, cooldown tracking, and cast signals.
 - `scenes/abilities/NovaPulseFeedback.tscn` - simple in-world Nova Pulse feedback scene.
 - `scenes/abilities/NovaPulseFeedback.gd` - Nova Pulse feedback tween and cleanup logic.
+- `scenes/ui/FloatingText.tscn` - simple world-space floating text feedback scene.
+- `scenes/ui/FloatingText.gd` - floating text tween and cleanup logic.
+- `scenes/ui/FloatingTextSpawner.tscn` - utility node for spawning floating feedback text.
+- `scenes/ui/FloatingTextSpawner.gd` - damage and pickup text display helper.
+- `scenes/effects/DeathBurst.tscn` - simple enemy death burst feedback scene.
+- `scenes/effects/DeathBurst.gd` - death burst tween and cleanup logic.
+- `scenes/effects/HitSpark.tscn` - simple projectile hit feedback scene.
+- `scenes/effects/HitSpark.gd` - hit spark tween and cleanup logic.
 - `scenes/pickups/ExperienceGem.tscn` - XP pickup scene.
 - `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
@@ -82,6 +90,11 @@ The game is an original superhero survivors-like: the player moves around an are
 - Virtual joystick mobile movement foundation.
 - Mobile Nova Pulse button.
 - Keyboard and mobile input coexist.
+- Floating damage numbers.
+- Enemy death burst feedback.
+- Projectile hit spark feedback.
+- XP gem magnet attraction.
+- Camera shake foundation.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
 
 ## Level-Up Flow
@@ -145,10 +158,23 @@ The game is an original superhero survivors-like: the player moves around an are
 - Experience gems detect Player bodies through `Area2D`.
 - Do not re-enable Player/Enemy physical body collisions unless explicitly requested.
 
+## Feedback Notes
+
+- Enemy emits `damage_taken`; UI/effects nodes handle display.
+- EnemySpawner coordinates enemy death effects and XP drops.
+- `ExperienceGem` owns magnet movement toward valid living players.
+- Player owns the Camera2D shake helper.
+- Feedback scenes use built-in nodes only and do not own gameplay rules.
+
 ## Not Implemented Yet
 
 - Upgrade icons or Resource-backed data.
 - Reroll, skip, or banish upgrade actions.
+- Sound effects.
+- Advanced particles.
+- Crit text.
+- Damage type colors.
+- Pickup magnet upgrades.
 - Mobile ability buttons for multiple abilities.
 - Mobile pause button.
 - Input rebinding.

@@ -14,6 +14,7 @@ extends Node2D
 @onready var level_up_screen: Node = get_node_or_null("LevelUpScreen")
 @onready var game_over_screen: Node = get_node_or_null("GameOverScreen")
 @onready var mobile_controls: Node = get_node_or_null("MobileControls")
+@onready var floating_text_spawner: Node = get_node_or_null("FloatingTextSpawner")
 
 func _ready() -> void:
 	var playable_rect := get_playable_rect()
@@ -70,9 +71,9 @@ func _ready() -> void:
 	elif enemy_spawner == null:
 		push_warning("Arena could not find EnemySpawner node.")
 	elif enemy_spawner.has_method("setup"):
-		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director)
+		enemy_spawner.setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner)
 	else:
-		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director).")
+		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner).")
 
 
 func get_playable_rect() -> Rect2:

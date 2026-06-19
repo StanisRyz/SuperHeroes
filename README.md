@@ -69,9 +69,19 @@ Implemented foundation:
 - Mobile Nova Pulse button.
 - Keyboard and mobile input coexist.
 - Mobile controls are hidden on desktop by default unless forced.
+- Floating damage numbers.
+- Enemy death burst feedback.
+- Projectile hit spark feedback.
+- XP gem magnet attraction.
+- Camera shake foundation.
 
 Not implemented yet:
 
+- Sound effects.
+- Advanced particles.
+- Crit text.
+- Damage type colors.
+- Pickup magnet upgrades.
 - Mobile ability buttons for multiple abilities.
 - Mobile pause button.
 - Input rebinding.

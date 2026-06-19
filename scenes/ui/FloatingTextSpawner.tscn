@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://floating_text_spawner_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/ui/FloatingTextSpawner.gd" id="1_floating_text_spawner_script"]
+[ext_resource type="PackedScene" path="res://scenes/ui/FloatingText.tscn" id="2_floating_text"]
+
+[node name="FloatingTextSpawner" type="Node"]
+script = ExtResource("1_floating_text_spawner_script")
+floating_text_scene = ExtResource("2_floating_text")

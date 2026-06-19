@@ -51,6 +51,8 @@ func _try_cast_nova_pulse() -> void:
 		return
 
 	_spawn_pulse_feedback()
+	if player.has_method("shake_camera"):
+		player.shake_camera(5.0, 0.14)
 	_ability_1_cooldown_remaining = maxf(nova_cooldown, 0.0)
 	ability_cast.emit(1)
 	_emit_cooldown_changed(true)

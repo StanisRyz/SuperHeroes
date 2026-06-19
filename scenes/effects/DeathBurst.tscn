@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://death_burst_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/effects/DeathBurst.gd" id="1_death_burst_script"]
+
+[node name="DeathBurst" type="Node2D"]
+z_index = 30
+script = ExtResource("1_death_burst_script")
+
+[node name="Ring" type="Line2D" parent="."]
+points = PackedVector2Array(38, 0, 35.11, 14.54, 26.87, 26.87, 14.54, 35.11, 0, 38, -14.54, 35.11, -26.87, 26.87, -35.11, 14.54, -38, 0, -35.11, -14.54, -26.87, -26.87, -14.54, -35.11, 0, -38, 14.54, -35.11, 26.87, -26.87, 35.11, -14.54, 38, 0)
+width = 6.0
+default_color = Color(1, 1, 1, 0.9)
+closed = true

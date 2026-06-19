@@ -17,12 +17,14 @@ var external_move_vector: Vector2 = Vector2.ZERO
 var _playable_rect: Rect2
 var _has_playable_rect := false
 var _hit_flash_tween: Tween
+var _camera_shake_tween: Tween
 
 @onready var camera: Camera2D = $Camera2D
 @onready var body_visual: CanvasItem = get_node_or_null("Body")
 @onready var core_visual: CanvasItem = get_node_or_null("Core")
 
 func _ready() -> void:
+	add_to_group("player")
 	current_health = max_health
 
 
@@ -89,6 +91,18 @@ func set_camera_limits(rect: Rect2) -> void:
 	camera.limit_top = int(rect.position.y)
 	camera.limit_right = int(rect.end.x)
 	camera.limit_bottom = int(rect.end.y)
+
+
+func shake_camera(strength: float = 6.0, duration: float = 0.12) -> void:
+	if camera == null:
+		return
+
+	if _camera_shake_tween != null:
+		_camera_shake_tween.kill()
+
+	camera.offset = Vector2(randf_range(-strength, strength), randf_range(-strength, strength))
+	_camera_shake_tween = create_tween()
+	_camera_shake_tween.tween_property(camera, "offset", Vector2.ZERO, duration)
 
 
 func _clamp_to_playable_rect() -> void:

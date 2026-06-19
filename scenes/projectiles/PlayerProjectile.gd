@@ -3,6 +3,7 @@ extends Area2D
 @export var speed: float = 520.0
 @export var max_lifetime: float = 2.0
 @export var hit_radius: float = 10.0
+@export var hit_spark_scene: PackedScene
 
 var damage: int
 var target: Node2D
@@ -54,7 +55,26 @@ func _on_body_entered(body: Node2D) -> void:
 
 	_has_hit = true
 	body.take_damage(damage)
+	_spawn_hit_spark(body.global_position)
 	queue_free()
+
+
+func _spawn_hit_spark(world_position: Vector2) -> void:
+	if hit_spark_scene == null:
+		return
+
+	var spark_node := hit_spark_scene.instantiate()
+	if not spark_node is Node2D:
+		push_warning("HitSpark scene root must be Node2D.")
+		spark_node.queue_free()
+		return
+
+	var spark := spark_node as Node2D
+	get_tree().current_scene.add_child(spark)
+	if spark.has_method("play"):
+		spark.play(world_position)
+	else:
+		spark.global_position = world_position
 
 
 func _is_valid_enemy(body: Node) -> bool:

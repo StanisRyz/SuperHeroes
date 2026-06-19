@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 signal health_changed(current_health: int, max_health: int)
+signal damage_taken(amount: int, world_position: Vector2)
 signal died(enemy: Node)
 
 @export var speed: float = 120.0
@@ -81,6 +82,7 @@ func take_damage(amount: int) -> void:
 	var previous_health := current_health
 	current_health = clampi(current_health - amount, 0, max_health)
 	if current_health != previous_health:
+		damage_taken.emit(previous_health - current_health, global_position)
 		health_changed.emit(current_health, max_health)
 		_update_health_bar()
 		_play_hit_flash()

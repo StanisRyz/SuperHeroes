@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://hit_spark_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/effects/HitSpark.gd" id="1_hit_spark_script"]
+
+[node name="HitSpark" type="Node2D"]
+z_index = 35
+script = ExtResource("1_hit_spark_script")
+
+[node name="Spark" type="Polygon2D" parent="."]
+color = Color(1, 0.95, 0.3, 1)
+polygon = PackedVector2Array(18, 0, 5, 5, 0, 18, -5, 5, -18, 0, -5, -5, 0, -18, 5, -5)
