@@ -3,6 +3,7 @@ extends CanvasLayer
 signal movement_changed(direction: Vector2)
 signal ability_1_pressed
 signal pause_pressed
+signal dash_pressed
 
 @export var force_visible: bool = false
 @export var joystick_radius: float = 80.0
@@ -16,6 +17,7 @@ var _settings_manager: Node
 @onready var joystick_base: Control = get_node_or_null("Root/JoystickArea/Base")
 @onready var joystick_knob: Control = get_node_or_null("Root/JoystickArea/Base/Knob")
 @onready var ability_button: Button = get_node_or_null("Root/AbilityButton")
+@onready var dash_button: Button = get_node_or_null("Root/DashButton")
 @onready var pause_button: Button = get_node_or_null("Root/PauseButton")
 
 
@@ -33,6 +35,11 @@ func _ready() -> void:
 	elif not ability_button.pressed.is_connected(_on_ability_button_pressed):
 		ability_button.pressed.connect(_on_ability_button_pressed)
 
+	if dash_button == null:
+		push_warning("MobileControls could not find DashButton.")
+	elif not dash_button.pressed.is_connected(_on_dash_button_pressed):
+		dash_button.pressed.connect(_on_dash_button_pressed)
+
 	if pause_button == null:
 		push_warning("MobileControls could not find PauseButton.")
 	elif not pause_button.pressed.is_connected(_on_pause_button_pressed):
@@ -40,6 +47,7 @@ func _ready() -> void:
 
 	_update_joystick_visual(Vector2.ZERO)
 	_update_ability_button(0.0)
+	_update_dash_button(0.0)
 
 
 func _process(_delta: float) -> void:
@@ -55,6 +63,12 @@ func setup_ability_manager(ability_manager: Node) -> void:
 
 	if ability_manager.has_signal("ability_cooldown_changed") and not ability_manager.ability_cooldown_changed.is_connected(_on_ability_cooldown_changed):
 		ability_manager.ability_cooldown_changed.connect(_on_ability_cooldown_changed)
+
+
+func setup_player(player: Node) -> void:
+	_update_dash_button(0.0)
+	if player != null and player.has_signal("dash_cooldown_changed") and not player.dash_cooldown_changed.is_connected(_on_dash_cooldown_changed):
+		player.dash_cooldown_changed.connect(_on_dash_cooldown_changed)
 
 
 func apply_settings(settings_manager: Node) -> void:
@@ -188,9 +202,20 @@ func _on_pause_button_pressed() -> void:
 	pause_pressed.emit()
 
 
+func _on_dash_button_pressed() -> void:
+	if get_tree().paused:
+		return
+
+	dash_pressed.emit()
+
+
 func _on_ability_cooldown_changed(slot: int, cooldown_remaining: float, _cooldown_total: float) -> void:
 	if slot == 1:
 		_update_ability_button(cooldown_remaining)
+
+
+func _on_dash_cooldown_changed(cooldown_remaining: float, _cooldown_total: float) -> void:
+	_update_dash_button(cooldown_remaining)
 
 
 func _update_ability_button(cooldown_remaining: float) -> void:
@@ -201,6 +226,16 @@ func _update_ability_button(cooldown_remaining: float) -> void:
 		ability_button.text = "Nova"
 	else:
 		ability_button.text = "%.1f" % cooldown_remaining
+
+
+func _update_dash_button(cooldown_remaining: float) -> void:
+	if dash_button == null:
+		return
+
+	if cooldown_remaining <= 0.0:
+		dash_button.text = "Dash"
+	else:
+		dash_button.text = "%.1f" % cooldown_remaining
 
 
 func _update_visibility_from_settings() -> void:

@@ -2,6 +2,8 @@ extends Node
 
 const ATTACK_INTERVAL_MIN := 0.2
 const NOVA_COOLDOWN_MIN := 2.0
+const DASH_COOLDOWN_MIN := 0.45
+const DASH_INVULNERABILITY_MAX := 0.6
 
 var player: Node
 var auto_attack: Node
@@ -80,6 +82,24 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"max_level": 4,
 		"description_template": "Reduce Nova Pulse cooldown by %ss.",
 		"effect_value": 0.5
+	},
+	{
+		"id": "dash_cooldown_down",
+		"title": "Quick Escape",
+		"rarity": "rare",
+		"weight": 0.7,
+		"max_level": 4,
+		"description_template": "Reduce dash cooldown by %ss.",
+		"effect_value": 0.15
+	},
+	{
+		"id": "dash_invulnerability_up",
+		"title": "Hero Reflex",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 3,
+		"description_template": "Increase dash invulnerability by %ss.",
+		"effect_value": 0.08
 	}
 ]
 
@@ -138,6 +158,10 @@ func apply_upgrade(upgrade_id: String) -> void:
 			applied = _apply_ability_number("nova_damage", effect_value)
 		"nova_cooldown_down":
 			applied = _apply_nova_cooldown_upgrade(effect_value)
+		"dash_cooldown_down":
+			applied = _apply_dash_cooldown_upgrade(effect_value)
+		"dash_invulnerability_up":
+			applied = _apply_dash_invulnerability_upgrade(effect_value)
 		_:
 			push_warning("Unknown upgrade id: %s" % upgrade_id)
 
@@ -284,6 +308,34 @@ func _apply_nova_cooldown_upgrade(amount) -> bool:
 		return false
 
 	ability_manager.set("nova_cooldown", maxf(NOVA_COOLDOWN_MIN, value - float(amount)))
+	return true
+
+
+func _apply_dash_cooldown_upgrade(amount) -> bool:
+	if player == null:
+		push_warning("UpgradeManager is missing Player reference.")
+		return false
+
+	var value = player.get("dash_cooldown")
+	if value == null:
+		push_warning("Player is missing dash_cooldown.")
+		return false
+
+	player.set("dash_cooldown", maxf(DASH_COOLDOWN_MIN, value - float(amount)))
+	return true
+
+
+func _apply_dash_invulnerability_upgrade(amount) -> bool:
+	if player == null:
+		push_warning("UpgradeManager is missing Player reference.")
+		return false
+
+	var value = player.get("dash_invulnerability_duration")
+	if value == null:
+		push_warning("Player is missing dash_invulnerability_duration.")
+		return false
+
+	player.set("dash_invulnerability_duration", minf(DASH_INVULNERABILITY_MAX, value + float(amount)))
 	return true
 
 

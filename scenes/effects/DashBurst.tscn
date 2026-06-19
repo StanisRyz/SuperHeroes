@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://dash_burst_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/effects/DashBurst.gd" id="1_dash_burst_script"]
+
+[node name="DashBurst" type="Node2D"]
+z_index = 45
+script = ExtResource("1_dash_burst_script")
+
+[node name="Burst" type="Polygon2D" parent="."]
+color = Color(0.55, 0.9, 1, 0.8)
+polygon = PackedVector2Array(-30, 0, -8, 12, 18, 7, 8, 0, 18, -7, -8, -12)

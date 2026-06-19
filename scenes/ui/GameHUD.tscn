@@ -82,3 +82,7 @@ offset_bottom = 260.0
 [node name="AbilityCooldownLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
 text = "Nova Pulse (J): Ready"
+
+[node name="DashCooldownLabel" type="Label" parent="Root/AbilityPanel"]
+layout_mode = 2
+text = "Dash: Ready"

@@ -11,6 +11,7 @@ var player: Node
 @onready var kill_count_label: Label = get_node_or_null("Root/RunPanel/KillCountLabel")
 @onready var threat_label: Label = get_node_or_null("Root/RunPanel/ThreatLabel")
 @onready var ability_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/AbilityCooldownLabel")
+@onready var dash_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/DashCooldownLabel")
 
 func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null) -> void:
 	player = new_player
@@ -40,6 +41,9 @@ func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = n
 
 	if player.has_signal("experience_changed") and not player.experience_changed.is_connected(_update_player_experience):
 		player.experience_changed.connect(_update_player_experience)
+	if player.has_signal("dash_cooldown_changed") and not player.dash_cooldown_changed.is_connected(_update_dash_cooldown):
+		player.dash_cooldown_changed.connect(_update_dash_cooldown)
+	_update_dash_cooldown(0.0, 0.0)
 
 	_setup_run_manager(run_manager)
 	_setup_ability_manager(ability_manager)
@@ -101,6 +105,16 @@ func _update_ability_cooldown(slot: int, cooldown_remaining: float, _cooldown_to
 		ability_cooldown_label.text = "Nova Pulse (J): Ready"
 	else:
 		ability_cooldown_label.text = "Nova Pulse (J): %.1fs" % cooldown_remaining
+
+
+func _update_dash_cooldown(cooldown_remaining: float, _cooldown_total: float) -> void:
+	if dash_cooldown_label == null:
+		return
+
+	if cooldown_remaining <= 0.0:
+		dash_cooldown_label.text = "Dash: Ready"
+	else:
+		dash_cooldown_label.text = "Dash: %.1fs" % cooldown_remaining
 
 
 func _update_run_time(seconds: float) -> void:

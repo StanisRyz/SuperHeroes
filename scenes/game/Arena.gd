@@ -153,12 +153,17 @@ func _setup_mobile_controls(ability_manager: Node) -> void:
 
 	if mobile_controls.has_method("setup_ability_manager"):
 		mobile_controls.setup_ability_manager(ability_manager)
+	if mobile_controls.has_method("setup_player"):
+		mobile_controls.setup_player(player)
 	if mobile_controls.has_method("apply_settings"):
 		mobile_controls.apply_settings(settings_manager)
 
 	if mobile_controls.has_signal("pause_pressed"):
 		if not mobile_controls.pause_pressed.is_connected(_request_pause_menu):
 			mobile_controls.pause_pressed.connect(_request_pause_menu)
+	if mobile_controls.has_signal("dash_pressed") and player.has_method("try_dash"):
+		if not mobile_controls.dash_pressed.is_connected(player.try_dash):
+			mobile_controls.dash_pressed.connect(player.try_dash)
 
 
 func _on_player_level_up_available(_level: int) -> void:

@@ -30,6 +30,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/effects/DeathBurst.gd` - death burst tween and cleanup logic.
 - `scenes/effects/HitSpark.tscn` - simple projectile hit feedback scene.
 - `scenes/effects/HitSpark.gd` - hit spark tween and cleanup logic.
+- `scenes/effects/DashBurst.tscn` - simple dash burst feedback scene.
+- `scenes/effects/DashBurst.gd` - dash burst tween and cleanup logic.
 - `scenes/pickups/ExperienceGem.tscn` - XP pickup scene.
 - `scenes/pickups/ExperienceGem.gd` - XP pickup collection logic.
 - `scenes/projectiles/PlayerProjectile.tscn` - player autoattack projectile scene.
@@ -125,7 +127,21 @@ The game is an original superhero survivors-like: the player moves around an are
 - Charger enemy behavior.
 - Shooter enemy behavior.
 - EnemyProjectile foundation.
+- Player dash.
+- Dash cooldown.
+- Dash invulnerability window.
+- HUD dash cooldown display.
+- Mobile dash button.
+- Dash visual feedback.
+- Dash upgrades.
 - Separated collision layers/masks to prevent Player and Enemy bodies from physically pushing each other.
+
+## Player Dash Notes
+
+- Player owns dash state, cooldown, and invulnerability.
+- Damage immunity is handled inside `Player.take_damage()`.
+- MobileControls emits dash intent; Arena wires it to `Player.try_dash()`.
+- `dash_cooldown_down` and `dash_invulnerability_up` are runtime upgrades only.
 
 ## Frontend Flow
 
@@ -226,6 +242,11 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Not Implemented Yet
 
 - Upgrade icons or Resource-backed data.
+- Dash damage.
+- Dash trail particles.
+- Stamina.
+- Advanced dodge perks.
+- Controller remapping.
 - Exploder enemies.
 - Swarm/orbit enemies.
 - Enemy projectile patterns.

@@ -92,9 +92,21 @@ Implemented foundation:
 - Charger enemy behavior.
 - Shooter enemy behavior.
 - EnemyProjectile foundation.
+- Player dash.
+- Dash cooldown.
+- Dash invulnerability window.
+- HUD dash cooldown display.
+- Mobile dash button.
+- Dash visual feedback.
+- Dash upgrades.
 
 Not implemented yet:
 
+- Dash damage.
+- Dash trail particles.
+- Stamina.
+- Advanced dodge perks.
+- Controller remapping.
 - Exploder enemies.
 - Swarm/orbit enemies.
 - Enemy projectile patterns.
