@@ -145,7 +145,11 @@ The game is an original superhero survivors-like: the player moves around an are
 ## Weapon Modifier Notes
 
 - PlayerAutoAttack owns weapon stats: `projectile_count`, `projectile_spread_degrees`, `projectile_pierce`, `projectile_size_multiplier`, and `projectile_explosion_radius`.
+- PlayerAutoAttack exposes `get_weapon_stats()` for debugging and headless sanity checks.
+- `projectile_count > 1` must use visible spread even when `projectile_spread_degrees` is still zero.
+- Spread and multishot projectiles should not be forced back onto the same target every frame.
 - PlayerProjectile handles pierce and explosion.
+- PlayerProjectile uses `homing_enabled` to decide whether it follows the target after launch.
 - PlayerProjectile should only damage enemies.
 - PlayerProjectile should not damage the same enemy twice per projectile.
 - Weapon modifier upgrades are runtime-only.
@@ -320,6 +324,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not add real audio assets unless explicitly requested.
 - Do not add persistence for gameplay progression unless explicitly requested.
 - Do not add bosses or elite systems unless explicitly requested.
+- Do not re-enable Player/Enemy physical body collisions.
 
 ## Validation
 

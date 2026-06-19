@@ -119,7 +119,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "epic",
 		"weight": 0.35,
 		"max_level": 3,
-		"description_template": "Fire %s additional projectile per attack.",
+		"description_template": "Fire +%s projectile per attack.",
 		"effect_value": 1
 	},
 	{
@@ -128,7 +128,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "rare",
 		"weight": 0.65,
 		"max_level": 4,
-		"description_template": "Increase projectile spread by %s degrees.",
+		"description_template": "Increase projectile spread angle by %s degrees.",
 		"effect_value": 8.0
 	},
 	{

@@ -14,6 +14,7 @@ var pierce_remaining: int = 0
 var size_multiplier: float = 1.0
 var explosion_radius: float = 0.0
 var explosion_damage_multiplier: float = 0.6
+var homing_enabled: bool = true
 var _lifetime := 0.0
 var _hit_enemies: Array[Node] = []
 
@@ -42,6 +43,8 @@ func setup(origin: Vector2, new_target: Node2D, new_damage: int, extra_data: Dic
 		explosion_radius = maxf(float(extra_data["explosion_radius"]), 0.0)
 	if extra_data.has("explosion_damage_multiplier"):
 		explosion_damage_multiplier = maxf(float(extra_data["explosion_damage_multiplier"]), 0.0)
+	if extra_data.has("homing_enabled"):
+		homing_enabled = bool(extra_data["homing_enabled"])
 
 	if is_instance_valid(target):
 		var offset := target.global_position - global_position
@@ -65,7 +68,7 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 
-	if is_instance_valid(target):
+	if homing_enabled and is_instance_valid(target):
 		var offset := target.global_position - global_position
 		if not offset.is_zero_approx():
 			direction = offset.normalized()

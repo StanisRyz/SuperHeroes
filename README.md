@@ -1,6 +1,6 @@
 # SuperHeroes
 
-SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game with an original superhero theme. The player moves through a large arena, fights chasing enemies, collects XP gems, and will later choose upgrades and use active abilities.
+SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game with an original superhero theme. The player moves through a large arena, fights chasing enemies, collects XP gems, chooses upgrades, and uses active ability foundations.
 
 ## Target Platform
 
@@ -105,6 +105,9 @@ Implemented foundation:
 - Projectile size upgrade.
 - Explosive projectile upgrade.
 - Weapon modifier upgrades.
+- Multishot uses a visible minimum spread by default when no spread upgrade is active.
+- Projectile homing is disabled for spread and multishot shots so fired projectiles do not collapse back onto one line.
+- Weapon upgrade direction generation has a headless sanity check at `scripts/tests/WeaponUpgradeSanityCheck.gd`.
 
 Not implemented yet:
 
@@ -141,7 +144,6 @@ Not implemented yet:
 - Upgrade icons.
 - Resource-backed upgrade data files.
 - XP vacuum upgrades.
-- Projectile upgrades such as pierce, bounce, or spread.
 - Bosses.
 - Bosses/minibosses.
 - Elite modifiers.
@@ -168,6 +170,12 @@ Run the Godot editor validation from the repository root:
 
 ```sh
 godot --headless --editor --quit
+```
+
+Run the weapon upgrade sanity check from the repository root:
+
+```sh
+godot --headless --script res://scripts/tests/WeaponUpgradeSanityCheck.gd
 ```
 
 ## Web Export Notes
