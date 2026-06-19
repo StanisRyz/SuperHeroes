@@ -101,11 +101,17 @@ Implemented foundation:
 - Dash upgrades.
 - Debug Mode toggle with F12, with F10 fallback for browser/editor cases.
 - Debug Mode input actions for F12/F10 and F1/F2.
-- DEBUG ON runtime overlay.
+- DEBUG ON runtime overlay (CanvasLayer layer 10, bottom-left label).
 - Debug Mode player invulnerability.
 - F1 debug level gain while Debug Mode is enabled, with F2 fallback.
 - F12/F1 may be intercepted by browsers or the editor, so fallback debug keys are supported.
 - Runtime-only Debug Mode for development/testing, not progression.
+- Arena coordinates Debug Mode input: raw F12/F10/F1/F2 detection prints to console before any condition checks.
+- Debug toggle: F12 or F10 (direct key detection first, InputMap fallback).
+- Debug level gain: F1 or F2, only while Debug Mode is enabled (direct key detection first, InputMap fallback).
+- DebugManager logs mode changes and level-up accept/reject reasons to the console.
+- Player logs debug invulnerability changes and level gains to the console.
+- Debug diagnostic logs are intentionally kept active until debug reliability is confirmed.
 - SettingsMenu works from both MainMenu and PauseMenu.
 - MainMenu Settings is hidden before gameplay starts.
 - Projectile pierce.

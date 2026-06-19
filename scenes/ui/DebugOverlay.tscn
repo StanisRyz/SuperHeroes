@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scenes/ui/DebugOverlay.gd" id="1_debug_overlay_script"]
 
 [node name="DebugOverlay" type="CanvasLayer"]
+layer = 10
 visible = false
 script = ExtResource("1_debug_overlay_script")
 

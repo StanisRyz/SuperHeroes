@@ -241,6 +241,14 @@ func _setup_settings_menu() -> void:
 
 
 func _setup_debug_flow() -> void:
+	print("DEBUG_WIRING: DebugManager exists=%s" % (debug_manager != null))
+	print("DEBUG_WIRING: DebugOverlay exists=%s" % (debug_overlay != null))
+	if player != null:
+		print("DEBUG_WIRING: Player.set_debug_invulnerable=%s" % player.has_method("set_debug_invulnerable"))
+		print("DEBUG_WIRING: Player.debug_gain_one_level=%s" % player.has_method("debug_gain_one_level"))
+	else:
+		print("DEBUG_WIRING: Player is null")
+
 	if debug_manager == null:
 		push_warning("Arena could not find DebugManager node.")
 		return
@@ -250,33 +258,59 @@ func _setup_debug_flow() -> void:
 	else:
 		push_warning("DebugManager does not implement setup(player).")
 
+	var signals_connected := true
 	if debug_manager.has_signal("debug_mode_changed"):
 		if not debug_manager.debug_mode_changed.is_connected(_on_debug_mode_changed):
 			debug_manager.debug_mode_changed.connect(_on_debug_mode_changed)
 	else:
 		push_warning("DebugManager is missing debug_mode_changed signal.")
+		signals_connected = false
 
 	if debug_manager.has_signal("debug_level_requested"):
 		if not debug_manager.debug_level_requested.is_connected(_on_debug_level_requested):
 			debug_manager.debug_level_requested.connect(_on_debug_level_requested)
 	else:
 		push_warning("DebugManager is missing debug_level_requested signal.")
+		signals_connected = false
+
+	print("DEBUG_WIRING: signals connected=%s" % signals_connected)
 
 	if debug_manager.has_method("is_debug_enabled"):
 		_on_debug_mode_changed(debug_manager.is_debug_enabled())
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.echo:
+	if not event is InputEventKey:
+		return
+	if event.echo:
 		return
 
-	if event.is_action_pressed("debug_toggle"):
+	var kc: int = event.keycode if event.keycode != 0 else event.physical_keycode
+
+	if kc == KEY_F12 or kc == KEY_F10 or kc == KEY_F1 or kc == KEY_F2:
+		print("DEBUG_INPUT: key=%s physical=%d keycode=%d pressed=%s echo=%s" % [
+			OS.get_keycode_string(kc), event.physical_keycode, event.keycode, event.pressed, event.echo
+		])
+
+	if not event.pressed:
+		return
+
+	var handled_debug_key := false
+
+	if kc == KEY_F12 or kc == KEY_F10:
 		_toggle_debug_mode_from_input()
-		get_viewport().set_input_as_handled()
-		return
-
-	if event.is_action_pressed("debug_level_up"):
+		handled_debug_key = true
+	elif event.is_action_pressed("debug_toggle"):
+		_toggle_debug_mode_from_input()
+		handled_debug_key = true
+	elif kc == KEY_F1 or kc == KEY_F2:
 		_request_debug_level_from_input()
+		handled_debug_key = true
+	elif event.is_action_pressed("debug_level_up"):
+		_request_debug_level_from_input()
+		handled_debug_key = true
+
+	if handled_debug_key:
 		get_viewport().set_input_as_handled()
 
 
@@ -394,8 +428,8 @@ func _request_debug_level_from_input() -> void:
 
 	if debug_input_logging:
 		print("Debug input: level requested")
-	if debug_manager.has_signal("debug_level_requested"):
-		debug_manager.debug_level_requested.emit()
+	if debug_manager.has_method("request_debug_level"):
+		debug_manager.request_debug_level()
 	else:
 		_on_debug_level_requested()
 

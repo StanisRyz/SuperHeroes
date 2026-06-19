@@ -14,8 +14,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/settings/SettingsManager.gd` - `user://settings.cfg` load/save helper for settings only.
 - `scenes/audio/AudioManager.tscn` - audio playback manager scene.
 - `scenes/audio/AudioManager.gd` - volume/mute application and optional SFX playback hooks.
-- `scenes/debug/DebugManager.tscn` - runtime-only debug input manager scene.
-- `scenes/debug/DebugManager.gd` - F12/F1 debug mode input and debug signals.
+- `scenes/debug/DebugManager.tscn` - runtime-only debug state manager scene.
+- `scenes/debug/DebugManager.gd` - debug mode state and debug signals.
 - `scenes/game/Arena.tscn` - arena composition.
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup, level-up flow, run lifecycle.
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
@@ -177,7 +177,9 @@ The game is an original superhero survivors-like: the player moves around an are
 
 - Arena coordinates Debug Mode keyboard input during an active Arena run.
 - DebugManager owns debug state and signals, not keyboard handling.
-- Debug input requires `debug_toggle` and `debug_level_up` InputMap actions and should ignore key echo.
+- Arena._input() uses `_input` (not `_unhandled_input`) for debug keys to intercept before UI.
+- Direct raw key detection for F12/F10/F1/F2 is checked first; InputMap actions are a fallback.
+- A single `handled_debug_key` boolean prevents double-processing the same key press.
 - Debug toggle supports F12 with F10 fallback; debug level supports F1 with F2 fallback.
 - Debug level keys should not work while paused, game-over, level-up, or player-dead.
 - DebugOverlay only displays DEBUG ON and does not own debug rules.
@@ -185,6 +187,22 @@ The game is an original superhero survivors-like: the player moves around an are
 - Arena wires DebugManager to Player and DebugOverlay.
 - Debug Mode is runtime-only, not persisted, and not exposed in SettingsMenu.
 - Do not add debug cheats unless explicitly requested.
+
+### Debug Diagnostics
+
+- `DEBUG_INPUT:` — Arena prints raw key detection for F12/F10/F1/F2 on every non-echo press or release, before any condition checks.
+- `DEBUG_WIRING:` — Arena prints whether DebugManager, DebugOverlay, and Player debug APIs were found and whether signals were connected.
+- `DEBUG_MODE:` — DebugManager logs every toggle with the resulting enabled state.
+- `DEBUG_LEVEL:` — DebugManager logs each request (accepted) or rejection with a short reason (disabled, tree paused, missing player, player dead).
+- `DEBUG_PLAYER:` — Player logs `set_debug_invulnerable` changes and `debug_gain_one_level` level values.
+- Diagnostic logs remain active until Debug Mode reliability is confirmed. Do not remove them prematurely.
+
+### Old Naruto-Clicker Comparison
+
+- In the previous naruto-clicker project, debug logic lived directly in the active gameplay screen (`ClickerScreen.gd`) and game state (`ClickerState.gd`). Because those scripts processed all relevant input, debug keys were reliably received.
+- In SuperHeroes, Arena is the active gameplay coordinator and should be the primary debug input owner for the same reason: it is the scene that is awake and processes input during a run.
+- DebugManager should own state and signals (service node pattern), not be the sole input receiver. A service node without a direct input path risks missing key events if Godot's input routing changes or if UI nodes consume input first.
+- Keeping debug level-up integrated with Arena also ensures it shares the same block conditions (pause, game-over, level-up, player dead) as the regular level-up flow.
 
 ## Settings Flow
 
@@ -343,6 +361,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not duplicate existing systems.
 - Keep patches small and focused.
 - Update `README.md` and `Agents.md` on every task.
+- Do not remove `DEBUG_INPUT`, `DEBUG_WIRING`, `DEBUG_MODE`, `DEBUG_LEVEL`, or `DEBUG_PLAYER` diagnostic logs until Debug Mode is confirmed working in the target environment.
+- Do not add extra debug cheats unless explicitly requested.
 - Enemy variants are currently dictionaries, not Resource assets.
 - Keep long-term difficulty formulas in `SpawnDirector`, not `EnemySpawner`.
 - Do not add monetization unless explicitly requested.

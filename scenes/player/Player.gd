@@ -124,6 +124,7 @@ func is_invulnerable() -> bool:
 
 func set_debug_invulnerable(enabled: bool) -> void:
 	debug_invulnerable = enabled
+	print("DEBUG_PLAYER: invulnerable=%s" % enabled)
 
 
 func is_debug_invulnerable() -> bool:
@@ -152,6 +153,7 @@ func debug_gain_one_level() -> void:
 		return
 
 	level += 1
+	print("DEBUG_PLAYER: level increased to %d" % level)
 	experience_changed.emit(current_xp, xp_to_next_level, level)
 	level_up_available.emit(level)
 
