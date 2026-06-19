@@ -60,13 +60,22 @@ Implemented foundation:
 - Variant-based XP values.
 - Player/enemy physical body collisions are separated so enemies do not push or displace the player.
 - Enemy contact damage, projectiles, and XP pickups use Area2D detection.
-- AbilityManager on the player.
-- Active ability input through `ability_1`.
-- Nova Pulse active ability.
-- Ability cooldown display in the HUD.
+- AbilityManager on the player with 3 active ability slots.
+- Active ability input through `ability_1` (J), `ability_2` (K), `ability_3` (L).
+- Nova Pulse active ability (slot 1 / J): area damage within radius.
+- Laser Beam active ability (slot 2 / K): line damage in front of player.
+- Hero Slam active ability (slot 3 / L): close-range burst damage around player.
+- 3-slot ability cooldown display in the HUD.
 - Simple in-world Nova Pulse visual feedback.
+- Laser Beam visual feedback (built-in Line2D beam with fade).
+- Hero Slam visual feedback (built-in expanding ring with fade).
+- Laser Beam and Hero Slam runtime upgrades (damage, cooldown, width/radius).
+- Player exposes get_aim_direction() used by Laser Beam direction targeting.
 - Virtual joystick for mobile movement.
-- Mobile Nova Pulse button.
+- Mobile Nova Pulse button (ability_1).
+- Mobile Laser Beam button (ability_2 / Beam).
+- Mobile Hero Slam button (ability_3 / Slam).
+- Mobile ability buttons show cooldown timers.
 - Keyboard and mobile input coexist.
 - Mobile controls are hidden on desktop by default unless forced.
 - Floating damage numbers.
@@ -163,6 +172,13 @@ Implemented foundation:
 
 Not implemented yet:
 
+- Mouse/manual ability aiming.
+- Ability unlock system (all 3 are available by default).
+- Ability icons.
+- Complex targeting indicators.
+- Status effects from abilities.
+- Ability loadouts or per-run selection.
+- Persistent ability progression.
 - Boss-specific art assets.
 - Boss sound effects.
 - More than 2 miniboss phases.

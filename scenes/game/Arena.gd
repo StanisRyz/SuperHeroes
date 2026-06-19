@@ -175,6 +175,20 @@ func _setup_mobile_controls(ability_manager: Node) -> void:
 	else:
 		push_warning("MobileControls is missing ability_1_pressed signal.")
 
+	if mobile_controls.has_signal("ability_2_pressed"):
+		if ability_manager != null and ability_manager.has_method("cast_ability_2"):
+			if not mobile_controls.ability_2_pressed.is_connected(ability_manager.cast_ability_2):
+				mobile_controls.ability_2_pressed.connect(ability_manager.cast_ability_2)
+		else:
+			push_warning("AbilityManager does not implement cast_ability_2().")
+
+	if mobile_controls.has_signal("ability_3_pressed"):
+		if ability_manager != null and ability_manager.has_method("cast_ability_3"):
+			if not mobile_controls.ability_3_pressed.is_connected(ability_manager.cast_ability_3):
+				mobile_controls.ability_3_pressed.connect(ability_manager.cast_ability_3)
+		else:
+			push_warning("AbilityManager does not implement cast_ability_3().")
+
 	if mobile_controls.has_method("setup_ability_manager"):
 		mobile_controls.setup_ability_manager(ability_manager)
 	if mobile_controls.has_method("setup_player"):

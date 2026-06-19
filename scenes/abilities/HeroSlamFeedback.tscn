@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://hero_slam_feedback_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/abilities/HeroSlamFeedback.gd" id="1_hero_slam_feedback_script"]
+
+[node name="HeroSlamFeedback" type="Node2D"]
+script = ExtResource("1_hero_slam_feedback_script")
+
+[node name="Ring" type="Line2D" parent="."]
+width = 6.0
+default_color = Color(1, 0.5, 0.1, 0.9)
+closed = true

@@ -2,6 +2,8 @@ extends Node
 
 const ATTACK_INTERVAL_MIN := 0.2
 const NOVA_COOLDOWN_MIN := 2.0
+const LASER_COOLDOWN_MIN := 3.0
+const SLAM_COOLDOWN_MIN := 3.5
 const DASH_COOLDOWN_MIN := 0.45
 const DASH_INVULNERABILITY_MAX := 0.6
 const PROJECTILE_COUNT_MAX := 7
@@ -148,6 +150,60 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"max_level": 3,
 		"description_template": "Increase projectile explosion radius by %s.",
 		"effect_value": 45.0
+	},
+	{
+		"id": "laser_damage_up",
+		"title": "Laser Focus",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 4,
+		"description_template": "Increase Laser Beam damage by %s.",
+		"effect_value": 8
+	},
+	{
+		"id": "laser_cooldown_down",
+		"title": "Laser Capacitor",
+		"rarity": "epic",
+		"weight": 0.4,
+		"max_level": 4,
+		"description_template": "Reduce Laser Beam cooldown by %ss.",
+		"effect_value": 0.5
+	},
+	{
+		"id": "laser_width_up",
+		"title": "Wide Beam",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase Laser Beam width by %s.",
+		"effect_value": 20.0
+	},
+	{
+		"id": "slam_damage_up",
+		"title": "Impact Force",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 4,
+		"description_template": "Increase Hero Slam damage by %s.",
+		"effect_value": 10
+	},
+	{
+		"id": "slam_radius_up",
+		"title": "Shockwave",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase Hero Slam radius by %s.",
+		"effect_value": 25.0
+	},
+	{
+		"id": "slam_cooldown_down",
+		"title": "Slam Ready",
+		"rarity": "epic",
+		"weight": 0.4,
+		"max_level": 4,
+		"description_template": "Reduce Hero Slam cooldown by %ss.",
+		"effect_value": 0.6
 	}
 ]
 
@@ -220,6 +276,18 @@ func apply_upgrade(upgrade_id: String) -> void:
 			applied = _apply_projectile_size_upgrade(effect_value)
 		"explosive_projectiles":
 			applied = _apply_explosive_projectiles_upgrade(effect_value)
+		"laser_damage_up":
+			applied = _apply_ability_number("laser_damage", effect_value)
+		"laser_cooldown_down":
+			applied = _apply_laser_cooldown_upgrade(effect_value)
+		"laser_width_up":
+			applied = _apply_ability_number("laser_width", effect_value)
+		"slam_damage_up":
+			applied = _apply_ability_number("slam_damage", effect_value)
+		"slam_radius_up":
+			applied = _apply_ability_number("slam_radius", effect_value)
+		"slam_cooldown_down":
+			applied = _apply_slam_cooldown_upgrade(effect_value)
 		_:
 			push_warning("Unknown upgrade id: %s" % upgrade_id)
 
@@ -366,6 +434,34 @@ func _apply_nova_cooldown_upgrade(amount) -> bool:
 		return false
 
 	ability_manager.set("nova_cooldown", maxf(NOVA_COOLDOWN_MIN, value - float(amount)))
+	return true
+
+
+func _apply_laser_cooldown_upgrade(amount) -> bool:
+	if ability_manager == null:
+		push_warning("UpgradeManager is missing AbilityManager reference.")
+		return false
+
+	var value = ability_manager.get("laser_cooldown")
+	if value == null:
+		push_warning("AbilityManager is missing laser_cooldown.")
+		return false
+
+	ability_manager.set("laser_cooldown", maxf(LASER_COOLDOWN_MIN, value - float(amount)))
+	return true
+
+
+func _apply_slam_cooldown_upgrade(amount) -> bool:
+	if ability_manager == null:
+		push_warning("UpgradeManager is missing AbilityManager reference.")
+		return false
+
+	var value = ability_manager.get("slam_cooldown")
+	if value == null:
+		push_warning("AbilityManager is missing slam_cooldown.")
+		return false
+
+	ability_manager.set("slam_cooldown", maxf(SLAM_COOLDOWN_MIN, value - float(amount)))
 	return true
 
 

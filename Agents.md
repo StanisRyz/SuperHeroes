@@ -20,10 +20,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/game/Arena.gd` - arena bounds, player setup, spawner setup, level-up flow, run lifecycle.
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
 - `scenes/game/RunManager.gd` - run timer, kill counter, and run end signal.
-- `scenes/abilities/AbilityManager.tscn` - player active ability manager scene.
-- `scenes/abilities/AbilityManager.gd` - active ability input, Nova Pulse, cooldown tracking, and cast signals.
+- `scenes/abilities/AbilityManager.tscn` - player active ability manager scene (3 slots wired).
+- `scenes/abilities/AbilityManager.gd` - 3-slot active ability logic, Nova/Laser/Slam, cooldown tracking, cast signals.
 - `scenes/abilities/NovaPulseFeedback.tscn` - simple in-world Nova Pulse feedback scene.
 - `scenes/abilities/NovaPulseFeedback.gd` - Nova Pulse feedback tween and cleanup logic.
+- `scenes/abilities/LaserBeamFeedback.tscn` - in-world Laser Beam feedback scene (built-in Line2D).
+- `scenes/abilities/LaserBeamFeedback.gd` - Laser Beam feedback fade tween and cleanup logic.
+- `scenes/abilities/HeroSlamFeedback.tscn` - in-world Hero Slam feedback scene (built-in ring Line2D).
+- `scenes/abilities/HeroSlamFeedback.gd` - Hero Slam expanding ring tween and cleanup logic.
 - `scenes/ui/FloatingText.tscn` - simple world-space floating text feedback scene.
 - `scenes/ui/FloatingText.gd` - floating text tween and cleanup logic.
 - `scenes/ui/FloatingTextSpawner.tscn` - utility node for spawning floating feedback text.
@@ -44,8 +48,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade definitions, option weighting, upgrade levels, and application logic.
 - `scenes/ui/GameHUD.tscn` - player HP, XP, time, and kill counter HUD scene.
 - `scenes/ui/GameHUD.gd` - player and run HUD binding.
-- `scenes/ui/MobileControls.tscn` - mobile virtual joystick and Nova Pulse button scene.
-- `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source.
+- `scenes/ui/MobileControls.tscn` - mobile virtual joystick and 3 ability buttons scene.
+- `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source (ability_1/2/3_pressed).
 - `scenes/ui/MainMenu.tscn` - frontend main menu scene.
 - `scenes/ui/MainMenu.gd` - main menu start and quit intent signals.
 - `scenes/ui/PauseMenu.tscn` - pause-time run menu scene.
@@ -171,11 +175,16 @@ The game is an original superhero survivors-like: the player moves around an are
 - Weighted upgrade option selection.
 - Upgrade rarity labels.
 - Dynamic upgrade descriptions.
-- AbilityManager on the player.
-- Active ability input through `ability_1`.
-- Nova Pulse active ability.
-- Ability cooldown HUD display.
-- Simple Nova Pulse visual feedback.
+- AbilityManager on the player with 3 active ability slots.
+- Active ability input through `ability_1` (J), `ability_2` (K), `ability_3` (L).
+- Nova Pulse active ability (slot 1).
+- Laser Beam active ability (slot 2): line damage in aim direction.
+- Hero Slam active ability (slot 3): close-range burst.
+- 3-slot ability cooldown HUD display.
+- Nova Pulse, Laser Beam, Hero Slam visual feedback (built-in nodes only).
+- Laser Beam and Hero Slam runtime upgrades (damage, cooldown, width/radius).
+- Player.get_aim_direction() for Laser Beam targeting.
+- Mobile ability buttons for all 3 slots.
 - Virtual joystick mobile movement foundation.
 - Mobile Nova Pulse button.
 - Keyboard and mobile input coexist.
@@ -359,20 +368,29 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Active Ability Flow
 
-- `AbilityManager` is a child of `Player`.
+- `AbilityManager` is a child of `Player` and owns all active ability logic and cooldowns.
 - Arena wires `AbilityManager` to the Player, EnemyContainer, HUD, and optionally UpgradeManager.
-- Nova Pulse uses `ability_1`.
-- HUD listens to `ability_cooldown_changed` and displays Nova Pulse readiness or remaining cooldown.
+- Slot 1: Nova Pulse uses `ability_1` (J) — radial area damage.
+- Slot 2: Laser Beam uses `ability_2` (K) — line damage in player's aim direction.
+- Slot 3: Hero Slam uses `ability_3` (L) — close-range burst damage.
+- All abilities are available from run start; no unlock system.
+- HUD listens to `ability_cooldown_changed` and displays readiness for all 3 slots.
+- MobileControls emits ability intents (ability_1/2/3_pressed) only; Arena wires them to AbilityManager.
+- GameHUD displays ability states only; no gameplay logic.
 - Cooldowns pause naturally while the tree is paused.
+- `Player.get_aim_direction()` returns the last non-zero movement direction; Laser Beam uses this as its cast direction.
+- Ability enemy scans happen only on cast, not every frame.
 
 ## Input Flow
 
 - Keyboard movement and ability input still use the Godot InputMap.
 - `MobileControls` emits a movement signal instead of moving the Player directly.
 - Arena wires `MobileControls.movement_changed` to `Player.set_external_move_vector`.
-- Arena wires the mobile ability button to `AbilityManager.cast_ability_1`.
+- Arena wires `ability_1_pressed` → `AbilityManager.cast_ability_1`.
+- Arena wires `ability_2_pressed` → `AbilityManager.cast_ability_2`.
+- Arena wires `ability_3_pressed` → `AbilityManager.cast_ability_3`.
 - Arena wires the mobile pause button to the same pause-open handler as keyboard pause.
-- `MobileControls` may listen to AbilityManager cooldown changes to update its button text.
+- `MobileControls` listens to `ability_cooldown_changed` and updates all 3 button texts.
 
 ## Collision Notes
 
@@ -430,13 +448,14 @@ The game is an original superhero survivors-like: the player moves around an are
 - Crit text.
 - Damage type colors.
 - Pickup magnet upgrades.
-- Mobile ability buttons for multiple abilities.
+- Mouse/manual ability aiming.
+- Ability unlock system.
+- Ability icons.
+- Complex targeting indicators.
+- Status effects from abilities.
+- Ability loadouts.
 - Input rebinding.
 - Character select.
-- Multiple active abilities.
-- Ability icons.
-- Ability targeting indicators.
-- Ability upgrade tree.
 - Projectile upgrades.
 - XP vacuum upgrades.
 - Bosses.
@@ -468,7 +487,12 @@ The game is an original superhero survivors-like: the player moves around an are
 - Do not use copyrighted superhero names, brands, logos, or specific existing characters.
 - Keep desktop browser and mobile landscape browser in mind.
 - Keep 16:9 and wide 20:9 landscape layouts in mind.
-- Do not add additional mobile ability buttons unless explicitly requested.
+- AbilityManager owns active ability logic and cooldowns; do not split this into Player.
+- Player exposes get_aim_direction() for ability targeting; do not add mouse aiming unless requested.
+- GameHUD displays ability states only; do not add gameplay logic to HUD.
+- MobileControls emits ability intents only; Arena wires them to AbilityManager.
+- Do not add ability unlock systems unless explicitly requested.
+- Do not add status effects or knockback to abilities unless explicitly requested.
 - Do not make `MobileControls` directly mutate gameplay except through signals.
 - Do not add persistence unless explicitly requested.
 - Do not use Yandex storage until explicitly requested.

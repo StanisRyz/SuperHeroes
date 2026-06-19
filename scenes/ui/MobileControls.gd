@@ -2,6 +2,8 @@ extends CanvasLayer
 
 signal movement_changed(direction: Vector2)
 signal ability_1_pressed
+signal ability_2_pressed
+signal ability_3_pressed
 signal pause_pressed
 signal dash_pressed
 
@@ -17,6 +19,8 @@ var _settings_manager: Node
 @onready var joystick_base: Control = get_node_or_null("Root/JoystickArea/Base")
 @onready var joystick_knob: Control = get_node_or_null("Root/JoystickArea/Base/Knob")
 @onready var ability_button: Button = get_node_or_null("Root/AbilityButton")
+@onready var beam_button: Button = get_node_or_null("Root/BeamButton")
+@onready var slam_button: Button = get_node_or_null("Root/SlamButton")
 @onready var dash_button: Button = get_node_or_null("Root/DashButton")
 @onready var pause_button: Button = get_node_or_null("Root/PauseButton")
 
@@ -35,6 +39,16 @@ func _ready() -> void:
 	elif not ability_button.pressed.is_connected(_on_ability_button_pressed):
 		ability_button.pressed.connect(_on_ability_button_pressed)
 
+	if beam_button == null:
+		push_warning("MobileControls could not find BeamButton.")
+	elif not beam_button.pressed.is_connected(_on_beam_button_pressed):
+		beam_button.pressed.connect(_on_beam_button_pressed)
+
+	if slam_button == null:
+		push_warning("MobileControls could not find SlamButton.")
+	elif not slam_button.pressed.is_connected(_on_slam_button_pressed):
+		slam_button.pressed.connect(_on_slam_button_pressed)
+
 	if dash_button == null:
 		push_warning("MobileControls could not find DashButton.")
 	elif not dash_button.pressed.is_connected(_on_dash_button_pressed):
@@ -47,6 +61,8 @@ func _ready() -> void:
 
 	_update_joystick_visual(Vector2.ZERO)
 	_update_ability_button(0.0)
+	_update_beam_button(0.0)
+	_update_slam_button(0.0)
 	_update_dash_button(0.0)
 
 
@@ -57,6 +73,8 @@ func _process(_delta: float) -> void:
 
 func setup_ability_manager(ability_manager: Node) -> void:
 	_update_ability_button(0.0)
+	_update_beam_button(0.0)
+	_update_slam_button(0.0)
 
 	if ability_manager == null:
 		return
@@ -191,27 +209,38 @@ func _get_base_center() -> Vector2:
 func _on_ability_button_pressed() -> void:
 	if get_tree().paused:
 		return
-
 	ability_1_pressed.emit()
+
+
+func _on_beam_button_pressed() -> void:
+	if get_tree().paused:
+		return
+	ability_2_pressed.emit()
+
+
+func _on_slam_button_pressed() -> void:
+	if get_tree().paused:
+		return
+	ability_3_pressed.emit()
 
 
 func _on_pause_button_pressed() -> void:
 	if get_tree().paused:
 		return
-
 	pause_pressed.emit()
 
 
 func _on_dash_button_pressed() -> void:
 	if get_tree().paused:
 		return
-
 	dash_pressed.emit()
 
 
 func _on_ability_cooldown_changed(slot: int, cooldown_remaining: float, _cooldown_total: float) -> void:
-	if slot == 1:
-		_update_ability_button(cooldown_remaining)
+	match slot:
+		1: _update_ability_button(cooldown_remaining)
+		2: _update_beam_button(cooldown_remaining)
+		3: _update_slam_button(cooldown_remaining)
 
 
 func _on_dash_cooldown_changed(cooldown_remaining: float, _cooldown_total: float) -> void:
@@ -221,21 +250,25 @@ func _on_dash_cooldown_changed(cooldown_remaining: float, _cooldown_total: float
 func _update_ability_button(cooldown_remaining: float) -> void:
 	if ability_button == null:
 		return
+	ability_button.text = "Nova" if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
 
-	if cooldown_remaining <= 0.0:
-		ability_button.text = "Nova"
-	else:
-		ability_button.text = "%.1f" % cooldown_remaining
+
+func _update_beam_button(cooldown_remaining: float) -> void:
+	if beam_button == null:
+		return
+	beam_button.text = "Beam" if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
+
+
+func _update_slam_button(cooldown_remaining: float) -> void:
+	if slam_button == null:
+		return
+	slam_button.text = "Slam" if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
 
 
 func _update_dash_button(cooldown_remaining: float) -> void:
 	if dash_button == null:
 		return
-
-	if cooldown_remaining <= 0.0:
-		dash_button.text = "Dash"
-	else:
-		dash_button.text = "%.1f" % cooldown_remaining
+	dash_button.text = "Dash" if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
 
 
 func _update_visibility_from_settings() -> void:

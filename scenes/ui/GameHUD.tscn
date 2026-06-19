@@ -76,12 +76,20 @@ text = "Threat 1"
 layout_mode = 0
 offset_left = 64.0
 offset_top = 232.0
-offset_right = 344.0
-offset_bottom = 260.0
+offset_right = 380.0
+offset_bottom = 300.0
 
 [node name="AbilityCooldownLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
 text = "Nova Pulse (J): Ready"
+
+[node name="LaserCooldownLabel" type="Label" parent="Root/AbilityPanel"]
+layout_mode = 2
+text = "Laser Beam (K): Ready"
+
+[node name="SlamCooldownLabel" type="Label" parent="Root/AbilityPanel"]
+layout_mode = 2
+text = "Hero Slam (L): Ready"
 
 [node name="DashCooldownLabel" type="Label" parent="Root/AbilityPanel"]
 layout_mode = 2
@@ -90,9 +98,9 @@ text = "Dash: Ready"
 [node name="BuffPanel" type="VBoxContainer" parent="Root"]
 layout_mode = 0
 offset_left = 64.0
-offset_top = 284.0
+offset_top = 316.0
 offset_right = 400.0
-offset_bottom = 340.0
+offset_bottom = 372.0
 
 [node name="ShieldLabel" type="Label" parent="Root/BuffPanel"]
 layout_mode = 2

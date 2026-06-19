@@ -34,6 +34,7 @@ var _has_playable_rect := false
 var _hit_flash_tween: Tween
 var _camera_shake_tween: Tween
 var _screen_shake_enabled := true
+var last_aim_direction: Vector2 = Vector2.RIGHT
 var _last_move_direction := Vector2.RIGHT
 var _was_invulnerable := false
 
@@ -65,6 +66,7 @@ func _physics_process(delta: float) -> void:
 		var direction := _get_current_move_direction()
 		if not direction.is_zero_approx():
 			_last_move_direction = direction
+			last_aim_direction = direction
 		velocity = direction * speed
 
 	move_and_slide()
@@ -106,6 +108,7 @@ func try_dash() -> bool:
 		return false
 
 	dash_direction = _get_dash_direction()
+	last_aim_direction = dash_direction
 	is_dashing = true
 	dash_time_remaining = dash_duration
 	dash_cooldown_remaining = dash_cooldown
@@ -171,6 +174,10 @@ func debug_gain_one_level() -> void:
 	print("DEBUG_PLAYER: level increased to %d" % level)
 	experience_changed.emit(current_xp, xp_to_next_level, level)
 	level_up_available.emit(level)
+
+
+func get_aim_direction() -> Vector2:
+	return last_aim_direction if not last_aim_direction.is_zero_approx() else Vector2.RIGHT
 
 
 func set_external_move_vector(direction: Vector2) -> void:

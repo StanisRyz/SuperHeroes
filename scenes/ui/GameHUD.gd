@@ -11,6 +11,8 @@ var player: Node
 @onready var kill_count_label: Label = get_node_or_null("Root/RunPanel/KillCountLabel")
 @onready var threat_label: Label = get_node_or_null("Root/RunPanel/ThreatLabel")
 @onready var ability_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/AbilityCooldownLabel")
+@onready var laser_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/LaserCooldownLabel")
+@onready var slam_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/SlamCooldownLabel")
 @onready var dash_cooldown_label: Label = get_node_or_null("Root/AbilityPanel/DashCooldownLabel")
 @onready var shield_label: Label = get_node_or_null("Root/BuffPanel/ShieldLabel")
 @onready var move_speed_label: Label = get_node_or_null("Root/BuffPanel/MoveSpeedLabel")
@@ -93,6 +95,8 @@ func _setup_run_manager(run_manager: Node) -> void:
 
 func _setup_ability_manager(ability_manager: Node) -> void:
 	_update_ability_cooldown(1, 0.0, 0.0)
+	_update_ability_cooldown(2, 0.0, 0.0)
+	_update_ability_cooldown(3, 0.0, 0.0)
 
 	if ability_manager == null:
 		return
@@ -100,15 +104,27 @@ func _setup_ability_manager(ability_manager: Node) -> void:
 	if ability_manager.has_signal("ability_cooldown_changed") and not ability_manager.ability_cooldown_changed.is_connected(_update_ability_cooldown):
 		ability_manager.ability_cooldown_changed.connect(_update_ability_cooldown)
 
+	if ability_manager.has_method("get_all_ability_states"):
+		var states: Dictionary = ability_manager.get_all_ability_states()
+		for slot: int in states.keys():
+			var state: Dictionary = states[slot]
+			_update_ability_cooldown(slot, float(state.get("cooldown_remaining", 0.0)), float(state.get("cooldown_total", 0.0)))
+
 
 func _update_ability_cooldown(slot: int, cooldown_remaining: float, _cooldown_total: float) -> void:
-	if slot != 1 or ability_cooldown_label == null:
-		return
-
-	if cooldown_remaining <= 0.0:
-		ability_cooldown_label.text = "Nova Pulse (J): Ready"
-	else:
-		ability_cooldown_label.text = "Nova Pulse (J): %.1fs" % cooldown_remaining
+	match slot:
+		1:
+			if ability_cooldown_label == null:
+				return
+			ability_cooldown_label.text = "Nova Pulse (J): Ready" if cooldown_remaining <= 0.0 else "Nova Pulse (J): %.1fs" % cooldown_remaining
+		2:
+			if laser_cooldown_label == null:
+				return
+			laser_cooldown_label.text = "Laser Beam (K): Ready" if cooldown_remaining <= 0.0 else "Laser Beam (K): %.1fs" % cooldown_remaining
+		3:
+			if slam_cooldown_label == null:
+				return
+			slam_cooldown_label.text = "Hero Slam (L): Ready" if cooldown_remaining <= 0.0 else "Hero Slam (L): %.1fs" % cooldown_remaining
 
 
 func _update_dash_cooldown(cooldown_remaining: float, _cooldown_total: float) -> void:
