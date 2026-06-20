@@ -1096,6 +1096,23 @@ DEBUG_PLAYER: invulnerable=true
 | 5 | Select `rage_wave_worldbreaker`, then cast Rage Wave | Worldbreaker behavior still applies |
 | 6 | Select `rage_leap_meteor_crash`, then cast Rage Leap | Meteor Crash behavior still applies |
 
+### Active Evolutions Pack
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Complete a ready active triple | OverdriveScreen offers an `ACTIVE EVOLUTION -> <TARGET>` card only when `effect_status` is implemented |
+| 2 | Select `solar_beam_cataclysm`, then cast Solar Beam | Cataclysm still fires a giant beam with delayed burn pulse and `CATACLYSM` feedback |
+| 3 | Select `frost_breath_absolute_zero`, then cast Frost Breath | Absolute Zero still fires a huge freezing cone with heavy slow/freeze and `ABSOLUTE ZERO` feedback |
+| 4 | Select `death_dash_solar_execution`, then cast Death Dash | Death Dash becomes Final Flash: longer/wider red-gold dash, high path damage, low-health bonus damage, and `FINAL FLASH` feedback; multi-hit dashes create a `SOLAR FLASH` pulse |
+| 5 | Select `smoke_screen_blackout`, then cast Smoke Screen | Smoke Screen becomes Blackout: much larger and longer field, repeated slow/marks, stronger player damage reduction inside, and `BLACKOUT` feedback |
+| 6 | Select `trap_chain_detonation_evolution`, then trigger Explosive Trap | Chain Detonation still creates cascading marked explosions and `CHAIN DETONATION` feedback |
+| 7 | Select `hook_execution_pull`, then cast Grappling Hook | Execution Pull still deals high single-target damage and detonates marked targets with `EXECUTION` feedback |
+| 8 | Select `rage_wave_worldbreaker`, then cast Rage Wave | Worldbreaker still creates multiple expanding shockwaves with heavy slow and `WORLDBREAKER` feedback |
+| 9 | Select `mighty_clap_thunderclap`, then cast Mighty Clap | Mighty Clap becomes Rampage Impact: huge Rage-scaled cone, strong knockback, delayed second clap, and `RAMPAGE IMPACT` feedback |
+| 10 | Select `rage_leap_meteor_crash`, then cast Rage Leap | Meteor Crash still creates huge landing AoE plus delayed second impact and `METEOR CRASH` feedback |
+| 11 | Inspect DebugStatsOverlay and BuildSlotsWindow | DebugStatsOverlay shows selected active evolution ids/titles; BuildSlotsWindow remains read-only and shows applied evolution titles |
+| 12 | Inspect scope | Passive Evolutions Pack remains unimplemented; 4/4/4 slots, shared passives, hero base kits, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
+
 ### Attack Evolutions Pack
 
 | # | Test | Expected |
@@ -1114,7 +1131,7 @@ DEBUG_PLAYER: invulnerable=true
 | 12 | Complete a passive placeholder triple | Placeholder passive evolutions are still filtered out and not offered |
 | 13 | Check DebugStatsOverlay and BuildSlotsWindow | DebugStatsOverlay shows selected attack evolution ids; BuildSlotsWindow remains read-only and shows applied evolution titles |
 | 14 | Restart, win, defeat, or quit to menu | Attack evolution state is cleared with the fresh run; no evolution state is saved |
-| 15 | Inspect scope | Active Evolutions Pack and Passive Evolutions Pack are not implemented; 4/4/4 slots, shared passives, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
+| 15 | Inspect scope | Active Evolutions Pack remains implemented and Passive Evolutions Pack is not implemented; 4/4/4 slots, shared passives, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
 
 ### Regression - unchanged systems
 

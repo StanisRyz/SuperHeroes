@@ -139,10 +139,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "death_dash",
 		"target_type": "active",
 		"target_id": "death_dash",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "death_dash_solar_execution",
-		"title": "Solar Execution",
-		"description": "Future evolution for Death Dash: scorching kill dash.",
+		"title": "Final Flash",
+		"description": "Transforms Death Dash into a long execution dash with low-health bonus damage and a solar flash pulse.",
 		"required_levels": {},
 	},
 	{
@@ -187,10 +187,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "smoke_screen",
 		"target_type": "active",
 		"target_id": "smoke_screen",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "smoke_screen_blackout",
 		"title": "Blackout",
-		"description": "Future evolution for Smoke Screen: total area denial cloud.",
+		"description": "Transforms Smoke Screen into a huge blackout field with longer uptime, stronger slow/marks, and heavier damage reduction.",
 		"required_levels": {},
 	},
 	{
@@ -376,10 +376,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "mighty_clap",
 		"target_type": "active",
 		"target_id": "mighty_clap",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "mighty_clap_thunderclap",
-		"title": "Thunderclap",
-		"description": "Future evolution for Mighty Clap: earth-shattering impact slam.",
+		"title": "Rampage Impact",
+		"description": "Transforms Mighty Clap into a huge Rage-scaled cone shockwave with heavy knockback and a delayed second clap.",
 		"required_levels": {},
 	},
 	{
@@ -725,6 +725,7 @@ func debug_get_evolution_grid_state() -> Dictionary:
 		"ready_type_counts": get_ready_evolution_type_counts(hero_id),
 		"selected_type_counts": get_selected_evolution_type_counts(hero_id),
 		"applied_titles": get_applied_evolution_titles(),
+		"applied_ids": get_applied_evolutions(),
 		"triple_states": triple_states,
 		"closest_triple": closest,
 		"validation": validate_evolution_grid(hero_id),
@@ -821,6 +822,8 @@ func _is_implemented_evolution_id(evolution_id: String) -> bool:
 		"solar_beam_burning_judgment",
 		"frost_breath_absolute_zero",
 		"frost_breath_glacier_front",
+		"death_dash_solar_execution",
+		"smoke_screen_blackout",
 		"smoke_screen_tactical_cover",
 		"smoke_screen_choking_zone",
 		"trap_chain_detonation_evolution",
@@ -829,6 +832,7 @@ func _is_implemented_evolution_id(evolution_id: String) -> bool:
 		"rage_wave_worldbreaker",
 		"rage_wave_earthsplitter",
 		"rage_wave_crushing_storm",
+		"mighty_clap_thunderclap",
 		"mighty_clap_seismic_fan",
 		"rage_leap_meteor_crash",
 	].has(evolution_id)
@@ -843,12 +847,18 @@ func _apply_active_evolution_effect(evolution_id: String) -> bool:
 			ability_manager.set("solar_beam_cataclysm_enabled", true)
 		"frost_breath_absolute_zero":
 			ability_manager.set("frost_breath_absolute_zero_enabled", true)
+		"death_dash_solar_execution":
+			ability_manager.set("death_dash_final_flash_enabled", true)
+		"smoke_screen_blackout":
+			ability_manager.set("smoke_screen_blackout_enabled", true)
 		"trap_chain_detonation_evolution":
 			ability_manager.set("explosive_trap_chain_evolution_enabled", true)
 		"hook_execution_pull":
 			ability_manager.set("grappling_hook_execution_enabled", true)
 		"rage_wave_worldbreaker":
 			ability_manager.set("rage_wave_worldbreaker_enabled", true)
+		"mighty_clap_thunderclap":
+			ability_manager.set("mighty_clap_rampage_impact_enabled", true)
 		"rage_leap_meteor_crash":
 			ability_manager.set("rage_leap_meteor_crash_enabled", true)
 		_:

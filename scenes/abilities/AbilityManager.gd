@@ -128,9 +128,12 @@ const KIT_GENERIC := "generic"
 # ── Evolution flags — set by EvolutionManager.apply_evolution() ───────────────
 @export var solar_beam_cataclysm_enabled: bool = false
 @export var frost_breath_absolute_zero_enabled: bool = false
+@export var death_dash_final_flash_enabled: bool = false
+@export var smoke_screen_blackout_enabled: bool = false
 @export var explosive_trap_chain_evolution_enabled: bool = false
 @export var grappling_hook_execution_enabled: bool = false
 @export var rage_wave_worldbreaker_enabled: bool = false
+@export var mighty_clap_rampage_impact_enabled: bool = false
 @export var rage_leap_meteor_crash_enabled: bool = false
 
 var player: Node2D
@@ -185,9 +188,12 @@ func set_hero_kit(hero_id: String, kit_id: String, kit_data: Dictionary = {}) ->
 	rage = 0.0
 	solar_beam_cataclysm_enabled = false
 	frost_breath_absolute_zero_enabled = false
+	death_dash_final_flash_enabled = false
+	smoke_screen_blackout_enabled = false
 	explosive_trap_chain_evolution_enabled = false
 	grappling_hook_execution_enabled = false
 	rage_wave_worldbreaker_enabled = false
+	mighty_clap_rampage_impact_enabled = false
 	rage_leap_meteor_crash_enabled = false
 	_tactical_marks.clear()
 	for screen in _active_smoke_screens:
@@ -489,6 +495,25 @@ func _try_cast_death_dash() -> void:
 		return
 	var direction := _get_player_aim_direction()
 	var start_position := player.global_position
+
+	if death_dash_final_flash_enabled:
+		var flash_distance := death_dash_distance * 1.9
+		var flash_width := death_dash_path_width * 2.1
+		var flash_damage := _scale_int(death_dash_damage * 3, get_solar_damage_multiplier())
+		var flash_hits := _damage_enemies_in_laser_with_execute(start_position, direction, flash_damage, flash_distance, flash_width, 0.35, 1.85)
+		_grant_brief_invulnerability(death_dash_invulnerability + death_dash_safety_bonus + 0.28)
+		_move_player_safely(direction, flash_distance)
+		var flash_length := start_position.distance_to(player.global_position)
+		_spawn_laser_feedback_at(start_position, direction, flash_length, flash_width)
+		_spawn_colored_beam_visual(start_position, direction, flash_length, flash_width * 1.15, Color(1.0, 0.24, 0.08, 0.70), 0.42)
+		_spawn_colored_beam_visual(start_position, direction, flash_length, flash_width * 0.45, Color(1.0, 0.85, 0.18, 0.85), 0.30)
+		if flash_hits >= 3:
+			_schedule_final_flash_pulse(player.global_position, maxi(roundi(float(flash_damage) * 0.55), 1), flash_width * 2.4)
+		_status("FINAL FLASH" if flash_hits > 0 else "FINAL FLASH MISS", start_position + Vector2.UP * 42.0)
+		_shake(10.0, 0.22)
+		_finish_cast(3, "death_dash", death_dash_cooldown)
+		return
+
 	var damage := _scale_int(death_dash_damage, get_solar_damage_multiplier())
 	var path_hits := _damage_enemies_in_laser(start_position, direction, damage, death_dash_distance, death_dash_path_width)
 	_grant_brief_invulnerability(death_dash_invulnerability + death_dash_safety_bonus)
@@ -504,18 +529,35 @@ func _try_cast_smoke_screen() -> void:
 	if not _guard_cast(1):
 		return
 	var cast_position := player.global_position
-	var smoke_visual := _spawn_smoke_visual(cast_position, smoke_screen_radius)
+	var radius := smoke_screen_radius
+	var duration := smoke_screen_duration
+	var slow_multiplier := smoke_screen_slow_multiplier
+	var slow_duration := smoke_screen_slow_duration
+	var damage_reduction := smoke_screen_damage_reduction
+	if smoke_screen_blackout_enabled:
+		radius *= 2.15
+		duration *= 1.85
+		slow_multiplier = minf(smoke_screen_slow_multiplier, 0.30)
+		slow_duration *= 1.65
+		damage_reduction = maxf(smoke_screen_damage_reduction, 0.62)
+	var smoke_visual := _spawn_smoke_visual(cast_position, radius)
 	_active_smoke_screens.append({
 		"position": cast_position,
-		"radius": smoke_screen_radius,
-		"remaining": smoke_screen_duration,
-		"slow_multiplier": smoke_screen_slow_multiplier,
-		"slow_duration": smoke_screen_slow_duration,
+		"radius": radius,
+		"remaining": duration,
+		"slow_multiplier": slow_multiplier,
+		"slow_duration": slow_duration,
+		"damage_reduction": damage_reduction,
 		"visual": smoke_visual,
-		"mark_tick": 0.5,
+		"mark_tick": 0.5 if not smoke_screen_blackout_enabled else 0.35,
 	})
-	_status("SMOKE SCREEN", cast_position + Vector2.UP * 42.0)
-	_shake(4.0, 0.10)
+	if smoke_screen_blackout_enabled:
+		_spawn_ring_visual(cast_position, radius, Color(0.16, 0.20, 0.30, 0.88), 0.72)
+		_status("BLACKOUT", cast_position + Vector2.UP * 42.0)
+		_shake(7.0, 0.16)
+	else:
+		_status("SMOKE SCREEN", cast_position + Vector2.UP * 42.0)
+		_shake(4.0, 0.10)
 	_finish_cast(1, "smoke_screen", smoke_screen_cooldown)
 
 
@@ -627,6 +669,27 @@ func _try_cast_mighty_clap() -> void:
 	var damage := _scale_int(mighty_clap_damage, multiplier)
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
+
+	if mighty_clap_rampage_impact_enabled:
+		var rage_bonus := 1.0 + _rage_ratio() * 0.75
+		var impact_damage := _scale_int(mighty_clap_damage * 2, multiplier * rage_bonus)
+		var impact_range := mighty_clap_range * 2.15
+		var impact_cone := minf(mighty_clap_cone_degrees * 1.75, 145.0)
+		var impact_half_angle := impact_cone * 0.5
+		var impact_hits := _damage_enemies_in_cone(origin, direction, impact_damage, impact_range, impact_half_angle)
+		if mighty_clap_knockback_force > 0.0:
+			_apply_knockback_in_cone(origin, direction, impact_range, impact_half_angle, mighty_clap_knockback_force * 2.35)
+		_apply_enemy_modifier_in_cone(origin, direction, impact_range, impact_half_angle, "rampage_impact_stagger",
+			{"speed_multiplier": 0.38}, 1.2)
+		_add_rage_from_ability_damage(impact_hits, impact_damage)
+		_spawn_mighty_clap_visual(origin, direction, impact_cone, impact_range)
+		_spawn_colored_beam_visual(origin, direction, impact_range, minf(impact_range * 0.55, 360.0), Color(1.0, 0.52, 0.12, 0.50), 0.36)
+		_schedule_rampage_second_clap(origin, direction, maxi(roundi(float(impact_damage) * 0.70), 1), impact_range * 0.82, impact_half_angle, mighty_clap_knockback_force * 1.5)
+		_status("RAMPAGE IMPACT" if impact_hits > 0 else "RAMPAGE MISS", origin + Vector2.UP * 42.0)
+		_shake(13.0, 0.30)
+		_finish_cast(2, "mighty_clap", mighty_clap_cooldown)
+		return
+
 	var half_angle := mighty_clap_cone_degrees * 0.5
 	var hits := _damage_enemies_in_cone(origin, direction, damage, mighty_clap_range, half_angle)
 	if mighty_clap_knockback_force > 0.0:
@@ -730,6 +793,33 @@ func _damage_enemies_in_laser(origin: Vector2, direction: Vector2, damage: int, 
 		if absf(to_enemy.dot(perp_axis)) <= half_width:
 			enemy.take_damage(_get_damage_for_target(enemy, damage, bonus_target, bonus_multiplier))
 			hit_count += 1
+	return hit_count
+
+
+func _damage_enemies_in_laser_with_execute(origin: Vector2, direction: Vector2, damage: int, beam_range: float,
+		beam_width: float, execute_threshold: float, execute_multiplier: float) -> int:
+	if enemy_container == null or not is_instance_valid(enemy_container):
+		push_warning("AbilityManager is missing EnemyContainer reference.")
+		return 0
+	var hit_count := 0
+	var half_width := beam_width * 0.5
+	var perp_axis := direction.orthogonal()
+	for enemy in enemy_container.get_children():
+		if not _is_valid_enemy(enemy):
+			continue
+		var to_enemy: Vector2 = (enemy as Node2D).global_position - origin
+		var proj: float = to_enemy.dot(direction)
+		if proj < 0.0 or proj > beam_range:
+			continue
+		if absf(to_enemy.dot(perp_axis)) > half_width:
+			continue
+		var final_damage := damage
+		var max_health := int(enemy.get("max_health"))
+		var current_health := int(enemy.get("current_health"))
+		if max_health > 0 and float(current_health) / float(max_health) <= execute_threshold:
+			final_damage = _scale_int(damage, execute_multiplier)
+		enemy.take_damage(final_damage)
+		hit_count += 1
 	return hit_count
 
 
@@ -927,6 +1017,7 @@ func _tick_smoke_screens(delta: float) -> void:
 		return
 	var remaining_screens: Array[Dictionary] = []
 	var player_in_smoke := false
+	var best_damage_reduction := 0.0
 	for screen in _active_smoke_screens:
 		var pos: Vector2 = screen["position"]
 		var radius: float = screen["radius"]
@@ -935,6 +1026,7 @@ func _tick_smoke_screens(delta: float) -> void:
 		if player != null and is_instance_valid(player):
 			if player.global_position.distance_to(pos) <= radius:
 				player_in_smoke = true
+				best_damage_reduction = maxf(best_damage_reduction, float(screen.get("damage_reduction", smoke_screen_damage_reduction)))
 		var mark_tick: float = float(screen["mark_tick"]) + delta
 		if mark_tick >= 0.5:
 			mark_tick -= 0.5
@@ -948,7 +1040,7 @@ func _tick_smoke_screens(delta: float) -> void:
 				visual.queue_free()
 	_active_smoke_screens = remaining_screens
 	if player != null and player.get("damage_reduction") != null:
-		player.set("damage_reduction", smoke_screen_damage_reduction if player_in_smoke else 0.0)
+		player.set("damage_reduction", best_damage_reduction if player_in_smoke else 0.0)
 
 
 func _apply_smoke_effects(world_position: Vector2, radius: float, slow_mult: float, slow_dur: float) -> void:
@@ -1155,6 +1247,36 @@ func _schedule_meteor_second_impact(world_position: Vector2, damage: int, radius
 		_spawn_slam_feedback_at(world_position, radius)
 		_spawn_ring_visual(world_position, radius, Color(1.0, 0.30, 0.05, 0.92), 0.50)
 		_shake(10.0, 0.26)
+	)
+
+
+func _schedule_final_flash_pulse(world_position: Vector2, damage: int, radius: float) -> void:
+	var timer := get_tree().create_timer(0.16)
+	timer.timeout.connect(func() -> void:
+		if not is_instance_valid(self):
+			return
+		_damage_enemies_in_radius_at(world_position, damage, radius)
+		_spawn_ring_visual(world_position, radius, Color(1.0, 0.78, 0.16, 0.92), 0.34)
+		_spawn_slam_feedback_at(world_position, radius * 0.55)
+		_status("SOLAR FLASH", world_position + Vector2.UP * 42.0)
+		_shake(8.0, 0.18)
+	)
+
+
+func _schedule_rampage_second_clap(origin: Vector2, direction: Vector2, damage: int, range_: float,
+		half_angle_deg: float, knockback_force: float) -> void:
+	var timer := get_tree().create_timer(0.30)
+	timer.timeout.connect(func() -> void:
+		if not is_instance_valid(self):
+			return
+		var hits := _damage_enemies_in_cone(origin, direction, damage, range_, half_angle_deg)
+		if knockback_force > 0.0:
+			_apply_knockback_in_cone(origin, direction, range_, half_angle_deg, knockback_force)
+		_add_rage_from_ability_damage(hits, damage)
+		_spawn_mighty_clap_visual(origin, direction, half_angle_deg * 2.0, range_)
+		_spawn_colored_beam_visual(origin, direction, range_, minf(range_ * 0.45, 280.0), Color(1.0, 0.72, 0.18, 0.48), 0.28)
+		_status("SECOND CLAP" if hits > 0 else "SECOND CLAP MISS", origin + Vector2.UP * 42.0)
+		_shake(7.0, 0.16)
 	)
 
 

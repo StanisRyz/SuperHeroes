@@ -444,23 +444,28 @@ Attack evolution state is runtime-only in `PlayerAutoAttack`; it is cleared on n
 
 ### Implemented Active Evolution IDs
 
-Do not add the Active Evolutions Pack or Passive Evolutions Pack unless explicitly requested. Current implemented active evolutions are:
+The Active Evolutions Pack is implemented in `AbilityManager.gd`. These effects must be game-breaking behavior changes with obvious visuals/status text, not simple stat-only bonuses:
 
 | evolution_id | hero_id | target_type | target_id |
 |---|---|---|---|
 | `solar_beam_cataclysm` | guardian | active | `solar_beam` |
 | `frost_breath_absolute_zero` | guardian | active | `frost_breath` |
+| `death_dash_solar_execution` | guardian | active | `death_dash` |
+| `smoke_screen_blackout` | blaster | active | `smoke_screen` |
 | `trap_chain_detonation_evolution` | blaster | active | `explosive_trap` |
 | `hook_execution_pull` | blaster | active | `grappling_hook` |
 | `rage_wave_worldbreaker` | vanguard | active | `rage_wave` |
+| `mighty_clap_thunderclap` | vanguard | active | `mighty_clap` |
 | `rage_leap_meteor_crash` | vanguard | active | `rage_leap` |
+
+The real active grid ids for the Final Flash and Rampage Impact effects are `death_dash_solar_execution` and `mighty_clap_thunderclap`; the similarly named passive-placeholder ids remain placeholders until the Passive Evolutions Pack exists. Active evolution state is runtime-only in `AbilityManager`; flags are set by `EvolutionManager.apply_evolution()` and reset by `AbilityManager.set_hero_kit()`.
 
 ### Other Rules
 
 - EvolutionRewardScreen is display-only for legacy evolution reward flow; OverdriveScreen is the triple-grid path.
 - Arena coordinates opening screens, pausing/resuming, applying selected evolutions, and announcements.
 - Miniboss defeat remains the main evolution reward path for legacy evolutions; elite rewards are optional through `elite_reward_chance` and default to off.
-- Placeholder evolutions must not be offered. Do not add persistence, meta-progression, evolution unlock storage, evolution art assets, active/passive effect packs, slot-rule changes, rewards changes, stage changes, enemy changes, boss-flow changes, or Build Evolution unless explicitly requested.
+- Placeholder evolutions must not be offered. Do not add persistence, meta-progression, evolution unlock storage, evolution art assets, passive effect packs, slot-rule changes, rewards changes, stage changes, enemy changes, boss-flow changes, or Build Evolution unless explicitly requested.
 
 ## Meta Progression Architecture
 

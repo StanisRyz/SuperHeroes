@@ -302,6 +302,9 @@ func _build_stats_text() -> String:
 			var applied_titles: Array = evo.get("applied_titles", [])
 			if not applied_titles.is_empty():
 				lines.append("Overdrive: %s" % ", ".join(applied_titles))
+			var applied_ids: Array = evo.get("applied_ids", [])
+			if not applied_ids.is_empty():
+				lines.append("Applied ids: %s" % ", ".join(applied_ids))
 			var closest: Dictionary = evo.get("closest_triple", {})
 			if not closest.is_empty():
 				var sel := int(closest.get("selected_lines_count", 0))
@@ -316,6 +319,9 @@ func _build_stats_text() -> String:
 			var titles: Array = evo.get("applied_titles", [])
 			if not titles.is_empty():
 				lines.append("Applied: %s" % ", ".join(titles))
+			var ids: Array = evo.get("applied_ids", [])
+			if not ids.is_empty():
+				lines.append("Applied ids: %s" % ", ".join(ids))
 
 	if _passive_ability_manager != null and is_instance_valid(_passive_ability_manager):
 		lines.append("-- Passives --")
