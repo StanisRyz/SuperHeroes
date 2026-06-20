@@ -1798,4 +1798,59 @@ DEBUG_PLAYER: invulnerable=true
 | 5 | Run rewards | `final_boss_defeated` flag and +35 reward still work |
 | 6 | Meta progression | No Training, currency, saves, or meta state altered by Boss Encounter 2.0 |
 | 7 | Miniboss | Miniboss health bar still works; miniboss encounter is unchanged |
+
+---
+
+## Main Menu Collection Entry Validation
+
+### Setup
+
+```sh
+godot --headless --editor --quit
+git status
+git diff --stat
+```
+
+### Collection Button Presence
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open main menu | Bottom bar shows three buttons: Select Hero, Training, Collection |
+| 2 | Inspect layout on 16:9 | All three buttons visible and not clipped |
+| 3 | Settings top-left | Unchanged |
+| 4 | Help / Controls top-right | Unchanged |
+| 5 | Last Choice hint | Visible / hidden as before |
+
+### Collection Screen Open / Close
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click Collection button | Main menu hides; HeroCollectionScreen appears with title "Collection", subtitle, and placeholder body text |
+| 2 | Click Back | HeroCollectionScreen closes; main menu reappears |
+| 3 | Press ESC / ui_cancel from Collection | HeroCollectionScreen closes; main menu reappears |
+| 4 | Open Collection, then press ESC | Same result as Back |
+
+### Modal Safety
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Settings, then click Collection | Collection does not open over Settings |
+| 2 | Open Help, then click Collection | Collection does not open over Help |
+| 3 | Open Training, then click Collection | Collection does not open over Training |
+| 4 | Press ESC while Collection is open | Collection closes, not Settings or Help |
+| 5 | Close Collection, then open Settings | Settings opens normally |
+
+### Existing Flow Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select Hero | CharacterSelect opens as before |
+| 2 | Training | MetaUpgradeShop opens as before |
+| 3 | Back from CharacterSelect | Main menu returns as before |
+| 4 | Start a run | Full run starts; Collection screen is not visible |
+| 5 | Quit to menu after run | Main menu returns; Collection screen is hidden |
+| 6 | Gameplay, combat, saves, rewards | Entirely unchanged |
+| 7 | Hero cards | Not present (future work) |
+| 8 | Gacha | Not present (future work) |
+| 9 | Equipment | Not present (future work) |
 | 8 | Inspect diff | No hero kits, evolutions, 4/4/4 slots, stage objectives, rewards, saves, meta progression, or arena hazards changed |

@@ -5,6 +5,7 @@ signal quit_requested
 signal settings_requested
 signal meta_shop_requested
 signal help_requested
+signal collection_requested
 
 var settings_manager: Node
 var audio_manager: Node
@@ -14,6 +15,7 @@ var audio_manager: Node
 @onready var settings_button: Button = get_node_or_null("Root/TopBar/HBoxContainer/SettingsButton")
 @onready var help_button: Button = get_node_or_null("Root/TopBar/HBoxContainer/HelpButton")
 @onready var training_button: Button = get_node_or_null("Root/BottomBar/HBoxContainer/TrainingButton")
+@onready var collection_button: Button = get_node_or_null("Root/BottomBar/HBoxContainer/CollectionButton")
 @onready var quit_button: Button = get_node_or_null("Root/QuitButton")
 
 
@@ -38,6 +40,9 @@ func _ready() -> void:
 
 	if training_button != null and not training_button.pressed.is_connected(_on_training_button_pressed):
 		training_button.pressed.connect(_on_training_button_pressed)
+
+	if collection_button != null and not collection_button.pressed.is_connected(_on_collection_button_pressed):
+		collection_button.pressed.connect(_on_collection_button_pressed)
 
 	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_button_pressed):
 		quit_button.pressed.connect(_on_quit_button_pressed)
@@ -79,6 +84,11 @@ func _on_help_button_pressed() -> void:
 func _on_training_button_pressed() -> void:
 	_play_ui_click()
 	meta_shop_requested.emit()
+
+
+func _on_collection_button_pressed() -> void:
+	_play_ui_click()
+	collection_requested.emit()
 
 
 func _on_quit_button_pressed() -> void:

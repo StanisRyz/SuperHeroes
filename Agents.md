@@ -65,7 +65,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/BuildSlotsWindow.tscn` - in-run read-only Build Slots window CanvasLayer.
 - `scenes/ui/BuildSlotsWindow.gd` - display-only slot overview; reads UpgradeManager slot state, definition summaries, and read-only evolution progress hints; shows 4 Attack / 4 Passive / 4 Active rows, emits closed.
 - `scenes/ui/MainMenu.tscn` - frontend main menu scene.
-- `scenes/ui/MainMenu.gd` - main menu start, settings, training, help, and quit intent signals.
+- `scenes/ui/MainMenu.gd` - main menu start, settings, training, collection, help, and quit intent signals. Emits `collection_requested` when the Collection button is pressed.
+- `scenes/ui/HeroCollectionScreen.tscn` - placeholder hero collection screen CanvasLayer scene (instantiated at runtime by Main).
+- `scenes/ui/HeroCollectionScreen.gd` - display-only placeholder screen; shows title/subtitle/body text and a Back button; emits `back_requested`; has `open()` and `close()`. No hero card grid, gacha UI, or equipment UI. Pre-game only — must not affect gameplay, combat, saves, rewards, or meta balance.
 - `scenes/ui/ControlsHelpOverlay.tscn` - reusable help and controls CanvasLayer scene.
 - `scenes/ui/ControlsHelpOverlay.gd` - display-only help overlay API (`open`, `close`, `toggle`, `is_open`) and close handling.
 - `scenes/ui/ControlsHelpContent.gd` - centralized help content sections.
@@ -888,11 +890,22 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 ## Main Menu Layout
 
 - MainMenu layout is UI-only and must preserve existing flow signals.
-- Current layout: Settings button is top-left; Help / Controls button is top-right; Select Hero and Training are horizontal neighbors in the bottom interface.
+- Current layout: Settings button is top-left; Help / Controls button is top-right; Select Hero, Training, and Collection are horizontal neighbors in the bottom interface.
 - The centered header panel keeps the SuperHeroes title, subtitle, and remembered `Last: Hero / Stage` hint.
 - MainMenu reworks must not rename existing button signals or change Main's navigation ownership without a specific flow reason.
 - Layout-only patches must not change gameplay balance, hero/stage data, rewards, runtime persistence, debug behavior, or add arena hazards.
 - Do not directly copy licensed superhero names, characters, brands, or logos.
+
+## Main Menu Collection Entry Architecture
+
+- `MainMenu` emits `collection_requested` when the Collection button is pressed (after `_play_ui_click()`).
+- `Main._show_main_menu()` connects `collection_requested` → `_open_hero_collection()` each time a new MainMenu is instantiated.
+- `Main._init_hero_collection_screen()` loads and instantiates `HeroCollectionScreen.tscn` once at startup, connects `back_requested` → `_close_hero_collection()`.
+- `Main._open_hero_collection()` guards against opening over Settings, Help, Training/MetaUpgradeShop, CharacterSelect, StageSelect, or RunBriefingScreen. If the guard passes it hides MainMenu and calls `hero_collection_screen.open()`.
+- `Main._close_hero_collection()` calls `hero_collection_screen.close()` and shows MainMenu again.
+- `Main._handle_menu_back_requested()` checks `_is_hero_collection_open()` after `_is_meta_shop_open()` so ESC / ui_cancel closes the Collection screen and returns to MainMenu.
+- `HeroCollectionScreen` must remain pre-game only. It must not pause gameplay, affect in-run state, mutate saves, apply rewards, or open during a live run.
+- This patch must not add hero card grids, gacha pulls, equipment slots, inventory, or monetization. Those are future work.
 
 ## Settings And Audio Flow
 

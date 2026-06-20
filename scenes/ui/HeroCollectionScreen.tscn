@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://hero_collection_screen"]
+
+[ext_resource type="Script" path="res://scenes/ui/HeroCollectionScreen.gd" id="1_hero_collection_script"]
+
+[node name="HeroCollectionScreen" type="CanvasLayer"]
+script = ExtResource("1_hero_collection_script")

@@ -16,6 +16,7 @@ var run_briefing_screen: Node
 var meta_progression_manager: Node
 var post_run_rewards_screen: Node
 var meta_upgrade_shop: Node
+var hero_collection_screen: Node
 var selected_hero_id: String = ""
 var selected_stage_id: String = ""
 
@@ -64,6 +65,7 @@ func _ready() -> void:
 	_init_run_briefing_screen()
 	_init_post_run_rewards_screen()
 	_init_meta_upgrade_shop()
+	_init_hero_collection_screen()
 
 	if character_select != null:
 		if character_select.has_method("setup"):
@@ -132,6 +134,17 @@ func _init_meta_upgrade_shop() -> void:
 		meta_upgrade_shop.buy_requested.connect(_on_meta_buy_requested)
 
 
+func _init_hero_collection_screen() -> void:
+	var scene: PackedScene = load("res://scenes/ui/HeroCollectionScreen.tscn")
+	if scene == null:
+		push_warning("Main: HeroCollectionScreen.tscn not found.")
+		return
+	hero_collection_screen = scene.instantiate()
+	add_child(hero_collection_screen)
+	if hero_collection_screen.has_signal("back_requested") and not hero_collection_screen.back_requested.is_connected(_close_hero_collection):
+		hero_collection_screen.back_requested.connect(_close_hero_collection)
+
+
 func _show_main_menu() -> void:
 	_selection_transition_in_progress = false
 	_clear_current_run()
@@ -164,6 +177,8 @@ func _show_main_menu() -> void:
 		main_menu.settings_requested.connect(_open_settings_menu)
 	if main_menu.has_signal("meta_shop_requested") and not main_menu.meta_shop_requested.is_connected(_open_meta_shop):
 		main_menu.meta_shop_requested.connect(_open_meta_shop)
+	if main_menu.has_signal("collection_requested") and not main_menu.collection_requested.is_connected(_open_hero_collection):
+		main_menu.collection_requested.connect(_open_hero_collection)
 	if main_menu.has_signal("help_requested") and not main_menu.help_requested.is_connected(_open_controls_help):
 		main_menu.help_requested.connect(_open_controls_help)
 
@@ -460,6 +475,9 @@ func _handle_menu_back_requested() -> void:
 	if _is_meta_shop_open():
 		_close_meta_shop()
 		return
+	if _is_hero_collection_open():
+		_close_hero_collection()
+		return
 	if run_briefing_screen != null and run_briefing_screen.visible:
 		_on_run_briefing_back_requested()
 		return
@@ -483,6 +501,10 @@ func _is_meta_shop_open() -> bool:
 	return meta_upgrade_shop != null and meta_upgrade_shop.visible
 
 
+func _is_hero_collection_open() -> bool:
+	return hero_collection_screen != null and hero_collection_screen.visible
+
+
 func _is_controls_help_open() -> bool:
 	if controls_help_overlay == null:
 		return false
@@ -504,6 +526,31 @@ func _open_meta_shop() -> void:
 func _close_meta_shop() -> void:
 	if meta_upgrade_shop != null and meta_upgrade_shop.has_method("close"):
 		meta_upgrade_shop.close()
+	if main_menu != null:
+		main_menu.show()
+
+
+func _open_hero_collection() -> void:
+	if hero_collection_screen == null:
+		push_warning("Main: HeroCollectionScreen not initialized.")
+		return
+	if _is_meta_shop_open() or _is_settings_open() or _is_controls_help_open():
+		return
+	if character_select != null and character_select.visible:
+		return
+	if stage_select != null and stage_select.visible:
+		return
+	if run_briefing_screen != null and run_briefing_screen.visible:
+		return
+	if main_menu != null:
+		main_menu.hide()
+	if hero_collection_screen.has_method("open"):
+		hero_collection_screen.open()
+
+
+func _close_hero_collection() -> void:
+	if hero_collection_screen != null and hero_collection_screen.has_method("close"):
+		hero_collection_screen.close()
 	if main_menu != null:
 		main_menu.show()
 
