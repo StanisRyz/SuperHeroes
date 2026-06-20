@@ -653,7 +653,7 @@ Not implemented yet (meta):
 - Each hero has 9 evolution triples organized as 3 attack targets, 3 active targets, and 3 passive targets.
 - Each triple still requires exactly 1 attack upgrade line, 1 passive upgrade line, and 1 active upgrade line, all selected and maxed.
 - Triple definitions use `target_type` (`attack`, `active`, `passive`) plus `target_id`; old `target_active_skill_id` remains supported as active-evolution compatibility data.
-- The current implemented packs include all nine Active Evolutions Pack effects and all nine Attack Evolutions Pack effects. Passive target slots remain schema placeholders and are not offered in Overdrive until their real effect pack exists.
+- The current implemented packs include all nine Attack, Active, and Passive Evolutions Pack effects. Evolution state remains runtime-only and is selected through Overdrive.
 - Elite evolution rewards are supported behind `EvolutionManager.elite_reward_chance`, defaulting to `0.0`.
 - GameHUD shows current evolution state, and Victory/GameOver summaries list applied evolutions.
 - Debug Mode F9 can open the evolution reward screen when implemented evolutions are available.
@@ -666,13 +666,13 @@ The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** ch
 
 1. Player picks an upgrade from LevelUpScreen.
 2. Arena calls `EvolutionManager.get_overdrive_options()` to collect READY, not-yet-selected triples for the active hero.
-3. Placeholder attack/passive evolutions and unimplemented active evolutions are filtered out so no no-op evolution is offered.
+3. Placeholder/future evolutions are filtered out so no no-op evolution is offered.
 4. If any implemented READY triples exist, **OverdriveScreen** opens (paused, layer 22, no skip). Player must select one.
 5. `EvolutionManager.apply_evolution(evolution_id)` routes by `target_type`: active to AbilityManager, attack to PlayerAutoAttack, passive to PassiveAbilityManager.
 6. Only a successfully applied evolution is marked SELECTED and announced.
 7. The evolved skill permanently replaces its base behavior for the rest of the run. Only one evolution per triple; no stacking.
 
-#### Implemented Evolutions (18 of 27)
+#### Implemented Evolutions (27 of 27)
 
 | Evolution ID | Hero | Target Type | Target ID | Effect |
 |---|---|---|---|---|
@@ -681,19 +681,28 @@ The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** ch
 | `solar_beam_burning_judgment` | Solar Guardian | attack | `solar_ray` | Solar Ray adds burning heat pulses after hits, doubled during Solar Empowered; status: BURNING JUDGMENT |
 | `frost_breath_absolute_zero` | Solar Guardian | active | `frost_breath` | 2x damage, 1.8x cone angle, double slow (0.08 speed + 0.02 freeze), status: ABSOLUTE ZERO |
 | `frost_breath_glacier_front` | Solar Guardian | attack | `solar_ray` | Despite the legacy id, evolves Solar Ray with a delayed radiant line pulse; status: SOLAR GLACIER FRONT / SOLAR PULSE |
+| `frost_breath_permafrost` | Solar Guardian | passive | `orbit_shields` | Solar Aegis: more/faster shields and solar AoE on shield block; status: SOLAR AEGIS |
 | `death_dash_solar_execution` | Solar Guardian | active | `death_dash` | Real active grid id for Final Flash: long execution dash, low-health bonus damage, solar flash pulse after multi-hit dashes; status: FINAL FLASH |
+| `death_dash_comet_path` | Solar Guardian | passive | `storm_relay` | Solar Storm: frequent multi-target solar lightning, stronger while Solar Empowered; status: SOLAR STORM |
+| `death_dash_final_flash` | Solar Guardian | passive | `recovery_field` | Radiant Renewal: stronger heal, damaging radiant pulse, and brief damage reduction; status: RADIANT RENEWAL |
 | `smoke_screen_blackout` | Night Tactician | active | `smoke_screen` | Huge longer Blackout field with repeated slow/marks and stronger player damage reduction inside; status: BLACKOUT |
 | `smoke_screen_tactical_cover` | Night Tactician | attack | `homing_rockets` | Homing Rockets fire extra support rockets and spread cover fire across targets; status: TACTICAL COVER |
 | `smoke_screen_choking_zone` | Night Tactician | attack | `homing_rockets` | Rocket impacts leave choking slow/mark bursts; status: CHOKING ZONE |
 | `trap_chain_detonation_evolution` | Night Tactician | active | `explosive_trap` | 2x damage, 2x explosion radius, two aftershock pulse rings (0.2 s + 0.42 s), marks all hit enemies; status: CHAIN DETONATION |
 | `trap_cluster_minefield` | Night Tactician | attack | `homing_rockets` | Rocket impacts split into clustered secondary explosions; status: CLUSTER MINEFIELD |
+| `trap_marked_blast` | Night Tactician | passive | `guardian_drone` | Tactical Drone Swarm: multiple drone shots that apply Tactical Mark; status: DRONE SWARM |
 | `hook_execution_pull` | Night Tactician | active | `grappling_hook` | 3x damage; if target was already Tactically Marked, triggers AoE mark explosion on hit enemies; status: EXECUTION |
+| `hook_shadow_line` | Night Tactician | passive | `chain_lightning` | Shock Net: prefers marked enemies, bounces farther, and marks hit enemies; status: SHOCK NET |
+| `hook_rapid_abduction` | Night Tactician | passive | `time_dilator` | Stasis Field: larger near-freeze slow pulse, stronger against marked enemies; status: STASIS FIELD |
 | `rage_wave_worldbreaker` | Fury Vanguard | active | `rage_wave` | 2x damage, fires 3 expanding shockwaves (0 / 0.22 / 0.44 s), heavy 0.22x speed slow; status: WORLDBREAKER |
 | `rage_wave_earthsplitter` | Fury Vanguard | attack | `splash_melee` | Fury Strikes carve a forward ground crack beyond normal melee reach; status: EARTHSPLITTER |
 | `rage_wave_crushing_storm` | Fury Vanguard | attack | `splash_melee` | Fury Strikes scale harder with Rage and emit a slowing pressure pulse; status: CRUSHING STORM |
 | `mighty_clap_thunderclap` | Fury Vanguard | active | `mighty_clap` | Real active grid id for Rampage Impact: huge Rage-scaled cone, heavy knockback, delayed second clap; status: RAMPAGE IMPACT |
 | `mighty_clap_seismic_fan` | Fury Vanguard | attack | `splash_melee` | Fury Strikes emit a forward seismic fan; status: SEISMIC FAN |
+| `mighty_clap_rampage_impact` | Fury Vanguard | passive | `static_field` | Rage Field: Rage-scaling damage aura with larger/faster pulses at high Rage; status: RAGE FIELD |
 | `rage_leap_meteor_crash` | Fury Vanguard | active | `rage_leap` | 2x damage, 1.5x radius, ring visual, delayed second impact at 0.45 s (0.2x speed slow); status: METEOR CRASH |
+| `rage_leap_blood_crater` | Fury Vanguard | passive | `battle_focus` | Berserker Focus: Rage-scaling focus strikes plus stronger attack-speed burst; status: BERSERKER FOCUS |
+| `rage_leap_final_impact` | Fury Vanguard | passive | `magnet_core` | Gravity Rage: much stronger pickup reach plus periodic gravity pull/slow pulse; status: GRAVITY RAGE |
 
 #### Architecture
 
@@ -702,7 +711,8 @@ The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** ch
 - **EvolutionManager.apply_evolution()** calls `_apply_evolution_effect(evolution_id, triple)`, routes by `target_type`, then marks triple SELECTED only on success and emits `evolution_applied`.
 - **AbilityManager evolution flags** are the current active-effect implementation surface. All flags reset in `set_hero_kit()`. The full active pack flags are `solar_beam_cataclysm_enabled`, `frost_breath_absolute_zero_enabled`, `death_dash_final_flash_enabled`, `smoke_screen_blackout_enabled`, `explosive_trap_chain_evolution_enabled`, `grappling_hook_execution_enabled`, `rage_wave_worldbreaker_enabled`, `mighty_clap_rampage_impact_enabled`, and `rage_leap_meteor_crash_enabled`.
 - **PlayerAutoAttack.apply_attack_evolution(evolution_id, target_id)** is the attack-effect implementation surface. Attack evolutions are runtime-only, reset with the primary weapon on each fresh run, and expose `debug_get_attack_evolutions()` for debug UI.
-- **DebugStatsOverlay** (F12) shows total and selected Attack / Active / Passive evolution counts plus `Overdrive: <title>, <title>` and attack evolution ids when evolutions are applied. BuildSlotsWindow remains read-only and shows selected evolution titles.
+- **PassiveAbilityManager.apply_passive_evolution(evolution_id, target_id)** is the passive-effect implementation surface. Passive evolutions are runtime-only, reset by `cleanup()`/fresh Arena setup, and expose `debug_get_passive_evolutions()` plus passive evolution ids/titles in `get_passive_state()`.
+- **DebugStatsOverlay** (F12) shows total and selected Attack / Active / Passive evolution counts plus `Overdrive: <title>, <title>`, attack evolution ids, and passive evolution ids/titles when evolutions are applied. BuildSlotsWindow remains read-only and shows selected evolution titles.
 - OverdriveScreen is closed (hidden) on victory, defeat, restart, and quit-to-menu. No evolution state is saved to meta.
 
 ### Run Progression & Victory
@@ -817,7 +827,7 @@ Each upgrade line can appear in only one triple per hero. Each hero has exactly 
 An evolution becomes **ready** only when:
 1. All 3 required upgrade lines have been selected (any level taken).
 2. All 3 required upgrade lines are at max level.
-3. The effect is implemented. Placeholder attack/passive paths remain hidden until their packs are added.
+3. The effect is implemented. Unknown future placeholders remain hidden until their real handlers exist.
 
 ### Triple States
 

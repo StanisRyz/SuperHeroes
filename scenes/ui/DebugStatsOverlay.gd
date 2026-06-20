@@ -335,6 +335,12 @@ func _build_stats_text() -> String:
 				for passive_id in levels:
 					passive_lines.append("%s:%d" % [str(passive_id), int(levels[passive_id])])
 				lines.append("Selected: %s" % ", ".join(passive_lines))
+			var passive_evolution_ids: Array = passive_state.get("passive_evolution_ids", [])
+			if not passive_evolution_ids.is_empty():
+				lines.append("Evolved ids: %s" % ", ".join(passive_evolution_ids))
+			var passive_evolution_titles: Array = passive_state.get("passive_evolution_titles", [])
+			if not passive_evolution_titles.is_empty():
+				lines.append("Evolved: %s" % ", ".join(passive_evolution_titles))
 			var timers: Dictionary = passive_state.get("timers", {})
 			var timer_lines: PackedStringArray = []
 			for timer_id in timers:

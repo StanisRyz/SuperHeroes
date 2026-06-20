@@ -1072,14 +1072,14 @@ DEBUG_PLAYER: invulnerable=true
 | 3 | Also take orbit_shields upgrade | Triple 1 moves to partial (2/3 lines) |
 | 4 | Also take solar_beam_damage_up upgrade | Triple 1 moves to collected (3/3 lines, not all maxed) |
 | 5 | Max all 3 lines | Triple 1 state becomes ready; implemented active Overdrive option can appear |
-| 6 | Complete a placeholder attack/passive triple | It may become ready internally, but it is not offered in Overdrive because `effect_status` is placeholder |
+| 6 | Add a future placeholder triple in a debug branch | It may become ready internally, but it is not offered in Overdrive because `effect_status` is placeholder |
 
 ### Overdrive Screen Flow
 
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Complete an implemented active triple, then pick any upgrade | OverdriveScreen appears and card header shows `ACTIVE EVOLUTION -> <TARGET>` |
-| 2 | Complete a placeholder attack or passive target triple | No no-op attack/passive evolution card is offered |
+| 2 | Complete any implemented attack, active, or passive target triple | OverdriveScreen card header uses `ATTACK`, `ACTIVE`, or `PASSIVE EVOLUTION -> <TARGET>` correctly |
 | 3 | Click an implemented evolution card button | OverdriveScreen hides; game resumes; ability immediately has evolved behavior |
 | 4 | Press Escape or pause while OverdriveScreen is open | No effect; game stays paused and OverdriveScreen stays visible |
 | 5 | Win or die while OverdriveScreen is open | OverdriveScreen hides cleanly; VictoryScreen/GameOverScreen shows normally |
@@ -1111,7 +1111,26 @@ DEBUG_PLAYER: invulnerable=true
 | 9 | Select `mighty_clap_thunderclap`, then cast Mighty Clap | Mighty Clap becomes Rampage Impact: huge Rage-scaled cone, strong knockback, delayed second clap, and `RAMPAGE IMPACT` feedback |
 | 10 | Select `rage_leap_meteor_crash`, then cast Rage Leap | Meteor Crash still creates huge landing AoE plus delayed second impact and `METEOR CRASH` feedback |
 | 11 | Inspect DebugStatsOverlay and BuildSlotsWindow | DebugStatsOverlay shows selected active evolution ids/titles; BuildSlotsWindow remains read-only and shows applied evolution titles |
-| 12 | Inspect scope | Passive Evolutions Pack remains unimplemented; 4/4/4 slots, shared passives, hero base kits, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
+| 12 | Inspect scope | Passive Evolutions Pack remains implemented through PassiveAbilityManager only; 4/4/4 slots, shared passives, hero base kits, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
+
+### Passive Evolutions Pack
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Complete a ready passive triple | OverdriveScreen offers a `PASSIVE EVOLUTION -> <TARGET>` card only when `effect_status` is implemented |
+| 2 | Select `frost_breath_permafrost` with Orbit Shields | Orbit Shields become Solar Aegis: higher/faster shield charges, shield block creates solar AoE slow/knockback/damage, and `SOLAR AEGIS` feedback appears |
+| 3 | Select `death_dash_comet_path` with Storm Relay | Storm Relay becomes Solar Storm: frequent multi-target solar strikes, stronger during Solar Empowered, and `SOLAR STORM` feedback appears |
+| 4 | Select `death_dash_final_flash` with Recovery Field | Recovery Field becomes Radiant Renewal: stronger heal, damaging radiant pulse, brief damage reduction, and `RADIANT RENEWAL` feedback appears |
+| 5 | Select `trap_marked_blast` with Guardian Drone | Guardian Drone becomes Tactical Drone Swarm: multiple shots fire per tick, targets are marked when AbilityManager supports it, and `DRONE SWARM` feedback appears |
+| 6 | Select `hook_shadow_line` with Chain Lightning | Chain Lightning becomes Shock Net: marked enemies are preferred, more bounces occur, hit enemies are marked, and `SHOCK NET` feedback appears |
+| 7 | Select `hook_rapid_abduction` with Time Dilator | Time Dilator becomes Stasis Field: large near-freeze pulse affects nearby enemies, marked enemies are slowed harder, and `STASIS FIELD` feedback appears |
+| 8 | Select `mighty_clap_rampage_impact` with Static Field | Static Field becomes Rage Field: damage/radius/frequency scale with Rage and `RAGE FIELD` feedback appears |
+| 9 | Select `rage_leap_blood_crater` with Battle Focus | Battle Focus becomes Berserker Focus: stronger Rage-scaled strikes plus stronger attack-speed burst and `BERSERKER FOCUS` feedback appears |
+| 10 | Select `rage_leap_final_impact` with Magnet Core | Magnet Core becomes Gravity Rage: pickup reach increases heavily, gravity pulses pull/slow enemies, and `GRAVITY RAGE` feedback appears |
+| 11 | Re-open Overdrive after selecting a passive evolution | The selected passive evolution does not appear again |
+| 12 | Inspect DebugStatsOverlay and BuildSlotsWindow | DebugStatsOverlay shows selected passive evolution ids/titles; BuildSlotsWindow remains read-only and shows applied evolution titles |
+| 13 | Restart, win, defeat, or quit to menu | Passive evolution ids, timers, temporary mitigation, shield/drone visuals, and magnet bonus clear with fresh run cleanup; no evolution state is saved |
+| 14 | Inspect scope | Attack and Active Evolutions Packs still work; 4/4/4 slots, shared passive base grid, hero base kits, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
 
 ### Attack Evolutions Pack
 
@@ -1128,10 +1147,10 @@ DEBUG_PLAYER: invulnerable=true
 | 9 | Select `rage_wave_crushing_storm` | Fury Strikes scale harder with Rage, release a slowing pressure pulse, and show `CRUSHING STORM` feedback |
 | 10 | Select `mighty_clap_seismic_fan` | Fury Strikes emit a visible forward seismic fan and show `SEISMIC FAN` feedback |
 | 11 | Re-open Overdrive after selecting an attack evolution | The selected attack evolution does not appear again |
-| 12 | Complete a passive placeholder triple | Placeholder passive evolutions are still filtered out and not offered |
+| 12 | Complete a passive triple | Implemented passive evolutions are offered through PASSIVE EVOLUTION cards and do not affect attack evolution routing |
 | 13 | Check DebugStatsOverlay and BuildSlotsWindow | DebugStatsOverlay shows selected attack evolution ids; BuildSlotsWindow remains read-only and shows applied evolution titles |
 | 14 | Restart, win, defeat, or quit to menu | Attack evolution state is cleared with the fresh run; no evolution state is saved |
-| 15 | Inspect scope | Active Evolutions Pack remains implemented and Passive Evolutions Pack is not implemented; 4/4/4 slots, shared passives, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
+| 15 | Inspect scope | Active and Passive Evolutions Packs remain implemented; 4/4/4 slots, shared passives, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
 
 ### Regression - unchanged systems
 
@@ -1141,7 +1160,7 @@ DEBUG_PLAYER: invulnerable=true
 | 2 | Open Build Slots Window mid-run | Shows 4 attack / 4 passive / 4 active rows correctly |
 | 3 | Use LevelUpScreen normally | Upgrade options and selection still work |
 | 4 | Restart run | Evolution runtime state clears naturally |
-| 5 | Inspect diff/save behavior | No save/meta/reward changes, no stage objective changes, no enemy changes, no boss-flow changes, no full attack/passive evolution packs |
+| 5 | Inspect diff/save behavior | No save/meta/reward changes, no stage objective changes, no enemy changes, no boss-flow changes, and no slot-rule changes |
 
 ---
 

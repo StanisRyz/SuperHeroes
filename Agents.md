@@ -413,14 +413,14 @@ Each triple definition contains:
 - `EvolutionManager.apply_evolution(evolution_id)` finds the triple, routes by `target_type`, and marks SELECTED only if the effect handler succeeds.
 - `active` routes to `AbilityManager` and currently preserves the six implemented active effects through existing boolean flags.
 - `attack` routes to `PlayerAutoAttack.apply_attack_evolution(evolution_id, target_id)`; implemented handlers return true and unknown or placeholder ids return false without marking selected.
-- `passive` routes to `PassiveAbilityManager` if a future `apply_passive_evolution(evolution_id, target_id)` handler exists; otherwise it warns and returns false.
+- `passive` routes to `PassiveAbilityManager.apply_passive_evolution(evolution_id, target_id)`; implemented handlers return true and unknown ids return false without marking selected.
 - Unknown `target_type`, missing handler, or placeholder effect must return false and must not silently apply a no-op.
 
 ### Overdrive and UI
 
 - **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) is runtime-instantiated by Arena. It shows the evolution type label (ATTACK / ACTIVE / PASSIVE), target id, title, description, and required-line progress.
 - `EvolutionManager.get_overdrive_options()` returns READY, not-yet-selected triples for the active hero, filtered to `effect_status: "implemented"` only.
-- DebugStatsOverlay shows ready/selected totals, Attack / Active / Passive target and selected counts, plus selected attack evolution ids from `PlayerAutoAttack.debug_get_attack_evolutions()`.
+- DebugStatsOverlay shows ready/selected totals, Attack / Active / Passive target and selected counts, selected attack evolution ids from `PlayerAutoAttack.debug_get_attack_evolutions()`, and selected passive evolution ids/titles from `PassiveAbilityManager.get_passive_state()`.
 - BuildSlotsWindow remains read-only slot display. It may show applied evolution titles, but must not mutate evolution state or slot rules.
 - OverdriveScreen is blocking: no skip/close-without-selection while visible.
 
@@ -458,14 +458,32 @@ The Active Evolutions Pack is implemented in `AbilityManager.gd`. These effects 
 | `mighty_clap_thunderclap` | vanguard | active | `mighty_clap` |
 | `rage_leap_meteor_crash` | vanguard | active | `rage_leap` |
 
-The real active grid ids for the Final Flash and Rampage Impact effects are `death_dash_solar_execution` and `mighty_clap_thunderclap`; the similarly named passive-placeholder ids remain placeholders until the Passive Evolutions Pack exists. Active evolution state is runtime-only in `AbilityManager`; flags are set by `EvolutionManager.apply_evolution()` and reset by `AbilityManager.set_hero_kit()`.
+The real active grid ids for the Final Flash and Rampage Impact effects are `death_dash_solar_execution` and `mighty_clap_thunderclap`. Active evolution state is runtime-only in `AbilityManager`; flags are set by `EvolutionManager.apply_evolution()` and reset by `AbilityManager.set_hero_kit()`.
+
+### Implemented Passive Evolution IDs
+
+The Passive Evolutions Pack is implemented in `PassiveAbilityManager.gd`. These effects must be game-breaking behavior changes with obvious visuals/status text, not simple stat-only bonuses:
+
+| evolution_id | hero_id | target_type | target_id |
+|---|---|---|---|
+| `frost_breath_permafrost` | guardian | passive | `orbit_shields` |
+| `death_dash_comet_path` | guardian | passive | `storm_relay` |
+| `death_dash_final_flash` | guardian | passive | `recovery_field` |
+| `trap_marked_blast` | blaster | passive | `guardian_drone` |
+| `hook_shadow_line` | blaster | passive | `chain_lightning` |
+| `hook_rapid_abduction` | blaster | passive | `time_dilator` |
+| `mighty_clap_rampage_impact` | vanguard | passive | `static_field` |
+| `rage_leap_blood_crater` | vanguard | passive | `battle_focus` |
+| `rage_leap_final_impact` | vanguard | passive | `magnet_core` |
+
+Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_passive_evolutions` and `_passive_evolution_targets` are cleared by `cleanup()` and fresh Arena setup. Never save passive evolution state to meta, preferences, settings, rewards, stage data, or user files. Passive evolutions may read AbilityManager state such as Solar Empowered, Tactical Mark, or Rage, but PassiveAbilityManager owns the evolved passive behavior.
 
 ### Other Rules
 
 - EvolutionRewardScreen is display-only for legacy evolution reward flow; OverdriveScreen is the triple-grid path.
 - Arena coordinates opening screens, pausing/resuming, applying selected evolutions, and announcements.
 - Miniboss defeat remains the main evolution reward path for legacy evolutions; elite rewards are optional through `elite_reward_chance` and default to off.
-- Placeholder evolutions must not be offered. Do not add persistence, meta-progression, evolution unlock storage, evolution art assets, passive effect packs, slot-rule changes, rewards changes, stage changes, enemy changes, boss-flow changes, or Build Evolution unless explicitly requested.
+- Placeholder evolutions must not be offered. Do not add persistence, meta-progression, evolution unlock storage, evolution art assets, slot-rule changes, rewards changes, stage changes, enemy changes, boss-flow changes, or Build Evolution unless explicitly requested.
 
 ## Meta Progression Architecture
 
@@ -815,8 +833,8 @@ The real active grid ids for the Final Flash and Rampage Impact effects are `dea
 ## Passive Ability System Foundation
 
 - `PassiveAbilityManager` is instantiated at runtime by `Arena._setup_passive_ability_manager()` using `load("res://scenes/passives/PassiveAbilityManager.gd").new()`. It is not part of Arena.tscn.
-- `PassiveAbilityManager.setup(player, enemy_container, projectile_container, pickup_container, feedback_manager)` wires run references only. It owns `add_or_upgrade_passive(passive_id)`, `get_passive_level(passive_id)`, `has_passive(passive_id)`, `get_passive_state()`, and `cleanup()`.
-- Passive state is runtime-only. Selected passive ids/levels, timers, shield regeneration state, and pickup radius bonuses must reset every run and must never be written to meta saves, settings, rewards, user preferences, or stage data.
+- `PassiveAbilityManager.setup(player, enemy_container, projectile_container, pickup_container, feedback_manager)` wires run references only. It owns `add_or_upgrade_passive(passive_id)`, `apply_passive_evolution(evolution_id, target_id)`, `has_passive_evolution(evolution_id)`, `debug_get_passive_evolutions()`, `get_passive_level(passive_id)`, `has_passive(passive_id)`, `get_passive_state()`, and `cleanup()`.
+- Passive state is runtime-only. Selected passive ids/levels, timers, shield regeneration state, passive evolution ids/targets, and pickup radius bonuses must reset every run and must never be written to meta saves, settings, rewards, user preferences, or stage data.
 - Current shared passive lines are exactly `orbit_shields`, `storm_relay`, `guardian_drone`, `magnet_core`, `chain_lightning`, `recovery_field`, `battle_focus`, `static_field`, and `time_dilator`. They are shared by all heroes and must not depend on hero kit identity.
 - Passive abilities must provide visible gameplay feedback, not only hidden numeric state.
 - Orbit Shields visuals must track `PlayerBuffManager.shield_changed` / `get_shield_charges()` so consumed and regenerated charges are visible around the player.
@@ -828,7 +846,7 @@ The real active grid ids for the Final Flash and Rampage Impact effects are `dea
 - `DebugStatsOverlay` may read `PassiveAbilityManager.get_passive_state()` for ids/levels/timers. It must never mutate passive or gameplay state.
 - Slot limits are implemented in `UpgradeManager`; passive visibility hotfixes should preserve those limits rather than reimplementing them elsewhere.
 - Hero-specific attack/active grid rewrites are not included in the shared passive pack.
-- No new EvolutionManager behavior or Overdrive screen in this patch.
+- Passive evolutions are selected through Overdrive and routed by EvolutionManager; OverdriveScreen remains display-only and uses the existing PASSIVE EVOLUTION label path.
 
 ## Run Lifecycle
 

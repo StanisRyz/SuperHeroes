@@ -138,6 +138,7 @@ var _timers: Dictionary = {
 	"battle_focus": 0.0,
 	"static_field": 0.0,
 	"time_dilator": 0.0,
+	"magnet_core": 0.0,
 }
 var _applied_pickup_radius_bonus: float = 0.0
 var _visual_root: Node2D = null
@@ -145,7 +146,12 @@ var _shield_visuals_root: Node2D = null
 var _drone_visual: Node2D = null
 var _orbit_time: float = 0.0
 var _last_shield_visual_count: int = -1
+var _last_known_shield_charges: int = 0
 var _last_event: String = "none"
+var _selected_passive_evolutions: Array[String] = []
+var _passive_evolution_targets: Dictionary = {}
+var _radiant_reduction_time_left: float = 0.0
+var _radiant_reduction_value: float = 0.0
 
 
 func setup(new_player: Node, new_enemy_container: Node, new_projectile_container: Node, new_pickup_container: Node, new_feedback_manager: Node) -> void:
@@ -183,6 +189,9 @@ func _process(delta: float) -> void:
 		_tick_static_field(delta)
 	if has_passive("time_dilator"):
 		_tick_time_dilator(delta)
+	if has_passive("magnet_core") and has_passive_evolution("rage_leap_final_impact"):
+		_tick_gravity_rage(delta)
+	_tick_radiant_reduction(delta)
 
 
 func add_or_upgrade_passive(passive_id: String) -> void:
@@ -233,6 +242,9 @@ func get_passive_state() -> Dictionary:
 		"timers": _timers.duplicate(),
 		"pickup_radius_bonus": _applied_pickup_radius_bonus,
 		"last_event": _last_event,
+		"passive_evolution_ids": _selected_passive_evolutions.duplicate(),
+		"passive_evolution_targets": _passive_evolution_targets.duplicate(),
+		"passive_evolution_titles": _get_passive_evolution_titles(),
 	}
 	var buff_manager := _get_buff_manager()
 	if buff_manager != null and buff_manager.has_method("get_shield_charges"):
@@ -241,12 +253,67 @@ func get_passive_state() -> Dictionary:
 	return state
 
 
+func apply_passive_evolution(evolution_id: String, target_id: String) -> bool:
+	if not PASSIVE_DEFINITIONS.has(target_id):
+		push_warning("PassiveAbilityManager: unknown passive target '%s' for evolution '%s'." % [target_id, evolution_id])
+		return false
+	if not _is_known_passive_evolution(evolution_id, target_id):
+		push_warning("PassiveAbilityManager: no passive evolution effect for '%s' -> '%s'." % [evolution_id, target_id])
+		return false
+	if _selected_passive_evolutions.has(evolution_id):
+		return true
+
+	_selected_passive_evolutions.append(evolution_id)
+	_passive_evolution_targets[evolution_id] = target_id
+	match target_id:
+		"orbit_shields":
+			_fill_orbit_shields()
+			_trigger_solar_aegis_explosion(player.global_position if player != null else Vector2.ZERO)
+		"magnet_core":
+			_apply_magnet_core_bonus()
+			_timers["magnet_core"] = 0.2
+			_show_gravity_rage_pulse()
+		"guardian_drone":
+			_ensure_drone_visual()
+			_show_drone_swarm_burst()
+		"recovery_field":
+			_trigger_radiant_renewal()
+		"battle_focus":
+			_show_status("BERSERKER FOCUS")
+		"static_field":
+			_show_rage_field_pulse()
+		"time_dilator":
+			_show_stasis_field_pulse()
+		"storm_relay":
+			_show_status("SOLAR STORM")
+		"chain_lightning":
+			_show_status("SHOCK NET")
+	_last_event = "passive evolution %s" % evolution_id
+	_show_status(_get_passive_evolution_status(evolution_id))
+	return true
+
+
+func has_passive_evolution(evolution_id: String) -> bool:
+	return _selected_passive_evolutions.has(evolution_id)
+
+
+func debug_get_passive_evolutions() -> Dictionary:
+	return {
+		"ids": _selected_passive_evolutions.duplicate(),
+		"targets": _passive_evolution_targets.duplicate(),
+		"titles": _get_passive_evolution_titles(),
+	}
+
+
 func cleanup() -> void:
+	_clear_radiant_reduction()
 	_reset_magnet_core_bonus()
 	var buff_manager := _get_buff_manager()
 	if buff_manager != null and buff_manager.has_method("clear_timed_buff"):
 		buff_manager.clear_timed_buff("battle_focus")
 	_passive_levels.clear()
+	_selected_passive_evolutions.clear()
+	_passive_evolution_targets.clear()
 	for key in _timers.keys():
 		_timers[key] = 0.0
 	if _visual_root != null and is_instance_valid(_visual_root):
@@ -283,6 +350,10 @@ func _tick_storm_relay(delta: float) -> void:
 		return
 
 	var level := get_passive_level("storm_relay")
+	if has_passive_evolution("death_dash_comet_path"):
+		_tick_solar_storm(level)
+		return
+
 	var target := _find_nearest_enemy(_get_scaled_value("storm_relay", "range", level))
 	if target == null:
 		_timers["storm_relay"] = 0.35
@@ -303,6 +374,10 @@ func _tick_guardian_drone(delta: float) -> void:
 		return
 
 	var level := get_passive_level("guardian_drone")
+	if has_passive_evolution("trap_marked_blast"):
+		_tick_tactical_drone_swarm(level)
+		return
+
 	var target := _find_nearest_enemy(_get_scaled_value("guardian_drone", "range", level))
 	if target == null:
 		_timers["guardian_drone"] = 0.35
@@ -324,6 +399,10 @@ func _tick_chain_lightning(delta: float) -> void:
 		return
 
 	var level := get_passive_level("chain_lightning")
+	if has_passive_evolution("hook_shadow_line"):
+		_tick_shock_net(level)
+		return
+
 	var target := _find_nearest_enemy(_get_scaled_value("chain_lightning", "range", level))
 	if target == null:
 		_timers["chain_lightning"] = 0.35
@@ -357,6 +436,10 @@ func _tick_recovery_field(delta: float) -> void:
 		return
 
 	var level := get_passive_level("recovery_field")
+	if has_passive_evolution("death_dash_final_flash"):
+		_tick_radiant_renewal(level)
+		return
+
 	var heal_amount := int(_get_scaled_value("recovery_field", "heal", level))
 	if player != null and player.has_method("heal"):
 		var previous_health := int(player.get("current_health") if player.get("current_health") != null else 0)
@@ -379,6 +462,10 @@ func _tick_battle_focus(delta: float) -> void:
 		return
 
 	var level := get_passive_level("battle_focus")
+	if has_passive_evolution("rage_leap_blood_crater"):
+		_tick_berserker_focus(level)
+		return
+
 	var target := _find_nearest_enemy(_get_scaled_value("battle_focus", "range", level))
 	if target == null:
 		_timers["battle_focus"] = 0.35
@@ -404,6 +491,10 @@ func _tick_static_field(delta: float) -> void:
 		return
 
 	var level := get_passive_level("static_field")
+	if has_passive_evolution("mighty_clap_rampage_impact"):
+		_tick_rage_field(level)
+		return
+
 	var radius := _get_scaled_value("static_field", "radius", level)
 	var damage := int(_get_scaled_value("static_field", "damage", level))
 	var targets := _find_enemies_in_radius(player.global_position, radius)
@@ -422,6 +513,10 @@ func _tick_time_dilator(delta: float) -> void:
 		return
 
 	var level := get_passive_level("time_dilator")
+	if has_passive_evolution("hook_rapid_abduction"):
+		_tick_stasis_field(level)
+		return
+
 	var radius := _get_scaled_value("time_dilator", "radius", level)
 	var slow_multiplier := _get_scaled_value("time_dilator", "slow_multiplier", level)
 	var duration := _get_scaled_value("time_dilator", "duration", level)
@@ -433,6 +528,157 @@ func _tick_time_dilator(delta: float) -> void:
 	_show_status("SLOW %d" % targets.size())
 	_timers["time_dilator"] = _get_scaled_value("time_dilator", "interval", level)
 	_last_event = "time_dilator slowed %d enemies" % targets.size()
+
+
+func _tick_solar_storm(level: int) -> void:
+	var range_ := _get_scaled_value("storm_relay", "range", level) * 1.25
+	var damage := int(_get_scaled_value("storm_relay", "damage", level) * 2.2)
+	if _is_solar_empowered():
+		damage = int(float(damage) * 1.75)
+	var targets := _find_enemies_in_radius(player.global_position, range_)
+	var max_targets := mini(targets.size(), 5)
+	if max_targets <= 0:
+		_timers["storm_relay"] = 0.28
+		return
+	for index in range(max_targets):
+		var enemy := targets[index]
+		enemy.take_damage(damage)
+		_spawn_arc(player.global_position, enemy.global_position, Color(1.0, 0.82, 0.22, 1.0), 5.5)
+		_show_damage(damage, enemy.global_position)
+		if enemy.has_method("apply_temporary_modifier"):
+			enemy.apply_temporary_modifier("solar_storm_stagger", {"speed_multiplier": 0.65}, 0.8)
+	_show_status("SOLAR STORM x%d" % max_targets)
+	_show_pulse_ring(player.global_position, range_ * 0.35, Color(1.0, 0.72, 0.16, 0.72), 0.25, 4.5)
+	_timers["storm_relay"] = _get_scaled_value("storm_relay", "interval", level) * 0.52
+	_last_event = "solar_storm hit %d enemies" % max_targets
+
+
+func _tick_tactical_drone_swarm(level: int) -> void:
+	var range_ := _get_scaled_value("guardian_drone", "range", level) * 1.35
+	var damage := int(_get_scaled_value("guardian_drone", "damage", level) * 2.0)
+	var targets := _find_enemies_in_radius(player.global_position, range_)
+	var max_targets := mini(targets.size(), 4)
+	if max_targets <= 0:
+		_timers["guardian_drone"] = 0.25
+		return
+	for index in range(max_targets):
+		var enemy := targets[index]
+		enemy.take_damage(damage)
+		_apply_tactical_mark(enemy)
+		var orbit_offset := Vector2(cos(_orbit_time * 2.4 + float(index)), sin(_orbit_time * 2.4 + float(index))) * DRONE_VISUAL_RADIUS
+		_spawn_arc(player.global_position + orbit_offset, enemy.global_position, Color(0.55, 0.9, 1.0, 1.0), 3.5)
+		_show_damage(damage, enemy.global_position)
+	_show_status("DRONE SWARM x%d" % max_targets)
+	_timers["guardian_drone"] = _get_scaled_value("guardian_drone", "interval", level) * 0.55
+	_last_event = "drone_swarm hit %d enemies" % max_targets
+
+
+func _tick_shock_net(level: int) -> void:
+	var range_ := _get_scaled_value("chain_lightning", "range", level) * 1.2
+	var target := _find_marked_enemy(range_)
+	if target == null:
+		target = _find_nearest_enemy(range_)
+	if target == null:
+		_timers["chain_lightning"] = 0.28
+		return
+	var damage := int(_get_scaled_value("chain_lightning", "damage", level) * 2.0)
+	var bounce_range := _get_scaled_value("chain_lightning", "bounce_range", level) * 1.35
+	var max_bounces := int(_get_scaled_value("chain_lightning", "bounces", level)) + 4
+	var hit_targets: Array[Node2D] = []
+	var origin := player.global_position
+	var current := target
+	for index in range(max_bounces):
+		if current == null:
+			break
+		var hit_damage := int(float(damage) * (1.35 if _is_tactically_marked(current) else 1.0))
+		current.take_damage(hit_damage)
+		_apply_tactical_mark(current)
+		hit_targets.append(current)
+		_spawn_arc(origin, current.global_position, Color(0.55, 1.0, 0.95, 1.0), 4.2)
+		_show_damage(hit_damage, current.global_position)
+		origin = current.global_position
+		current = _find_marked_or_nearest_enemy_from(origin, bounce_range, hit_targets)
+	_show_status("SHOCK NET x%d" % hit_targets.size())
+	_timers["chain_lightning"] = _get_scaled_value("chain_lightning", "interval", level) * 0.58
+	_last_event = "shock_net bounced %d times" % hit_targets.size()
+
+
+func _tick_radiant_renewal(level: int) -> void:
+	_trigger_radiant_renewal(level)
+	_timers["recovery_field"] = _get_scaled_value("recovery_field", "interval", level) * 0.68
+
+
+func _tick_berserker_focus(level: int) -> void:
+	var rage_ratio := _get_rage_ratio()
+	var range_ := _get_scaled_value("battle_focus", "range", level) * (1.3 + rage_ratio * 0.35)
+	var damage := int(_get_scaled_value("battle_focus", "damage", level) * (2.8 + rage_ratio * 2.0))
+	var targets := _find_enemies_in_radius(player.global_position, range_)
+	var max_targets := mini(targets.size(), 1 + int(roundi(rage_ratio * 3.0)))
+	if max_targets <= 0:
+		_timers["battle_focus"] = 0.28
+		return
+	for index in range(max_targets):
+		var enemy := targets[index]
+		enemy.take_damage(damage)
+		_show_damage(damage, enemy.global_position)
+		_spawn_arc(player.global_position, enemy.global_position, Color(1.0, 0.26, 0.08, 1.0), 4.0)
+	var buff_manager := _get_buff_manager()
+	var duration := _get_scaled_value("battle_focus", "duration", level) * (1.7 + rage_ratio)
+	var speed_multiplier := _get_scaled_value("battle_focus", "attack_speed_multiplier", level) + 0.55 + rage_ratio * 0.45
+	if buff_manager != null and buff_manager.has_method("apply_named_attack_speed_boost"):
+		buff_manager.apply_named_attack_speed_boost("battle_focus", speed_multiplier, duration)
+	_show_status("BERSERKER FOCUS")
+	_timers["battle_focus"] = _get_scaled_value("battle_focus", "interval", level) * 0.62
+	_last_event = "berserker_focus hit %d enemies" % max_targets
+
+
+func _tick_rage_field(level: int) -> void:
+	var rage_ratio := _get_rage_ratio()
+	var radius := _get_scaled_value("static_field", "radius", level) * (1.35 + rage_ratio * 0.55)
+	var damage := int(_get_scaled_value("static_field", "damage", level) * (2.5 + rage_ratio * 4.0))
+	var targets := _find_enemies_in_radius(player.global_position, radius)
+	for enemy in targets:
+		enemy.take_damage(damage)
+		if enemy.has_method("apply_temporary_modifier"):
+			enemy.apply_temporary_modifier("rage_field_stagger", {"speed_multiplier": 0.55}, 0.75)
+		_show_damage(damage, enemy.global_position)
+	_show_rage_field_pulse(radius)
+	_show_status("RAGE FIELD %d" % targets.size())
+	_timers["static_field"] = _get_scaled_value("static_field", "interval", level) * (0.62 - rage_ratio * 0.22)
+	_last_event = "rage_field hit %d enemies" % targets.size()
+
+
+func _tick_stasis_field(level: int) -> void:
+	var radius := _get_scaled_value("time_dilator", "radius", level) * 1.45
+	var duration := _get_scaled_value("time_dilator", "duration", level) * 1.45
+	var targets := _find_enemies_in_radius(player.global_position, radius)
+	for enemy in targets:
+		var marked := _is_tactically_marked(enemy)
+		if enemy.has_method("apply_temporary_modifier"):
+			enemy.apply_temporary_modifier("stasis_field", {"speed_multiplier": 0.06 if marked else 0.16}, duration)
+		_apply_tactical_mark(enemy)
+	_show_stasis_field_pulse(radius)
+	_show_status("STASIS FIELD %d" % targets.size())
+	_timers["time_dilator"] = _get_scaled_value("time_dilator", "interval", level) * 0.52
+	_last_event = "stasis_field slowed %d enemies" % targets.size()
+
+
+func _tick_gravity_rage(delta: float) -> void:
+	_timers["magnet_core"] = maxf(float(_timers.get("magnet_core", 0.0)) - delta, 0.0)
+	if float(_timers["magnet_core"]) > 0.0:
+		return
+	var radius := 220.0 + _applied_pickup_radius_bonus
+	var targets := _find_enemies_in_radius(player.global_position, radius)
+	for enemy in targets:
+		var pull_dir := (player.global_position - enemy.global_position).normalized()
+		if enemy.has_method("apply_knockback") and not pull_dir.is_zero_approx():
+			enemy.apply_knockback(pull_dir, 120.0)
+		if enemy.has_method("apply_temporary_modifier"):
+			enemy.apply_temporary_modifier("gravity_rage_pull", {"speed_multiplier": 0.55}, 0.8)
+	_show_gravity_rage_pulse(radius)
+	_show_status("GRAVITY RAGE" if not targets.is_empty() else "GRAVITY")
+	_timers["magnet_core"] = 3.2
+	_last_event = "gravity_rage pulled %d enemies" % targets.size()
 
 
 func _fill_orbit_shields() -> void:
@@ -451,6 +697,8 @@ func _apply_magnet_core_bonus() -> void:
 		return
 	var level := get_passive_level("magnet_core")
 	var new_bonus := _get_scaled_value("magnet_core", "pickup_radius_bonus", level)
+	if has_passive_evolution("rage_leap_final_impact"):
+		new_bonus *= 2.6
 	player.set("pickup_radius_bonus", float(player.get("pickup_radius_bonus")) - _applied_pickup_radius_bonus + new_bonus)
 	_applied_pickup_radius_bonus = new_bonus
 	_last_event = "magnet_core bonus %.0f" % _applied_pickup_radius_bonus
@@ -489,6 +737,49 @@ func _find_nearest_enemy_from(origin: Vector2, max_range: float, excluded: Array
 	return best
 
 
+func _find_marked_enemy(max_range: float) -> Node2D:
+	if enemy_container == null or not is_instance_valid(enemy_container) or player == null:
+		return null
+	var best: Node2D = null
+	var best_distance_sq := max_range * max_range
+	for enemy in enemy_container.get_children():
+		if not _is_valid_enemy(enemy):
+			continue
+		var enemy_node := enemy as Node2D
+		if not _is_tactically_marked(enemy_node):
+			continue
+		var distance_sq := player.global_position.distance_squared_to(enemy_node.global_position)
+		if distance_sq <= best_distance_sq:
+			best_distance_sq = distance_sq
+			best = enemy_node
+	return best
+
+
+func _find_marked_or_nearest_enemy_from(origin: Vector2, max_range: float, excluded: Array[Node2D]) -> Node2D:
+	if enemy_container == null or not is_instance_valid(enemy_container):
+		return null
+	var marked_best: Node2D = null
+	var nearest_best: Node2D = null
+	var marked_distance_sq := max_range * max_range
+	var nearest_distance_sq := max_range * max_range
+	for enemy in enemy_container.get_children():
+		if not _is_valid_enemy(enemy):
+			continue
+		var enemy_node := enemy as Node2D
+		if excluded.has(enemy_node):
+			continue
+		var distance_sq := origin.distance_squared_to(enemy_node.global_position)
+		if distance_sq > max_range * max_range:
+			continue
+		if _is_tactically_marked(enemy_node) and distance_sq <= marked_distance_sq:
+			marked_distance_sq = distance_sq
+			marked_best = enemy_node
+		if distance_sq <= nearest_distance_sq:
+			nearest_distance_sq = distance_sq
+			nearest_best = enemy_node
+	return marked_best if marked_best != null else nearest_best
+
+
 func _find_enemies_in_radius(origin: Vector2, radius: float) -> Array[Node2D]:
 	var enemies: Array[Node2D] = []
 	if enemy_container == null or not is_instance_valid(enemy_container):
@@ -524,9 +815,14 @@ func _connect_buff_manager() -> void:
 		return
 	if not buff_manager.shield_changed.is_connected(_on_shield_changed):
 		buff_manager.shield_changed.connect(_on_shield_changed)
+	if buff_manager.has_method("get_shield_charges"):
+		_last_known_shield_charges = int(buff_manager.get_shield_charges())
 
 
-func _on_shield_changed(_charges: int) -> void:
+func _on_shield_changed(charges: int) -> void:
+	if has_passive_evolution("frost_breath_permafrost") and charges < _last_known_shield_charges and player != null:
+		_trigger_solar_aegis_explosion(player.global_position)
+	_last_known_shield_charges = charges
 	_update_shield_visuals(true)
 
 
@@ -661,6 +957,108 @@ func _show_recovery_pulse() -> void:
 	_show_pulse_ring(player.global_position, _get_scaled_value("recovery_field", "radius", level), Color(0.35, 1.0, 0.55, 0.75), 0.3, 3.0)
 
 
+func _trigger_solar_aegis_explosion(world_position: Vector2) -> void:
+	if world_position == Vector2.ZERO and player != null:
+		world_position = player.global_position
+	var level := maxi(get_passive_level("orbit_shields"), 1)
+	var radius := 175.0 + level * 35.0
+	var damage := 28 + level * 18
+	var targets := _find_enemies_in_radius(world_position, radius)
+	for enemy in targets:
+		enemy.take_damage(damage)
+		if enemy.has_method("apply_temporary_modifier"):
+			enemy.apply_temporary_modifier("solar_aegis_slow", {"speed_multiplier": 0.42}, 1.15)
+		if enemy.has_method("apply_knockback"):
+			var knock_dir := (enemy.global_position - world_position).normalized()
+			if not knock_dir.is_zero_approx():
+				enemy.apply_knockback(knock_dir, 150.0)
+		_show_damage(damage, enemy.global_position)
+	_show_pulse_ring(world_position, radius, Color(1.0, 0.78, 0.18, 0.86), 0.34, 5.5)
+	_show_status("SOLAR AEGIS", world_position + Vector2.UP * 46.0)
+	_last_event = "solar_aegis exploded on %d enemies" % targets.size()
+
+
+func _trigger_radiant_renewal(level: int = 0) -> void:
+	if player == null:
+		return
+	if level <= 0:
+		level = maxi(get_passive_level("recovery_field"), 1)
+	var heal_amount := int(_get_scaled_value("recovery_field", "heal", level) * 2.4)
+	if player.has_method("heal"):
+		var previous_health := int(player.get("current_health") if player.get("current_health") != null else 0)
+		player.heal(heal_amount)
+		var current_health := int(player.get("current_health") if player.get("current_health") != null else previous_health)
+		var actual_heal := maxi(current_health - previous_health, 0)
+		if actual_heal > 0:
+			_show_heal(actual_heal, player.global_position + Vector2.UP * 28.0)
+	var radius := _get_scaled_value("recovery_field", "radius", level) * 2.0
+	var damage := heal_amount * 2
+	var targets := _find_enemies_in_radius(player.global_position, radius)
+	for enemy in targets:
+		enemy.take_damage(damage)
+		_show_damage(damage, enemy.global_position)
+	_apply_radiant_reduction(0.35, 3.5)
+	_show_pulse_ring(player.global_position, radius, Color(0.9, 1.0, 0.36, 0.84), 0.38, 5.0)
+	_show_status("RADIANT RENEWAL")
+	_last_event = "radiant_renewal hit %d enemies" % targets.size()
+
+
+func _apply_radiant_reduction(value: float, duration: float) -> void:
+	_radiant_reduction_value = value
+	_radiant_reduction_time_left = duration
+	if player != null and player.get("damage_reduction") != null:
+		player.set("damage_reduction", maxf(float(player.get("damage_reduction")), value))
+
+
+func _tick_radiant_reduction(delta: float) -> void:
+	if _radiant_reduction_time_left <= 0.0:
+		return
+	_radiant_reduction_time_left = maxf(_radiant_reduction_time_left - delta, 0.0)
+	if _radiant_reduction_time_left <= 0.0:
+		_clear_radiant_reduction()
+
+
+func _clear_radiant_reduction() -> void:
+	if player != null and is_instance_valid(player) and player.get("damage_reduction") != null:
+		if float(player.get("damage_reduction")) <= _radiant_reduction_value + 0.01:
+			player.set("damage_reduction", 0.0)
+	_radiant_reduction_time_left = 0.0
+	_radiant_reduction_value = 0.0
+
+
+func _show_drone_swarm_burst() -> void:
+	if player == null:
+		return
+	for index in range(3):
+		var angle := TAU * float(index) / 3.0
+		_show_pulse_ring(player.global_position + Vector2(cos(angle), sin(angle)) * 38.0, 24.0, Color(0.55, 0.9, 1.0, 0.76), 0.24, 2.5)
+	_show_status("DRONE SWARM")
+
+
+func _show_rage_field_pulse(radius: float = 0.0) -> void:
+	if player == null:
+		return
+	if radius <= 0.0:
+		radius = _get_scaled_value("static_field", "radius", maxi(get_passive_level("static_field"), 1)) * 1.4
+	_show_pulse_ring(player.global_position, radius, Color(1.0, 0.22, 0.08, 0.78), 0.30, 5.0)
+
+
+func _show_stasis_field_pulse(radius: float = 0.0) -> void:
+	if player == null:
+		return
+	if radius <= 0.0:
+		radius = _get_scaled_value("time_dilator", "radius", maxi(get_passive_level("time_dilator"), 1)) * 1.45
+	_show_pulse_ring(player.global_position, radius, Color(0.42, 0.85, 1.0, 0.76), 0.36, 4.5)
+
+
+func _show_gravity_rage_pulse(radius: float = 0.0) -> void:
+	if player == null:
+		return
+	if radius <= 0.0:
+		radius = 120.0 + _applied_pickup_radius_bonus
+	_show_pulse_ring(player.global_position, radius, Color(0.78, 0.24, 1.0, 0.78), 0.34, 4.5)
+
+
 func _show_pulse_ring(center: Vector2, radius: float, color: Color, duration: float, width: float) -> void:
 	var parent := _get_world_visual_parent()
 	if parent == null:
@@ -720,11 +1118,17 @@ func _get_buff_manager() -> Node:
 
 
 func _get_orbit_shield_max_charges() -> int:
-	return int(_get_scaled_value("orbit_shields", "max_charges", get_passive_level("orbit_shields")))
+	var charges := int(_get_scaled_value("orbit_shields", "max_charges", get_passive_level("orbit_shields")))
+	if has_passive_evolution("frost_breath_permafrost"):
+		charges += 2
+	return charges
 
 
 func _get_orbit_shield_regen_interval() -> float:
-	return _get_scaled_value("orbit_shields", "regen_interval", get_passive_level("orbit_shields"))
+	var interval := _get_scaled_value("orbit_shields", "regen_interval", get_passive_level("orbit_shields"))
+	if has_passive_evolution("frost_breath_permafrost"):
+		interval *= 0.45
+	return interval
 
 
 func _get_scaled_value(passive_id: String, key: String, level: int) -> float:
@@ -750,6 +1154,101 @@ func _get_max_level(passive_id: String) -> int:
 func _get_display_name(passive_id: String) -> String:
 	var definition: Dictionary = PASSIVE_DEFINITIONS.get(passive_id, {})
 	return str(definition.get("display_name", passive_id))
+
+
+func _get_ability_manager() -> Node:
+	if player != null and is_instance_valid(player):
+		var player_ability_manager := player.get_node_or_null("AbilityManager")
+		if player_ability_manager != null:
+			return player_ability_manager
+	if get_parent() == null:
+		return null
+	return get_parent().get_node_or_null("AbilityManager")
+
+
+func _is_solar_empowered() -> bool:
+	var ability_manager := _get_ability_manager()
+	return ability_manager != null and ability_manager.has_method("is_solar_empowered") and bool(ability_manager.is_solar_empowered())
+
+
+func _get_rage_ratio() -> float:
+	var ability_manager := _get_ability_manager()
+	if ability_manager != null and ability_manager.has_method("get_rage_state"):
+		var rage_state: Dictionary = ability_manager.get_rage_state()
+		if rage_state.has("rage_ratio"):
+			return clampf(float(rage_state.get("rage_ratio", 0.0)), 0.0, 1.0)
+		var max_rage := float(rage_state.get("rage_max", 0.0))
+		if max_rage > 0.0:
+			return clampf(float(rage_state.get("rage", 0.0)) / max_rage, 0.0, 1.0)
+	return 0.0
+
+
+func _apply_tactical_mark(enemy: Node) -> void:
+	var ability_manager := _get_ability_manager()
+	if ability_manager != null and ability_manager.has_method("apply_tactical_mark"):
+		ability_manager.apply_tactical_mark(enemy)
+
+
+func _is_tactically_marked(enemy: Node) -> bool:
+	var ability_manager := _get_ability_manager()
+	return ability_manager != null and ability_manager.has_method("is_tactically_marked") and bool(ability_manager.is_tactically_marked(enemy))
+
+
+func _is_known_passive_evolution(evolution_id: String, target_id: String) -> bool:
+	return _get_passive_evolution_target(evolution_id) == target_id
+
+
+func _get_passive_evolution_target(evolution_id: String) -> String:
+	match evolution_id:
+		"frost_breath_permafrost":
+			return "orbit_shields"
+		"death_dash_comet_path":
+			return "storm_relay"
+		"death_dash_final_flash":
+			return "recovery_field"
+		"trap_marked_blast":
+			return "guardian_drone"
+		"hook_shadow_line":
+			return "chain_lightning"
+		"hook_rapid_abduction":
+			return "time_dilator"
+		"mighty_clap_rampage_impact":
+			return "static_field"
+		"rage_leap_blood_crater":
+			return "battle_focus"
+		"rage_leap_final_impact":
+			return "magnet_core"
+	return ""
+
+
+func _get_passive_evolution_status(evolution_id: String) -> String:
+	match evolution_id:
+		"frost_breath_permafrost":
+			return "SOLAR AEGIS"
+		"death_dash_comet_path":
+			return "SOLAR STORM"
+		"death_dash_final_flash":
+			return "RADIANT RENEWAL"
+		"trap_marked_blast":
+			return "DRONE SWARM"
+		"hook_shadow_line":
+			return "SHOCK NET"
+		"hook_rapid_abduction":
+			return "STASIS FIELD"
+		"mighty_clap_rampage_impact":
+			return "RAGE FIELD"
+		"rage_leap_blood_crater":
+			return "BERSERKER FOCUS"
+		"rage_leap_final_impact":
+			return "GRAVITY RAGE"
+	return "PASSIVE EVOLUTION"
+
+
+func _get_passive_evolution_titles() -> Array[String]:
+	var titles: Array[String] = []
+	for evolution_id in _selected_passive_evolutions:
+		titles.append(_get_passive_evolution_status(evolution_id).capitalize())
+	return titles
 
 
 func _show_damage(amount: int, world_position: Vector2) -> void:
