@@ -172,13 +172,14 @@ Implemented foundation:
   - UpgradeManager emits `build_changed(dominant_archetype, points)` whenever an upgrade is applied.
   - `debug_print_upgrade_pool()` and `debug_get_available_upgrade_ids()` helpers available for console verification.
 
-- Passive Ability System Foundation:
+- Passive Ability System Foundation + visibility hotfix:
   - Passive skills are shared by all heroes, selected through the normal level-up upgrade pool, and reset every run.
   - `PassiveAbilityManager` is instantiated by Arena at run startup and is never saved to meta/progression data.
-  - First shared passive lines: Orbit Shields (regenerating shield charges), Storm Relay (periodic nearest-enemy lightning), Guardian Drone (periodic nearby enemy attack), and Magnet Core (increases XP/powerup magnet reach).
+  - First shared passive lines: Orbit Shields (regenerating shield charges with orbiting shield indicators), Storm Relay (periodic nearest-enemy lightning with a visible arc), Guardian Drone (orbiting drone indicator with visible attack arc), and Magnet Core (increases XP/powerup magnet reach and pulses when upgraded).
+  - Passive effects now have visible runtime feedback: shield indicators track charges, shield blocks show `SHIELD BLOCK`, Storm/Drone hits draw short Line2D arcs, and damage/status text appears at the target.
   - Passive upgrade definitions use `type/category: "passive"` plus `tags: ["passive", ...]`; LevelUpScreen marks them with `PASSIVE`.
   - Slot limits such as 4/4/4 are not implemented yet. Hero-specific attack/active upgrade rewrites and Build Evolution are not included in this foundation patch.
-  - DebugStatsOverlay shows selected passive ids/levels, timers, shield count, and pickup radius bonus while Debug Mode is enabled.
+  - DebugStatsOverlay shows selected passive ids/levels, timers, shield count/max, pickup radius bonus, and the last passive event while Debug Mode is enabled.
 
 - PowerupPickup foundation (generic in-run pickup that delegates to PowerupManager).
 - PowerupManager (applies powerup effects to player and world).

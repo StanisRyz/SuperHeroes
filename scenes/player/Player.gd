@@ -100,7 +100,9 @@ func take_damage(amount: int) -> void:
 	if buff_manager != null and buff_manager.has_method("consume_shield_charge"):
 		if buff_manager.consume_shield_charge():
 			if _feedback_manager != null and _feedback_manager.has_method("show_status"):
-				_feedback_manager.show_status("BLOCK", global_position + Vector2.UP * 30.0)
+				_feedback_manager.show_status("SHIELD BLOCK", global_position + Vector2.UP * 30.0)
+			if _feedback_manager != null and _feedback_manager.has_method("shake"):
+				_feedback_manager.shake(3.0, 0.10)
 			return
 
 	var previous_health := current_health

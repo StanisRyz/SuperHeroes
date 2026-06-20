@@ -228,16 +228,27 @@ Run these before adding new gameplay systems.
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Trigger several level-ups with F1/F2 while Debug Mode is ON | Passive options can appear in the normal LevelUpScreen pool with a `PASSIVE` marker |
-| 2 | Pick `Orbit Shields` | Shield charges appear through PlayerBuffManager/HUD; a shield blocks one incoming hit |
-| 3 | Wait after a shield is consumed | Orbit Shields regenerates charges over time up to its current passive cap |
-| 4 | Pick `Storm Relay`, then stand near enemies | Nearby valid enemies take automatic periodic lightning damage |
-| 5 | Pick `Guardian Drone`, then stand near enemies | Nearby valid enemies take automatic periodic drone damage |
-| 6 | Pick `Magnet Core` | XP gems and powerup pickups start magneting from farther away via runtime pickup radius bonus |
-| 7 | Pick the same passive again | Passive level increases and DebugStatsOverlay shows the higher level |
-| 8 | Pick old weapon and active ability upgrades | Existing autoattack, active ability, synergy, and hero-flavored upgrade effects still apply |
-| 9 | Open LevelUpScreen and choose any passive | The tree pauses for selection and resumes after the choice as before |
-| 10 | Restart or quit after selecting passives | Fresh run has no selected passive ids/levels/timers or stale pickup radius bonus |
-| 11 | Inspect diff/save behavior | No meta save, settings, rewards, stage objectives, boss flow, enemy roles, hero kits, primary weapon identity, slot limits, or Build Evolution changes |
+| 2 | Pick `Orbit Shields` | Shield charges appear through PlayerBuffManager/HUD and visible orbiting shield indicators appear around the player |
+| 3 | Take enemy contact damage with a shield active | HP does not drop, `SHIELD BLOCK` appears, and the orbiting shield indicator count decreases |
+| 4 | Wait after a shield is consumed | Orbit Shields regenerates charges over time up to its current passive cap and the visual indicator returns |
+| 5 | Pick `Storm Relay`, then stand near enemies | Nearby valid enemies take automatic periodic lightning damage with a visible arc, `STORM` status, and damage text |
+| 6 | Pick `Guardian Drone`, then stand near enemies | A drone indicator orbits the player and periodically hits enemies with a visible arc, `DRONE` status, and damage text |
+| 7 | Pick `Magnet Core` | XP gems and powerup pickups start magneting from farther away via runtime pickup radius bonus; a magnet pulse/status appears on upgrade |
+| 8 | Pick the same passive again | Passive level increases and DebugStatsOverlay shows the higher level |
+| 9 | Pick old weapon and active ability upgrades | Existing autoattack, active ability, synergy, and hero-flavored upgrade effects still apply |
+| 10 | Open LevelUpScreen and choose any passive | The tree pauses for selection and resumes after the choice as before |
+| 11 | Restart or quit after selecting passives | Fresh run has no selected passive ids/levels/timers, shield/drone visuals, or stale pickup radius bonus |
+| 12 | Inspect diff/save behavior | No meta save, settings, rewards, stage objectives, boss flow, enemy roles, hero kits, primary weapon identity, slot limits, or Build Evolution changes |
+
+## Passive Ability Runtime Verification
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable Debug Mode after selecting passives | DebugStatsOverlay shows selected passive ids/levels, Storm Relay timer, Guardian Drone timer, Orbit Shield charges/max, Magnet Core bonus, and last passive event |
+| 2 | Select/upgrade any passive | Passive state appears in `get_passive_state()` via DebugStatsOverlay without enabling verbose console logs |
+| 3 | Let Storm Relay tick with no enemies nearby | It retries soon; no crash, no stuck timer, and the next nearby enemy is struck |
+| 4 | Let Guardian Drone tick with no enemies nearby | It retries soon; no crash, no stuck timer, and the next nearby enemy is struck |
+| 5 | End the run by victory, defeat, restart, or quit | Passive visuals and runtime state are cleaned with the Arena transition |
 
 ---
 

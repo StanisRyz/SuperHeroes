@@ -96,7 +96,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/enemies/EnemySpawner.gd` - spawn loop, spawn distance checks, max alive enemy limit, XP drops, powerup drop rolls.
 - `scenes/player/PlayerBuffManager.tscn` - player buff manager scene.
 - `scenes/player/PlayerBuffManager.gd` - timed buffs (move speed, attack speed) and shield charges.
-- `scenes/passives/PassiveAbilityManager.gd` - runtime-only shared passive skill manager. Owns selected passive ids/levels, shield regeneration, periodic passive attacks, magnet reach bonus, debug state, and cleanup. Never saves passive state.
+- `scenes/passives/PassiveAbilityManager.gd` - runtime-only shared passive skill manager. Owns selected passive ids/levels, shield regeneration, shield/drone visuals, periodic visible passive attacks, magnet reach bonus, debug state, and cleanup. Never saves passive state.
 - `scenes/powerups/PowerupManager.tscn` - powerup manager scene.
 - `scenes/powerups/PowerupManager.gd` - applies powerup effects (heal, shield, bomb, magnet burst, speed boosts).
 - `scenes/pickups/PowerupPickup.tscn` - generic in-run powerup pickup scene.
@@ -704,11 +704,16 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - `PassiveAbilityManager.setup(player, enemy_container, projectile_container, pickup_container, feedback_manager)` wires run references only. It owns `add_or_upgrade_passive(passive_id)`, `get_passive_level(passive_id)`, `has_passive(passive_id)`, `get_passive_state()`, and `cleanup()`.
 - Passive state is runtime-only. Selected passive ids/levels, timers, shield regeneration state, and pickup radius bonuses must reset every run and must never be written to meta saves, settings, rewards, user preferences, or stage data.
 - Current shared passive lines are `orbit_shields`, `storm_relay`, `guardian_drone`, and `magnet_core`. They are shared by all heroes and must not depend on hero kit identity.
+- Passive abilities must provide visible gameplay feedback, not only hidden numeric state.
+- Orbit Shields visuals must track `PlayerBuffManager.shield_changed` / `get_shield_charges()` so consumed and regenerated charges are visible around the player.
+- Storm Relay and Guardian Drone must show clear hit feedback when they deal damage, such as Line2D arcs plus status/damage text.
+- Magnet Core must either rely on pickup scripts reading `player.pickup_radius_bonus` or provide an explicit runtime pull fallback; upgrades should show clear selection feedback.
 - Passive upgrade definitions live in `UpgradeManager.gd` with `type`/`category` set to `"passive"`, `tags` containing `"passive"`, conservative `max_level`, a display `description_template`, and normal weighting/archetype fields.
 - `UpgradeManager` now supports passive upgrades by passing passive ids to `PassiveAbilityManager.add_or_upgrade_passive()`. Existing attack upgrades, active ability upgrades, hero-flavored text, synergy upgrades, and build-defining upgrades must keep their ids and behavior.
 - `LevelUpScreen` may display passive options with a compact `PASSIVE` marker, but it remains display-only.
 - `DebugStatsOverlay` may read `PassiveAbilityManager.get_passive_state()` for ids/levels/timers. It must never mutate passive or gameplay state.
 - Slot limits such as 4/4/4 are not implemented yet. Hero-specific attack/active upgrade rewrites are not included yet.
+- Do not implement 4/4/4 slot limits in passive visibility hotfixes.
 - No Build Evolution in this patch.
 
 ## Run Lifecycle

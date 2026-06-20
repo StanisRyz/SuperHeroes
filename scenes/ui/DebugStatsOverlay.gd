@@ -263,6 +263,7 @@ func _build_stats_text() -> String:
 				int(passive_state.get("shield_charges", 0)),
 				int(passive_state.get("shield_max_charges", 0)),
 			])
+			lines.append("Last: %s" % str(passive_state.get("last_event", "none")))
 
 	# Shield / buffs from PlayerBuffManager
 	if _player != null and is_instance_valid(_player):
