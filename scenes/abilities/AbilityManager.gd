@@ -94,9 +94,30 @@ const KIT_GENERIC := "generic"
 @export var rage_per_damage_dealt: float = 0.08
 @export var rage_decay_per_second: float = 4.0
 @export var rage_damage_multiplier_at_max: float = 1.45
-@export var rage_spend_fraction: float = 0.45
-@export var crushing_leap_distance: float = 165.0
-@export var crushing_leap_invulnerability: float = 0.22
+
+# Fury Vanguard — Rage Wave (slot 1)
+@export var rage_wave_damage: int = 20
+@export var rage_wave_radius: float = 210.0
+@export var rage_wave_cooldown: float = 6.0
+@export var rage_wave_slow_multiplier: float = 0.55
+@export var rage_wave_slow_duration: float = 2.0
+@export var rage_wave_radius_rage_bonus: float = 0.0
+
+# Fury Vanguard — Mighty Clap (slot 2)
+@export var mighty_clap_damage: int = 28
+@export var mighty_clap_cone_degrees: float = 60.0
+@export var mighty_clap_range: float = 185.0
+@export var mighty_clap_cooldown: float = 7.0
+@export var mighty_clap_knockback_force: float = 180.0
+
+# Fury Vanguard — Rage Leap (slot 3)
+@export var rage_leap_distance: float = 210.0
+@export var rage_leap_damage: int = 35
+@export var rage_leap_radius: float = 160.0
+@export var rage_leap_cooldown: float = 9.0
+@export var rage_leap_slow_multiplier: float = 0.55
+@export var rage_leap_slow_duration: float = 2.0
+@export var rage_leap_invulnerability: float = 0.22
 
 var player: Node2D
 var enemy_container: Node
@@ -197,7 +218,7 @@ func cast_ability_1() -> void:
 		KIT_TACTICIAN:
 			_try_cast_smoke_screen()
 		KIT_VANGUARD:
-			_try_cast_rage_burst()
+			_try_cast_rage_wave()
 		_:
 			_try_cast_nova_pulse()
 
@@ -209,7 +230,7 @@ func cast_ability_2() -> void:
 		KIT_TACTICIAN:
 			_try_cast_explosive_trap()
 		KIT_VANGUARD:
-			_try_cast_crushing_leap()
+			_try_cast_mighty_clap()
 		_:
 			_try_cast_laser_beam()
 
@@ -221,7 +242,7 @@ func cast_ability_3() -> void:
 		KIT_TACTICIAN:
 			_try_cast_grappling_hook()
 		KIT_VANGUARD:
-			_try_cast_titan_slam()
+			_try_cast_rage_leap()
 		_:
 			_try_cast_hero_slam()
 
@@ -284,9 +305,29 @@ func get_hero_kit_state() -> Dictionary:
 		"solar_empowered_time_left": _solar_empowered_time_left,
 		"rage": rage,
 		"rage_max": rage_max,
+		"rage_damage_multiplier": get_rage_damage_multiplier(),
 		"tactical_mark_count": marked_count,
 		"tactical_mark_target": str(marked_count) + " marked" if marked_count > 0 else "none",
 		"has_tactical_mark": marked_count > 0,
+	}
+
+
+func add_rage(amount: float) -> void:
+	if current_kit_id != KIT_VANGUARD:
+		return
+	_add_rage(amount)
+
+
+func get_rage_damage_multiplier() -> float:
+	return _get_rage_damage_multiplier()
+
+
+func get_rage_state() -> Dictionary:
+	return {
+		"rage": rage,
+		"rage_max": rage_max,
+		"rage_damage_multiplier": _get_rage_damage_multiplier(),
+		"rage_ratio": _rage_ratio(),
 	}
 
 
@@ -454,63 +495,69 @@ func _try_cast_grappling_hook() -> void:
 	_finish_cast(3, "grappling_hook", grappling_hook_cooldown)
 
 
-func _try_cast_rage_burst() -> void:
+func _try_cast_rage_wave() -> void:
 	if not _guard_cast(1):
 		return
 	var multiplier := _get_rage_damage_multiplier()
-	var damage := _scale_int(nova_damage, multiplier)
-	var radius := nova_radius * (1.0 + 0.22 * _rage_ratio())
-	var hits := _damage_enemies_in_radius_at(player.global_position, damage, radius)
+	var damage := _scale_int(rage_wave_damage, multiplier)
+	var radius := rage_wave_radius * (1.0 + (0.18 + rage_wave_radius_rage_bonus) * _rage_ratio())
+	var cast_position := player.global_position
+	var hits := _damage_enemies_in_radius_at(cast_position, damage, radius)
+	_apply_enemy_modifier_in_radius(cast_position, radius, "rage_wave_slow",
+		{"speed_multiplier": rage_wave_slow_multiplier}, rage_wave_slow_duration)
 	_add_rage_from_ability_damage(hits, damage)
-	_spawn_pulse_feedback_at(player.global_position, radius)
-	_status("RAGE %.0f" % rage if hits > 0 else "RAGE ROAR", player.global_position + Vector2.UP * 42.0)
-	if nova_aftershock_enabled:
-		_schedule_nova_aftershock(player.global_position)
+	_spawn_rage_wave_visual(cast_position, radius)
+	if rage >= rage_max:
+		_status("MAX RAGE WAVE", cast_position + Vector2.UP * 42.0)
+	else:
+		_status("RAGE WAVE" if hits > 0 else "WAVE MISS", cast_position + Vector2.UP * 42.0)
 	_shake(6.0, 0.16)
-	_finish_cast(1, "rage_burst", nova_cooldown)
+	_finish_cast(1, "rage_wave", rage_wave_cooldown)
 
 
-func _try_cast_crushing_leap() -> void:
+func _try_cast_mighty_clap() -> void:
 	if not _guard_cast(2):
+		return
+	var multiplier := _get_rage_damage_multiplier()
+	var damage := _scale_int(mighty_clap_damage, multiplier)
+	var direction := _get_player_aim_direction()
+	var origin := player.global_position
+	var half_angle := mighty_clap_cone_degrees * 0.5
+	var hits := _damage_enemies_in_cone(origin, direction, damage, mighty_clap_range, half_angle)
+	if mighty_clap_knockback_force > 0.0:
+		_apply_knockback_in_cone(origin, direction, mighty_clap_range, half_angle, mighty_clap_knockback_force)
+	_add_rage_from_ability_damage(hits, damage)
+	_spawn_mighty_clap_visual(origin, direction, mighty_clap_cone_degrees, mighty_clap_range)
+	if rage >= rage_max:
+		_status("MAX RAGE CLAP", origin + Vector2.UP * 42.0)
+	else:
+		_status("MIGHTY CLAP" if hits > 0 else "CLAP MISS", origin + Vector2.UP * 42.0)
+	_shake(7.0, 0.18)
+	_finish_cast(2, "mighty_clap", mighty_clap_cooldown)
+
+
+func _try_cast_rage_leap() -> void:
+	if not _guard_cast(3):
 		return
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
-	var path_width := maxf(laser_width * 0.55, 42.0)
-	var path_damage := _scale_int(laser_damage, 0.62 + 0.25 * _rage_ratio())
-	var path_hits := _damage_enemies_in_laser(origin, direction, path_damage, crushing_leap_distance, path_width)
-	_grant_brief_invulnerability(crushing_leap_invulnerability)
-	_move_player_safely(direction, crushing_leap_distance)
-	var impact_position := player.global_position
-	var impact_damage := _scale_int(laser_damage, _get_rage_damage_multiplier())
-	var impact_hits := _damage_enemies_in_radius_at(impact_position, impact_damage, slam_radius * 0.62)
-	var hits := path_hits + impact_hits
-	_add_rage_from_ability_damage(path_hits, path_damage)
-	_add_rage_from_ability_damage(impact_hits, impact_damage)
-	_spawn_laser_feedback_at(origin, direction, origin.distance_to(impact_position), path_width)
-	_spawn_slam_feedback_at(impact_position, slam_radius * 0.62)
-	_status("LEAP" if hits > 0 else "LEAP MISS", origin + Vector2.UP * 42.0)
-	if laser_double_pulse_enabled:
-		_schedule_laser_second_pulse(origin, direction)
-	_shake(6.0, 0.14)
-	_finish_cast(2, "crushing_leap", laser_cooldown)
-
-
-func _try_cast_titan_slam() -> void:
-	if not _guard_cast(3):
-		return
 	var multiplier := _get_rage_damage_multiplier()
-	var rage_before_spend := _rage_ratio()
-	var radius := slam_radius * (1.0 + 0.35 * rage_before_spend)
-	var damage := _scale_int(slam_damage, multiplier + 0.25 * rage_before_spend)
-	var spent_rage := _spend_rage_fraction()
-	var hits := _damage_enemies_in_radius_at(player.global_position, damage, radius)
+	var damage := _scale_int(rage_leap_damage, multiplier)
+	_grant_brief_invulnerability(rage_leap_invulnerability)
+	_move_player_safely(direction, rage_leap_distance)
+	var landing_position := player.global_position
+	var hits := _damage_enemies_in_radius_at(landing_position, damage, rage_leap_radius)
+	_apply_enemy_modifier_in_radius(landing_position, rage_leap_radius, "rage_leap_slow",
+		{"speed_multiplier": rage_leap_slow_multiplier}, rage_leap_slow_duration)
 	_add_rage_from_ability_damage(hits, damage)
-	_spawn_slam_feedback_at(player.global_position, radius)
-	if slam_second_wave_enabled or spent_rage > 0.0:
-		_schedule_titan_shockwave(player.global_position, radius * 1.18, maxi(roundi(float(damage) * 0.45), 1))
-	_status("TITAN SPEND %.0f" % spent_rage if spent_rage > 0.0 else ("TITAN SLAM" if hits > 0 else "TITAN SLAM MISS"), player.global_position + Vector2.UP * 42.0)
-	_shake(8.5, 0.2)
-	_finish_cast(3, "titan_slam", slam_cooldown)
+	_spawn_slam_feedback_at(landing_position, rage_leap_radius)
+	_spawn_rage_leap_trail_visual(origin, direction, origin.distance_to(landing_position))
+	if rage >= rage_max:
+		_status("MAX RAGE LEAP", origin + Vector2.UP * 42.0)
+	else:
+		_status("RAGE LEAP" if hits > 0 else "LEAP MISS", origin + Vector2.UP * 42.0)
+	_shake(8.0, 0.20)
+	_finish_cast(3, "rage_leap", rage_leap_cooldown)
 
 
 func _finish_cast(slot: int, ability_id: String, cooldown: float) -> void:
@@ -698,6 +745,40 @@ func _spawn_slam_feedback_at(world_position: Vector2, radius: float) -> void:
 	_get_feedback_parent().add_child(feedback)
 	if feedback.has_method("play"):
 		feedback.play(world_position, radius)
+
+
+func _spawn_rage_wave_visual(world_position: Vector2, radius: float) -> void:
+	_spawn_pulse_feedback_at(world_position, radius)
+
+
+func _spawn_mighty_clap_visual(origin: Vector2, direction: Vector2, cone_degrees: float, range_: float) -> void:
+	var approx_width := minf(range_ * sin(deg_to_rad(cone_degrees * 0.5)) * 1.6, 260.0)
+	_spawn_laser_feedback_at(origin, direction, range_, approx_width)
+
+
+func _spawn_rage_leap_trail_visual(origin: Vector2, direction: Vector2, distance: float) -> void:
+	_spawn_laser_feedback_at(origin, direction, distance, 40.0)
+
+
+func _apply_knockback_in_cone(origin: Vector2, direction: Vector2, range_: float,
+		half_angle_deg: float, force: float) -> void:
+	if enemy_container == null or not is_instance_valid(enemy_container):
+		return
+	var half_angle_rad := deg_to_rad(half_angle_deg)
+	for enemy in enemy_container.get_children():
+		if not _is_valid_enemy(enemy):
+			continue
+		var enemy_node := enemy as Node2D
+		var offset := enemy_node.global_position - origin
+		if offset.length() > range_:
+			continue
+		if offset.length() == 0.0:
+			continue
+		var angle := direction.angle_to(offset.normalized())
+		if absf(angle) > half_angle_rad:
+			continue
+		if enemy.has_method("apply_knockback"):
+			enemy.apply_knockback(offset.normalized(), force)
 
 
 func _get_feedback_parent() -> Node:
@@ -981,12 +1062,6 @@ func _add_rage_from_ability_damage(hit_count: int, damage: int) -> void:
 	_add_rage(float(hit_count * damage) * rage_per_damage_dealt + float(hit_count) * rage_per_hit)
 
 
-func _spend_rage_fraction() -> float:
-	var spent := minf(rage, rage_max * rage_spend_fraction)
-	rage = maxf(rage - spent, 0.0)
-	return spent
-
-
 func _get_rage_damage_multiplier() -> float:
 	return lerpf(1.0, rage_damage_multiplier_at_max, _rage_ratio())
 
@@ -1055,6 +1130,11 @@ func _get_cooldown_total(slot: int) -> float:
 			1: return smoke_screen_cooldown
 			2: return explosive_trap_cooldown
 			3: return grappling_hook_cooldown
+	if current_kit_id == KIT_VANGUARD:
+		match slot:
+			1: return rage_wave_cooldown
+			2: return mighty_clap_cooldown
+			3: return rage_leap_cooldown
 	match slot:
 		1: return nova_cooldown
 		2: return laser_cooldown
@@ -1079,7 +1159,7 @@ func _get_ability_ids() -> Dictionary:
 		KIT_TACTICIAN:
 			return {1: "smoke_screen", 2: "explosive_trap", 3: "grappling_hook"}
 		KIT_VANGUARD:
-			return {1: "rage_burst", 2: "crushing_leap", 3: "titan_slam"}
+			return {1: "rage_wave", 2: "mighty_clap", 3: "rage_leap"}
 	return {1: "nova_pulse", 2: "laser_beam", 3: "hero_slam"}
 
 

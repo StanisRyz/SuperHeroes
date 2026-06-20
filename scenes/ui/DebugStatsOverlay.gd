@@ -205,7 +205,11 @@ func _build_stats_text() -> String:
 				"night_tactician":
 					lines.append("Tactical Marks: %s" % str(kit.get("tactical_mark_count", 0)))
 				"fury_vanguard":
-					lines.append("Rage: %.0f / %.0f" % [float(kit.get("rage", 0.0)), float(kit.get("rage_max", 0.0))])
+					lines.append("Rage: %.0f / %.0f  Dmg×%.2f" % [
+						float(kit.get("rage", 0.0)),
+						float(kit.get("rage_max", 0.0)),
+						float(kit.get("rage_damage_multiplier", 1.0))
+					])
 	else:
 		lines.append("-- Abilities: null --")
 

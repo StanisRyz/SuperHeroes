@@ -212,6 +212,13 @@ func clear_velocity_override() -> void:
 	_velocity_override = Vector2.ZERO
 
 
+func apply_knockback(direction: Vector2, force: float, duration: float = 0.22) -> void:
+	set_velocity_override(direction * force)
+	var t := create_tween()
+	t.tween_interval(duration)
+	t.tween_callback(clear_velocity_override)
+
+
 func _physics_process(delta: float) -> void:
 	_tick_temporary_modifiers(delta)
 

@@ -271,7 +271,7 @@ Each stage has an `objective_type` and `objective_data` in StageDataProvider. Vi
 
 ### PortalObjective detectability
 - `collision_layer=2`, `collision_mask=0`, added to `"enemies"` group.
-- Player autoattack Area2D (mask=2) detects portals as bodies via `body_entered`; `shockwave_strike` includes portals in `_enemies_in_range`.
+- Player autoattack Area2D (mask=2) detects portals as bodies via `body_entered`; `splash_melee` includes portals in `_enemies_in_range` since they share the enemy collision layer.
 - Portals implement `take_damage(amount)` — the same interface called by projectile and shockwave damage paths.
 - No modifications to `PlayerProjectile.gd` or `PlayerAutoAttack.gd` were needed.
 
@@ -338,18 +338,18 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Guardian may override ability display names through hero data, but global input slots and ability ids must stay stable.
 - Blaster keeps the `blaster` id and is a rocket tactician: fires homing rockets (no pierce, no bounce), plants Smoke Screen/Explosive Trap, and closes with a Grappling Hook. Tactical Mark is multi-enemy and duration-based.
 - Blaster presents slot 1/2/3 as Smoke Screen, Explosive Trap, and Grappling Hook in hero data; global input slots and ability ids remain stable.
-- Vanguard keeps the `vanguard` id and is an original rage bruiser fantasy with durability, heavy impact, leap-like presentation, close-range fury, and ground-smash presentation.
-- Vanguard may override ability display names through hero data as Rage Burst, Crushing Leap, and Titan Slam, but global input slots and ability ids must stay stable.
+- Vanguard keeps the `vanguard` id and is an original rage bruiser: close-range splash melee autoattack (`splash_melee`), Rage passive (builds from damage taken and damage dealt, decays over time, increases all damage up to 1.45× at max), Rage Wave (slot 1, circle AoE + slow), Mighty Clap (slot 2, cone AoE + knockback), Rage Leap (slot 3, dash + landing AoE + slow). Upgrade lines: `splash_melee_damage/radius/speed/impact/frenzy` (attack); `rage_wave_power/radius/cooldown/deep_slow/chain`, `mighty_clap_power/range/cooldown/shockwave`, `rage_leap_power/radius/cooldown` (active). Vanguard is excluded from all projectile-count, pierce, bounce, spread, multishot, and old nova/laser/slam ability upgrade lines.
+- Vanguard's ability display names through hero data are Rage Wave, Mighty Clap, and Rage Leap; global input slots and ability ids remain stable.
 - Final hero roster ids and display names: `guardian` = Solar Guardian, `blaster` = Night Tactician, `vanguard` = Fury Vanguard.
-- Final hero ability display names: Solar Guardian = Solar Beam / Frost Breath / Death Dash; Night Tactician = Smoke Screen / Explosive Trap / Grappling Hook; Fury Vanguard = Rage Burst / Crushing Leap / Titan Slam.
+- Final hero ability display names: Solar Guardian = Solar Beam / Frost Breath / Death Dash; Night Tactician = Smoke Screen / Explosive Trap / Grappling Hook; Fury Vanguard = Rage Wave / Mighty Clap / Rage Leap.
 - Hero-specific ability display names must come from hero data and flow through HeroApplier/AbilityManager or direct hero data reads in display-only roster UI.
 - HeroApplier must pass selected hero kit info into AbilityManager. AbilityManager owns all hero-specific active ability behavior and passive combat resources.
 - Global input slots and public methods remain stable: `ability_1`/`cast_ability_1`, `ability_2`/`cast_ability_2`, `ability_3`/`cast_ability_3`.
-- AbilityManager must keep `nova_*`, `laser_*`, and `slam_*` properties as shared slot 1/2/3 tuning hooks so UpgradeManager effects remain compatible for Fury Vanguard. Solar Guardian uses its own `solar_beam_*`, `frost_breath_*`, and `death_dash_*` properties. Night Tactician uses `smoke_screen_*`, `explosive_trap_*`, and `grappling_hook_*` properties — none of these overlap with other heroes.
+- AbilityManager uses per-hero dedicated properties. Solar Guardian: `solar_beam_*`, `frost_breath_*`, `death_dash_*`. Night Tactician: `smoke_screen_*`, `explosive_trap_*`, `grappling_hook_*`. Fury Vanguard (reworked): `rage_wave_*`, `mighty_clap_*`, `rage_leap_*`, plus `rage`, `rage_max`, `rage_decay_per_second`, `rage_damage_multiplier_at_max`, etc. Generic `nova_*`, `laser_*`, and `slam_*` properties remain for the generic fallback slot path and existing non-hero-specific upgrades — they must not be removed, but Vanguard no longer uses them.
 - Solar Guardian uses Solar Energy passive (+2/sec automatic, not from hits). At 100 energy, a 15-second empowered state activates (x2 damage on all abilities and autoattack); energy resets to 0 and resumes charging. `get_solar_damage_multiplier()` returns the active multiplier. Solar Guardian autoattack weapon id is `solar_ray` (direct beam, no projectile).
 - Solar Guardian must NOT receive projectile-count/multishot upgrades (`multishot_up`, `spread_up`, `bouncing_bolts`, `split_barrage`), nor nova/laser/slam ability upgrade lines. Use `hero_exclude: ["guardian"]` on those definitions. Guardian-only upgrades use `hero_only: ["guardian"]` and the `solar_ray`, `solar_beam`, `frost_breath`, `death_dash` archetypes.
 - Night Tactician uses multi-enemy Tactical Mark: `_tactical_marks` is a Dictionary (enemy Node → seconds_remaining), ticked each frame. All three active abilities apply marks on contact/area. Rockets read `get_tactical_mark_multiplier(target)` for bonus damage on marked targets. Mark does NOT affect other heroes' weapons.
-- Fury Vanguard uses Rage from ability damage dealt and real player damage taken. Rage decays slowly; high Rage increases damage/radius; Titan Slam can spend Rage for a stronger slam.
+- Fury Vanguard uses Rage built from damage taken and from dealing autoattack/ability damage. Rage decays at `rage_decay_per_second`; higher Rage increases all autoattack and ability damage (up to `rage_damage_multiplier_at_max` at 100 Rage). Public helpers: `add_rage(amount)` (called by PlayerAutoAttack on hits), `get_rage_damage_multiplier()` (read by PlayerAutoAttack for splash_melee scaling), `get_rage_state()` (read by DebugStatsOverlay).
 - These runtime passive resources reset naturally with each Arena.
 - Ready ability casts must not silently fail because zero enemies were hit. If `_guard_cast(slot)` allows the cast, AbilityManager should provide available feedback/status, start cooldown, emit `ability_cast`, and emit `ability_cooldown_changed`.
 - UI, HUD, mobile controls, debug overlays, and debug logs must prefer hero-specific ability display names from AbilityManager state instead of hardcoded global ability labels.
@@ -409,6 +409,7 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Miniboss phase announcement: "Miniboss Enraged!" on phase 2 transition.
 - Miniboss defeated announcement: "Miniboss Defeated!" on miniboss death.
 - Enemy.set_velocity_override / clear_velocity_override for locked-direction charge movement.
+- Enemy.apply_knockback(direction: Vector2, force: float, duration: float = 0.22) — applies velocity override in the given direction at force magnitude, then clears it after duration via a one-shot tween.
 - EnemySpawner.projectile_container passed from Arena for projectile and effect parenting.
 - Player movement.
 - Arena bounds and player clamping.
@@ -525,16 +526,17 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 ## Primary Weapon / Autoattack Architecture
 
 - `HeroDataProvider` stores a `primary_weapon` dictionary on every hero: `weapon_id` (stable string id), `display_name`, and weapon-specific default property overrides (`projectile_speed`, `projectile_size_multiplier`, `projectile_pierce`, `projectile_bounce`, `attack_range`, `direct_damage`).
-- Stable hero primary weapon ids: `guardian` → `solar_ray`, `blaster` → `homing_rockets`, `vanguard` → `shockwave_strike`.
+- Stable hero primary weapon ids: `guardian` → `solar_ray`, `blaster` → `homing_rockets`, `vanguard` → `splash_melee`.
 - `HeroApplier.apply_hero()` calls `PlayerAutoAttack.set_primary_weapon(hero_id, weapon_id, weapon_data)` as the final step, after all stat bonuses have been applied. It also calls `PlayerAutoAttack.set_ability_manager_ref(ability_manager)` so homing_rockets can read Tactical Mark state.
 - `PlayerAutoAttack.set_primary_weapon()` stores `_primary_weapon_id` and `_primary_weapon_data`, then applies weapon-specific property defaults. It does NOT override `attack_damage` or `attack_interval` — those are owned by HeroApplier stats and UpgradeManager.
 - `PlayerAutoAttack._physics_process` routes by `_primary_weapon_id` after the cooldown check:
   - `"solar_ray"` → `_tick_solar_ray()` — direct beam, no projectile spawned.
   - `"homing_rockets"` → `_tick_homing_rockets()` — spawns `projectile_count` rockets distributed round-robin across all enemies in range. Each rocket is always pierce=0, bounce=0, homing=true. Reads `get_tactical_mark_multiplier(target)` from AbilityManager to pre-multiply damage for marked targets.
-  - `"shockwave_strike"` → `_tick_shockwave_strike()` — direct `take_damage()` on all enemies in `_enemies_in_range`; no projectile spawned.
+  - `"splash_melee"` → `_tick_splash_melee()` — direct `take_damage()` on all enemies within `splash_melee_radius` of the player; no projectile spawned. Damage scales with Rage via `get_rage_damage_multiplier()`. Reports hits back to AbilityManager via `add_rage(rage_per_hit)` for Rage gain. Applies per-hit knockback if `splash_melee_knockback > 0`.
   - empty / unknown → `_tick_solar_bolt(enemy)` — standard projectile spawn via `_spawn_projectiles()` (fallback).
 - Stable upgrade hooks that must not be renamed: `attack_damage`, `attack_interval`, `attack_range`, `projectile_count`, `projectile_pierce`, `projectile_size_multiplier`, `projectile_explosion_radius`, `projectile_bounce`, `projectile_speed`. All apply on top of weapon defaults regardless of weapon mode.
-- Projectile-specific upgrades (`projectile_count`, `projectile_pierce`, `projectile_bounce`, `projectile_explosion_radius`, `projectile_size_multiplier`, `projectile_speed`) do not crash `shockwave_strike`; they simply have no effect since no projectile is spawned.
+- Projectile-specific upgrades (`projectile_count`, `projectile_pierce`, `projectile_bounce`, `projectile_explosion_radius`, `projectile_size_multiplier`, `projectile_speed`) do not crash `splash_melee`; they simply have no effect since no projectile is spawned. Vanguard has `hero_exclude` on all projectile-category upgrade definitions so they never appear in the pool.
+- `PlayerAutoAttack` exposes `splash_melee_radius: float` and `splash_melee_knockback: float` as `@export` properties, upgradeable via `splash_melee_radius` and `splash_melee_impact` upgrade definitions.
 - `PlayerAutoAttack.get_primary_weapon_id()` returns the current weapon id string.
 - `PlayerAutoAttack.get_primary_weapon_display_name()` returns the `display_name` from weapon data.
 - `GameHUD.set_primary_weapon_name(display_name)` dynamically adds a `WeaponLabel` child to `BuildPanel`.
@@ -802,7 +804,7 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Slot 3 uses `ability_3` (L) with hero-specific impact/control behavior routed by kit id.
 - Solar Guardian: Solar Beam (slot 1) is a long-range red beam in aim direction, Frost Breath (slot 2) is a cone that damages and slows enemies, and Death Dash (slot 3) moves the player forward dealing path damage with brief invulnerability. All three abilities apply `get_solar_damage_multiplier()` for the empowered x2 bonus.
 - Night Tactician: Smoke Screen creates a persistent area zone (ColorRect visual) that slows enemies inside every 0.5s, applies Tactical Mark to them, and reduces player damage while the player is inside. Explosive Trap is placed at the player's position and triggers on enemy contact in `trigger_radius`, then explodes in `explosion_radius` and marks all hit enemies. Grappling Hook finds the nearest enemy in `grappling_hook_range`, dashes the player to it via `_move_player_safely()`, deals `grappling_hook_damage`, and applies a mark. All three abilities are blocked from applying if `_guard_cast()` fails.
-- Fury Vanguard: Rage Burst scales close pressure with Rage, Crushing Leap moves forward with path/landing impact, and Titan Slam spends Rage for a heavy slam plus delayed shockwave when supported.
+- Fury Vanguard: Rage Wave (slot 1) is a circle AoE that damages and slows all enemies in radius (radius scales slightly with Rage ratio). Mighty Clap (slot 2) is a cone AoE that damages and knocks back enemies using `_apply_knockback_in_cone` → `Enemy.apply_knockback()`. Rage Leap (slot 3) dashes toward aim direction with brief invulnerability then deals AoE damage + slow at landing. All three apply `_get_rage_damage_multiplier()` and call `_add_rage_from_ability_damage()` on hits. `AbilityManager.add_rage()` is public so PlayerAutoAttack grants Rage from splash_melee hits.
 - All abilities are available from run start; no unlock system.
 - HUD listens to `ability_cooldown_changed` and displays readiness for all 3 slots.
 - MobileControls emits ability intents (ability_1/2/3_pressed) only; Arena wires them to AbilityManager.
@@ -888,7 +890,7 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Stage selection.
 - Arena hazards.
 - Data-driven Resource upgrade files.
-- Stun or knockback from abilities.
+- Stun from abilities.
 - Chain-lightning projectiles.
 - Permanent shield regeneration.
 - New pickup types.

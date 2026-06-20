@@ -18,6 +18,8 @@ extends Node
 @export var max_projectile_bounce: int = 5
 @export var max_projectile_explosion_radius: float = 180.0
 @export var solar_ray_width: float = 40.0
+@export var splash_melee_radius: float = 85.0
+@export var splash_melee_knockback: float = 0.0
 
 var projectile_container: Node
 var audio_manager: Node
@@ -71,6 +73,8 @@ func _physics_process(delta: float) -> void:
 			attacked = _tick_solar_ray()
 		"homing_rockets":
 			attacked = _tick_homing_rockets()
+		"splash_melee":
+			attacked = _tick_splash_melee()
 		_:
 			# "solar_bolt" and generic/fallback path
 			var enemy := _find_nearest_enemy()
@@ -198,6 +202,68 @@ func _spawn_solar_ray_visual(origin: Vector2, direction: Vector2) -> void:
 	timer.timeout.connect(func() -> void:
 		if is_instance_valid(line):
 			line.queue_free()
+	)
+
+
+# Fury Vanguard: splash melee autoattack. Damages all enemies within
+# splash_melee_radius of the player with a Rage-scaled damage multiplier.
+# No projectile — direct hit detection. Reports hits back to AbilityManager
+# so rage builds from autoattack damage dealt.
+func _tick_splash_melee() -> bool:
+	_cleanup_invalid_enemies()
+	if _enemies_in_range.is_empty():
+		return false
+	var origin := owner_body.global_position
+	var multiplier := _get_splash_melee_rage_multiplier()
+	var hit_damage := maxi(roundi(float(attack_damage) * multiplier), 1)
+	var hit_any := false
+	for target in _enemies_in_range:
+		if not _is_valid_enemy(target):
+			continue
+		var target_node := target as Node2D
+		if origin.distance_to(target_node.global_position) > splash_melee_radius:
+			continue
+		target.take_damage(hit_damage)
+		hit_any = true
+		if splash_melee_knockback > 0.0 and target.has_method("apply_knockback"):
+			var away := (target_node.global_position - origin).normalized()
+			target.apply_knockback(away, splash_melee_knockback)
+	if hit_any:
+		_spawn_splash_melee_visual(origin)
+		if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
+			if _ability_manager_ref.has_method("add_rage"):
+				_ability_manager_ref.add_rage(_ability_manager_ref.rage_per_hit if "rage_per_hit" in _ability_manager_ref else 6.0)
+	return hit_any
+
+
+func _get_splash_melee_rage_multiplier() -> float:
+	if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
+		if _ability_manager_ref.has_method("get_rage_damage_multiplier"):
+			return float(_ability_manager_ref.get_rage_damage_multiplier())
+	return 1.0
+
+
+func _spawn_splash_melee_visual(origin: Vector2) -> void:
+	var parent: Node = null
+	if projectile_container != null and is_instance_valid(projectile_container):
+		parent = projectile_container
+	elif owner_body != null and owner_body.get_parent() != null:
+		parent = owner_body.get_parent()
+	if parent == null:
+		return
+	var ring := Line2D.new()
+	ring.width = 4.0
+	ring.default_color = Color(0.82, 0.22, 0.12, 0.72)
+	ring.closed = true
+	var n := 20
+	for i in range(n):
+		var a := TAU * float(i) / float(n)
+		ring.add_point(origin + Vector2(cos(a), sin(a)) * splash_melee_radius)
+	parent.add_child(ring)
+	var timer := ring.get_tree().create_timer(0.10)
+	timer.timeout.connect(func() -> void:
+		if is_instance_valid(ring):
+			ring.queue_free()
 	)
 
 

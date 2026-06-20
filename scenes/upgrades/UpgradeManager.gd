@@ -108,34 +108,34 @@ const HERO_UPGRADE_FLAVOR := {
 			"attack_range_up": "Long Swing",
 			"move_speed_up": "Heavy Charge",
 			"max_health_up": "Thick Hide",
-			"projectile_speed_up": "Thrown Force",
-			"nova_damage_up": "Rage Burst Power",
-			"nova_cooldown_down": "Rage Recovery",
-			"laser_damage_up": "Crushing Leap Force",
-			"laser_cooldown_down": "Leap Recovery",
-			"laser_width_up": "Broad Leap",
-			"slam_damage_up": "Titan Slam Force",
-			"slam_radius_up": "Rupture Ring",
-			"slam_cooldown_down": "Slam Ready",
 			"shielded_dash": "Braced Charge",
 			"heroic_endurance": "Bruiser Endurance",
 			"power_collector": "Power Rush",
-			"nova_aftershock": "Rage Aftershock",
-			"laser_overcharge": "Crushing Overdrive",
-			"slam_quake": "Titan Quake",
-			"nova_aftershock_zone": "Fury Aftershock",
-			"laser_double_pulse": "Follow-Up Leap",
-			"slam_second_wave": "Second Smash",
 			"dash_damage_trail": "Rampage Dash",
-			"bouncing_bolts": "Rebounding Force",
+			"splash_melee_damage": "Fury Strike Power",
+			"splash_melee_radius": "Wide Fury",
+			"splash_melee_speed": "Fury Tempo",
+			"splash_melee_impact": "Knockback Force",
+			"splash_melee_frenzy": "Berserker Frenzy",
+			"rage_wave_power": "Wave Surge",
+			"rage_wave_radius": "Wave Reach",
+			"rage_wave_cooldown": "Wave Recovery",
+			"rage_wave_deep_slow": "Crushing Current",
+			"rage_wave_chain": "Chain Wave",
+			"mighty_clap_power": "Clap Force",
+			"mighty_clap_range": "Wide Clap",
+			"mighty_clap_cooldown": "Clap Ready",
+			"mighty_clap_shockwave": "Impact Wave",
+			"rage_leap_power": "Leap Impact",
+			"rage_leap_radius": "Wide Landing",
+			"rage_leap_cooldown": "Leap Ready",
 		},
 		"descriptions": {
-			"attack_damage_up": "Increase bruiser autoattack damage by %s.",
-			"attack_speed_up": "Reduce heavy autoattack interval by %ss.",
-			"attack_range_up": "Increase close-pressure targeting range by %s.",
+			"attack_damage_up": "Increase fury strike autoattack damage by %s.",
+			"attack_speed_up": "Reduce fury strike attack interval by %ss.",
+			"attack_range_up": "Increase close-combat targeting range by %s.",
 			"move_speed_up": "Increase charging movement speed by %s.",
-			"max_health_up": "Increase bruiser durability and heal by %s.",
-			"projectile_speed_up": "Increase speed of newly hurled force by %s.",
+			"max_health_up": "Increase bruiser max health and heal by %s.",
 			"shielded_dash": "Extend braced dash invulnerability and trim dash cooldown.",
 			"heroic_endurance": "Increase bruiser max health by %s and restore HP.",
 			"power_collector": "Increase movement speed for aggressive pickup reach.",
@@ -224,7 +224,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 80.0,
 		"archetype": "projectile",
 		"tags": ["weapon", "speed"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "vanguard"]
 	},
 	{
 		"id": "orbit_shields",
@@ -288,7 +288,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 5,
 		"archetype": "nova",
 		"tags": ["ability", "damage", "aoe"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	{
 		"id": "nova_cooldown_down",
@@ -300,7 +300,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.5,
 		"archetype": "nova",
 		"tags": ["ability", "cooldown"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	{
 		"id": "dash_cooldown_down",
@@ -334,7 +334,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 1,
 		"archetype": "projectile",
 		"tags": ["weapon", "pierce"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	{
 		"id": "multishot_up",
@@ -346,7 +346,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 1,
 		"archetype": "projectile",
 		"tags": ["weapon", "projectile_count"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "vanguard"]
 	},
 	{
 		"id": "spread_up",
@@ -358,7 +358,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 8.0,
 		"archetype": "projectile",
 		"tags": ["weapon", "spread"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "vanguard"]
 	},
 	{
 		"id": "projectile_size_up",
@@ -370,7 +370,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.15,
 		"archetype": "projectile",
 		"tags": ["weapon", "size"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "vanguard"]
 	},
 	{
 		"id": "explosive_projectiles",
@@ -382,7 +382,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 45.0,
 		"archetype": "projectile",
 		"tags": ["weapon", "explosion"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "vanguard"]
 	},
 	{
 		"id": "laser_damage_up",
@@ -394,7 +394,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 8,
 		"archetype": "laser",
 		"tags": ["ability", "damage"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	{
 		"id": "laser_cooldown_down",
@@ -406,7 +406,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.5,
 		"archetype": "laser",
 		"tags": ["ability", "cooldown"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	{
 		"id": "laser_width_up",
@@ -418,7 +418,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 20.0,
 		"archetype": "laser",
 		"tags": ["ability", "area"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	{
 		"id": "slam_damage_up",
@@ -430,7 +430,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 10,
 		"archetype": "slam",
 		"tags": ["ability", "damage"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	{
 		"id": "slam_radius_up",
@@ -442,7 +442,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 25.0,
 		"archetype": "slam",
 		"tags": ["ability", "aoe"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	{
 		"id": "slam_cooldown_down",
@@ -454,7 +454,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.6,
 		"archetype": "slam",
 		"tags": ["ability", "cooldown"],
-		"hero_exclude": ["guardian", "blaster"]
+		"hero_exclude": ["guardian", "blaster", "vanguard"]
 	},
 	# ── PROJECTILE SYNERGY UPGRADES ─────────────────────────────────────────────
 	{
@@ -467,7 +467,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "projectile",
 		"tags": ["weapon", "synergy", "multishot"],
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "vanguard"],
 		"prerequisites": {
 			"upgrade_levels": {"multishot_up": 1},
 			"archetype_points": {"projectile": 2}
@@ -487,7 +487,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "projectile",
 		"tags": ["weapon", "synergy", "explosion"],
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "vanguard"],
 		"prerequisites": {
 			"upgrade_levels": {"explosive_projectiles": 1},
 			"archetype_points": {"projectile": 2}
@@ -507,7 +507,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "projectile",
 		"tags": ["weapon", "synergy", "pierce"],
-		"hero_exclude": ["guardian", "blaster"],
+		"hero_exclude": ["guardian", "blaster", "vanguard"],
 		"prerequisites": {
 			"upgrade_levels": {"projectile_pierce_up": 1}
 		},
@@ -527,7 +527,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "nova",
 		"tags": ["ability", "synergy", "aoe"],
-		"hero_exclude": ["guardian", "blaster"],
+		"hero_exclude": ["guardian", "blaster", "vanguard"],
 		"prerequisites": {
 			"archetype_points": {"nova": 2}
 		},
@@ -546,7 +546,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "laser",
 		"tags": ["ability", "synergy", "beam"],
-		"hero_exclude": ["guardian", "blaster"],
+		"hero_exclude": ["guardian", "blaster", "vanguard"],
 		"prerequisites": {
 			"archetype_points": {"laser": 2}
 		},
@@ -565,7 +565,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "slam",
 		"tags": ["ability", "synergy", "aoe"],
-		"hero_exclude": ["guardian", "blaster"],
+		"hero_exclude": ["guardian", "blaster", "vanguard"],
 		"prerequisites": {
 			"archetype_points": {"slam": 2}
 		},
@@ -636,7 +636,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "nova",
 		"tags": ["ability", "synergy", "aoe", "build_defining"],
 		"is_build_defining": true,
-		"hero_exclude": ["guardian", "blaster"],
+		"hero_exclude": ["guardian", "blaster", "vanguard"],
 		"prerequisites": {
 			"any_of": [
 				{"upgrade_levels": {"nova_aftershock": 1}},
@@ -660,7 +660,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "laser",
 		"tags": ["ability", "synergy", "beam", "build_defining"],
 		"is_build_defining": true,
-		"hero_exclude": ["guardian", "blaster"],
+		"hero_exclude": ["guardian", "blaster", "vanguard"],
 		"prerequisites": {"archetype_points": {"laser": 3}},
 		"effects": [
 			{"target": "ability_manager", "property": "laser_double_pulse_enabled", "operation": "set", "value": true},
@@ -678,7 +678,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "slam",
 		"tags": ["ability", "synergy", "aoe", "build_defining"],
 		"is_build_defining": true,
-		"hero_exclude": ["guardian", "blaster"],
+		"hero_exclude": ["guardian", "blaster", "vanguard"],
 		"prerequisites": {"archetype_points": {"slam": 3}},
 		"effects": [
 			{"target": "ability_manager", "property": "slam_second_wave_enabled", "operation": "set", "value": true},
@@ -715,7 +715,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "projectile",
 		"tags": ["weapon", "bounce", "synergy", "build_defining"],
 		"is_build_defining": true,
-		"hero_exclude": ["guardian", "blaster"],
+		"hero_exclude": ["guardian", "blaster", "vanguard"],
 		"prerequisites": {
 			"archetype_points": {"projectile": 3},
 			"any_upgrade_levels": {"projectile_pierce_up": 1, "multishot_up": 1}
@@ -1155,6 +1155,289 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "tactical_mark_duration", "operation": "add", "value": 1.5}
+		]
+	},
+	# ── FURY VANGUARD: ATTACK UPGRADES (splash_melee) ────────────────────────────
+	{
+		"id": "splash_melee_damage",
+		"title": "Fury Strike Power",
+		"rarity": "common",
+		"weight": 0.8,
+		"max_level": 5,
+		"description_template": "Increase Fury Strike autoattack damage by %s.",
+		"effect_value": 4,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"tags": ["weapon", "damage"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "auto_attack", "property": "attack_damage", "operation": "add", "value": 4}
+		]
+	},
+	{
+		"id": "splash_melee_radius",
+		"title": "Wide Fury",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase Fury Strike splash radius by %s.",
+		"effect_value": 14.0,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"tags": ["weapon", "aoe"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "auto_attack", "property": "splash_melee_radius", "operation": "add", "value": 14.0}
+		]
+	},
+	{
+		"id": "splash_melee_speed",
+		"title": "Fury Tempo",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Reduce Fury Strike attack interval by %ss.",
+		"effect_value": 0.05,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"tags": ["weapon", "speed"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "auto_attack", "property": "attack_interval", "operation": "subtract", "value": 0.05, "min_value": 0.3}
+		]
+	},
+	{
+		"id": "splash_melee_impact",
+		"title": "Knockback Force",
+		"rarity": "epic",
+		"weight": 0.4,
+		"max_level": 3,
+		"description_template": "Fury Strikes knock back enemies by %s.",
+		"effect_value": 80.0,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"tags": ["weapon", "knockback"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "auto_attack", "property": "splash_melee_knockback", "operation": "add", "value": 80.0}
+		]
+	},
+	{
+		"id": "splash_melee_frenzy",
+		"title": "Berserker Frenzy",
+		"rarity": "epic",
+		"weight": 0.35,
+		"max_level": 3,
+		"description_template": "Gain +%s attack damage bonus per Rage unit.",
+		"effect_value": 0,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"tags": ["weapon", "damage", "synergy", "build_defining"],
+		"is_build_defining": true,
+		"hero_only": ["vanguard"],
+		"prerequisites": {"archetype_points": {"splash_melee": 3}},
+		"effects": [
+			{"target": "ability_manager", "property": "rage_damage_multiplier_at_max", "operation": "add", "value": 0.10, "max_value": 1.95}
+		]
+	},
+	# ── FURY VANGUARD: ACTIVE UPGRADES (Rage Wave) ───────────────────────────────
+	{
+		"id": "rage_wave_power",
+		"title": "Wave Surge",
+		"rarity": "common",
+		"weight": 0.8,
+		"max_level": 4,
+		"description_template": "Increase Rage Wave damage by %s.",
+		"effect_value": 8,
+		"archetype": "rage_wave",
+		"slot_category": "active",
+		"tags": ["ability", "damage"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "rage_wave_damage", "operation": "add", "value": 8}
+		]
+	},
+	{
+		"id": "rage_wave_radius",
+		"title": "Wave Reach",
+		"rarity": "rare",
+		"weight": 0.6,
+		"max_level": 3,
+		"description_template": "Increase Rage Wave radius by %s.",
+		"effect_value": 30.0,
+		"archetype": "rage_wave",
+		"slot_category": "active",
+		"tags": ["ability", "aoe"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "rage_wave_radius", "operation": "add", "value": 30.0}
+		]
+	},
+	{
+		"id": "rage_wave_cooldown",
+		"title": "Wave Recovery",
+		"rarity": "rare",
+		"weight": 0.6,
+		"max_level": 3,
+		"description_template": "Reduce Rage Wave cooldown by %ss.",
+		"effect_value": 0.8,
+		"archetype": "rage_wave",
+		"slot_category": "active",
+		"tags": ["ability", "cooldown"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "rage_wave_cooldown", "operation": "subtract", "value": 0.8, "min_value": 2.5}
+		]
+	},
+	{
+		"id": "rage_wave_deep_slow",
+		"title": "Crushing Current",
+		"rarity": "epic",
+		"weight": 0.4,
+		"max_level": 3,
+		"description_template": "Increase Rage Wave slow duration by %ss and deepen slow.",
+		"effect_value": 0.8,
+		"archetype": "rage_wave",
+		"slot_category": "active",
+		"tags": ["ability", "slow", "synergy"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "rage_wave_slow_duration", "operation": "add", "value": 0.8},
+			{"target": "ability_manager", "property": "rage_wave_slow_multiplier", "operation": "subtract", "value": 0.06, "min_value": 0.20}
+		]
+	},
+	{
+		"id": "rage_wave_chain",
+		"title": "Chain Wave",
+		"rarity": "epic",
+		"weight": 0.35,
+		"max_level": 3,
+		"description_template": "Rage Wave radius scales more with Rage.",
+		"effect_value": 0,
+		"archetype": "rage_wave",
+		"slot_category": "active",
+		"tags": ["ability", "synergy", "aoe", "build_defining"],
+		"is_build_defining": true,
+		"hero_only": ["vanguard"],
+		"prerequisites": {"archetype_points": {"rage_wave": 2}},
+		"effects": [
+			{"target": "ability_manager", "property": "rage_wave_radius_rage_bonus", "operation": "add", "value": 0.08}
+		]
+	},
+	# ── FURY VANGUARD: ACTIVE UPGRADES (Mighty Clap) ─────────────────────────────
+	{
+		"id": "mighty_clap_power",
+		"title": "Clap Force",
+		"rarity": "common",
+		"weight": 0.8,
+		"max_level": 4,
+		"description_template": "Increase Mighty Clap damage by %s.",
+		"effect_value": 9,
+		"archetype": "mighty_clap",
+		"slot_category": "active",
+		"tags": ["ability", "damage"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "mighty_clap_damage", "operation": "add", "value": 9}
+		]
+	},
+	{
+		"id": "mighty_clap_range",
+		"title": "Wide Clap",
+		"rarity": "rare",
+		"weight": 0.6,
+		"max_level": 3,
+		"description_template": "Increase Mighty Clap cone range by %s.",
+		"effect_value": 25.0,
+		"archetype": "mighty_clap",
+		"slot_category": "active",
+		"tags": ["ability", "range"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "mighty_clap_range", "operation": "add", "value": 25.0}
+		]
+	},
+	{
+		"id": "mighty_clap_cooldown",
+		"title": "Clap Ready",
+		"rarity": "rare",
+		"weight": 0.6,
+		"max_level": 3,
+		"description_template": "Reduce Mighty Clap cooldown by %ss.",
+		"effect_value": 1.0,
+		"archetype": "mighty_clap",
+		"slot_category": "active",
+		"tags": ["ability", "cooldown"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "mighty_clap_cooldown", "operation": "subtract", "value": 1.0, "min_value": 3.0}
+		]
+	},
+	{
+		"id": "mighty_clap_shockwave",
+		"title": "Impact Wave",
+		"rarity": "epic",
+		"weight": 0.35,
+		"max_level": 3,
+		"description_template": "Mighty Clap knockback force increased by %s.",
+		"effect_value": 60.0,
+		"archetype": "mighty_clap",
+		"slot_category": "active",
+		"tags": ["ability", "knockback", "synergy", "build_defining"],
+		"is_build_defining": true,
+		"hero_only": ["vanguard"],
+		"prerequisites": {"archetype_points": {"mighty_clap": 2}},
+		"effects": [
+			{"target": "ability_manager", "property": "mighty_clap_knockback_force", "operation": "add", "value": 60.0}
+		]
+	},
+	# ── FURY VANGUARD: ACTIVE UPGRADES (Rage Leap) ───────────────────────────────
+	{
+		"id": "rage_leap_power",
+		"title": "Leap Impact",
+		"rarity": "common",
+		"weight": 0.8,
+		"max_level": 4,
+		"description_template": "Increase Rage Leap landing damage by %s.",
+		"effect_value": 10,
+		"archetype": "rage_leap",
+		"slot_category": "active",
+		"tags": ["ability", "damage"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "rage_leap_damage", "operation": "add", "value": 10}
+		]
+	},
+	{
+		"id": "rage_leap_radius",
+		"title": "Wide Landing",
+		"rarity": "rare",
+		"weight": 0.6,
+		"max_level": 3,
+		"description_template": "Increase Rage Leap landing radius by %s.",
+		"effect_value": 22.0,
+		"archetype": "rage_leap",
+		"slot_category": "active",
+		"tags": ["ability", "aoe"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "rage_leap_radius", "operation": "add", "value": 22.0}
+		]
+	},
+	{
+		"id": "rage_leap_cooldown",
+		"title": "Leap Ready",
+		"rarity": "epic",
+		"weight": 0.5,
+		"max_level": 3,
+		"description_template": "Reduce Rage Leap cooldown by %ss.",
+		"effect_value": 1.2,
+		"archetype": "rage_leap",
+		"slot_category": "active",
+		"tags": ["ability", "cooldown"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "ability_manager", "property": "rage_leap_cooldown", "operation": "subtract", "value": 1.2, "min_value": 3.5}
 		]
 	}
 ]
