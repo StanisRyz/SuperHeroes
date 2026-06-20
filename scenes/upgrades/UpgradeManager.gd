@@ -140,14 +140,15 @@ const HERO_UPGRADE_FLAVOR := {
 			"splash_melee_speed": "Fury Tempo",
 			"splash_melee_impact": "Knockback Force",
 			"splash_melee_frenzy": "Berserker Frenzy",
+			"splash_melee_shockwave": "Ground Shockwave",
+			"splash_melee_lifesteal": "Blood Frenzy",
+			"splash_melee_combo": "Fury Combo",
+			"splash_melee_execute": "Finishing Blow",
 			"rage_wave_power": "Wave Surge",
 			"rage_wave_radius": "Wave Reach",
-			"rage_wave_cooldown": "Wave Recovery",
 			"rage_wave_deep_slow": "Crushing Current",
-			"rage_wave_chain": "Chain Wave",
 			"mighty_clap_power": "Clap Force",
 			"mighty_clap_range": "Wide Clap",
-			"mighty_clap_cooldown": "Clap Ready",
 			"mighty_clap_shockwave": "Impact Wave",
 			"rage_leap_power": "Leap Impact",
 			"rage_leap_radius": "Wide Landing",
@@ -192,7 +193,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 2,
 		"archetype": "projectile",
 		"tags": ["weapon", "damage"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "vanguard"]
 	},
 	{
 		"id": "attack_speed_up",
@@ -204,7 +205,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.08,
 		"archetype": "projectile",
 		"tags": ["weapon", "speed"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "vanguard"]
 	},
 	{
 		"id": "attack_range_up",
@@ -216,7 +217,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 45.0,
 		"archetype": "projectile",
 		"tags": ["weapon", "range"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "vanguard"]
 	},
 	{
 		"id": "move_speed_up",
@@ -1728,7 +1729,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 4,
 		"archetype": "splash_melee",
 		"slot_category": "attack",
-		"tags": ["weapon", "damage"],
+		"upgrade_line_id": "splash_melee_damage",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 1,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "damage"],
 		"hero_only": ["vanguard"],
 		"effects": [
 			{"target": "auto_attack", "property": "attack_damage", "operation": "add", "value": 4}
@@ -1744,7 +1750,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 14.0,
 		"archetype": "splash_melee",
 		"slot_category": "attack",
-		"tags": ["weapon", "aoe"],
+		"upgrade_line_id": "splash_melee_radius",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 2,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "aoe"],
 		"hero_only": ["vanguard"],
 		"effects": [
 			{"target": "auto_attack", "property": "splash_melee_radius", "operation": "add", "value": 14.0}
@@ -1760,7 +1771,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.05,
 		"archetype": "splash_melee",
 		"slot_category": "attack",
-		"tags": ["weapon", "speed"],
+		"upgrade_line_id": "splash_melee_speed",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 3,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "speed"],
 		"hero_only": ["vanguard"],
 		"effects": [
 			{"target": "auto_attack", "property": "attack_interval", "operation": "subtract", "value": 0.05, "min_value": 0.3}
@@ -1776,7 +1792,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 80.0,
 		"archetype": "splash_melee",
 		"slot_category": "attack",
-		"tags": ["weapon", "knockback"],
+		"upgrade_line_id": "splash_melee_impact",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 4,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "knockback"],
 		"hero_only": ["vanguard"],
 		"effects": [
 			{"target": "auto_attack", "property": "splash_melee_knockback", "operation": "add", "value": 80.0}
@@ -1788,16 +1809,106 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "epic",
 		"weight": 0.35,
 		"max_level": 3,
-		"description_template": "Gain +%s attack damage bonus per Rage unit.",
+		"description_template": "Increase Rage damage multiplier cap.",
 		"effect_value": 0,
 		"archetype": "splash_melee",
 		"slot_category": "attack",
-		"tags": ["weapon", "damage", "synergy", "build_defining"],
+		"upgrade_line_id": "splash_melee_frenzy",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 5,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "rage", "synergy", "build_defining"],
 		"is_build_defining": true,
 		"hero_only": ["vanguard"],
 		"prerequisites": {"archetype_points": {"splash_melee": 3}},
 		"effects": [
 			{"target": "ability_manager", "property": "rage_damage_multiplier_at_max", "operation": "add", "value": 0.10, "max_value": 1.95}
+		]
+	},
+	{
+		"id": "splash_melee_shockwave",
+		"title": "Ground Shockwave",
+		"rarity": "epic",
+		"weight": 0.4,
+		"max_level": 1,
+		"description_template": "Fury Strikes emit a follow-up shockwave at 1.5x range.",
+		"effect_value": 0,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"upgrade_line_id": "splash_melee_shockwave",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 6,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "aoe"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "auto_attack", "property": "splash_melee_shockwave_enabled", "operation": "set", "value": true}
+		]
+	},
+	{
+		"id": "splash_melee_lifesteal",
+		"title": "Blood Frenzy",
+		"rarity": "rare",
+		"weight": 0.5,
+		"max_level": 3,
+		"description_template": "Fury Strikes restore HP per enemy hit.",
+		"effect_value": 2,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"upgrade_line_id": "splash_melee_lifesteal",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 7,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "healing"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "auto_attack", "property": "splash_melee_lifesteal", "operation": "add", "value": 2.0}
+		]
+	},
+	{
+		"id": "splash_melee_combo",
+		"title": "Fury Combo",
+		"rarity": "epic",
+		"weight": 0.42,
+		"max_level": 3,
+		"description_template": "Build Fury Combo stacks on each swing, increasing Fury Strike damage.",
+		"effect_value": 0,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"upgrade_line_id": "splash_melee_combo",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 8,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "rage", "synergy"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "auto_attack", "property": "splash_melee_combo_enabled", "operation": "set", "value": true},
+			{"target": "auto_attack", "property": "splash_melee_combo_bonus", "operation": "add", "value": 0.06}
+		]
+	},
+	{
+		"id": "splash_melee_execute",
+		"title": "Finishing Blow",
+		"rarity": "epic",
+		"weight": 0.38,
+		"max_level": 3,
+		"description_template": "Fury Strikes deal 45%% bonus damage to low-HP enemies.",
+		"effect_value": 20,
+		"archetype": "splash_melee",
+		"slot_category": "attack",
+		"upgrade_line_id": "splash_melee_execute",
+		"source_type": "autoattack",
+		"source_skill_id": "splash_melee",
+		"grid_index": 9,
+		"evolution_role": "attack",
+		"tags": ["weapon", "melee", "splash", "damage"],
+		"hero_only": ["vanguard"],
+		"effects": [
+			{"target": "auto_attack", "property": "splash_melee_execute_threshold", "operation": "add", "value": 0.20, "max_value": 0.60}
 		]
 	},
 	# ── FURY VANGUARD: ACTIVE UPGRADES (Rage Wave) ───────────────────────────────
@@ -1811,7 +1922,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 8,
 		"archetype": "rage_wave",
 		"slot_category": "active",
-		"tags": ["ability", "damage"],
+		"upgrade_line_id": "rage_wave_power",
+		"source_type": "ability",
+		"source_skill_id": "rage_wave",
+		"grid_index": 1,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "rage_wave",
+		"tags": ["ability", "melee", "rage", "damage"],
 		"hero_only": ["vanguard"],
 		"effects": [
 			{"target": "ability_manager", "property": "rage_wave_damage", "operation": "add", "value": 8}
@@ -1823,30 +1940,21 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "rare",
 		"weight": 0.6,
 		"max_level": 3,
-		"description_template": "Increase Rage Wave radius by %s.",
+		"description_template": "Increase Rage Wave radius and rage-scaling bonus.",
 		"effect_value": 30.0,
 		"archetype": "rage_wave",
 		"slot_category": "active",
-		"tags": ["ability", "aoe"],
+		"upgrade_line_id": "rage_wave_radius",
+		"source_type": "ability",
+		"source_skill_id": "rage_wave",
+		"grid_index": 2,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "rage_wave",
+		"tags": ["ability", "melee", "rage", "aoe"],
 		"hero_only": ["vanguard"],
 		"effects": [
-			{"target": "ability_manager", "property": "rage_wave_radius", "operation": "add", "value": 30.0}
-		]
-	},
-	{
-		"id": "rage_wave_cooldown",
-		"title": "Wave Recovery",
-		"rarity": "rare",
-		"weight": 0.6,
-		"max_level": 3,
-		"description_template": "Reduce Rage Wave cooldown by %ss.",
-		"effect_value": 0.8,
-		"archetype": "rage_wave",
-		"slot_category": "active",
-		"tags": ["ability", "cooldown"],
-		"hero_only": ["vanguard"],
-		"effects": [
-			{"target": "ability_manager", "property": "rage_wave_cooldown", "operation": "subtract", "value": 0.8, "min_value": 2.5}
+			{"target": "ability_manager", "property": "rage_wave_radius", "operation": "add", "value": 30.0},
+			{"target": "ability_manager", "property": "rage_wave_radius_rage_bonus", "operation": "add", "value": 0.04}
 		]
 	},
 	{
@@ -1855,33 +1963,23 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "epic",
 		"weight": 0.4,
 		"max_level": 3,
-		"description_template": "Increase Rage Wave slow duration by %ss and deepen slow.",
-		"effect_value": 0.8,
-		"archetype": "rage_wave",
-		"slot_category": "active",
-		"tags": ["ability", "slow", "synergy"],
-		"hero_only": ["vanguard"],
-		"effects": [
-			{"target": "ability_manager", "property": "rage_wave_slow_duration", "operation": "add", "value": 0.8},
-			{"target": "ability_manager", "property": "rage_wave_slow_multiplier", "operation": "subtract", "value": 0.06, "min_value": 0.20}
-		]
-	},
-	{
-		"id": "rage_wave_chain",
-		"title": "Chain Wave",
-		"rarity": "epic",
-		"weight": 0.35,
-		"max_level": 3,
-		"description_template": "Rage Wave radius scales more with Rage.",
+		"description_template": "Deepen Rage Wave slow, reduce cooldown, and increase rage-scaling radius.",
 		"effect_value": 0,
 		"archetype": "rage_wave",
 		"slot_category": "active",
-		"tags": ["ability", "synergy", "aoe", "build_defining"],
-		"is_build_defining": true,
+		"upgrade_line_id": "rage_wave_deep_slow",
+		"source_type": "ability",
+		"source_skill_id": "rage_wave",
+		"grid_index": 3,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "rage_wave",
+		"tags": ["ability", "melee", "rage", "slow", "synergy"],
 		"hero_only": ["vanguard"],
-		"prerequisites": {"archetype_points": {"rage_wave": 2}},
 		"effects": [
-			{"target": "ability_manager", "property": "rage_wave_radius_rage_bonus", "operation": "add", "value": 0.08}
+			{"target": "ability_manager", "property": "rage_wave_slow_duration", "operation": "add", "value": 0.8},
+			{"target": "ability_manager", "property": "rage_wave_slow_multiplier", "operation": "subtract", "value": 0.06, "min_value": 0.20},
+			{"target": "ability_manager", "property": "rage_wave_cooldown", "operation": "subtract", "value": 0.5, "min_value": 2.5},
+			{"target": "ability_manager", "property": "rage_wave_radius_rage_bonus", "operation": "add", "value": 0.04}
 		]
 	},
 	# ── FURY VANGUARD: ACTIVE UPGRADES (Mighty Clap) ─────────────────────────────
@@ -1895,7 +1993,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 9,
 		"archetype": "mighty_clap",
 		"slot_category": "active",
-		"tags": ["ability", "damage"],
+		"upgrade_line_id": "mighty_clap_power",
+		"source_type": "ability",
+		"source_skill_id": "mighty_clap",
+		"grid_index": 4,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "mighty_clap",
+		"tags": ["ability", "melee", "rage", "damage"],
 		"hero_only": ["vanguard"],
 		"effects": [
 			{"target": "ability_manager", "property": "mighty_clap_damage", "operation": "add", "value": 9}
@@ -1907,30 +2011,21 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "rare",
 		"weight": 0.6,
 		"max_level": 3,
-		"description_template": "Increase Mighty Clap cone range by %s.",
+		"description_template": "Increase Mighty Clap cone range and width.",
 		"effect_value": 25.0,
 		"archetype": "mighty_clap",
 		"slot_category": "active",
-		"tags": ["ability", "range"],
+		"upgrade_line_id": "mighty_clap_range",
+		"source_type": "ability",
+		"source_skill_id": "mighty_clap",
+		"grid_index": 5,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "mighty_clap",
+		"tags": ["ability", "melee", "rage", "range"],
 		"hero_only": ["vanguard"],
 		"effects": [
-			{"target": "ability_manager", "property": "mighty_clap_range", "operation": "add", "value": 25.0}
-		]
-	},
-	{
-		"id": "mighty_clap_cooldown",
-		"title": "Clap Ready",
-		"rarity": "rare",
-		"weight": 0.6,
-		"max_level": 3,
-		"description_template": "Reduce Mighty Clap cooldown by %ss.",
-		"effect_value": 1.0,
-		"archetype": "mighty_clap",
-		"slot_category": "active",
-		"tags": ["ability", "cooldown"],
-		"hero_only": ["vanguard"],
-		"effects": [
-			{"target": "ability_manager", "property": "mighty_clap_cooldown", "operation": "subtract", "value": 1.0, "min_value": 3.0}
+			{"target": "ability_manager", "property": "mighty_clap_range", "operation": "add", "value": 25.0},
+			{"target": "ability_manager", "property": "mighty_clap_cone_degrees", "operation": "add", "value": 6.0}
 		]
 	},
 	{
@@ -1939,16 +2034,23 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "epic",
 		"weight": 0.35,
 		"max_level": 3,
-		"description_template": "Mighty Clap knockback force increased by %s.",
-		"effect_value": 60.0,
+		"description_template": "Increase Mighty Clap knockback force and reduce cooldown.",
+		"effect_value": 0,
 		"archetype": "mighty_clap",
 		"slot_category": "active",
-		"tags": ["ability", "knockback", "synergy", "build_defining"],
+		"upgrade_line_id": "mighty_clap_shockwave",
+		"source_type": "ability",
+		"source_skill_id": "mighty_clap",
+		"grid_index": 6,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "mighty_clap",
+		"tags": ["ability", "melee", "rage", "knockback", "synergy", "build_defining"],
 		"is_build_defining": true,
 		"hero_only": ["vanguard"],
 		"prerequisites": {"archetype_points": {"mighty_clap": 2}},
 		"effects": [
-			{"target": "ability_manager", "property": "mighty_clap_knockback_force", "operation": "add", "value": 60.0}
+			{"target": "ability_manager", "property": "mighty_clap_knockback_force", "operation": "add", "value": 60.0},
+			{"target": "ability_manager", "property": "mighty_clap_cooldown", "operation": "subtract", "value": 0.7, "min_value": 3.0}
 		]
 	},
 	# ── FURY VANGUARD: ACTIVE UPGRADES (Rage Leap) ───────────────────────────────
@@ -1962,7 +2064,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 10,
 		"archetype": "rage_leap",
 		"slot_category": "active",
-		"tags": ["ability", "damage"],
+		"upgrade_line_id": "rage_leap_power",
+		"source_type": "ability",
+		"source_skill_id": "rage_leap",
+		"grid_index": 7,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "rage_leap",
+		"tags": ["ability", "melee", "rage", "damage"],
 		"hero_only": ["vanguard"],
 		"effects": [
 			{"target": "ability_manager", "property": "rage_leap_damage", "operation": "add", "value": 10}
@@ -1978,7 +2086,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 22.0,
 		"archetype": "rage_leap",
 		"slot_category": "active",
-		"tags": ["ability", "aoe"],
+		"upgrade_line_id": "rage_leap_radius",
+		"source_type": "ability",
+		"source_skill_id": "rage_leap",
+		"grid_index": 8,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "rage_leap",
+		"tags": ["ability", "melee", "rage", "aoe"],
 		"hero_only": ["vanguard"],
 		"effects": [
 			{"target": "ability_manager", "property": "rage_leap_radius", "operation": "add", "value": 22.0}
@@ -1990,14 +2104,21 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "epic",
 		"weight": 0.5,
 		"max_level": 3,
-		"description_template": "Reduce Rage Leap cooldown by %ss.",
+		"description_template": "Reduce Rage Leap cooldown and increase leap distance.",
 		"effect_value": 1.2,
 		"archetype": "rage_leap",
 		"slot_category": "active",
-		"tags": ["ability", "cooldown"],
+		"upgrade_line_id": "rage_leap_cooldown",
+		"source_type": "ability",
+		"source_skill_id": "rage_leap",
+		"grid_index": 9,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "rage_leap",
+		"tags": ["ability", "melee", "rage", "cooldown"],
 		"hero_only": ["vanguard"],
 		"effects": [
-			{"target": "ability_manager", "property": "rage_leap_cooldown", "operation": "subtract", "value": 1.2, "min_value": 3.5}
+			{"target": "ability_manager", "property": "rage_leap_cooldown", "operation": "subtract", "value": 1.2, "min_value": 3.5},
+			{"target": "ability_manager", "property": "rage_leap_distance", "operation": "add", "value": 20.0}
 		]
 	}
 ]

@@ -29,6 +29,11 @@ const SOLAR_RAY_INTERVAL_MIN := 0.20
 @export var solar_ray_execution_threshold: float = 0.0
 @export var splash_melee_radius: float = 85.0
 @export var splash_melee_knockback: float = 0.0
+@export var splash_melee_shockwave_enabled: bool = false
+@export var splash_melee_lifesteal: float = 0.0
+@export var splash_melee_combo_enabled: bool = false
+@export var splash_melee_combo_bonus: float = 0.0
+@export var splash_melee_execute_threshold: float = 0.0
 
 var projectile_container: Node
 var audio_manager: Node
@@ -36,6 +41,8 @@ var _cooldown := 0.0
 var _enemies_in_range: Array[Node2D] = []
 var _missing_projectile_warning_shown := false
 var _attack_sequence_id: int = 0
+var _splash_combo_stacks: int = 0
+var _splash_combo_decay_timer: float = 0.0
 
 # Primary weapon identity set by HeroApplier via set_primary_weapon().
 # Defaults to empty so existing scenes with no hero selected fall back to
@@ -60,6 +67,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_sync_attack_range_area()
+	if splash_melee_combo_enabled and _splash_combo_decay_timer > 0.0:
+		_splash_combo_decay_timer -= delta
+		if _splash_combo_decay_timer <= 0.0:
+			_splash_combo_stacks = 0
 
 	if _cooldown > 0.0:
 		_cooldown -= delta
@@ -261,16 +272,28 @@ func _tick_splash_melee() -> bool:
 		return false
 	var origin := owner_body.global_position
 	var multiplier := _get_splash_melee_rage_multiplier()
-	var hit_damage := maxi(roundi(float(attack_damage) * multiplier), 1)
+	var combo_multiplier := 1.0
+	if splash_melee_combo_enabled and _splash_combo_stacks > 0:
+		combo_multiplier = 1.0 + float(_splash_combo_stacks) * splash_melee_combo_bonus
+	var hit_damage := maxi(roundi(float(attack_damage) * multiplier * combo_multiplier), 1)
 	var hit_any := false
+	var hit_count := 0
 	for target in _enemies_in_range:
 		if not _is_valid_enemy(target):
 			continue
 		var target_node := target as Node2D
 		if origin.distance_to(target_node.global_position) > splash_melee_radius:
 			continue
-		target.take_damage(hit_damage)
+		var target_damage := hit_damage
+		if splash_melee_execute_threshold > 0.0:
+			var max_hp = target.get("max_health")
+			var cur_hp = target.get("current_health")
+			if max_hp != null and cur_hp != null and int(max_hp) > 0:
+				if float(cur_hp) / float(max_hp) <= splash_melee_execute_threshold:
+					target_damage = maxi(roundi(float(target_damage) * 1.45), 1)
+		target.take_damage(target_damage)
 		hit_any = true
+		hit_count += 1
 		if splash_melee_knockback > 0.0 and target.has_method("apply_knockback"):
 			var away := (target_node.global_position - origin).normalized()
 			target.apply_knockback(away, splash_melee_knockback)
@@ -279,6 +302,13 @@ func _tick_splash_melee() -> bool:
 		if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
 			if _ability_manager_ref.has_method("add_rage"):
 				_ability_manager_ref.add_rage(_ability_manager_ref.rage_per_hit if "rage_per_hit" in _ability_manager_ref else 6.0)
+		if splash_melee_lifesteal > 0.0:
+			_apply_splash_lifesteal(hit_count)
+		if splash_melee_combo_enabled:
+			_splash_combo_stacks = mini(_splash_combo_stacks + 1, 5)
+			_splash_combo_decay_timer = 3.0
+		if splash_melee_shockwave_enabled:
+			_schedule_splash_shockwave(origin)
 	return hit_any
 
 
@@ -310,6 +340,30 @@ func _spawn_splash_melee_visual(origin: Vector2) -> void:
 	timer.timeout.connect(func() -> void:
 		if is_instance_valid(ring):
 			ring.queue_free()
+	)
+
+
+func _apply_splash_lifesteal(hit_count: int) -> void:
+	if owner_body == null or hit_count <= 0:
+		return
+	var heal_amount := int(splash_melee_lifesteal * float(hit_count))
+	if heal_amount > 0 and owner_body.has_method("heal"):
+		owner_body.heal(heal_amount)
+
+
+func _schedule_splash_shockwave(origin: Vector2) -> void:
+	var shockwave_radius := splash_melee_radius * 1.5
+	get_tree().create_timer(0.18).timeout.connect(func() -> void:
+		if not is_instance_valid(self) or owner_body == null:
+			return
+		for target in _enemies_in_range.duplicate():
+			if not _is_valid_enemy(target):
+				continue
+			var target_node := target as Node2D
+			if origin.distance_to(target_node.global_position) > shockwave_radius:
+				continue
+			var shockwave_damage := maxi(roundi(float(attack_damage) * 0.5), 1)
+			target.take_damage(shockwave_damage)
 	)
 
 
