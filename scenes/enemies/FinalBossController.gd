@@ -4,6 +4,7 @@ signal phase_changed(phase: int)
 
 @export var attack_cooldown: float = 2.5
 @export var phase_two_health_ratio: float = 0.5
+@export var phase_three_health_ratio: float = 0.25
 @export var nova_radius: float = 340.0
 @export var nova_damage: int = 26
 @export var projectile_barrage_count: int = 12
@@ -19,10 +20,15 @@ var player: Node2D = null
 var projectile_parent: Node = null
 var boss_id: String = ""
 
-var _cooldown_remaining: float = 1.5
+var _cooldown_remaining: float = 0.0
 var _current_phase: int = 1
+var _encounter_state: String = "intro"
+var _current_attack: String = ""
 var _is_attacking: bool = false
 var _stopped: bool = false
+var _intro_timer: float = 0.0
+
+const INTRO_DELAY := 1.8
 
 
 func setup(new_enemy: Node2D, new_player: Node2D, new_projectile_parent: Node = null, new_boss_id: String = "") -> void:
@@ -51,21 +57,27 @@ func setup(new_enemy: Node2D, new_player: Node2D, new_projectile_parent: Node = 
 
 func _apply_boss_variant_stats() -> void:
 	match boss_id:
+		"titan_guardian":
+			nova_radius = 340.0
+			nova_damage = 28
+			projectile_barrage_count = 10
+			max_projectile_barrage_count = 16
+			charge_damage_multiplier = 2.8
+			attack_cooldown = 2.8
 		"prism_overlord":
 			projectile_barrage_count = 16
 			max_projectile_barrage_count = 24
 			projectile_damage = 12
-			nova_radius = 300.0
-			nova_damage = 22
-			attack_cooldown = 2.2
+			nova_radius = 280.0
+			nova_damage = 20
+			attack_cooldown = 2.0
 		"molten_colossus":
-			nova_radius = 360.0
-			nova_damage = 32
-			projectile_barrage_count = 10
-			charge_damage_multiplier = 2.5
-			attack_cooldown = 3.0
-		_:
-			pass
+			nova_radius = 390.0
+			nova_damage = 34
+			projectile_barrage_count = 8
+			max_projectile_barrage_count = 14
+			charge_damage_multiplier = 3.0
+			attack_cooldown = 3.2
 
 
 func _process(delta: float) -> void:
@@ -73,6 +85,14 @@ func _process(delta: float) -> void:
 		return
 	if enemy.is_dead():
 		_stopped = true
+		_encounter_state = "defeated"
+		return
+
+	if _encounter_state == "intro":
+		_intro_timer += delta
+		if _intro_timer >= INTRO_DELAY:
+			_encounter_state = "phase_1"
+			_cooldown_remaining = 0.5
 		return
 
 	_check_phase()
@@ -87,22 +107,50 @@ func _process(delta: float) -> void:
 
 
 func _check_phase() -> void:
-	if _current_phase == 2:
+	if _current_phase >= 3:
 		return
 	if not is_instance_valid(enemy):
 		return
-	var max_hp_var = enemy.get("max_health")
-	var cur_hp_var = enemy.get("current_health")
-	var max_hp: int = max_hp_var if max_hp_var != null else 1
-	var cur_hp: int = cur_hp_var if cur_hp_var != null else max_hp
-	if max_hp > 0 and float(cur_hp) / float(max_hp) <= phase_two_health_ratio:
+	var max_hp: int = int(enemy.get("max_health") if enemy.get("max_health") != null else 1)
+	var cur_hp: int = int(enemy.get("current_health") if enemy.get("current_health") != null else max_hp)
+	if max_hp <= 0:
+		return
+	var ratio := float(cur_hp) / float(max_hp)
+	if _current_phase == 1 and ratio <= phase_two_health_ratio:
 		_current_phase = 2
+		_encounter_state = "phase_2"
 		phase_changed.emit(2)
+	elif _current_phase == 2 and ratio <= phase_three_health_ratio:
+		_current_phase = 3
+		_encounter_state = "phase_3"
+		phase_changed.emit(3)
+
+
+func _get_attack_pool() -> Array[String]:
+	match boss_id:
+		"titan_guardian":
+			match _current_phase:
+				1: return ["nova", "charge", "nova"]
+				2: return ["pulse_nova", "charge", "barrage"]
+				3: return ["pulse_nova", "double_charge", "pulse_nova"]
+		"prism_overlord":
+			match _current_phase:
+				1: return ["barrage", "aimed_barrage", "barrage"]
+				2: return ["aimed_barrage", "barrage", "ring_barrage"]
+				3: return ["aimed_barrage", "ring_barrage", "aimed_barrage"]
+		"molten_colossus":
+			match _current_phase:
+				1: return ["nova", "charge", "nova"]
+				2: return ["pulse_nova", "charge", "nova"]
+				3: return ["pulse_nova", "double_charge", "nova"]
+	return ["nova", "barrage", "charge"]
 
 
 func _run_attack_sequence() -> void:
-	var attacks := ["nova", "barrage", "charge"]
-	var chosen: String = attacks[randi() % attacks.size()]
+	var pool := _get_attack_pool()
+	var chosen: String = pool[randi() % pool.size()]
+	_current_attack = chosen
+
 	match chosen:
 		"nova":
 			await _attack_nova()
@@ -110,18 +158,33 @@ func _run_attack_sequence() -> void:
 			await _attack_barrage()
 		"charge":
 			await _attack_charge()
+		"aimed_barrage":
+			await _attack_aimed_barrage()
+		"ring_barrage":
+			await _attack_ring_barrage()
+		"double_charge":
+			await _attack_double_charge()
+		"pulse_nova":
+			await _attack_pulse_nova()
 
+	_current_attack = ""
 	if not _stopped and _is_valid() and not enemy.is_dead():
-		var cd_mult := 0.65 if _current_phase == 2 else 1.0
-		_cooldown_remaining = attack_cooldown * cd_mult
+		_cooldown_remaining = attack_cooldown * _get_cooldown_mult()
 	_is_attacking = false
+
+
+func _get_cooldown_mult() -> float:
+	match _current_phase:
+		3: return 0.5
+		2: return 0.65
+		_: return 1.0
 
 
 func _attack_nova() -> void:
 	if not _is_valid():
 		return
 
-	var windup := 0.8
+	var windup := 0.85
 	var r := nova_radius if _current_phase == 1 else nova_radius * 1.3
 	_spawn_telegraph_circle(enemy.global_position, r, windup)
 
@@ -129,8 +192,7 @@ func _attack_nova() -> void:
 	if _stopped or not _is_valid() or enemy.is_dead():
 		return
 
-	var dist := enemy.global_position.distance_to(player.global_position)
-	if dist <= r:
+	if enemy.global_position.distance_to(player.global_position) <= r:
 		player.take_damage(nova_damage)
 
 	_spawn_telegraph_circle(enemy.global_position, r * 0.85, 0.2)
@@ -143,22 +205,27 @@ func _attack_barrage() -> void:
 
 	var count := projectile_barrage_count
 	if _current_phase == 2:
+		count = int(count * 1.4)
+	elif _current_phase == 3:
 		count = int(count * 1.6)
 	count = clampi(count, 1, max_projectile_barrage_count)
 
-	var angle_step := TAU / float(count)
 	var aim_offset := 0.0
 	if is_instance_valid(player):
-		var dir_to_player := (player.global_position - enemy.global_position).normalized()
-		aim_offset = dir_to_player.angle()
+		aim_offset = (player.global_position - enemy.global_position).normalized().angle()
 
-	var spd := projectile_speed if _current_phase == 1 else projectile_speed * 1.25
+	var spd := projectile_speed
+	if _current_phase == 2:
+		spd = projectile_speed * 1.2
+	elif _current_phase == 3:
+		spd = projectile_speed * 1.35
+
+	var angle_step := TAU / float(count)
 	for i in range(count):
 		if _stopped or not _is_valid() or enemy.is_dead():
 			break
 		var angle := aim_offset + angle_step * float(i)
-		var dir := Vector2(cos(angle), sin(angle))
-		_fire_projectile(enemy.global_position, dir, spd)
+		_fire_projectile(enemy.global_position, Vector2(cos(angle), sin(angle)), spd)
 
 	await get_tree().create_timer(0.15).timeout
 
@@ -167,15 +234,9 @@ func _attack_charge() -> void:
 	if not _is_valid():
 		return
 
-	var dir_to_player := Vector2.RIGHT
-	if is_instance_valid(player):
-		var offset := player.global_position - enemy.global_position
-		if not offset.is_zero_approx():
-			dir_to_player = offset.normalized()
-
-	var charge_distance := 600.0
+	var dir := _get_dir_to_player()
 	var from_pos := enemy.global_position
-	var to_pos := from_pos + dir_to_player * charge_distance
+	var to_pos := from_pos + dir * 600.0
 	var windup := 0.55
 
 	_spawn_telegraph_line(from_pos, to_pos, 36.0, windup)
@@ -184,17 +245,15 @@ func _attack_charge() -> void:
 	if _stopped or not _is_valid() or enemy.is_dead():
 		return
 
-	var base_damage_var = enemy.get("contact_damage")
-	var base_damage: int = base_damage_var if base_damage_var != null else 10
-	var boosted_damage := int(base_damage * charge_damage_multiplier)
-	var charge_speed := 800.0 if _current_phase == 1 else 1000.0
-	var charge_duration := 0.38
+	var base_damage: int = int(enemy.get("contact_damage") if enemy.get("contact_damage") != null else 10)
+	var boosted := int(base_damage * charge_damage_multiplier)
+	var charge_speed := 850.0 if _current_phase == 1 else 1050.0
 
 	if enemy.has_method("set_velocity_override"):
-		enemy.set_velocity_override(dir_to_player * charge_speed)
-	enemy.set("contact_damage", boosted_damage)
+		enemy.set_velocity_override(dir * charge_speed)
+	enemy.set("contact_damage", boosted)
 
-	await get_tree().create_timer(charge_duration).timeout
+	await get_tree().create_timer(0.38).timeout
 
 	if not _stopped and _is_valid() and not enemy.is_dead():
 		if enemy.has_method("clear_velocity_override"):
@@ -202,6 +261,145 @@ func _attack_charge() -> void:
 		enemy.set("contact_damage", base_damage)
 
 	await get_tree().create_timer(0.1).timeout
+
+
+func _attack_aimed_barrage() -> void:
+	if not _is_valid():
+		return
+
+	var dir := _get_dir_to_player()
+	var windup := 0.75
+	_spawn_telegraph_line(enemy.global_position, enemy.global_position + dir * 700.0, 28.0, windup)
+
+	await get_tree().create_timer(windup).timeout
+	if _stopped or not _is_valid() or enemy.is_dead():
+		return
+
+	var wave_count := 3
+	var projs_per_wave := 7 if boss_id == "prism_overlord" else 5
+	var spread := deg_to_rad(22.0)
+	var spd := projectile_speed * 1.1
+
+	for wave in range(wave_count):
+		if _stopped or not _is_valid() or enemy.is_dead():
+			break
+		var base_angle := _get_dir_to_player().angle()
+		for i in range(projs_per_wave):
+			var angle := base_angle + spread * (float(i) / float(projs_per_wave - 1) - 0.5)
+			_fire_projectile(enemy.global_position, Vector2(cos(angle), sin(angle)), spd)
+		if wave < wave_count - 1:
+			await get_tree().create_timer(0.3).timeout
+			if _stopped or not _is_valid() or enemy.is_dead():
+				break
+
+	await get_tree().create_timer(0.1).timeout
+
+
+func _attack_ring_barrage() -> void:
+	if not _is_valid():
+		return
+
+	var windup := 0.9
+	_spawn_telegraph_circle(enemy.global_position, 360.0, windup)
+
+	await get_tree().create_timer(windup).timeout
+	if _stopped or not _is_valid() or enemy.is_dead():
+		return
+
+	var total_slots := 20
+	var offset_angle := randf_range(0.0, TAU)
+	var spd := projectile_speed * 0.85
+
+	for i in range(total_slots):
+		if i % 2 == 1:
+			continue
+		var angle := offset_angle + (TAU / float(total_slots)) * float(i)
+		_fire_projectile(enemy.global_position, Vector2(cos(angle), sin(angle)), spd)
+
+	await get_tree().create_timer(0.2).timeout
+
+
+func _attack_double_charge() -> void:
+	if not _is_valid():
+		return
+
+	var base_damage: int = int(enemy.get("contact_damage") if enemy.get("contact_damage") != null else 10)
+	var boosted := int(base_damage * charge_damage_multiplier)
+
+	for charge_idx in range(2):
+		if _stopped or not _is_valid() or enemy.is_dead():
+			break
+
+		var dir := _get_dir_to_player()
+		var from_pos := enemy.global_position
+		var to_pos := from_pos + dir * 600.0
+		var windup := 0.5 if charge_idx == 0 else 0.45
+
+		_spawn_telegraph_line(from_pos, to_pos, 32.0, windup)
+
+		await get_tree().create_timer(windup).timeout
+		if _stopped or not _is_valid() or enemy.is_dead():
+			break
+
+		if enemy.has_method("set_velocity_override"):
+			enemy.set_velocity_override(dir * 880.0)
+		enemy.set("contact_damage", boosted)
+
+		await get_tree().create_timer(0.32).timeout
+
+		if not _stopped and _is_valid() and not enemy.is_dead():
+			if enemy.has_method("clear_velocity_override"):
+				enemy.clear_velocity_override()
+			enemy.set("contact_damage", base_damage)
+
+		if charge_idx == 0:
+			await get_tree().create_timer(0.4).timeout
+
+	await get_tree().create_timer(0.1).timeout
+
+
+func _attack_pulse_nova() -> void:
+	if not _is_valid():
+		return
+
+	var small_r := nova_radius * 0.55
+	var large_r := nova_radius * 1.45
+	var windup1 := 0.65
+
+	_spawn_telegraph_circle(enemy.global_position, small_r, windup1)
+
+	await get_tree().create_timer(windup1).timeout
+	if _stopped or not _is_valid() or enemy.is_dead():
+		return
+
+	if enemy.global_position.distance_to(player.global_position) <= small_r:
+		player.take_damage(int(nova_damage * 0.65))
+
+	_spawn_telegraph_circle(enemy.global_position, small_r * 0.85, 0.2)
+
+	await get_tree().create_timer(0.6).timeout
+	if _stopped or not _is_valid() or enemy.is_dead():
+		return
+
+	_spawn_telegraph_circle(enemy.global_position, large_r, 0.75)
+
+	await get_tree().create_timer(0.75).timeout
+	if _stopped or not _is_valid() or enemy.is_dead():
+		return
+
+	if enemy.global_position.distance_to(player.global_position) <= large_r:
+		player.take_damage(nova_damage)
+
+	_spawn_telegraph_circle(enemy.global_position, large_r * 0.85, 0.2)
+	await get_tree().create_timer(0.25).timeout
+
+
+func _get_dir_to_player() -> Vector2:
+	if is_instance_valid(player):
+		var offset := player.global_position - enemy.global_position
+		if not offset.is_zero_approx():
+			return offset.normalized()
+	return Vector2.RIGHT
 
 
 func _spawn_telegraph_circle(world_pos: Vector2, radius: float, duration: float) -> void:
@@ -271,5 +469,34 @@ func _is_valid() -> bool:
 	return is_instance_valid(enemy) and is_instance_valid(player)
 
 
+func _get_hp_ratio() -> float:
+	if not is_instance_valid(enemy):
+		return 0.0
+	var max_hp: int = int(enemy.get("max_health") if enemy.get("max_health") != null else 1)
+	var cur_hp: int = int(enemy.get("current_health") if enemy.get("current_health") != null else max_hp)
+	if max_hp <= 0:
+		return 0.0
+	return float(cur_hp) / float(max_hp)
+
+
+func stop() -> void:
+	_stopped = true
+	_encounter_state = "defeated"
+
+
+func debug_get_boss_state() -> Dictionary:
+	return {
+		"boss_id": boss_id,
+		"encounter_state": _encounter_state,
+		"phase": _current_phase,
+		"current_attack": _current_attack,
+		"cooldown_remaining": _cooldown_remaining,
+		"is_attacking": _is_attacking,
+		"stopped": _stopped,
+		"hp_ratio": _get_hp_ratio(),
+	}
+
+
 func _on_enemy_died(_e: Node) -> void:
 	_stopped = true
+	_encounter_state = "defeated"

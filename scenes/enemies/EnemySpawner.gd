@@ -38,6 +38,7 @@ var feedback_manager: Node
 var _last_wave_package_id: String = ""
 var _wave_timer: Timer = null
 var _final_boss_encounter_active: bool = false
+var _boss_controller: Node = null
 
 const POWERUP_WEIGHTS: Dictionary = {
 	"heal": 30,
@@ -320,6 +321,7 @@ func _attach_final_boss_controller(enemy: Node, final_boss_id: String) -> void:
 		controller.phase_changed.connect(func(p: int): _on_final_boss_phase_changed(p))
 
 	enemy.add_child(controller)
+	_boss_controller = controller
 
 
 func _on_final_boss_phase_changed(_phase: int) -> void:
@@ -631,6 +633,18 @@ func start_final_boss_encounter() -> void:
 
 func cleanup_final_boss_encounter() -> void:
 	_final_boss_encounter_active = false
+	_boss_controller = null
+
+
+func debug_get_boss_state() -> Dictionary:
+	if _boss_controller == null or not is_instance_valid(_boss_controller):
+		return {"arena_active": _final_boss_encounter_active, "boss_spawned": false}
+	if _boss_controller.has_method("debug_get_boss_state"):
+		var state: Dictionary = _boss_controller.debug_get_boss_state()
+		state["arena_active"] = _final_boss_encounter_active
+		state["boss_spawned"] = true
+		return state
+	return {"arena_active": _final_boss_encounter_active, "boss_spawned": true}
 
 
 func _can_spawn() -> bool:

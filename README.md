@@ -1040,6 +1040,104 @@ This patch makes each stage play differently through objectives and timed stage 
 - Objective failure (defense destroyed) triggers game over through the existing run lifecycle.
 - Objective completion (portals all destroyed) triggers the final boss flow through the existing run lifecycle.
 
+## Boss Encounter 2.0
+
+Extends the existing final boss flow with a full encounter state machine, three boss identities, phase 3 desperation, four new attack patterns, and polished telegraphs. No arena hazards are added.
+
+### Encounter States
+
+| State | Trigger | Description |
+|-------|---------|-------------|
+| `intro` | Boss spawns | 1.8 s intro delay before attacks begin |
+| `phase_1` | Intro ends | Normal attack pool at full cooldowns |
+| `phase_2` | HP ≤ 50 % | Enraged pool, 0.65× cooldown multiplier, "Final Boss Enraged!" announcement |
+| `phase_3` | HP ≤ 25 % | Desperation pool, 0.5× cooldown multiplier, boss-specific announcement |
+| `defeated` | Boss dies / `stop()` called | All attack loops halted, HUD cleared |
+
+### Boss Identities
+
+| Boss ID | Stage | Attack character | Phase 3 announcement |
+|---------|-------|-----------------|---------------------|
+| `titan_guardian` | City Rooftop | Melee nova + charge specialist | "Titan Guardian: Last Stand!" |
+| `prism_overlord` | Neon Lab | Projectile-heavy, barrage-focused | "Prism Overlord: Desperate!" |
+| `molten_colossus` | Wasteland Gate | Heavy nova + charge | "Molten Colossus: Molten Fury!" |
+
+#### Attack Pools per Identity
+
+| Boss ID | Phase 1 | Phase 2 | Phase 3 |
+|---------|---------|---------|---------|
+| titan_guardian | nova, charge, nova | pulse_nova, charge, barrage | pulse_nova, double_charge, pulse_nova |
+| prism_overlord | barrage, aimed_barrage, barrage | aimed_barrage, barrage, ring_barrage | aimed_barrage, ring_barrage, aimed_barrage |
+| molten_colossus | nova, charge, nova | pulse_nova, charge, nova | pulse_nova, double_charge, nova |
+| default | nova, barrage, charge | — | — |
+
+### Attack Patterns
+
+#### Existing (v1)
+
+- **nova** — circle AoE damage; circle telegraph.
+- **barrage** — radial projectile spread; circle telegraph.
+- **charge** — telegraphed straight-line speed burst; line telegraph.
+
+#### New (2.0)
+
+- **aimed_barrage** — Boss fires 3 waves of 5 (phase 1/2) or 7 (phase 3) projectiles aimed at the player's current position. Line telegraph shown before the first wave. Projectiles are capped at 20 total per attack.
+- **ring_barrage** — Boss fires 10 projectiles evenly spaced around itself (radial gaps preserved). Circle telegraph shown first. Enemies approaching from any angle must dodge the ring.
+- **double_charge** — Two sequential telegraphed charges: first at the player, then immediately a second at the new player position. Both use line telegraphs. Unavoidable damage is prevented by telegraph duration.
+- **pulse_nova** — Two-stage AoE: small inner circle, then a larger outer ring. Both radii are telegraphed separately. Deals two damage checks in sequence; the inner radius uses `nova_radius`, the outer uses `nova_radius × 1.6`.
+
+### Telegraphs
+
+All attacks are telegraphed via `AttackTelegraph.tscn`:
+
+- **Circle telegraph** — `play_circle(world_pos, radius, duration)` — used for nova, pulse_nova inner/outer, ring_barrage.
+- **Line telegraph** — `play_line(from, to, width, duration)` — used for charge, double_charge, aimed_barrage first wave.
+
+No attack deals unavoidable damage. Telegraph duration is always ≥ 0.55 s.
+
+### HUD Changes
+
+- **BossHealthBar** — phase label added below the HP bar:
+  - Phase 1: "Phase 1" (white)
+  - Phase 2: "Phase 2 — Enraged" (amber)
+  - Phase 3: "Phase 3 — Desperation" (red)
+- **GameHUD final boss label** — updates to `"Boss: <name>  [P1/P2/P3]"` with matching color on phase change.
+
+### Boss Arena Safety
+
+- `EnemySpawner` and `EventDirector` are stopped before the boss spawns (same as v1).
+- All normal enemies are cleared on boss spawn (same as v1).
+- `Arena` stores a `_boss_controller` reference; duplicate boss spawns are prevented by the existing `_boss_spawned` flag.
+
+### Cleanup Paths
+
+`_cleanup_boss_controller()` is called in `Arena` on:
+- Restart run
+- Quit to menu
+- Confirm dialog (restart_run and quit_to_menu actions)
+
+Cleanup calls `controller.stop()` (sets `_stopped = true`, `_encounter_state = "defeated"`) and nulls the reference.
+
+### Debug
+
+`DebugStatsOverlay` (F12) Boss section shows:
+
+- `ID: <boss_id>  State: <encounter_state>`
+- `Phase: <phase>  HP: <ratio %>`
+- `Attack: <current_attack>  CD: <cooldown remaining>`
+- `Attacking: <bool>  Arena: <bool>`
+
+All fields are crash-safe: if the boss controller is freed mid-run the section shows `(no boss)`.
+
+`EnemySpawner.debug_get_boss_state()` returns a dict with all boss fields enriched with `arena_active` and `boss_spawned` flags.
+
+### Rules
+
+- No arena hazards are added.
+- Hero kits, evolutions, upgrades, stage objectives, saves, rewards, and meta progression are unchanged.
+- Projectile count is capped per attack (aimed_barrage ≤ 20, ring_barrage = 10).
+- Phase 3 is a continuation of the same encounter — it does not restart or re-spawn the boss.
+
 ## Yandex Games Notes
 
 - Yandex SDK integration will be added later through a wrapper.

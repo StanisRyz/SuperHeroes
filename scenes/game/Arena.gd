@@ -55,6 +55,7 @@ var _debug_stats_overlay: Node = null
 var _overdrive_screen: Node = null
 var _feedback_manager: Node = null
 var _passive_ability_manager: Node = null
+var _boss_controller: Node = null
 var _debug_powerup_cycle_index: int = 0
 var _help_overlay_paused_game: bool = false
 var _pause_requested_by_menu: bool = false
@@ -645,6 +646,13 @@ func _start_final_boss_encounter() -> void:
 	if run_manager != null and run_manager.has_method("register_final_boss_spawned"):
 		run_manager.register_final_boss_spawned()
 
+	var boss_name := _boss_display_name_for_id(final_boss_id)
+	get_tree().create_timer(2.0).timeout.connect(
+		func() -> void:
+			if not _run_ended and event_announcement != null and is_instance_valid(event_announcement) and event_announcement.has_method("show_announcement"):
+				event_announcement.show_announcement(boss_name + " appears!", 2.5)
+	)
+
 
 func _build_boss_arena_rect() -> Rect2:
 	var full_rect := _original_playable_rect
@@ -691,6 +699,21 @@ func _spawn_boss_arena_boundary(rect: Rect2) -> Node2D:
 	return boundary
 
 
+func _boss_display_name_for_id(bid: String) -> String:
+	match bid:
+		"titan_guardian": return "Titan Guardian"
+		"prism_overlord": return "Prism Overlord"
+		"molten_colossus": return "Molten Colossus"
+		_: return bid.capitalize()
+
+
+func _cleanup_boss_controller() -> void:
+	if _boss_controller != null and is_instance_valid(_boss_controller):
+		if _boss_controller.has_method("stop"):
+			_boss_controller.stop()
+	_boss_controller = null
+
+
 func _clear_boss_arena_boundary() -> void:
 	if _boss_arena_boundary != null and is_instance_valid(_boss_arena_boundary):
 		_boss_arena_boundary.queue_free()
@@ -703,14 +726,34 @@ func _on_final_boss_spawned(enemy: Node) -> void:
 	if hud != null and hud.has_method("show_final_boss_info"):
 		hud.show_final_boss_info(UIFormat.format_title_id(final_boss_id))
 	var controller := enemy.get_node_or_null("FinalBossController") if enemy != null else null
-	if controller != null and controller.has_signal("phase_changed"):
-		if not controller.phase_changed.is_connected(_on_final_boss_phase_changed):
-			controller.phase_changed.connect(_on_final_boss_phase_changed)
+	if controller != null:
+		_boss_controller = controller
+		if controller.has_signal("phase_changed"):
+			if not controller.phase_changed.is_connected(_on_final_boss_phase_changed):
+				controller.phase_changed.connect(_on_final_boss_phase_changed)
+	if _debug_stats_overlay != null and _debug_stats_overlay.has_method("setup_boss_controller"):
+		_debug_stats_overlay.setup_boss_controller(controller)
 
 
 func _on_final_boss_phase_changed(phase: int) -> void:
-	if phase == 2 and event_announcement != null and event_announcement.has_method("show_announcement"):
-		event_announcement.show_announcement("Final Boss Enraged!", 2.5)
+	var announcement := ""
+	match phase:
+		2:
+			announcement = "Final Boss Enraged!"
+		3:
+			match final_boss_id:
+				"titan_guardian": announcement = "Titan Guardian: Last Stand!"
+				"prism_overlord": announcement = "Prism Overlord: Desperate!"
+				"molten_colossus": announcement = "Molten Colossus: Molten Fury!"
+				_: announcement = "Final Boss Desperation!"
+	if announcement != "" and event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement(announcement, 3.0)
+	if hud != null and hud.has_method("update_boss_phase"):
+		hud.update_boss_phase(phase)
+	if boss_health_bar != null and boss_health_bar.has_method("show_phase"):
+		boss_health_bar.show_phase(phase)
+	if _feedback_manager != null and _feedback_manager.has_method("shake"):
+		_feedback_manager.shake(6.0, 0.2)
 
 
 func _on_final_boss_defeated(_enemy: Node) -> void:
@@ -1267,6 +1310,7 @@ func _on_restart_requested() -> void:
 	_transition_in_progress = true
 	_close_overdrive_screen()
 	_close_build_slots_window()
+	_cleanup_boss_controller()
 	_clear_boss_arena_boundary()
 	_cleanup_stage_objective_manager()
 	_cleanup_passive_ability_manager()
@@ -1280,6 +1324,7 @@ func _on_quit_to_menu_requested() -> void:
 	_transition_in_progress = true
 	_close_overdrive_screen()
 	_close_build_slots_window()
+	_cleanup_boss_controller()
 	_clear_boss_arena_boundary()
 	_cleanup_stage_objective_manager()
 	_cleanup_passive_ability_manager()
@@ -1461,6 +1506,7 @@ func _on_confirm_dialog_confirmed(action_id: String) -> void:
 	match action_id:
 		"restart_run":
 			_close_overdrive_screen()
+			_cleanup_boss_controller()
 			_clear_boss_arena_boundary()
 			_cleanup_stage_objective_manager()
 			_cleanup_passive_ability_manager()
@@ -1468,6 +1514,7 @@ func _on_confirm_dialog_confirmed(action_id: String) -> void:
 			restart_run_requested.emit()
 		"quit_to_menu":
 			_close_overdrive_screen()
+			_cleanup_boss_controller()
 			_clear_boss_arena_boundary()
 			_cleanup_stage_objective_manager()
 			_cleanup_passive_ability_manager()

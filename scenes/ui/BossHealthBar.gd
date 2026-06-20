@@ -1,11 +1,20 @@
 extends CanvasLayer
 
 var _tracked_enemy: Node = null
+var _phase_label: Label = null
 
 @onready var _vbox: VBoxContainer = $VBox
 @onready var _name_label: Label = $VBox/NameLabel
 @onready var _hp_bar: ProgressBar = $VBox/HPBar
 @onready var _hp_text: Label = $VBox/HPText
+
+
+func _ready() -> void:
+	_phase_label = Label.new()
+	_phase_label.name = "PhaseLabel"
+	_phase_label.visible = false
+	_phase_label.add_theme_font_size_override("font_size", 11)
+	_vbox.add_child(_phase_label)
 
 
 func track_enemy(enemy: Node) -> void:
@@ -26,6 +35,7 @@ func track_enemy(enemy: Node) -> void:
 	_hp_bar.max_value = max_hp
 	_hp_bar.value = cur_hp
 	_hp_text.text = "%d / %d" % [cur_hp, max_hp]
+	show_phase(1)
 	_vbox.visible = true
 
 
@@ -34,6 +44,23 @@ func clear() -> void:
 		_disconnect_enemy(_tracked_enemy)
 		_tracked_enemy = null
 	_vbox.visible = false
+	if _phase_label != null:
+		_phase_label.visible = false
+
+
+func show_phase(phase: int) -> void:
+	if _phase_label == null:
+		return
+	match phase:
+		1: _phase_label.text = "Phase 1"
+		2: _phase_label.text = "Phase 2 — Enraged"
+		3: _phase_label.text = "Phase 3 — Desperation"
+		_: _phase_label.text = ""
+	match phase:
+		2: _phase_label.modulate = Color(1.0, 0.7, 0.1)
+		3: _phase_label.modulate = Color(1.0, 0.3, 0.1)
+		_: _phase_label.modulate = Color.WHITE
+	_phase_label.visible = _phase_label.text != ""
 
 
 func _disconnect_enemy(enemy: Node) -> void:

@@ -115,7 +115,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/effects/AttackTelegraph.tscn` - short-lived visual warning zone scene (Node2D root).
 - `scenes/effects/AttackTelegraph.gd` - plays circle or line danger zone using dynamically created Line2D; fades/pulses and queue_frees; never applies damage.
 - `scenes/ui/DebugStatsOverlay.tscn` - minimal CanvasLayer root scene for the debug stats panel; all UI built programmatically in _ready().
-- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, passive ids/levels/timers, buff/shield state, spawner wiring, and objective state (type, HP or portal count, portal pressure modifier). `setup_objective_manager(obj_manager)` wires it after `_setup_stage_objective()`; safe if nil. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
+- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, passive ids/levels/timers, buff/shield state, spawner wiring, objective state (type, HP or portal count, portal pressure modifier), and boss state (ID, encounter state, phase, HP%, current attack, cooldown, attacking/arena flags). `setup_objective_manager(obj_manager)` wires it after `_setup_stage_objective()`; `setup_boss_controller(controller)` wires it after boss spawn. Safe if either ref is nil. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
 - `scenes/ui/VictoryScreen.tscn` - pause-time victory UI scene.
 - `scenes/ui/VictoryScreen.gd` - displays run summary on victory and emits restart_requested / quit_to_menu_requested.
 - `scenes/meta/MetaProgressionManager.tscn` - persistent meta manager node scene (instantiated at runtime by Main).
@@ -135,9 +135,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/StageSelect.tscn` - stage selection screen CanvasLayer scene (child of Main).
 - `scenes/ui/StageSelect.gd` - display-only stage list + bounded scrollable detail panel UI. Emits the original stage_confirmed(stage_id) and back_requested.
 - `scenes/enemies/FinalBossController.tscn` - final boss combat brain scene (Node root).
-- `scenes/enemies/FinalBossController.gd` - owns final boss attack timing (Nova/Barrage/Charge), 2-phase logic, boss_id variant stats, phase_changed signal. Attached dynamically as child of boss enemy on spawn.
+- `scenes/enemies/FinalBossController.gd` - owns final boss encounter state machine (intro/phase_1/phase_2/phase_3/defeated), 4-phase logic, 4 new attack patterns (aimed_barrage/ring_barrage/double_charge/pulse_nova), boss_id variant stat tuning, phase_changed signal, and `debug_get_boss_state()`. Attached dynamically as child of boss enemy on spawn. `stop()` halts all attack loops safely.
 - `scenes/ui/BossHealthBar.tscn` - final boss health bar overlay scene (CanvasLayer layer=9).
-- `scenes/ui/BossHealthBar.gd` - tracks a final boss enemy; shows "FINAL BOSS", name, HP bar, HP text. Positioned below MinibossHealthBar.
+- `scenes/ui/BossHealthBar.gd` - tracks a final boss enemy; shows "FINAL BOSS", name, HP bar, HP text, and phase label (Phase 1 white / Phase 2 amber / Phase 3 red). Positioned below MinibossHealthBar.
 - `scenes/ui/UIFormat.gd` - display formatting helpers (RefCounted, static methods only): format_time, format_cooldown, format_percent, format_list, format_title_id. No gameplay logic.
 - `scenes/ui/UIStateColors.gd` - color state helpers (RefCounted, static methods only): ready_color, cooldown_color, warning_color, danger_color, muted_color, positive_color, boss_color, final_phase_color. Built-in Color values only; no external assets.
 - `scenes/feedback/FeedbackManager.tscn` - central feedback manager scene (Node root).
@@ -313,6 +313,100 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - `BossHealthBar` is wired by Arena to `EnemySpawner.final_boss_spawned`; tracks the enemy until death. It is a permanent child of Arena (Arena.tscn).
 - Run summary includes `stage_id`, `stage_display_name`, `final_boss_id`, and `final_boss_defeated` (from RunManager.get_stats()). MetaProgressionManager uses `final_boss_defeated` for the +35 reward.
 - Debug: `Arena.debug_spawn_final_boss(boss_id)` spawns the final boss immediately. No key binding — call from the Godot remote console during a live run.
+
+## Boss Encounter 2.0 Architecture
+
+### Encounter State Machine
+
+`FinalBossController` owns a string state machine on top of the existing 2-phase model:
+
+| State | Entry condition | Attack behavior |
+|-------|----------------|----------------|
+| `intro` | Boss spawns | No attacks; `_intro_timer` counts up to `INTRO_DELAY` (1.8 s) |
+| `phase_1` | Intro timer elapsed | Normal attack pool, full cooldown |
+| `phase_2` | HP ≤ 50 % | Enraged pool, 0.65× cooldown multiplier |
+| `phase_3` | HP ≤ 25 % | Desperation pool, 0.5× cooldown multiplier |
+| `defeated` | Boss dies / `stop()` called | All loops halted |
+
+Phase transitions are checked in `_check_phase()` called from the attack loop; transitions are one-way (phase can only increase). Transition from phase_1 → phase_2 emits `phase_changed(2)`; phase_2 → phase_3 emits `phase_changed(3)`.
+
+### Boss Identities and Attack Pools
+
+| boss_id | Phase 1 pool | Phase 2 pool | Phase 3 pool |
+|---------|-------------|-------------|-------------|
+| titan_guardian | nova, charge, nova | pulse_nova, charge, barrage | pulse_nova, double_charge, pulse_nova |
+| prism_overlord | barrage, aimed_barrage, barrage | aimed_barrage, barrage, ring_barrage | aimed_barrage, ring_barrage, aimed_barrage |
+| molten_colossus | nova, charge, nova | pulse_nova, charge, nova | pulse_nova, double_charge, nova |
+| default | nova, barrage, charge | (same) | (same) |
+
+`_get_attack_pool()` returns the correct array for `boss_id` + `_current_phase`. The attack loop cycles the pool round-robin via `_attack_index`.
+
+### Boss Variant Stats (`_apply_boss_variant_stats`)
+
+| boss_id | nova_radius | contact_damage | charge_speed_mult | attack_cooldown |
+|---------|------------|---------------|-------------------|----------------|
+| titan_guardian | 340 | 28 | 2.8 | 2.8 s |
+| prism_overlord | 280 | 12 | 1.0 | 2.0 s |
+| molten_colossus | 390 | 34 | 3.0 | 3.2 s |
+
+prism_overlord overrides `barrage_count = 16` and `projectile_damage = 12`; molten_colossus overrides `barrage_count = 8` and `charge_speed_mult = 3.0`.
+
+### New Attack Patterns
+
+All new attacks use `AttackTelegraph.tscn` via `_spawn_telegraph()` and never apply unavoidable damage. Telegraph duration is always ≥ 0.55 s.
+
+**aimed_barrage**
+1. `play_line(boss_pos, player_pos, width, 0.7)` telegraph.
+2. Await 0.7 s.
+3. Fire 3 waves of 5 (phase 1/2) or 7 (phase 3) `EnemyProjectile`s aimed at the player's **current** position. Total capped at 20.
+4. `await 0.18` between waves.
+
+**ring_barrage**
+1. `play_circle(boss_pos, nova_radius, 0.65)` telegraph.
+2. Await 0.65 s.
+3. Spawn 10 `EnemyProjectile`s at evenly spaced angles (360° / 10 = 36° apart), radially outward. No gap required.
+
+**double_charge**
+1. `play_line` toward player pos, await 0.6 s, execute first charge.
+2. Await 0.3 s recovery.
+3. `play_line` toward current player pos, await 0.6 s, execute second charge.
+
+**pulse_nova**
+1. `play_circle(boss_pos, nova_radius, 0.55)` (inner), await 0.55 s, apply inner AoE damage.
+2. `play_circle(boss_pos, nova_radius * 1.6, 0.45)` (outer ring), await 0.45 s, apply outer AoE damage.
+
+### Phase-Change HUD Updates
+
+`Arena._on_final_boss_phase_changed(phase)` handles:
+- Phase 2: announce "Final Boss Enraged!", call `hud.update_boss_phase(2)`, `boss_health_bar.show_phase(2)`, camera shake.
+- Phase 3: boss-specific announcement (see identities table in README), call `hud.update_boss_phase(3)`, `boss_health_bar.show_phase(3)`, camera shake.
+
+`GameHUD.update_boss_phase(phase)` updates the final boss label to `"Boss: <name>  [P2]"` or `"[P3]"` with amber/red color.
+
+`BossHealthBar.show_phase(phase)` updates the PhaseLabel text and modulate color.
+
+### Cleanup Invariant
+
+`Arena._cleanup_boss_controller()` calls `controller.stop()` and nulls `_boss_controller`. It is called in:
+- `_on_restart_requested()`
+- `_on_quit_to_menu_requested()`
+- `_on_confirm_dialog_confirmed()` for both "restart_run" and "quit_to_menu" cases.
+
+`FinalBossController.stop()` sets `_stopped = true` and `_encounter_state = "defeated"`. All `await` loops check `_stopped` or `not is_instance_valid(self)` before each attack.
+
+### Debug
+
+`EnemySpawner.debug_get_boss_state()` calls `_boss_controller.debug_get_boss_state()` (if valid) and enriches the dict with `arena_active` and `boss_spawned`.
+
+`DebugStatsOverlay.setup_boss_controller(controller)` is called by Arena after `_on_final_boss_spawned()`. The Boss section shows: ID, encounter_state, phase, HP%, current_attack, cooldown_remaining, is_attacking, arena_active. If the controller is freed the section shows `(no boss)`.
+
+### Rules
+
+- **No arena hazards.** Do not add collision shapes, damage zones, floor traps, or environmental damage.
+- Do not change hero kits, evolutions, upgrades, stage objectives, saves, rewards, meta progression, or 4/4/4 slot rules.
+- Projectile count per attack is capped (`aimed_barrage ≤ 20`, `ring_barrage = 10`).
+- Phase 3 is a continuation — it does not re-spawn the boss or restart the encounter.
+- `FinalBossController` is auto-freed as a child of the boss enemy; all its state is run-only.
 
 ## Run Victory Architecture
 

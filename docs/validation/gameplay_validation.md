@@ -1631,3 +1631,160 @@ DEBUG_PLAYER: invulnerable=true
 | 8 | Inspect diff | No hero kits, upgrades, evolutions, saves, meta, rewards, or 4/4/4 slot changes |
 | 9 | Inspect diff | No Boss Encounter 2.0 changes |
 | 10 | Inspect diff | No arena hazards of any kind |
+
+---
+
+## Boss Encounter 2.0
+
+### Arena Setup (unchanged behavior)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Reach target time or destroy all portals | "Final Boss Incoming!" / boss-arena sequence begins exactly as before; no duplicate boss spawns |
+| 2 | Normal enemies are cleared | All non-final-boss enemies disappear; no XP or powerup drops granted |
+| 3 | Spawner and EventDirector stop | No new regular enemies, wave packages, elites, or timed-modifier events fire during boss fight |
+| 4 | Player bounds | Player clamped to ~1200×900 boss arena; camera limits match |
+| 5 | Boss arena boundary | Orange Line2D rectangle visible; no collision shape, no damage dealt |
+
+---
+
+### Intro Delay
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Boss spawns | 1.8 s intro delay before any attack fires |
+| 2 | HUD final boss label during intro | Shows "Boss: \<Name\>  [P1]" in orange immediately on spawn |
+| 3 | Announcement during intro | "\<Boss Name\> appears!" announcement fires ~2 s after arena setup |
+| 4 | BossHealthBar during intro | Shows boss name, full HP bar, "Phase 1" label |
+| 5 | Player can move and cast abilities during intro | No input lock during intro delay |
+
+---
+
+### Phase Transitions
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Boss HP drops to 50% | "Final Boss Enraged!" announcement; HUD label updates to "[P2]" in amber; BossHealthBar PhaseLabel shows "Phase 2 — Enraged" in amber |
+| 2 | Boss HP drops to 25% | Boss-specific announcement fires (see identity table below); HUD label updates to "[P3]" in red; BossHealthBar PhaseLabel shows "Phase 3 — Desperation" in red |
+| 3 | Camera shake on phase change | Brief screen shake accompanies each phase announcement |
+| 4 | Phase does not regress | Healing or editor changes below 25% do not reset phase back; state is one-way |
+| 5 | Titan Guardian at 25% HP | "Titan Guardian: Last Stand!" announcement |
+| 6 | Prism Overlord at 25% HP | "Prism Overlord: Desperate!" announcement |
+| 7 | Molten Colossus at 25% HP | "Molten Colossus: Molten Fury!" announcement |
+
+---
+
+### Attack Patterns — Existing (v1)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Boss fires **nova** | Circle telegraph appears; after delay, all enemies in radius take damage including player |
+| 2 | Boss fires **barrage** | Circle telegraph; 8+ radial projectiles spread around the boss |
+| 3 | Boss fires **charge** | Line telegraph from boss to player; boss rushes at high speed after delay |
+| 4 | Telegraph timing | All telegraphs last ≥ 0.55 s; player can dodge if moving during telegraph |
+| 5 | Damage path | All damage goes through `Player.take_damage()`; dash invulnerability and debug invulnerability still block it |
+
+---
+
+### Attack Patterns — New (2.0)
+
+#### aimed_barrage
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Boss fires **aimed_barrage** | Line telegraph toward current player position; then 3 waves of 5 projectiles (phase 1/2) or 7 (phase 3) fire aimed at player |
+| 2 | Total projectile count | No more than 20 projectiles from a single aimed_barrage attack |
+| 3 | Wave timing | Short (~0.18 s) delay between waves; staggered impacts |
+| 4 | Dodge window | Moving during telegraph changes aim target for subsequent waves |
+
+#### ring_barrage
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Boss fires **ring_barrage** | Circle telegraph; then 10 projectiles fire radially in all directions |
+| 2 | Projectile spacing | 36° apart; player can move through any gap |
+| 3 | Count cap | Exactly 10 projectiles per ring_barrage |
+
+#### double_charge
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Boss fires **double_charge** | First line telegraph shows; boss charges; brief pause; second line telegraph shows; boss charges again |
+| 2 | Second charge aims at current player position | Moving during first charge changes the direction of the second |
+| 3 | Damage per charge | Each charge uses the same contact damage as the standard charge |
+| 4 | Telegraph present before each charge | Both first and second charge have a visible line telegraph of ≥ 0.55 s |
+
+#### pulse_nova
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Boss fires **pulse_nova** | Small inner circle telegraph; inner AoE fires; then larger outer ring telegraph; outer AoE fires |
+| 2 | Inner radius | Matches `nova_radius` |
+| 3 | Outer radius | Approximately `nova_radius × 1.6`; larger than inner |
+| 4 | Damage check timing | Inner damage fires after inner telegraph; outer damage fires after outer telegraph; two separate damage windows |
+| 5 | Dodge window | Player can be outside inner but inside outer gap briefly; move away from both radii |
+
+---
+
+### Phase Attack Pools
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Titan Guardian phase 1 | Attack loop cycles: nova → charge → nova |
+| 2 | Titan Guardian phase 2 | Attack loop cycles: pulse_nova → charge → barrage |
+| 3 | Titan Guardian phase 3 | Attack loop cycles: pulse_nova → double_charge → pulse_nova; attacks fire noticeably faster |
+| 4 | Prism Overlord phase 1 | Attack loop cycles: barrage → aimed_barrage → barrage |
+| 5 | Prism Overlord phase 3 | Majority aimed_barrage and ring_barrage; attacks fire at half normal cooldown |
+| 6 | Molten Colossus phase 1 | nova and charge dominant; larger nova radius than Titan Guardian |
+| 7 | Cooldown multipliers | Phase 2 attacks at ≈0.65× base cooldown; phase 3 at ≈0.5× base cooldown (noticeably faster) |
+
+---
+
+### Debug Overlay
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable Debug Mode (F12) during a boss fight | DebugStatsOverlay "-- Boss --" section shows: ID, encounter_state, phase, HP%, current_attack, cooldown_remaining, is_attacking, arena_active |
+| 2 | Phase transitions | `encounter_state` and `phase` values update in overlay within 0.25 s |
+| 3 | During an attack | `current_attack` shows the active pattern name; `is_attacking: true` |
+| 4 | Boss defeated | Overlay shows `(no boss)` or `defeated` state |
+| 5 | No boss active | Overlay shows `(no boss)` without crashing |
+
+---
+
+### Cleanup Paths
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Player dies during boss fight | GameOverScreen shows; boss controller stops; boundary cleaned on restart/quit confirm |
+| 2 | Restart from game over during boss fight | `_cleanup_boss_controller()` called first; fresh Arena starts; no stale boss state |
+| 3 | Quit to menu from game over during boss fight | `_cleanup_boss_controller()` called; returns to MainMenu safely |
+| 4 | Pause → Confirm Restart during boss fight | Confirm dialog triggers cleanup; fresh run starts cleanly |
+| 5 | Pause → Confirm Quit to Menu during boss fight | Confirm dialog triggers cleanup; MainMenu opens |
+| 6 | Boss defeated normally | Victory flow runs; BossHealthBar hides; boundary removed; controller freed automatically with boss node |
+
+---
+
+### No Arena Hazards
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Inspect boss arena boundary | Line2D rect only; no collision shape, no Area2D, no damage |
+| 2 | Walk into the boundary Line2D | Player passes through freely; no damage, no slow, no pushback |
+| 3 | Inspect all FinalBossController attacks | All attacks go through `Player.take_damage()` or `EnemyProjectile`; no floor zones, lava, or environment damage |
+| 4 | Inspect git diff | No `CollisionShape2D`, `Area2D`, or damage-dealing nodes added to the arena or boundary |
+
+---
+
+### Regression — Unchanged Systems
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Hero kits | Solar Guardian, Night Tactician, and Fury Vanguard abilities work identically during boss fight |
+| 2 | Evolutions | Applied evolutions continue to function during boss fight; no evolution state changed by boss |
+| 3 | Upgrade effects | All active upgrade effects still apply |
+| 4 | Stage objectives | Neon Lab Reactor remains on screen; portal pressure already cleared before boss; neither interacts with boss logic |
+| 5 | Run rewards | `final_boss_defeated` flag and +35 reward still work |
+| 6 | Meta progression | No Training, currency, saves, or meta state altered by Boss Encounter 2.0 |
+| 7 | Miniboss | Miniboss health bar still works; miniboss encounter is unchanged |
+| 8 | Inspect diff | No hero kits, evolutions, 4/4/4 slots, stage objectives, rewards, saves, meta progression, or arena hazards changed |

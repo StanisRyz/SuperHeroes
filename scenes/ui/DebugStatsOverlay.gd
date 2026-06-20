@@ -18,6 +18,7 @@ var _meta_manager: Node = null
 var _settings_manager: Node = null
 
 var _objective_manager: Node = null
+var _boss_controller: Node = null
 
 var _debug_enabled: bool = false
 var _refresh_timer: float = 0.0
@@ -35,14 +36,14 @@ func _build_ui() -> void:
 	var bg := ColorRect.new()
 	bg.color = Color(0.0, 0.0, 0.0, 0.68)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.size = Vector2(336.0, 650.0)
+	bg.size = Vector2(336.0, 720.0)
 	bg.position = Vector2(4.0, 4.0)
 	add_child(bg)
 
 	_stats_label = Label.new()
 	_stats_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stats_label.position = Vector2(10.0, 8.0)
-	_stats_label.size = Vector2(320.0, 640.0)
+	_stats_label.size = Vector2(320.0, 710.0)
 	_stats_label.add_theme_font_size_override("font_size", 11)
 	_stats_label.text = "DEBUG OFF"
 	add_child(_stats_label)
@@ -76,6 +77,10 @@ func setup_settings_manager(settings_manager: Node) -> void:
 
 func setup_objective_manager(obj_manager: Node) -> void:
 	_objective_manager = obj_manager
+
+
+func setup_boss_controller(controller: Node) -> void:
+	_boss_controller = controller
 
 
 func set_debug_enabled(enabled: bool) -> void:
@@ -423,6 +428,23 @@ func _build_stats_text() -> String:
 			lines.append("(no wiring state method)")
 	else:
 		lines.append("-- Spawner: null --")
+
+	# Boss encounter
+	var boss_arena_active := false
+	if _enemy_spawner != null and is_instance_valid(_enemy_spawner):
+		boss_arena_active = bool(_enemy_spawner.get("_final_boss_encounter_active"))
+	if boss_arena_active or (_boss_controller != null and is_instance_valid(_boss_controller)):
+		lines.append("-- Boss --")
+		if _boss_controller != null and is_instance_valid(_boss_controller) and _boss_controller.has_method("debug_get_boss_state"):
+			var boss: Dictionary = _boss_controller.debug_get_boss_state()
+			lines.append("ID: %s  State: %s" % [str(boss.get("boss_id", "?")), str(boss.get("encounter_state", "?"))])
+			lines.append("Phase: %d  HP: %.0f%%" % [int(boss.get("phase", 1)), float(boss.get("hp_ratio", 1.0)) * 100.0])
+			var atk := str(boss.get("current_attack", ""))
+			var cd := float(boss.get("cooldown_remaining", 0.0))
+			lines.append("Attack: %-14s  CD: %.2f" % [atk if atk != "" else "—", cd])
+			lines.append("Attacking: %s  Arena: %s" % [bool(boss.get("is_attacking", false)), boss_arena_active])
+		elif boss_arena_active:
+			lines.append("Arena active — boss not yet spawned")
 
 	if _meta_manager != null and is_instance_valid(_meta_manager):
 		lines.append("-- Meta --")

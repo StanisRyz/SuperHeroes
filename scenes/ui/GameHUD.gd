@@ -8,6 +8,7 @@ var _run_manager: Node = null
 var _target_run_time: float = 600.0
 var _evolution_manager: Node = null
 var _objective_type: String = "survival"
+var _final_boss_display_name: String = ""
 var _ability_names: Dictionary = {
 	1: "A1",
 	2: "A2",
@@ -267,11 +268,23 @@ func _on_final_phase_started() -> void:
 
 
 func show_final_boss_info(boss_name: String) -> void:
+	_final_boss_display_name = boss_name
 	if final_boss_label == null:
 		return
-	final_boss_label.text = "Final Boss: %s" % boss_name
+	final_boss_label.text = "Boss: %s  [P1]" % boss_name
 	final_boss_label.modulate = UIStateColors.boss_color()
 	final_boss_label.visible = true
+
+
+func update_boss_phase(phase: int) -> void:
+	if final_boss_label == null or _final_boss_display_name.is_empty():
+		return
+	var tag := "[P%d]" % phase
+	final_boss_label.text = "Boss: %s  %s" % [_final_boss_display_name, tag]
+	match phase:
+		2: final_boss_label.modulate = Color(1.0, 0.7, 0.1)
+		3: final_boss_label.modulate = Color(1.0, 0.3, 0.1)
+		_: final_boss_label.modulate = UIStateColors.boss_color()
 
 
 func show_final_boss_defeated() -> void:
