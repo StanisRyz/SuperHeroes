@@ -837,7 +837,7 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Non-strict validation treats incomplete future 9/9/9 targets as warnings. Strict validation may promote target-count gaps to errors for future release gates.
 - Future target counts are 9 Attack lines per hero, 9 Active lines per hero, and 9 shared Passive lines. Passive upgrade lines should remain shared, not hero-specific, unless a future task explicitly changes that rule.
 - Future Evolution triples link one attack line, one passive line, one active line, and one evolved active skill. Each upgrade line may be used only once per hero triple grid.
-- The shared passive target is now implemented as the Shared Passive Skills 9-Line Pack below. Solar Guardian attack/active grid normalization is implemented for `hero_id = "guardian"` only; do not add Night Tactician or Fury Vanguard attack/active grid normalization unless explicitly requested.
+- The shared passive target is now implemented as the Shared Passive Skills 9-Line Pack below. Solar Guardian and Night Tactician attack/active grid normalization are both implemented; do not add Fury Vanguard attack/active grid normalization unless explicitly requested.
 
 ## Solar Guardian Upgrade Grid
 
@@ -849,6 +849,20 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Guardian must not receive projectile-count-only, multishot, spread, projectile-speed, projectile-pierce, bounce, rocket-only, melee, or rage-only upgrade lines. Generic duplicate autoattack damage/speed/range lines are also excluded from Guardian so the Solar Ray grid stays exactly 9 lines.
 - Shared passive skills remain shared and available to Guardian; do not make shared passive lines Guardian-specific.
 - This grid prepares future Evolution triples, but this patch does not implement new `EvolutionManager` behavior, Evolution triples, Overdrive UI, evolved active skills, rewards, saves, meta economy, enemies, stages, boss flow, hero kits, primary weapon identity, Build Evolution, or 4/4/4 slot-rule changes.
+
+## Night Tactician Upgrade Grid
+
+- Blaster strict grid target is exactly 9 Attack lines and exactly 9 Active lines. Use `UpgradeManager.validate_upgrade_grid_for_hero("blaster", true)` as the release gate for this slice.
+- Blaster Attack lines are exactly: `rocket_damage`, `rocket_count`, `rocket_explosion_radius`, `rocket_reload`, `marked_target_payload`, `rocket_seek_range`, `rocket_split`, `rocket_cluster_payload`, and `rocket_priority_targeting`.
+- Blaster Active lines are exactly: `smoke_screen_radius`, `smoke_screen_duration`, `smoke_screen_slow`, `trap_damage`, `trap_radius`, `trap_chain_detonation`, `hook_damage`, `hook_range`, and `hook_cooldown_down`.
+- Deprecated lines `smoke_screen_damage_reduction`, `trap_cooldown_down`, `trap_mark_bonus`, and `hook_mark_bonus` carry `hero_exclude: ["blaster"]` and must never appear in the blaster grid count.
+- Every Blaster Attack line must include `hero_only: ["blaster"]`, `slot_category: "attack"`, `upgrade_line_id`, `source_type: "autoattack"`, `source_skill_id: "homing_rockets"`, unique `grid_index` 1-9, `evolution_role: "attack"`, and tags containing weapon/rocket/tactical or equivalent.
+- Every Blaster Active line must include `hero_only: ["blaster"]`, `slot_category: "active"`, `upgrade_line_id`, `source_type: "ability"`, `source_skill_id` for `smoke_screen`, `explosive_trap`, or `grappling_hook`, unique `grid_index` 1-9, `evolution_role: "active"`, `evolution_target_active_skill`, and ability/skill tags.
+- `rocket_seek_range` uses the legacy match block in `apply_upgrade()` (no `effects` array) to call `refresh_attack_range()` after updating `attack_range`. It must not gain an `effects` array unless the legacy block is removed.
+- `rocket_priority_targeting_enabled` is an `@export var bool` on PlayerAutoAttack; when true, `_tick_homing_rockets` partitions `valid_enemies` into marked-first order before round-robin assignment.
+- `explosive_trap_chain_enabled` is an `@export var bool` on AbilityManager; when true, `_trigger_explosive_trap` collects and erases nearby traps from `_active_explosive_traps` before recursively triggering each chained trap.
+- Blaster must not receive Solar Guardian, Vanguard, pierce, melee, rage, or splash-melee-only upgrade lines. Shared passive skills remain shared and available.
+- This grid prepares future Evolution triples but does not implement `EvolutionManager`, Evolution triples, Overdrive UI, evolved active skills, rewards, saves, meta economy, enemies, stages, boss flow, hero kits, weapons, or 4/4/4 slot-rule changes.
 
 ## Shared Passive Skills 9-Line Pack
 

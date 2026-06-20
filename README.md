@@ -195,6 +195,16 @@ Implemented foundation:
   - Guardian-specific attack and active lines include explicit grid metadata for future Evolution triples, but this does not implement Evolution triples or Overdrive.
   - Guardian no longer receives generic projectile-only or duplicate generic autoattack lines; shared passive skills remain available and the 4/4/4 slot limits still apply.
 
+- Night Tactician Upgrade Grid:
+  - Attack lines for homing rockets (9 total): `rocket_damage`, `rocket_count`, `rocket_explosion_radius`, `rocket_reload`, `marked_target_payload`, `rocket_seek_range`, `rocket_split`, `rocket_cluster_payload`, and `rocket_priority_targeting`.
+  - Active lines for Smoke Screen: `smoke_screen_radius`, `smoke_screen_duration`, and `smoke_screen_slow`.
+  - Active lines for Explosive Trap: `trap_damage`, `trap_radius`, and `trap_chain_detonation`.
+  - Active lines for Grappling Hook: `hook_damage`, `hook_range`, and `hook_cooldown_down`.
+  - Deprecated blaster lines (hero_exclude: ["blaster"]): `smoke_screen_damage_reduction`, `trap_cooldown_down`, `trap_mark_bonus`, `hook_mark_bonus`.
+  - New effect hooks: `rocket_priority_targeting_enabled` on PlayerAutoAttack (sorts marked enemies first); `explosive_trap_chain_enabled` on AbilityManager (chain-detonates nearby traps on blast).
+  - All blaster attack and active lines carry full grid metadata (`upgrade_line_id`, `source_type`, `source_skill_id`, unique `grid_index` 1-9, `evolution_role`, `evolution_target_active_skill` on active lines) for future Evolution triples.
+  - This patch does not implement Evolution triples, Overdrive, EvolutionManager, or any other hero's grid.
+
 - Shared Passive Skills 9-Line Pack:
   - Passive skills are shared by all heroes, selected through the normal level-up upgrade pool, and reset every run.
   - `PassiveAbilityManager` is instantiated by Arena at run startup and is never saved to meta/progression data.

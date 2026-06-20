@@ -13,6 +13,7 @@ const SOLAR_RAY_INTERVAL_MIN := 0.20
 @export var projectile_size_multiplier: float = 1.0
 @export var projectile_explosion_radius: float = 0.0
 @export var projectile_explosion_damage_multiplier: float = 0.6
+@export var rocket_priority_targeting_enabled: bool = false
 @export var projectile_bounce: int = 0
 @export var projectile_bounce_range: float = 260.0
 @export var projectile_scene: PackedScene
@@ -342,6 +343,17 @@ func _tick_homing_rockets() -> bool:
 			valid_enemies.append(body as Node2D)
 	if valid_enemies.is_empty():
 		return false
+
+	if rocket_priority_targeting_enabled and _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
+		if _ability_manager_ref.has_method("get_tactical_mark_multiplier"):
+			var marked: Array[Node2D] = []
+			var unmarked: Array[Node2D] = []
+			for e in valid_enemies:
+				if float(_ability_manager_ref.get_tactical_mark_multiplier(e)) > 1.0:
+					marked.append(e)
+				else:
+					unmarked.append(e)
+			valid_enemies = marked + unmarked
 
 	var safe_count := clampi(projectile_count, 1, max_projectile_count)
 	var next_attack_id := _attack_sequence_id + 1

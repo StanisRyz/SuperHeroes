@@ -96,6 +96,11 @@ const HERO_UPGRADE_FLAVOR := {
 			"hook_range": "Extended Cable",
 			"hook_cooldown_down": "Quick Hook",
 			"hook_mark_bonus": "Reel & Mark",
+			"rocket_seek_range": "Long-Range Lock",
+			"rocket_split": "Split Warhead",
+			"rocket_cluster_payload": "Cluster Warhead",
+			"rocket_priority_targeting": "Target Priority",
+			"trap_chain_detonation": "Chain Detonation",
 		},
 		"descriptions": {
 			"attack_damage_up": "Increase homing rocket base damage by %s.",
@@ -112,6 +117,11 @@ const HERO_UPGRADE_FLAVOR := {
 			"rocket_explosion_radius": "Rockets explode on impact, adding +%s blast radius.",
 			"rocket_reload": "Reduce rocket fire interval by %ss.",
 			"marked_target_payload": "Increase Tactical Mark autoattack damage bonus.",
+			"rocket_seek_range": "Increase homing rocket targeting range by %s.",
+			"rocket_split": "Rockets create a secondary blast on impact, adding splash radius.",
+			"rocket_cluster_payload": "Improve rocket explosion damage multiplier.",
+			"rocket_priority_targeting": "Rockets prioritize Tactically Marked enemies.",
+			"trap_chain_detonation": "Explosive Traps chain-detonate nearby traps and extend Tactical Mark.",
 		},
 	},
 	"vanguard": {
@@ -1258,7 +1268,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 4,
 		"archetype": "rocket",
 		"slot_category": "attack",
-		"tags": ["weapon", "damage"],
+		"upgrade_line_id": "rocket_damage",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 1,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "damage", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "auto_attack", "property": "attack_damage", "operation": "add", "value": 4}
@@ -1274,7 +1289,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 1,
 		"archetype": "rocket",
 		"slot_category": "attack",
-		"tags": ["weapon", "multishot"],
+		"upgrade_line_id": "rocket_count",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 2,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "multishot", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "auto_attack", "property": "projectile_count", "operation": "add", "value": 1, "max_value": 7}
@@ -1290,7 +1310,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 20.0,
 		"archetype": "rocket",
 		"slot_category": "attack",
-		"tags": ["weapon", "area"],
+		"upgrade_line_id": "rocket_explosion_radius",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 3,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "area", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "auto_attack", "property": "projectile_aoe_radius", "operation": "add", "value": 20.0}
@@ -1306,7 +1331,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.08,
 		"archetype": "rocket",
 		"slot_category": "attack",
-		"tags": ["weapon", "speed"],
+		"upgrade_line_id": "rocket_reload",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 4,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "speed", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "auto_attack", "property": "attack_interval", "operation": "subtract", "value": 0.08, "min_value": 0.25}
@@ -1322,10 +1352,98 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 10,
 		"archetype": "rocket",
 		"slot_category": "attack",
-		"tags": ["weapon", "damage", "synergy"],
+		"upgrade_line_id": "marked_target_payload",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 5,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "damage", "synergy", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "tactical_mark_autoattack_damage_multiplier", "operation": "add", "value": 0.10, "max_value": 2.0}
+		]
+	},
+	{
+		"id": "rocket_seek_range",
+		"title": "Long-Range Seeker",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 3,
+		"description_template": "Increase homing rocket targeting range by %s.",
+		"effect_value": 45.0,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"upgrade_line_id": "rocket_seek_range",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 6,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "range", "tactical"],
+		"hero_only": ["blaster"],
+	},
+	{
+		"id": "rocket_split",
+		"title": "Split Warhead",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 3,
+		"description_template": "Rockets create a secondary blast on impact, adding splash radius.",
+		"effect_value": 0,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"upgrade_line_id": "rocket_split",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 7,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "explosion", "tactical"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "auto_attack", "property": "projectile_explosion_radius", "operation": "add", "value": 18.0, "max_value": 180.0},
+			{"target": "auto_attack", "property": "attack_damage", "operation": "add", "value": 3}
+		]
+	},
+	{
+		"id": "rocket_cluster_payload",
+		"title": "Cluster Warhead",
+		"rarity": "epic",
+		"weight": 0.42,
+		"max_level": 3,
+		"description_template": "Improve rocket explosion damage multiplier.",
+		"effect_value": 0,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"upgrade_line_id": "rocket_cluster_payload",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 8,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "explosion", "damage", "tactical"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "auto_attack", "property": "projectile_explosion_damage_multiplier", "operation": "add", "value": 0.10, "max_value": 1.20}
+		]
+	},
+	{
+		"id": "rocket_priority_targeting",
+		"title": "Target Priority",
+		"rarity": "epic",
+		"weight": 0.38,
+		"max_level": 3,
+		"description_template": "Rockets prioritize Tactically Marked enemies.",
+		"effect_value": 0,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"upgrade_line_id": "rocket_priority_targeting",
+		"source_type": "autoattack",
+		"source_skill_id": "homing_rockets",
+		"grid_index": 9,
+		"evolution_role": "attack",
+		"tags": ["weapon", "rocket", "tactical", "synergy"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "auto_attack", "property": "rocket_priority_targeting_enabled", "operation": "set", "value": true},
+			{"target": "ability_manager", "property": "tactical_mark_autoattack_damage_multiplier", "operation": "add", "value": 0.08, "max_value": 2.0}
 		]
 	},
 	# ── NIGHT TACTICIAN: ACTIVE UPGRADES (Smoke Screen) ──────────────────────────
@@ -1339,7 +1457,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 40.0,
 		"archetype": "smoke",
 		"slot_category": "active",
-		"tags": ["ability", "area"],
+		"upgrade_line_id": "smoke_screen_radius",
+		"source_type": "ability",
+		"source_skill_id": "smoke_screen",
+		"grid_index": 1,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "smoke_screen",
+		"tags": ["ability", "smoke", "area", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "smoke_screen_radius", "operation": "add", "value": 40.0}
@@ -1355,7 +1479,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 1.0,
 		"archetype": "smoke",
 		"slot_category": "active",
-		"tags": ["ability", "duration"],
+		"upgrade_line_id": "smoke_screen_duration",
+		"source_type": "ability",
+		"source_skill_id": "smoke_screen",
+		"grid_index": 2,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "smoke_screen",
+		"tags": ["ability", "smoke", "duration", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "smoke_screen_duration", "operation": "add", "value": 1.0}
@@ -1371,7 +1501,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 10,
 		"archetype": "smoke",
 		"slot_category": "active",
-		"tags": ["ability", "slow"],
+		"upgrade_line_id": "smoke_screen_slow",
+		"source_type": "ability",
+		"source_skill_id": "smoke_screen",
+		"grid_index": 3,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "smoke_screen",
+		"tags": ["ability", "smoke", "slow", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "smoke_screen_slow_multiplier", "operation": "subtract", "value": 0.10, "min_value": 0.10}
@@ -1389,27 +1525,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"slot_category": "active",
 		"tags": ["ability", "defense"],
 		"hero_only": ["blaster"],
+		"hero_exclude": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "smoke_screen_damage_reduction", "operation": "add", "value": 0.10, "max_value": 0.70}
 		]
 	},
 	# ── NIGHT TACTICIAN: ACTIVE UPGRADES (Explosive Trap) ────────────────────────
-	{
-		"id": "trap_radius",
-		"title": "Wide Detonation",
-		"rarity": "rare",
-		"weight": 0.7,
-		"max_level": 4,
-		"description_template": "Increase Explosive Trap blast radius by %s.",
-		"effect_value": 25.0,
-		"archetype": "trap",
-		"slot_category": "active",
-		"tags": ["ability", "area"],
-		"hero_only": ["blaster"],
-		"effects": [
-			{"target": "ability_manager", "property": "explosive_trap_explosion_radius", "operation": "add", "value": 25.0}
-		]
-	},
 	{
 		"id": "trap_damage",
 		"title": "Overcharged Warhead",
@@ -1420,10 +1541,62 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 10,
 		"archetype": "trap",
 		"slot_category": "active",
-		"tags": ["ability", "damage"],
+		"upgrade_line_id": "trap_damage",
+		"source_type": "ability",
+		"source_skill_id": "explosive_trap",
+		"grid_index": 4,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "explosive_trap",
+		"tags": ["ability", "trap", "damage", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "explosive_trap_damage", "operation": "add", "value": 10}
+		]
+	},
+	{
+		"id": "trap_radius",
+		"title": "Wide Detonation",
+		"rarity": "rare",
+		"weight": 0.7,
+		"max_level": 4,
+		"description_template": "Increase Explosive Trap blast radius by %s.",
+		"effect_value": 25.0,
+		"archetype": "trap",
+		"slot_category": "active",
+		"upgrade_line_id": "trap_radius",
+		"source_type": "ability",
+		"source_skill_id": "explosive_trap",
+		"grid_index": 5,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "explosive_trap",
+		"tags": ["ability", "trap", "area", "tactical"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "explosive_trap_explosion_radius", "operation": "add", "value": 25.0}
+		]
+	},
+	{
+		"id": "trap_chain_detonation",
+		"title": "Chain Detonation",
+		"rarity": "epic",
+		"weight": 0.42,
+		"max_level": 3,
+		"description_template": "Explosive Traps chain-detonate nearby traps and extend Tactical Mark.",
+		"effect_value": 0,
+		"archetype": "trap",
+		"slot_category": "active",
+		"upgrade_line_id": "trap_chain_detonation",
+		"source_type": "ability",
+		"source_skill_id": "explosive_trap",
+		"grid_index": 6,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "explosive_trap",
+		"tags": ["ability", "trap", "tactical", "synergy"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "explosive_trap_chain_enabled", "operation": "set", "value": true},
+			{"target": "ability_manager", "property": "tactical_mark_duration", "operation": "add", "value": 1.0},
+			{"target": "ability_manager", "property": "explosive_trap_cooldown", "operation": "subtract", "value": 0.8, "min_value": 3.0}
 		]
 	},
 	{
@@ -1438,6 +1611,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"slot_category": "active",
 		"tags": ["ability", "cooldown"],
 		"hero_only": ["blaster"],
+		"hero_exclude": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "explosive_trap_cooldown", "operation": "subtract", "value": 1.2, "min_value": 3.0}
 		]
@@ -1454,6 +1628,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"slot_category": "active",
 		"tags": ["ability", "synergy"],
 		"hero_only": ["blaster"],
+		"hero_exclude": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "tactical_mark_duration", "operation": "add", "value": 1.5}
 		]
@@ -1469,7 +1644,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 12,
 		"archetype": "hook",
 		"slot_category": "active",
-		"tags": ["ability", "damage"],
+		"upgrade_line_id": "hook_damage",
+		"source_type": "ability",
+		"source_skill_id": "grappling_hook",
+		"grid_index": 7,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "grappling_hook",
+		"tags": ["ability", "hook", "damage", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "grappling_hook_damage", "operation": "add", "value": 12}
@@ -1485,7 +1666,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 60.0,
 		"archetype": "hook",
 		"slot_category": "active",
-		"tags": ["ability", "range"],
+		"upgrade_line_id": "hook_range",
+		"source_type": "ability",
+		"source_skill_id": "grappling_hook",
+		"grid_index": 8,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "grappling_hook",
+		"tags": ["ability", "hook", "range", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "grappling_hook_range", "operation": "add", "value": 60.0}
@@ -1501,7 +1688,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 1.2,
 		"archetype": "hook",
 		"slot_category": "active",
-		"tags": ["ability", "cooldown"],
+		"upgrade_line_id": "hook_cooldown_down",
+		"source_type": "ability",
+		"source_skill_id": "grappling_hook",
+		"grid_index": 9,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "grappling_hook",
+		"tags": ["ability", "hook", "cooldown", "tactical"],
 		"hero_only": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "grappling_hook_cooldown", "operation": "subtract", "value": 1.2, "min_value": 3.0}
@@ -1519,6 +1712,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"slot_category": "active",
 		"tags": ["ability", "synergy"],
 		"hero_only": ["blaster"],
+		"hero_exclude": ["blaster"],
 		"effects": [
 			{"target": "ability_manager", "property": "tactical_mark_duration", "operation": "add", "value": 1.5}
 		]
@@ -1937,6 +2131,10 @@ func apply_upgrade(upgrade_id: String) -> void:
 				applied = _apply_auto_attack_number("attack_damage", effect_value)
 			"death_dash_cooldown_down":
 				applied = _apply_ability_number("death_dash_cooldown", -float(effect_value))
+			"rocket_seek_range":
+				applied = _apply_auto_attack_number("attack_range", effect_value)
+				if applied and auto_attack != null and auto_attack.has_method("refresh_attack_range"):
+					auto_attack.refresh_attack_range()
 			_:
 				push_warning("Unknown upgrade id: %s" % upgrade_id)
 

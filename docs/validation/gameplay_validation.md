@@ -228,17 +228,38 @@ Run these before adding new gameplay systems.
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Call `UpgradeManager.validate_upgrade_grid(false)` from a live run or remote console | Returns a Dictionary with `errors`, `warnings`, `error_count`, `warning_count`, `line_counts`, and `target_counts` |
-| 2 | Inspect non-strict audit result | Shared Passive count is exactly 9/9; Guardian attack and active counts are exactly 9/9; incomplete Night/Fury Attack/Active target counts remain warnings only and do not block gameplay |
+| 2 | Inspect non-strict audit result | Shared Passive count is exactly 9/9; Guardian and Blaster attack/active counts are exactly 9/9; incomplete Fury Attack/Active target counts remain warnings only |
 | 3 | Call `UpgradeManager.validate_upgrade_grid_for_hero("guardian", true)` | Returns ok with exactly 9 Guardian Attack lines and 9 Guardian Active lines |
-| 4 | Call `UpgradeManager.validate_upgrade_grid_for_hero("guardian", false)` | Returns Guardian attack/passive/active line counts without mutating upgrades |
-| 5 | Call `UpgradeManager.debug_get_upgrade_grid_state()` | Returns schema warning/error counts plus current hero line counts |
-| 6 | Enable Debug Mode during a run | DebugStatsOverlay shows compact grid audit warning/error counts and current hero A/P/Act line counts |
-| 7 | Trigger level-up options after schema changes | LevelUpScreen still displays valid options and slot markers |
-| 8 | Fill Attack / Passive / Active slots | Existing 4/4/4 slot limits still work; already selected lines can still level up |
-| 9 | Open Build Slots Window after selecting upgrades | Window still reads selected line ids and displays filled rows correctly |
-| 10 | Pick shared passive skills | PassiveAbilityManager applies all nine shared passive ids; no passive state is saved |
-| 11 | Start runs as Solar Guardian, Night Tactician, and Fury Vanguard | Existing hero-specific upgrade filtering and kit behavior still work |
-| 12 | Inspect diff/save behavior | No new EvolutionManager behavior, Overdrive UI, Night/Fury attack/active 9-line grids, rewards, saves, stages, enemies, boss flow, or meta economy changes |
+| 4 | Call `UpgradeManager.validate_upgrade_grid_for_hero("blaster", true)` | Returns ok with exactly 9 Blaster Attack lines and 9 Blaster Active lines; no duplicates; no missing schema fields |
+| 5 | Call `UpgradeManager.validate_upgrade_grid_for_hero("guardian", false)` | Returns Guardian attack/passive/active line counts without mutating upgrades |
+| 6 | Call `UpgradeManager.debug_get_upgrade_grid_state()` | Returns schema warning/error counts plus current hero line counts |
+| 7 | Enable Debug Mode during a run | DebugStatsOverlay shows compact grid audit warning/error counts and current hero A/P/Act line counts |
+| 8 | Trigger level-up options after schema changes | LevelUpScreen still displays valid options and slot markers |
+| 9 | Fill Attack / Passive / Active slots | Existing 4/4/4 slot limits still work; already selected lines can still level up |
+| 10 | Open Build Slots Window after selecting upgrades | Window still reads selected line ids and displays filled rows correctly |
+| 11 | Pick shared passive skills | PassiveAbilityManager applies all nine shared passive ids; no passive state is saved |
+| 12 | Start runs as Solar Guardian, Night Tactician, and Fury Vanguard | Existing hero-specific upgrade filtering and kit behavior still work |
+| 13 | Inspect diff/save behavior | No new EvolutionManager behavior, Overdrive UI, Fury attack/active 9-line grids, rewards, saves, stages, enemies, boss flow, or meta economy changes |
+
+---
+
+## Night Tactician Upgrade Grid
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Call `validate_upgrade_grid_for_hero("blaster", true)` | Returns 9 Attack lines, 9 Active lines, 0 errors, 0 duplicates |
+| 2 | Start a run as Night Tactician and trigger 9 level-ups | At least `rocket_damage`, `smoke_screen_radius`, and `hook_damage` appear in level-up pool; deprecated lines (`smoke_screen_damage_reduction`, `trap_cooldown_down`, `trap_mark_bonus`, `hook_mark_bonus`) never appear |
+| 3 | Pick `rocket_seek_range` | Homing rocket attack range visibly increases; DebugStatsOverlay reflects updated attack_range; `refresh_attack_range()` is called (no error in log) |
+| 4 | Pick `rocket_split` | Rocket explosion radius increases and splash damage applies to enemies near impact |
+| 5 | Pick `rocket_cluster_payload` | Rocket explosion damage multiplier increases; AoE damage numbers rise correspondingly |
+| 6 | Pick `rocket_priority_targeting` | Tactically Marked enemies are targeted before unmarked enemies when multiple are in range; mark multiplier increases |
+| 7 | Pick `trap_chain_detonation`, place two Explosive Traps near each other, trigger one | Second trap also detonates from the chain; Tactical Mark duration on hit enemies is extended; trap cooldown is shorter |
+| 8 | Pick `smoke_screen_radius`, `smoke_screen_duration`, `smoke_screen_slow` | Each upgrade affects only those Smoke Screen parameters; `smoke_screen_damage_reduction` never appears in pool |
+| 9 | Pick `trap_damage` and `trap_radius` | Trap detonation damage and blast radius both increase independently |
+| 10 | Pick `hook_damage`, `hook_range`, `hook_cooldown_down` | Each upgrade affects only Grappling Hook damage, range, or cooldown; `hook_mark_bonus` never appears in pool |
+| 11 | Inspect all blaster upgrades for schema fields | Every blaster attack and active line has `upgrade_line_id`, `source_type`, `source_skill_id`, `grid_index`, `evolution_role`; active lines also have `evolution_target_active_skill` |
+| 12 | Start a Solar Guardian or Fury Vanguard run | Guardian and Vanguard grids unchanged; `rocket_*`, `trap_*`, `hook_*`, `smoke_*` lines not offered to them |
+| 13 | Inspect diff/save behavior | No EvolutionManager, Overdrive UI, Fury 9-line grids, Evolution triples, rewards, saves, enemies, stages, boss flow, or meta economy changes |
 
 ---
 

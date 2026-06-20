@@ -82,6 +82,7 @@ const KIT_GENERIC := "generic"
 @export var explosive_trap_explosion_radius: float = 160.0
 @export var explosive_trap_duration: float = 10.0
 @export var explosive_trap_cooldown: float = 10.0
+@export var explosive_trap_chain_enabled: bool = false
 
 # Night Tactician — Grappling Hook
 @export var grappling_hook_damage: int = 50
@@ -899,6 +900,14 @@ func _trigger_explosive_trap(trap: Dictionary) -> void:
 				enemy.take_damage(damage)
 				apply_tactical_mark(enemy)
 				hits += 1
+	if explosive_trap_chain_enabled:
+		var traps_to_chain: Array[Dictionary] = []
+		for other_trap in _active_explosive_traps:
+			if pos.distance_to(other_trap["position"]) <= explosion_r:
+				traps_to_chain.append(other_trap)
+		for chained in traps_to_chain:
+			_active_explosive_traps.erase(chained)
+			_trigger_explosive_trap(chained)
 	_spawn_slam_feedback_at(pos, explosion_r)
 	_status("TRAP BOOM" if hits > 0 else "TRAP MISS", pos + Vector2.UP * 42.0)
 	_shake(5.0, 0.14)
