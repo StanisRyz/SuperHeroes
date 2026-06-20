@@ -704,6 +704,27 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - **Save migration** - save version 3 adds `hero_mastery`, `stage_mastery`, and `goals` with defaults while preserving existing currency, per-hero Training, unlocked heroes, and lifetime totals.
 - **Training Goals snapshot** - MetaUpgradeShop shows a compact read-only goals progress line above Training rows. It does not claim rewards or mutate goals.
 
+### Training Screen Layout Rework
+
+The Training screen (`MetaUpgradeShop`) now uses a two-panel layout:
+
+- **Left panel — Character Equipment preview**: Shows the selected hero's display name, subtitle/playstyle, and a color accent strip. Six fixed equipment slots are laid out around the hero preview:
+  - Left column: Core, Suit, Emblem
+  - Center: hero portrait area (name + subtitle)
+  - Right column: Gauntlets, Boots, Artifact
+- **Right panel — Training Upgrades**: The existing scrollable list of Training upgrades with buy buttons, level display, and currency gating. Behavior is identical to the previous single-panel layout.
+- **Header**: Title, currency label, hero selector, and goals label remain above both panels.
+
+Equipment slots are **visual placeholders only**. Each slot shows the slot name, "Lv 0", and "Coming next". No equipment levels are stored, no stats are affected, and no purchase buttons exist on slots.
+
+The equipment panel hero preview updates when the hero selector changes. Slot placeholders remain static.
+
+Not implemented yet (equipment):
+- Equipment progression or stat bonuses.
+- Equipment purchase or upgrade flow.
+- Inventory.
+- Item drops or gacha pulls.
+
 Not implemented yet (meta):
 - Gacha pulls, shards, and banner system (collection screen foundation exists).
 - Advanced hero unlock purchase UI.

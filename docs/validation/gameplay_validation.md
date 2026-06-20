@@ -1867,3 +1867,85 @@ git diff --stat
 | 8 | Equipment | Not present (future work) |
 | 9 | hero_selected signal connected to CharacterSelect | Not connected (future work) |
 | 8 | Inspect diff | No hero kits, evolutions, 4/4/4 slots, stage objectives, rewards, saves, meta progression, or arena hazards changed |
+
+---
+
+## Training Screen Layout Rework
+
+### Setup
+
+```sh
+godot --headless --editor --quit
+git status
+git diff --stat
+```
+
+### Two-Panel Layout
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Main Menu → Training | MetaUpgradeShop opens showing a two-panel layout |
+| 2 | Left panel | "Equipment" title visible; 6 slot placeholders visible (Core, Suit, Emblem, Gauntlets, Boots, Artifact) |
+| 3 | Right panel | "Training Upgrades" title visible; existing upgrade rows present and scrollable |
+| 4 | Header | Title "Training", currency label, hero selector buttons, goals label all present above panels |
+| 5 | Footer | "Back" button present and accessible |
+| 6 | Layout fits screen | Both panels visible in landscape at 16:9 without cutting off the Back button |
+
+### Equipment Panel — Slot Placeholders
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Count equipment slots | Exactly 6 slots visible: Core, Suit, Emblem on left; Gauntlets, Boots, Artifact on right |
+| 2 | Each slot content | Shows slot name, "Lv 0", and "Coming next" |
+| 3 | No buy buttons on slots | Slot placeholders have no purchase interaction |
+| 4 | Slots remain static when hero changes | Slot names and content do not change on hero switch |
+
+### Equipment Panel — Hero Preview
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training for Solar Guardian | Equipment panel shows "Solar Guardian", subtitle/playstyle, color swatch in gold |
+| 2 | Open Training for Night Tactician | Equipment panel shows "Night Tactician", subtitle, color swatch in dark blue |
+| 3 | Open Training for Fury Vanguard | Equipment panel shows "Fury Vanguard", subtitle, color swatch in red |
+| 4 | Hero status label | Shows "Owned" in green for unlocked heroes |
+| 5 | Color accent swatch | Narrow strip at top of hero preview matches hero color |
+
+### Hero Selector Compatibility
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click Guardian, Blaster, Vanguard buttons | Selected hero button turns green and is disabled; other buttons are white |
+| 2 | Switch from Guardian to Blaster | Training upgrade rows update; equipment hero preview name/subtitle/color update |
+| 3 | Switch from Blaster to Vanguard | Same as above for Vanguard |
+| 4 | Goals label after switch | Goals label still shows correct totals |
+| 5 | Currency after switch | Currency label unchanged (global shared currency) |
+
+### Training Upgrade List (Right Panel) — Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Right panel upgrade list | All Training upgrades (Vitality, Power, Awareness, Mobility, Rewards) present |
+| 2 | Buy a Training upgrade | Currency decreases; upgrade level increases; row flashes green |
+| 3 | Upgrade at max level | Buy button shows "MAX" and is disabled |
+| 4 | Insufficient currency | Buy button is disabled and grayed |
+| 5 | Upgrade levels per hero are separate | Switching hero shows different levels for the same upgrade id |
+
+### Navigation & Safety
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click Back | Training closes; main menu reappears |
+| 2 | Press ESC | Training closes; main menu reappears |
+| 3 | Collection still opens from main menu | Collection screen opens normally |
+| 4 | Select Hero still opens CharacterSelect | CharacterSelect opens normally |
+| 5 | No gameplay, saves, or rewards changed | Opening/closing Training has no gameplay side effects |
+
+### Scope Confirmation
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Equipment slots store no data | No new save keys, no new meta fields |
+| 2 | No inventory added | No item inventory screen or node present |
+| 3 | No gacha added | No banner, pull button, or shard system present |
+| 4 | No equipment progression | Slot levels cannot be increased; no stats affected |
+| 5 | Inspect diff | No changes to Training costs, save format, rewards, gameplay, combat, evolutions, or 4/4/4 in-run slot rules |

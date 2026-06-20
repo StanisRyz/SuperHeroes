@@ -257,7 +257,7 @@ func _build_hero_card(hero: Dictionary, is_owned: bool) -> Button:
 	return btn
 
 
-func _build_locked_placeholder_card(index: int) -> Button:
+func _build_locked_placeholder_card(_index: int) -> Button:
 	var btn := Button.new()
 	btn.text = "??? Locked Hero\nFuture hero  |  LOCKED"
 	btn.custom_minimum_size = Vector2(0, 80)

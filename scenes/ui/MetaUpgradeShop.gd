@@ -19,6 +19,12 @@ var _list_vbox: VBoxContainer
 var _rows: Array[Dictionary] = []
 var _hero_buttons: Dictionary = {}
 
+# Equipment panel references
+var _equip_hero_name_label: Label
+var _equip_hero_subtitle_label: Label
+var _equip_hero_swatch: ColorRect
+var _equip_hero_status_label: Label
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -59,13 +65,14 @@ func refresh() -> void:
 	if _selected_hero_id.is_empty():
 		set_selected_hero("")
 	if _title_label != null:
-		_title_label.text = "Training: %s" % _get_selected_hero_display_name()
+		_title_label.text = "Training"
 	if _currency_label != null:
 		_currency_label.text = "Currency: %d" % _meta_manager.get_currency()
 	_update_goals_label()
 	_update_hero_buttons()
 	_rebuild_rows_if_needed()
 	_update_rows()
+	_refresh_equipment_panel()
 
 
 func set_selected_hero(hero_id: String) -> void:
@@ -78,6 +85,8 @@ func set_selected_hero(hero_id: String) -> void:
 		refresh()
 
 
+# ─── UI skeleton ──────────────────────────────────────────────────────────────
+
 func _build_ui() -> void:
 	var bg := ColorRect.new()
 	bg.color = Color(0.045, 0.06, 0.075, 1.0)
@@ -87,16 +96,17 @@ func _build_ui() -> void:
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 56)
-	margin.add_theme_constant_override("margin_top", 36)
-	margin.add_theme_constant_override("margin_right", 56)
-	margin.add_theme_constant_override("margin_bottom", 36)
+	margin.add_theme_constant_override("margin_left", 48)
+	margin.add_theme_constant_override("margin_top", 28)
+	margin.add_theme_constant_override("margin_right", 48)
+	margin.add_theme_constant_override("margin_bottom", 28)
 	add_child(margin)
 
 	var main_vbox := VBoxContainer.new()
-	main_vbox.add_theme_constant_override("separation", 14)
+	main_vbox.add_theme_constant_override("separation", 10)
 	margin.add_child(main_vbox)
 
+	# ── header ────────────────────────────────────────────────────────────────
 	_title_label = Label.new()
 	_title_label.text = "Training"
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -123,15 +133,25 @@ func _build_ui() -> void:
 
 	main_vbox.add_child(HSeparator.new())
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_child(scroll)
+	# ── two-panel content area ────────────────────────────────────────────────
+	var content_hbox := HBoxContainer.new()
+	content_hbox.add_theme_constant_override("separation", 16)
+	content_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(content_hbox)
 
-	_list_vbox = VBoxContainer.new()
-	_list_vbox.add_theme_constant_override("separation", 8)
-	_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_list_vbox)
+	var equip_panel := _build_equipment_panel()
+	equip_panel.custom_minimum_size = Vector2(340, 0)
+	equip_panel.size_flags_horizontal = Control.SIZE_FILL
+	content_hbox.add_child(equip_panel)
 
+	var vsep := VSeparator.new()
+	content_hbox.add_child(vsep)
+
+	var training_panel := _build_training_panel()
+	training_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_hbox.add_child(training_panel)
+
+	# ── footer ────────────────────────────────────────────────────────────────
 	main_vbox.add_child(HSeparator.new())
 
 	_back_button = Button.new()
@@ -141,6 +161,176 @@ func _build_ui() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
 	main_vbox.add_child(_back_button)
 
+
+func _build_training_panel() -> Control:
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+
+	var section_title := Label.new()
+	section_title.text = "Training Upgrades"
+	section_title.add_theme_font_size_override("font_size", 16)
+	section_title.modulate = Color(0.9, 0.9, 0.7, 1.0)
+	vbox.add_child(section_title)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
+	_list_vbox = VBoxContainer.new()
+	_list_vbox.add_theme_constant_override("separation", 8)
+	_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_list_vbox)
+
+	return vbox
+
+
+func _build_equipment_panel() -> Control:
+	var outer_vbox := VBoxContainer.new()
+	outer_vbox.add_theme_constant_override("separation", 8)
+
+	var section_title := Label.new()
+	section_title.text = "Equipment"
+	section_title.add_theme_font_size_override("font_size", 16)
+	section_title.modulate = Color(0.7, 0.85, 1.0, 1.0)
+	outer_vbox.add_child(section_title)
+
+	# ── hero preview ──────────────────────────────────────────────────────────
+	var hero_panel := PanelContainer.new()
+	hero_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer_vbox.add_child(hero_panel)
+
+	var hero_vbox := VBoxContainer.new()
+	hero_vbox.add_theme_constant_override("separation", 4)
+	hero_panel.add_child(hero_vbox)
+
+	_equip_hero_swatch = ColorRect.new()
+	_equip_hero_swatch.custom_minimum_size = Vector2(0, 6)
+	_equip_hero_swatch.color = Color(0.5, 0.5, 0.5, 1.0)
+	hero_vbox.add_child(_equip_hero_swatch)
+
+	_equip_hero_name_label = Label.new()
+	_equip_hero_name_label.text = "—"
+	_equip_hero_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_equip_hero_name_label.add_theme_font_size_override("font_size", 15)
+	hero_vbox.add_child(_equip_hero_name_label)
+
+	_equip_hero_subtitle_label = Label.new()
+	_equip_hero_subtitle_label.text = ""
+	_equip_hero_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_equip_hero_subtitle_label.add_theme_font_size_override("font_size", 11)
+	_equip_hero_subtitle_label.modulate = Color(0.75, 0.82, 0.92, 1.0)
+	hero_vbox.add_child(_equip_hero_subtitle_label)
+
+	_equip_hero_status_label = Label.new()
+	_equip_hero_status_label.text = ""
+	_equip_hero_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_equip_hero_status_label.add_theme_font_size_override("font_size", 10)
+	_equip_hero_status_label.modulate = Color(0.6, 0.9, 0.6, 1.0)
+	hero_vbox.add_child(_equip_hero_status_label)
+
+	# ── slot grid ─────────────────────────────────────────────────────────────
+	# Layout:
+	#   [Core]          [Gauntlets]
+	#   [Suit]   HERO   [Boots]
+	#   [Emblem]        [Artifact]
+	var slot_hbox := HBoxContainer.new()
+	slot_hbox.add_theme_constant_override("separation", 8)
+	slot_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer_vbox.add_child(slot_hbox)
+
+	var left_col := VBoxContainer.new()
+	left_col.add_theme_constant_override("separation", 6)
+	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slot_hbox.add_child(left_col)
+	left_col.add_child(_build_equipment_slot("Core"))
+	left_col.add_child(_build_equipment_slot("Suit"))
+	left_col.add_child(_build_equipment_slot("Emblem"))
+
+	var center_spacer := Control.new()
+	center_spacer.custom_minimum_size = Vector2(32, 0)
+	center_spacer.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	slot_hbox.add_child(center_spacer)
+
+	var right_col := VBoxContainer.new()
+	right_col.add_theme_constant_override("separation", 6)
+	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slot_hbox.add_child(right_col)
+	right_col.add_child(_build_equipment_slot("Gauntlets"))
+	right_col.add_child(_build_equipment_slot("Boots"))
+	right_col.add_child(_build_equipment_slot("Artifact"))
+
+	var note := Label.new()
+	note.text = "Fixed hero gear. Upgrades coming next."
+	note.add_theme_font_size_override("font_size", 10)
+	note.modulate = Color(0.55, 0.6, 0.65, 1.0)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	outer_vbox.add_child(note)
+
+	return outer_vbox
+
+
+func _build_equipment_slot(slot_name: String) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 1)
+	panel.add_child(vbox)
+
+	var name_lbl := Label.new()
+	name_lbl.text = slot_name
+	name_lbl.add_theme_font_size_override("font_size", 11)
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_lbl)
+
+	var level_lbl := Label.new()
+	level_lbl.text = "Lv 0"
+	level_lbl.add_theme_font_size_override("font_size", 10)
+	level_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_lbl.modulate = Color(0.7, 0.7, 0.7, 1.0)
+	vbox.add_child(level_lbl)
+
+	var hint_lbl := Label.new()
+	hint_lbl.text = "Coming next"
+	hint_lbl.add_theme_font_size_override("font_size", 9)
+	hint_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint_lbl.modulate = Color(0.5, 0.55, 0.6, 1.0)
+	vbox.add_child(hint_lbl)
+
+	return panel
+
+
+func _refresh_equipment_panel() -> void:
+	var hero := _get_selected_hero_data()
+	if _equip_hero_name_label == null:
+		return
+	var display_name := str(hero.get("display_name", _selected_hero_id.capitalize()))
+	var subtitle := str(hero.get("subtitle", str(hero.get("playstyle", ""))))
+	var color: Color = hero.get("color", Color(0.5, 0.5, 0.5, 1.0))
+	var unlocked: bool = hero.get("unlocked_by_default", true)
+
+	_equip_hero_name_label.text = display_name
+	_equip_hero_subtitle_label.text = subtitle
+	if _equip_hero_swatch != null:
+		_equip_hero_swatch.color = color
+	if _equip_hero_status_label != null:
+		_equip_hero_status_label.text = "Owned" if unlocked else "Locked"
+		_equip_hero_status_label.modulate = Color(0.6, 0.9, 0.6, 1.0) if unlocked else Color(0.8, 0.5, 0.3, 1.0)
+
+
+func _get_selected_hero_data() -> Dictionary:
+	for hero in _heroes:
+		if str(hero.get("id", "")) == _selected_hero_id:
+			return hero
+	if _hero_data_provider != null and _hero_data_provider.has_method("get_hero"):
+		var d: Dictionary = _hero_data_provider.get_hero(_selected_hero_id)
+		if not d.is_empty():
+			return d
+	return {}
+
+
+# ─── Training rows ────────────────────────────────────────────────────────────
 
 func _rebuild_rows_if_needed() -> void:
 	if _meta_manager == null or _list_vbox == null:
@@ -256,6 +446,8 @@ func _update_goals_label() -> void:
 	_goals_label.text = text
 
 
+# ─── Signal handlers ──────────────────────────────────────────────────────────
+
 func _on_buy_pressed(upgrade_id: String) -> void:
 	if _selected_hero_id.is_empty():
 		push_warning("MetaUpgradeShop: cannot buy training upgrade without selected hero.")
@@ -277,6 +469,8 @@ func _on_meta_upgrade_changed(upgrade_id: String, _level: int) -> void:
 		refresh()
 		_flash_row(upgrade_id)
 
+
+# ─── Hero selector ────────────────────────────────────────────────────────────
 
 func _reload_heroes() -> void:
 	_heroes.clear()
@@ -323,6 +517,8 @@ func _update_hero_buttons() -> void:
 func _on_hero_button_pressed(hero_id: String) -> void:
 	set_selected_hero(hero_id)
 
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 func _resolve_hero_id(hero_id: String) -> String:
 	if _has_hero(hero_id):

@@ -126,7 +126,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/PostRunRewardsScreen.tscn` - post-run reward display CanvasLayer scene (instantiated at runtime by Main).
 - `scenes/ui/PostRunRewardsScreen.gd` - display-only reward breakdown screen. Emits continue_requested. Shown between V/GO result screen and the next action (restart or menu).
 - `scenes/ui/MetaUpgradeShop.tscn` - meta upgrade shop CanvasLayer scene (instantiated at runtime by Main).
-- `scenes/ui/MetaUpgradeShop.gd` - display-only Training shop UI. Shows meta upgrade levels and costs. Emits buy_requested; Main handles the purchase. Accessed via "Training" button on MainMenu.
+- `scenes/ui/MetaUpgradeShop.gd` - display-only Training shop UI. Two-panel layout: left panel is Character Equipment preview (6 fixed placeholder slots + hero preview); right panel is Training Upgrades scroll list. Header contains title, currency label, hero selector, and goals label. Footer has Back button. Emits `buy_requested(hero_id, upgrade_id)`; Main handles the purchase. Accessed via "Training" button on MainMenu.
 - `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, meta progression/rewards, expected console log patterns).
 - `scenes/stages/StageDataProvider.tscn` - runtime stage definition provider scene.
 - `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, display-only identity metadata, background_colors, run_settings, event_profile, final_boss_id, `objective_type` ("survival"/"defense"/"destroy_structures"), and `objective_data` (per-type parameters).
@@ -635,6 +635,22 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `MetaUpgradeShop` emits `buy_requested(hero_id, upgrade_id)`; Main delegates to `MetaProgressionManager.purchase_training_upgrade(hero_id, upgrade_id)`.
 - `MetaApplier` must apply Training by selected hero id only. Runs as Guardian, Blaster, or Vanguard must never combine Training levels from other heroes.
 - Runtime upgrades, evolutions, and temporary run state must not be written into Training data.
+
+## Training Screen Two-Panel Layout Architecture
+
+- `MetaUpgradeShop` uses a two-panel layout under the header: left panel = Character Equipment preview; right panel = Training Upgrades scroll list.
+- **Header** (above both panels): title label, currency label, hero selector `HBoxContainer`, goals label.
+- **Left panel** (`_build_equipment_panel()`): "Equipment" section title, hero preview (`PanelContainer` with color swatch, display name, subtitle, status), a slot grid (`HBoxContainer` with left column + center spacer + right column), and a note label.
+- **Right panel** (`_build_training_panel()`): "Training Upgrades" section title, `ScrollContainer` containing `_list_vbox` with upgrade rows. This is identical to the previous single-panel list.
+- **Slot grid layout**: left column holds Core/Suit/Emblem; right column holds Gauntlets/Boots/Artifact. Each slot is a `PanelContainer` with slot name, "Lv 0", and "Coming next" labels. Slots are visual placeholders only.
+- **Hero preview** updates via `_refresh_equipment_panel()` on every `refresh()` call and on hero switch. It reads `display_name`, `subtitle`/`playstyle`, and `color` from `_get_selected_hero_data()`.
+- **Equipment rules for this patch**: no slot levels stored, no purchase buttons on slots, no equipment stat bonuses, no inventory, no item drops, no gacha. Slots are display-only.
+- `_get_selected_hero_data()` returns the selected hero dict from `_heroes` (already loaded via `HeroDataProvider`), with fallback to `_hero_data_provider.get_hero()`.
+- Existing Training buy flow (`_on_buy_pressed`, `_on_buy_pressed.bind(upgrade_id)`, `buy_requested.emit`) is unchanged.
+- `open(hero_id)`, `close()`, `setup(meta_progression_manager, hero_data_provider)`, `refresh()`, `set_selected_hero(hero_id)` API unchanged.
+- Signals `back_requested` and `buy_requested(hero_id, upgrade_id)` unchanged.
+- Row flash on purchase (`_flash_row`) unchanged.
+- Main.gd Training open/close flow unchanged.
 
 ## Implemented Systems
 
