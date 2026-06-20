@@ -28,6 +28,7 @@ signal invulnerability_changed(is_invulnerable: bool)
 var _feedback_manager: Node = null
 
 var current_health: int
+var damage_reduction: float = 0.0
 var current_xp: int = 0
 var level: int = 1
 var external_move_vector: Vector2 = Vector2.ZERO
@@ -95,6 +96,11 @@ func setup_feedback_manager(fm: Node) -> void:
 func take_damage(amount: int) -> void:
 	if amount <= 0 or is_dead() or is_invulnerable() or debug_invulnerable:
 		return
+
+	if damage_reduction > 0.0:
+		amount = maxi(roundi(float(amount) * maxf(1.0 - damage_reduction, 0.0)), 0)
+		if amount <= 0:
+			return
 
 	var buff_manager := get_node_or_null("PlayerBuffManager")
 	if buff_manager != null and buff_manager.has_method("consume_shield_charge"):

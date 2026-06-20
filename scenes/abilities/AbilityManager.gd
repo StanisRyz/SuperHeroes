@@ -63,13 +63,30 @@ const KIT_GENERIC := "generic"
 @export var death_dash_cooldown: float = 9.0
 @export var death_dash_invulnerability: float = 0.30
 
-@export var tactical_mark_damage_multiplier: float = 1.45
-@export var tactical_mark_refresh_radius: float = 760.0
-@export var smoke_slow_duration: float = 2.0
-@export var smoke_slow_multiplier: float = 0.72
-@export var shock_trap_delay: float = 0.28
-@export var shock_trap_radius_multiplier: float = 0.9
-@export var shock_trap_duration: float = 2.2
+# Night Tactician — Smoke Screen
+@export var smoke_screen_radius: float = 200.0
+@export var smoke_screen_duration: float = 5.0
+@export var smoke_screen_cooldown: float = 8.0
+@export var smoke_screen_slow_multiplier: float = 0.55
+@export var smoke_screen_slow_duration: float = 2.5
+@export var smoke_screen_damage_reduction: float = 0.30
+
+# Night Tactician — Explosive Trap
+@export var explosive_trap_damage: int = 35
+@export var explosive_trap_trigger_radius: float = 60.0
+@export var explosive_trap_explosion_radius: float = 160.0
+@export var explosive_trap_duration: float = 10.0
+@export var explosive_trap_cooldown: float = 10.0
+
+# Night Tactician — Grappling Hook
+@export var grappling_hook_damage: int = 50
+@export var grappling_hook_range: float = 380.0
+@export var grappling_hook_cooldown: float = 9.0
+@export var grappling_hook_invulnerability: float = 0.20
+
+# Night Tactician — Tactical Mark (multi-enemy, duration-based)
+@export var tactical_mark_duration: float = 6.0
+@export var tactical_mark_autoattack_damage_multiplier: float = 1.35
 
 @export var rage_max: float = 100.0
 @export var rage_per_damage_taken: float = 2.0
@@ -92,8 +109,10 @@ var solar_energy: float = 0.0
 var _solar_empowered: bool = false
 var _solar_empowered_time_left: float = 0.0
 var rage: float = 0.0
-var tactical_mark_target: Node2D = null
-var _active_shock_traps: Array[Dictionary] = []
+# Tactical Mark: maps enemy Node -> seconds remaining
+var _tactical_marks: Dictionary = {}
+var _active_smoke_screens: Array[Dictionary] = []
+var _active_explosive_traps: Array[Dictionary] = []
 
 var _cooldowns := {1: 0.0, 2: 0.0, 3: 0.0}
 var _last_emitted := {1: -1.0, 2: -1.0, 3: -1.0}
@@ -129,7 +148,19 @@ func set_hero_kit(hero_id: String, kit_id: String, kit_data: Dictionary = {}) ->
 	_solar_empowered = false
 	_solar_empowered_time_left = 0.0
 	rage = 0.0
-	tactical_mark_target = null
+	_tactical_marks.clear()
+	for screen in _active_smoke_screens:
+		var visual = screen.get("visual")
+		if visual != null and is_instance_valid(visual):
+			visual.queue_free()
+	_active_smoke_screens.clear()
+	for trap in _active_explosive_traps:
+		var visual = trap.get("visual")
+		if visual != null and is_instance_valid(visual):
+			visual.queue_free()
+	_active_explosive_traps.clear()
+	if player != null and player.get("damage_reduction") != null:
+		player.set("damage_reduction", 0.0)
 
 
 func _process(delta: float) -> void:
@@ -141,7 +172,10 @@ func _process(delta: float) -> void:
 		_tick_solar_energy(delta)
 	if current_kit_id == KIT_VANGUARD and rage > 0.0:
 		rage = maxf(rage - rage_decay_per_second * delta, 0.0)
-	_tick_shock_traps(delta)
+	if current_kit_id == KIT_TACTICIAN:
+		_tick_tactical_marks(delta)
+		_tick_smoke_screens(delta)
+		_tick_explosive_traps(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -161,7 +195,7 @@ func cast_ability_1() -> void:
 		KIT_SOLAR:
 			_try_cast_solar_beam_ability()
 		KIT_TACTICIAN:
-			_try_cast_smoke_charge()
+			_try_cast_smoke_screen()
 		KIT_VANGUARD:
 			_try_cast_rage_burst()
 		_:
@@ -173,7 +207,7 @@ func cast_ability_2() -> void:
 		KIT_SOLAR:
 			_try_cast_frost_breath()
 		KIT_TACTICIAN:
-			_try_cast_grapnel_shot()
+			_try_cast_explosive_trap()
 		KIT_VANGUARD:
 			_try_cast_crushing_leap()
 		_:
@@ -185,7 +219,7 @@ func cast_ability_3() -> void:
 		KIT_SOLAR:
 			_try_cast_death_dash()
 		KIT_TACTICIAN:
-			_try_cast_shock_trap()
+			_try_cast_grappling_hook()
 		KIT_VANGUARD:
 			_try_cast_titan_slam()
 		_:
@@ -239,9 +273,7 @@ func get_ability_name(slot: int, prefer_short: bool = false) -> String:
 
 
 func get_hero_kit_state() -> Dictionary:
-	var mark_name := "none"
-	if _is_valid_enemy(tactical_mark_target):
-		mark_name = _get_enemy_display_name(tactical_mark_target)
+	var marked_count := get_marked_enemy_count()
 	return {
 		"hero_id": current_hero_id,
 		"kit_id": current_kit_id,
@@ -252,8 +284,9 @@ func get_hero_kit_state() -> Dictionary:
 		"solar_empowered_time_left": _solar_empowered_time_left,
 		"rage": rage,
 		"rage_max": rage_max,
-		"tactical_mark_target": mark_name,
-		"has_tactical_mark": _is_valid_enemy(tactical_mark_target),
+		"tactical_mark_count": marked_count,
+		"tactical_mark_target": str(marked_count) + " marked" if marked_count > 0 else "none",
+		"has_tactical_mark": marked_count > 0,
 	}
 
 
@@ -362,56 +395,63 @@ func _try_cast_death_dash() -> void:
 	_finish_cast(3, "death_dash", death_dash_cooldown)
 
 
-func _try_cast_smoke_charge() -> void:
+func _try_cast_smoke_screen() -> void:
 	if not _guard_cast(1):
 		return
-	_refresh_tactical_mark(true)
-	var hits := _damage_enemies_in_radius_at(player.global_position, nova_damage, nova_radius * 0.9)
-	_apply_enemy_modifier_in_radius(player.global_position, nova_radius, "smoke_slow", {"speed_multiplier": smoke_slow_multiplier}, smoke_slow_duration)
-	_grant_brief_invulnerability(0.18)
-	_spawn_pulse_feedback_at(player.global_position, nova_radius * 0.9)
-	_status("MARKED SMOKE" if _is_valid_enemy(tactical_mark_target) else ("SMOKE" if hits > 0 else "SMOKE COVER"), player.global_position + Vector2.UP * 42.0)
-	if nova_aftershock_enabled:
-		_schedule_nova_aftershock(player.global_position)
-	_shake(4.0, 0.12)
-	_finish_cast(1, "smoke_charge", nova_cooldown)
+	var cast_position := player.global_position
+	var smoke_visual := _spawn_smoke_visual(cast_position, smoke_screen_radius)
+	_active_smoke_screens.append({
+		"position": cast_position,
+		"radius": smoke_screen_radius,
+		"remaining": smoke_screen_duration,
+		"slow_multiplier": smoke_screen_slow_multiplier,
+		"slow_duration": smoke_screen_slow_duration,
+		"visual": smoke_visual,
+		"mark_tick": 0.5,
+	})
+	_status("SMOKE SCREEN", cast_position + Vector2.UP * 42.0)
+	_shake(4.0, 0.10)
+	_finish_cast(1, "smoke_screen", smoke_screen_cooldown)
 
 
-func _try_cast_grapnel_shot() -> void:
+func _try_cast_explosive_trap() -> void:
 	if not _guard_cast(2):
 		return
-	_refresh_tactical_mark(true)
-	var direction := _get_player_aim_direction()
-	var origin := player.global_position
-	var grapnel_width := maxf(laser_width * 0.34, 18.0)
-	var grapnel_damage := _scale_int(laser_damage, 1.12)
-	var hits := _damage_enemies_in_laser(origin, direction, grapnel_damage, laser_range * 1.1, grapnel_width, tactical_mark_target, tactical_mark_damage_multiplier)
-	_spawn_laser_feedback_at(origin, direction, laser_range * 1.1, grapnel_width)
-	_status("MARK HIT" if hits > 0 and _is_valid_enemy(tactical_mark_target) else ("GRAPNEL" if hits > 0 else "GRAPNEL MISS"), origin + Vector2.UP * 42.0)
-	if laser_double_pulse_enabled:
-		_schedule_laser_second_pulse(origin, direction)
-	_finish_cast(2, "grapnel_shot", laser_cooldown)
+	var aim_dir := _get_player_aim_direction()
+	var trap_position := player.global_position + aim_dir * 60.0
+	var trap_visual := _spawn_trap_visual(trap_position)
+	_active_explosive_traps.append({
+		"position": trap_position,
+		"trigger_radius": explosive_trap_trigger_radius,
+		"explosion_radius": explosive_trap_explosion_radius,
+		"damage": explosive_trap_damage,
+		"remaining": explosive_trap_duration,
+		"visual": trap_visual,
+	})
+	_status("TRAP SET", trap_position + Vector2.UP * 42.0)
+	_finish_cast(2, "explosive_trap", explosive_trap_cooldown)
 
 
-func _try_cast_shock_trap() -> void:
+func _try_cast_grappling_hook() -> void:
 	if not _guard_cast(3):
 		return
-	_refresh_tactical_mark(true)
-	var trap_position := player.global_position + _get_player_aim_direction() * 72.0
-	var trap_radius := slam_radius * shock_trap_radius_multiplier
-	_spawn_slam_feedback_at(trap_position, slam_radius * shock_trap_radius_multiplier)
-	_status("SHOCK TRAP", trap_position + Vector2.UP * 42.0)
-	_active_shock_traps.append({
-		"position": trap_position,
-		"radius": trap_radius,
-		"damage": slam_damage,
-		"remaining": shock_trap_duration,
-		"arming": shock_trap_delay,
-		"mark": tactical_mark_target,
-	})
-	if slam_second_wave_enabled:
-		_schedule_slam_second_wave(trap_position)
-	_finish_cast(3, "shock_trap", slam_cooldown)
+	var hook_target := _find_nearest_enemy_in_range(grappling_hook_range)
+	if hook_target == null:
+		_status("NO TARGET", player.global_position + Vector2.UP * 42.0)
+		_finish_cast(3, "grappling_hook", grappling_hook_cooldown * 0.5)
+		return
+	var origin := player.global_position
+	_spawn_hook_visual(origin, hook_target.global_position)
+	apply_tactical_mark(hook_target)
+	hook_target.take_damage(grappling_hook_damage)
+	_grant_brief_invulnerability(grappling_hook_invulnerability)
+	var direction := (hook_target.global_position - origin).normalized()
+	var raw_dist := origin.distance_to(hook_target.global_position)
+	var dash_dist := maxf(raw_dist - 40.0, 0.0)
+	_move_player_safely(direction, dash_dist)
+	_status("HOOK", origin + Vector2.UP * 42.0)
+	_shake(5.0, 0.14)
+	_finish_cast(3, "grappling_hook", grappling_hook_cooldown)
 
 
 func _try_cast_rage_burst() -> void:
@@ -677,38 +717,123 @@ func _is_valid_enemy(node) -> bool:
 	)
 
 
-func _tick_shock_traps(delta: float) -> void:
-	if _active_shock_traps.is_empty():
+# ── Smoke Screen tick ─────────────────────────────────────────────────────────
+
+func _tick_smoke_screens(delta: float) -> void:
+	if _active_smoke_screens.is_empty():
 		return
+	var remaining_screens: Array[Dictionary] = []
+	var player_in_smoke := false
+	for screen in _active_smoke_screens:
+		var pos: Vector2 = screen["position"]
+		var radius: float = screen["radius"]
+		var rem: float = maxf(float(screen["remaining"]) - delta, 0.0)
+		screen["remaining"] = rem
+		if player != null and is_instance_valid(player):
+			if player.global_position.distance_to(pos) <= radius:
+				player_in_smoke = true
+		var mark_tick: float = float(screen["mark_tick"]) + delta
+		if mark_tick >= 0.5:
+			mark_tick -= 0.5
+			_apply_smoke_effects(pos, radius, screen["slow_multiplier"], screen["slow_duration"])
+		screen["mark_tick"] = mark_tick
+		if rem > 0.0:
+			remaining_screens.append(screen)
+		else:
+			var visual = screen.get("visual")
+			if visual != null and is_instance_valid(visual):
+				visual.queue_free()
+	_active_smoke_screens = remaining_screens
+	if player != null and player.get("damage_reduction") != null:
+		player.set("damage_reduction", smoke_screen_damage_reduction if player_in_smoke else 0.0)
 
+
+func _apply_smoke_effects(world_position: Vector2, radius: float, slow_mult: float, slow_dur: float) -> void:
+	if enemy_container == null or not is_instance_valid(enemy_container):
+		return
+	for enemy in enemy_container.get_children():
+		if not _is_valid_enemy(enemy):
+			continue
+		if world_position.distance_to((enemy as Node2D).global_position) <= radius:
+			if enemy.has_method("apply_temporary_modifier"):
+				enemy.apply_temporary_modifier("smoke_slow", {"speed_multiplier": slow_mult}, slow_dur)
+			apply_tactical_mark(enemy)
+
+
+func _spawn_smoke_visual(world_position: Vector2, radius: float) -> Node2D:
+	var container := Node2D.new()
+	_get_feedback_parent().add_child(container)
+	container.global_position = world_position
+	var rect := ColorRect.new()
+	rect.color = Color(0.44, 0.55, 0.66, 0.38)
+	rect.size = Vector2(radius * 2.0, radius * 2.0)
+	rect.position = Vector2(-radius, -radius)
+	container.add_child(rect)
+	return container
+
+
+# ── Explosive Trap tick ───────────────────────────────────────────────────────
+
+func _tick_explosive_traps(delta: float) -> void:
+	if _active_explosive_traps.is_empty():
+		return
 	var remaining_traps: Array[Dictionary] = []
-	for trap in _active_shock_traps:
-		var trap_position: Vector2 = trap.get("position", Vector2.ZERO)
-		var radius := float(trap.get("radius", 0.0))
-		var arming := maxf(float(trap.get("arming", 0.0)) - delta, 0.0)
-		var remaining := maxf(float(trap.get("remaining", 0.0)) - delta, 0.0)
-		trap["arming"] = arming
-		trap["remaining"] = remaining
-
-		var should_trigger := arming <= 0.0 and _has_enemy_in_radius(trap_position, radius)
-		should_trigger = should_trigger or remaining <= 0.0
+	for trap in _active_explosive_traps:
+		var pos: Vector2 = trap["position"]
+		var trigger_r: float = trap["trigger_radius"]
+		var rem: float = maxf(float(trap["remaining"]) - delta, 0.0)
+		trap["remaining"] = rem
+		var should_trigger := rem <= 0.0 or _has_enemy_in_radius(pos, trigger_r)
 		if should_trigger:
-			_trigger_shock_trap(trap)
+			_trigger_explosive_trap(trap)
 		else:
 			remaining_traps.append(trap)
+	_active_explosive_traps = remaining_traps
 
-	_active_shock_traps = remaining_traps
+
+func _trigger_explosive_trap(trap: Dictionary) -> void:
+	var pos: Vector2 = trap["position"]
+	var explosion_r: float = trap["explosion_radius"]
+	var damage: int = trap["damage"]
+	var visual = trap.get("visual")
+	if visual != null and is_instance_valid(visual):
+		visual.queue_free()
+	var hits := 0
+	if enemy_container != null and is_instance_valid(enemy_container):
+		for enemy in enemy_container.get_children():
+			if _is_valid_enemy(enemy) and pos.distance_to((enemy as Node2D).global_position) <= explosion_r:
+				enemy.take_damage(damage)
+				apply_tactical_mark(enemy)
+				hits += 1
+	_spawn_slam_feedback_at(pos, explosion_r)
+	_status("TRAP BOOM" if hits > 0 else "TRAP MISS", pos + Vector2.UP * 42.0)
+	_shake(5.0, 0.14)
 
 
-func _trigger_shock_trap(trap: Dictionary) -> void:
-	var trap_position: Vector2 = trap.get("position", Vector2.ZERO)
-	var radius := float(trap.get("radius", slam_radius * shock_trap_radius_multiplier))
-	var damage := int(trap.get("damage", slam_damage))
-	var mark = trap.get("mark", null)
-	var hits := _damage_enemies_in_radius_at(trap_position, damage, radius, mark, tactical_mark_damage_multiplier)
-	_apply_enemy_modifier_in_radius(trap_position, radius, "shock_trap_slow", {"speed_multiplier": 0.58}, smoke_slow_duration)
-	_spawn_slam_feedback_at(trap_position, radius)
-	_status("TRAP HIT" if hits > 0 else "TRAP DISCHARGE", trap_position + Vector2.UP * 42.0)
+func _spawn_trap_visual(world_position: Vector2) -> Node2D:
+	var container := Node2D.new()
+	_get_feedback_parent().add_child(container)
+	container.global_position = world_position
+	var rect := ColorRect.new()
+	rect.color = Color(1.0, 0.55, 0.1, 0.90)
+	rect.size = Vector2(22.0, 22.0)
+	rect.position = Vector2(-11.0, -11.0)
+	container.add_child(rect)
+	return container
+
+
+func _spawn_hook_visual(origin: Vector2, target_pos: Vector2) -> void:
+	var line := Line2D.new()
+	line.add_point(origin)
+	line.add_point(target_pos)
+	line.width = 3.0
+	line.default_color = Color(0.60, 0.85, 1.0, 0.90)
+	_get_feedback_parent().add_child(line)
+	var timer := get_tree().create_timer(0.28)
+	timer.timeout.connect(func() -> void:
+		if is_instance_valid(line):
+			line.queue_free()
+	)
 
 
 func _has_enemy_in_radius(world_position: Vector2, radius: float) -> bool:
@@ -720,37 +845,60 @@ func _has_enemy_in_radius(world_position: Vector2, radius: float) -> bool:
 	return false
 
 
-func _refresh_tactical_mark(force: bool = false) -> void:
-	if not force and _is_valid_enemy(tactical_mark_target):
+# ── Tactical Mark (multi-enemy) ───────────────────────────────────────────────
+
+func apply_tactical_mark(enemy: Node) -> void:
+	if not _is_valid_enemy(enemy):
 		return
-	tactical_mark_target = _find_priority_enemy()
-	if _is_valid_enemy(tactical_mark_target):
-		_status("MARKED", tactical_mark_target.global_position + Vector2.UP * 30.0)
+	_tactical_marks[enemy] = tactical_mark_duration
+	_status("MARKED", (enemy as Node2D).global_position + Vector2.UP * 30.0)
 
 
-func _find_priority_enemy() -> Node2D:
+func is_tactically_marked(enemy: Node) -> bool:
+	return _tactical_marks.has(enemy) and is_instance_valid(enemy) and not enemy.is_queued_for_deletion()
+
+
+func get_tactical_mark_multiplier(enemy: Node) -> float:
+	return tactical_mark_autoattack_damage_multiplier if is_tactically_marked(enemy) else 1.0
+
+
+func get_marked_enemy_count() -> int:
+	var count := 0
+	for enemy in _tactical_marks.keys():
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+			count += 1
+	return count
+
+
+func _tick_tactical_marks(delta: float) -> void:
+	if _tactical_marks.is_empty():
+		return
+	var expired: Array[Node] = []
+	for enemy in _tactical_marks.keys():
+		if not is_instance_valid(enemy) or enemy.is_queued_for_deletion():
+			expired.append(enemy)
+			continue
+		var remaining: float = maxf(float(_tactical_marks[enemy]) - delta, 0.0)
+		_tactical_marks[enemy] = remaining
+		if remaining <= 0.0:
+			expired.append(enemy)
+	for enemy in expired:
+		_tactical_marks.erase(enemy)
+
+
+func _find_nearest_enemy_in_range(range_dist: float) -> Node2D:
 	if enemy_container == null or not is_instance_valid(enemy_container) or player == null:
 		return null
-	var best_enemy: Node2D = null
-	var best_score := -INF
+	var nearest: Node2D = null
+	var nearest_dist := INF
 	for enemy in enemy_container.get_children():
 		if not _is_valid_enemy(enemy):
 			continue
-		var enemy_node := enemy as Node2D
-		var distance := player.global_position.distance_to(enemy_node.global_position)
-		if distance > tactical_mark_refresh_radius:
-			continue
-		var score := -distance
-		if enemy.get("is_miniboss") == true:
-			score += 3000.0
-		elif enemy.get("is_elite") == true:
-			score += 1800.0
-		elif str(enemy.get("variant_id")) == "shielded" or str(enemy.get("behavior_id")) == "support":
-			score += 450.0
-		if score > best_score:
-			best_score = score
-			best_enemy = enemy_node
-	return best_enemy
+		var dist: float = player.global_position.distance_to((enemy as Node2D).global_position)
+		if dist <= range_dist and dist < nearest_dist:
+			nearest_dist = dist
+			nearest = enemy as Node2D
+	return nearest
 
 
 func _tick_solar_energy(delta: float) -> void:
@@ -902,6 +1050,11 @@ func _get_cooldown_total(slot: int) -> float:
 			1: return solar_beam_cooldown
 			2: return frost_breath_cooldown
 			3: return death_dash_cooldown
+	if current_kit_id == KIT_TACTICIAN:
+		match slot:
+			1: return smoke_screen_cooldown
+			2: return explosive_trap_cooldown
+			3: return grappling_hook_cooldown
 	match slot:
 		1: return nova_cooldown
 		2: return laser_cooldown
@@ -924,7 +1077,7 @@ func _get_ability_ids() -> Dictionary:
 		KIT_SOLAR:
 			return {1: "solar_beam", 2: "frost_breath", 3: "death_dash"}
 		KIT_TACTICIAN:
-			return {1: "smoke_charge", 2: "grapnel_shot", 3: "shock_trap"}
+			return {1: "smoke_screen", 2: "explosive_trap", 3: "grappling_hook"}
 		KIT_VANGUARD:
 			return {1: "rage_burst", 2: "crushing_leap", 3: "titan_slam"}
 	return {1: "nova_pulse", 2: "laser_beam", 3: "hero_slam"}

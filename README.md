@@ -259,14 +259,14 @@ Each hero now has a distinct primary weapon identity routed by `PlayerAutoAttack
 | Hero | Weapon ID | Style |
 |------|-----------|-------|
 | Solar Guardian | `solar_ray` | Direct beam autoattack. Damages all enemies in a narrow corridor toward the nearest target. No projectile spawned. Empowered x2 damage when Solar Energy is full. |
-| Night Tactician | `gadget_darts` | Fast, light, bouncing darts. Multi-shot favored. Prefers Tactical Mark target when in range. |
+| Night Tactician | `homing_rockets` | Homing rockets that auto-track enemies. Round-robin target distribution across multiple enemies. No pierce, no bounce. Explosion on hit (aoe). Marked enemies take bonus damage. |
 | Fury Vanguard | `shockwave_strike` | Close-range direct shockwave. Hits all enemies in a short radius. No projectile spawned. |
 
 #### Architecture
 
 - `HeroDataProvider` stores a `primary_weapon` dict per hero (`weapon_id`, `display_name`, and weapon-specific property defaults).
 - `HeroApplier.apply_hero()` calls `PlayerAutoAttack.set_primary_weapon(hero_id, weapon_id, weapon_data)` and wires the AbilityManager reference for Tactical Mark access.
-- `PlayerAutoAttack._physics_process` routes by `_primary_weapon_id`: `solar_ray` → `_tick_solar_ray`, `gadget_darts` → `_tick_gadget_darts`, `shockwave_strike` → `_tick_shockwave_strike`, default → `_tick_solar_bolt` (fallback projectile path).
+- `PlayerAutoAttack._physics_process` routes by `_primary_weapon_id`: `solar_ray` → `_tick_solar_ray`, `homing_rockets` → `_tick_homing_rockets`, `shockwave_strike` → `_tick_shockwave_strike`, default → `_tick_solar_bolt` (fallback projectile path).
 - The generic projectile path remains the fallback for any unrecognized weapon id.
 - `GameHUD` shows `Weapon: <display name>` in the BuildPanel.
 - `DebugStatsOverlay` shows `Primary: <weapon_id>`, plus damage, interval, range, count, pierce, and bounce.
@@ -278,7 +278,7 @@ Build Evolution is not included in this patch. No arena hazards were added.
 - **AbilityManager hero-kit routing** - active ability inputs and public cast methods remain `ability_1` / `ability_2` / `ability_3`, but casts now route by the selected hero's `kit_id`.
 - **Regression hotfix** - ready ability casts no longer silently fail when they hit zero enemies. A valid press now plays available feedback/status, enters cooldown, emits `ability_cast`, and updates cooldown UI immediately.
 - **Solar Guardian kit** - passive Solar Energy charges at +2/sec (not from hits). At 100 energy, a 15-second empowered state activates doubling all damage, then energy resets to 0 and resumes. Solar Beam (slot 1) fires a long direct red beam in aim direction. Frost Breath (slot 2) delivers a cone attack that damages and slows all enemies in range. Death Dash (slot 3) moves the player forward while damaging enemies along the path with brief invulnerability. Guardian autoattack (`solar_ray`) is a direct beam — no projectile spawned.
-- **Night Tactician kit** - passive Tactical Mark refreshes on tactician casts, preferring miniboss/elite threats before nearest enemies. Smoke Charge creates a slow/control escape zone with brief safety, Grapnel Shot is a narrow marked-target payoff strike, and Shock Trap is a persistent trap that triggers on enemies or discharges after its duration.
+- **Night Tactician kit** - passive Tactical Mark is multi-enemy, duration-based (Dictionary of enemy→seconds_remaining), applied by all active abilities. Smoke Screen creates a persistent zone that slows enemies, applies marks every 0.5s, and reduces player damage while inside. Explosive Trap is placed at the player position and triggers on enemy contact with a large explosion radius that marks all hit enemies. Grappling Hook dashes the player toward the nearest enemy in range, deals high damage, and applies a mark on impact. Homing Rockets never pierce or bounce; each rocket tracks a different target (round-robin) and applies the tactical mark multiplier on marked targets.
 - **Fury Vanguard kit** - passive Rage builds from real player damage taken and ability damage dealt, then decays slowly. Rage Burst scales radius/damage with Rage, Crushing Leap moves forward with path and landing impact damage, and Titan Slam spends Rage for a stronger slam plus delayed shockwave.
 - Existing upgrade hooks remain stable: `nova_*`, `laser_*`, and `slam_*` properties still tune slot 1/2/3, so current UpgradeManager effects and hero-flavored upgrade text keep working.
 - DebugStatsOverlay shows current kit and passive resource/mark state when Debug Mode is enabled.
@@ -525,7 +525,7 @@ Not included in this patch: Boss Rework, Primary Weapon Rework, Build Evolution,
 - **CharacterSelect** sits between MainMenu and Arena; Main owns the menu/selection/run transition.
 - **HeroDataProvider** owns three hardcoded starter heroes for now: Guardian, Blaster, and Vanguard.
 - **Solar Guardian** is an original solar/flying powerhouse archetype: durable beam attacker with Solar Energy passive, a focused beam ability, frost cone with slow, and a damage dash with invulnerability. Autoattack is a direct beam (no projectile). Guardian does not receive multishot, spread, or nova/laser/slam upgrades — uses dedicated solar_ray / solar_beam / frost_breath / death_dash upgrade lines.
-- **Night Tactician** keeps the `blaster` hero id and is an original dark gadget tactician: 90 HP, 275 speed, +2 attack damage, +1 starting projectile, slightly faster attacks, faster tool cooldowns, and precise controlled ability tuning.
+- **Night Tactician** keeps the `blaster` hero id and is a rocket tactician: 90 HP, 275 speed, +2 attack damage, +1 starting projectile, slightly faster attacks (0.98×), faster ability cooldowns (0.95×). Fires homing rockets that track individual enemies (no pierce, no bounce). Active abilities apply Tactical Mark (multi-enemy, duration-based). Upgrade lines: rocket_damage/count/explosion_radius/reload/marked_target_payload (attack slots); smoke_screen_radius/duration/slow/damage_reduction, trap_radius/damage/cooldown_down/mark_bonus, hook_damage/range/cooldown_down/mark_bonus (active slots).
 - **Fury Vanguard** keeps the `vanguard` hero id and is an original rage bruiser: 125 HP, 245 speed, +2 attack damage, heavier attack timing, and stronger close-range impact tuning.
 - CharacterSelect hero detail cards list the current identities: `guardian` = Solar Guardian, `blaster` = Night Tactician, `vanguard` = Fury Vanguard.
 - CharacterSelect remains UI-only and display-only: it reads hero data and Training summaries, but does not change hero stats, balance, Training levels, rewards, saves, stages, enemies, arena logic, or persistence.
@@ -533,9 +533,9 @@ Not included in this patch: Boss Rework, Primary Weapon Rework, Build Evolution,
 - Solar Guardian, Night Tactician, and Fury Vanguard use hero-specific ability presentation names and combat kit behavior while preserving the global ability slots and input actions.
 - Final integrated hero ability names:
   - Solar Guardian: Solar Beam, Frost Breath, Death Dash.
-  - Night Tactician: Smoke Charge, Grapnel Shot, Shock Trap.
+  - Night Tactician: Smoke Screen, Explosive Trap, Grappling Hook.
   - Fury Vanguard: Rage Burst, Crushing Leap, Titan Slam.
-- Night Tactician presents slot 1/2/3 as Smoke Charge, Grapnel Shot, and Shock Trap. The underlying ability ids and input actions remain unchanged.
+- Night Tactician presents slot 1/2/3 as Smoke Screen, Explosive Trap, and Grappling Hook. The underlying ability ids and input actions remain unchanged.
 - Fury Vanguard presents slot 1/2/3 as Rage Burst, Crushing Leap, and Titan Slam. The underlying ability ids and input actions remain unchanged.
 - Hero kit ids are `solar_guardian`, `night_tactician`, and `fury_vanguard`; stable hero ids remain `guardian`, `blaster`, and `vanguard`.
 - Hero rework integration polish keeps balance, persistence, rewards, enemy values, stage values, and meta economy unchanged.

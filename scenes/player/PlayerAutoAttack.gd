@@ -69,6 +69,8 @@ func _physics_process(delta: float) -> void:
 			attacked = _tick_gadget_darts()
 		"solar_ray":
 			attacked = _tick_solar_ray()
+		"homing_rockets":
+			attacked = _tick_homing_rockets()
 		_:
 			# "solar_bolt" and generic/fallback path
 			var enemy := _find_nearest_enemy()
@@ -199,8 +201,7 @@ func _spawn_solar_ray_visual(origin: Vector2, direction: Vector2) -> void:
 	)
 
 
-# Night Tactician: fast light darts with default bounce. Prefers the
-# ability manager's Tactical Mark target when it is in range.
+# Night Tactician (legacy gadget_darts path — kept for safety but not active).
 func _tick_gadget_darts() -> bool:
 	var target := _find_marked_target()
 	if target == null:
@@ -208,6 +209,81 @@ func _tick_gadget_darts() -> bool:
 	if target == null:
 		return false
 	return _spawn_projectiles(target)
+
+
+# Night Tactician: homing rockets. Each rocket homes to a target independently.
+# Multiple rockets prefer different enemies; all target the same enemy when only
+# one is in range. Pierce is always 0; bounce is always 0. Mark multiplier is
+# applied per-rocket based on the ability manager's Tactical Mark system.
+func _tick_homing_rockets() -> bool:
+	_cleanup_invalid_enemies()
+	if _enemies_in_range.is_empty():
+		return false
+	if projectile_scene == null or projectile_container == null:
+		if not _missing_projectile_warning_shown:
+			push_warning("PlayerAutoAttack (homing_rockets): missing projectile_scene or projectile_container.")
+			_missing_projectile_warning_shown = true
+		return false
+
+	var valid_enemies: Array[Node2D] = []
+	for body in _enemies_in_range:
+		if _is_valid_enemy(body):
+			valid_enemies.append(body as Node2D)
+	if valid_enemies.is_empty():
+		return false
+
+	var safe_count := clampi(projectile_count, 1, max_projectile_count)
+	var next_attack_id := _attack_sequence_id + 1
+	var spawned_any := false
+
+	for i in range(safe_count):
+		var rocket_target := valid_enemies[i % valid_enemies.size()]
+		var base_damage := attack_damage
+		if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
+			if _ability_manager_ref.has_method("get_tactical_mark_multiplier"):
+				var mark_mult: float = float(_ability_manager_ref.get_tactical_mark_multiplier(rocket_target))
+				if mark_mult > 1.0:
+					base_damage = maxi(roundi(float(base_damage) * mark_mult), 1)
+		var direction := (rocket_target.global_position - owner_body.global_position).normalized()
+		if direction.is_zero_approx():
+			direction = Vector2.RIGHT
+		if _spawn_homing_rocket(rocket_target, direction, base_damage, next_attack_id, i):
+			spawned_any = true
+
+	if spawned_any:
+		_attack_sequence_id = next_attack_id
+	return spawned_any
+
+
+func _spawn_homing_rocket(target: Node2D, direction: Vector2, rocket_damage: int, attack_id: int, index: int) -> bool:
+	var projectile_node := projectile_scene.instantiate()
+	if not projectile_node is Node2D:
+		projectile_node.queue_free()
+		return false
+	var projectile := projectile_node as Node2D
+	projectile_container.add_child(projectile)
+	if "speed" in projectile:
+		projectile.speed = projectile_speed
+	if projectile.has_method("setup_audio_manager"):
+		projectile.setup_audio_manager(audio_manager)
+	var spawn_position := owner_body.global_position + direction * 24.0
+	if projectile.has_method("setup"):
+		projectile.setup(spawn_position, target, rocket_damage, {
+			"speed": projectile_speed,
+			"direction": direction,
+			"pierce": 0,
+			"size_multiplier": projectile_size_multiplier,
+			"explosion_radius": minf(projectile_explosion_radius, max_projectile_explosion_radius),
+			"explosion_damage_multiplier": projectile_explosion_damage_multiplier,
+			"bounce": 0,
+			"bounce_range": 0.0,
+			"homing_enabled": true,
+			"attack_id": attack_id,
+			"projectile_index": index,
+		})
+	else:
+		projectile.global_position = spawn_position
+	return true
 
 
 # Fury Vanguard: close-range shockwave. Damages all enemies currently in the

@@ -74,10 +74,10 @@ Run these before adding new gameplay systems.
 | 1 | Start Solar Guardian and cast slot 1 near enemies | Solar Burst damages a radius, builds Solar Charge on hits, and updates cooldown |
 | 2 | Build high Solar Charge, then cast Solar Beam or Aerial Impact | Charge is spent; damage/radius is stronger and DebugStatsOverlay charge decreases |
 | 3 | Cast Aerial Impact near enemies | Impact occurs near/forward of the player and grants brief invulnerability |
-| 4 | Start Night Tactician and cast any ability near enemies | Tactical Mark selects a priority/nearby enemy and appears in DebugStatsOverlay |
-| 5 | Cast Grapnel Shot through the marked enemy | Narrow line strike hits; marked target takes bonus damage |
-| 6 | Cast Shock Trap near enemies | Trap feedback appears, then delayed radius damage triggers |
-| 7 | Cast Smoke Charge near enemies | Tactical burst damages enemies and applies temporary slow/control when supported |
+| 4 | Start Night Tactician and cast Smoke Screen near enemies | Smoke zone appears; enemies inside are slowed and marked every 0.5s; DebugStatsOverlay shows Tactical Marks: N |
+| 5 | Cast Explosive Trap near enemies, then let them walk over it | Trap triggers, explosion damages and marks all enemies in radius |
+| 6 | Cast Grappling Hook near an enemy | Player dashes to the enemy, deals high damage, and marks it |
+| 7 | Let autoattack fire at a marked enemy | Homing rocket pre-multiplies damage for the Tactical Mark bonus |
 | 8 | Start Fury Vanguard and take real HP damage | Rage increases in DebugStatsOverlay |
 | 9 | Cast Rage Burst / Crushing Leap with Rage available | Damage scales with Rage and cooldowns update normally |
 | 10 | Cast Titan Slam with Rage available | Heavy close impact fires, then Rage is partially spent |
@@ -96,7 +96,7 @@ Run these before adding new gameplay systems.
 | 2 | Enable forced mobile controls and press each ability button once at run start | Each mobile button emits the same slot cast path and does not require repeated presses |
 | 3 | Cast any ready ability with no enemies hit | Ability does not silently return; cooldown and `ability_cast` still happen |
 | 4 | Cast Solar Guardian abilities with and without nearby enemies | Solar Charge feedback appears on hits; miss casts still show feedback/cooldown |
-| 5 | Cast Night Tactician Shock Trap with no enemies present | Trap places, enters cooldown, and delayed trigger runs safely |
+| 5 | Cast Night Tactician Explosive Trap with no enemies present | Trap places, enters cooldown, and triggers after duration with no crash |
 | 6 | Cast Fury Vanguard abilities with no enemies present | Rage/status feedback appears where applicable and cooldowns update |
 | 7 | Trigger LevelUpScreen, then choose any upgrade | LevelUpScreen hides and the game unpauses automatically if no other blocking modal is open |
 | 8 | Open PauseMenu after the level-up resume | PauseMenu opens/closes normally and does not need to be used to unstick the run |
@@ -113,9 +113,9 @@ Run these before adding new gameplay systems.
 | 2 | Solar Guardian: cast empowered Solar Burst | Charge is consumed; burst radius/damage increase; small heal/defensive window triggers |
 | 3 | Solar Guardian: cast Solar Beam with and without charge | Normal beam is narrow/focused; empowered beam is stronger and visibly wider/longer |
 | 4 | Solar Guardian: cast Aerial Impact | Player shifts in aim direction, gains brief invulnerability, and impact damage lands at the new position |
-| 5 | Night Tactician: cast Smoke Charge near enemies | Smoke/control zone damages and slows supported enemies; player gets brief safety feedback |
-| 6 | Night Tactician: cast Grapnel Shot after a mark appears | Narrow line fires; marked target receives bonus damage when hit |
-| 7 | Night Tactician: place Shock Trap | Trap persists, triggers on enemies entering radius, or discharges safely after duration |
+| 5 | Night Tactician: cast Smoke Screen near enemies | Smoke zone persists for full duration; enemies inside slowed and marked; player inside takes reduced damage |
+| 6 | Night Tactician: cast Explosive Trap then let enemies walk over it | Trap triggers explosion, marks all enemies in blast radius |
+| 7 | Night Tactician: cast Grappling Hook with an enemy in range | Player dashes to enemy, deals high damage, applies Tactical Mark |
 | 8 | Fury Vanguard: take damage and deal ability damage | Rage rises from both sources and decays over time |
 | 9 | Fury Vanguard: cast Rage Burst at low/high Rage | Damage/radius noticeably scale with current Rage |
 | 10 | Fury Vanguard: cast Crushing Leap | Player moves forward with brief invulnerability; path/landing impact damage fires |
@@ -131,10 +131,10 @@ Run these before adding new gameplay systems.
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Start **Solar Guardian** and let autoattack fire | Slower, heavier bolt fires toward nearest enemy; projectile is visibly larger (1.35× size) |
-| 2 | Start **Night Tactician** and let autoattack fire | Faster darts fire; default bounce means darts hop to a second enemy when hit connects |
+| 2 | Start **Night Tactician** and let autoattack fire | Homing rockets track individual enemies; each rocket goes to a different target (round-robin); no pierce, no bounce |
 | 3 | Start **Fury Vanguard** and stand near enemies | Close-range shockwave deals damage directly with no visible projectile; floating damage numbers appear |
 | 4 | Fury Vanguard: step out of range of all enemies | Shockwave does not fire; cooldown does not tick down from a no-target state |
-| 5 | Night Tactician: mark a target with Grapnel Shot, then wait for autoattack | Darts should prioritize the marked target if it is within range |
+| 5 | Night Tactician: apply Tactical Mark, then let autoattack fire at that enemy | Homing rocket to marked target shows higher damage number than unmark equivalent |
 | 6 | Pick `attack_damage_up` upgrade on any hero | Autoattack damage increases for all three weapon modes |
 | 7 | Pick `attack_speed_up` upgrade on any hero | Cooldown between attacks decreases for all three weapon modes |
 | 8 | Pick `attack_range_up` upgrade on any hero | Range area grows; Solar and Tactician target enemies further away; Vanguard shockwave reaches further |
@@ -345,7 +345,7 @@ Run these before adding new gameplay systems.
 |---|------|----------|
 | 1 | Open CharacterSelect from MainMenu | Three hero cards appear in the left panel with display name, playstyle, and compact state markers |
 | 2 | Select Solar Guardian | Detail card shows Solar Guardian, skyborne subtitle, description, Solar Burst / Solar Beam / Aerial Impact, strengths, and Training summary |
-| 3 | Select Night Tactician | Detail card shows Night Tactician, gadget subtitle, description, Smoke Charge / Grapnel Shot / Shock Trap, strengths, and Training summary |
+| 3 | Select Night Tactician | Detail card shows Night Tactician, rocket tactician subtitle, description, Smoke Screen / Explosive Trap / Grappling Hook, strengths, and Training summary |
 | 4 | Select Fury Vanguard | Detail card shows Fury Vanguard, rage bruiser subtitle, description, Rage Burst / Crushing Leap / Titan Slam, strengths, and Training summary |
 | 5 | Return to CharacterSelect after a remembered hero exists | Remembered hero preselects and the matching card shows a compact Last marker |
 | 6 | Test a locked hero configuration | Locked card shows compact locked state, selected detail is readable, and Start Run is disabled |
@@ -370,7 +370,7 @@ Run these before adding new gameplay systems.
 | 6 | Press ability_3 / L as Guardian near enemies | Impact burst casts, damages enemies, and cooldown updates |
 | 7 | Enable mobile controls while Guardian is selected | Ability buttons use Guardian-specific labels and still cast slots 1/2/3 |
 | 8 | Open DebugStatsOverlay during Guardian run | Ability stats still display without errors |
-| 9 | Start a Night Tactician run | Blaster uses Smoke Charge, Grapnel Shot, and Shock Trap presentation without changing ability ids |
+| 9 | Start a Night Tactician run | Blaster uses Smoke Screen, Explosive Trap, and Grappling Hook presentation without changing ability ids |
 | 10 | Start a Fury Vanguard run | Vanguard uses Rage Burst, Crushing Leap, and Titan Slam presentation without changing ability ids |
 | 11 | Check Training with Guardian selected | Per-Hero Training still applies only Guardian Training |
 | 12 | Inspect changed text | No licensed superhero names or protected character identities are used |
@@ -383,10 +383,10 @@ Run these before adding new gameplay systems.
 |---|------|----------|
 | 1 | Open CharacterSelect | Blaster appears as Night Tactician with dark gadget tactician role text |
 | 2 | Select Blaster and start a run | Run starts normally with hero id `blaster` |
-| 3 | Check GameHUD ability panel | Slot labels show Smoke Charge, Grapnel Shot, and Shock Trap presentation |
-| 4 | Press ability_1 / J as Blaster near enemies | Tactical burst zone casts, damages enemies, and cooldown updates |
-| 5 | Press ability_2 / K as Blaster with enemies ahead | Precision line strike casts, damages enemies, and cooldown updates |
-| 6 | Press ability_3 / L as Blaster near enemies | Close control impact casts, damages enemies, and cooldown updates |
+| 3 | Check GameHUD ability panel | Slot labels show Smoke Screen, Explosive Trap, and Grappling Hook presentation |
+| 4 | Press ability_1 / J as Blaster near enemies | Smoke Screen zone appears, slows enemies, enters cooldown |
+| 5 | Press ability_2 / K as Blaster | Explosive Trap placed at player position; enters cooldown |
+| 6 | Press ability_3 / L as Blaster with enemy in range | Player dashes toward enemy; impact damage and Tactical Mark applied; hook Line2D appears briefly |
 | 7 | Enable mobile controls while Blaster is selected | Ability buttons use Blaster-specific labels and still cast slots 1/2/3 |
 | 8 | Open DebugStatsOverlay during Blaster run | Ability stats still display without errors |
 | 9 | Start a Solar Guardian run | Guardian-specific ability names still work |
@@ -421,7 +421,7 @@ Run these before adding new gameplay systems.
 |---|------|----------|
 | 1 | Open CharacterSelect | Solar Guardian, Night Tactician, and Fury Vanguard names, subtitles, role text, and starting modifiers fit without overlap |
 | 2 | Select Solar Guardian | Ability details show Solar Burst, Solar Beam, and Aerial Impact |
-| 3 | Select Night Tactician | Ability details show Smoke Charge, Grapnel Shot, and Shock Trap |
+| 3 | Select Night Tactician | Ability details show Smoke Screen, Explosive Trap, and Grappling Hook |
 | 4 | Select Fury Vanguard | Ability details show Rage Burst, Crushing Leap, and Titan Slam |
 | 5 | Start each hero and inspect GameHUD | Cooldown labels use the selected hero's short ability names and update Ready/cooldown states |
 | 6 | Enable mobile controls for each hero | Mobile ability buttons use the selected hero's short ability names and still emit slots 1/2/3 |
@@ -445,7 +445,7 @@ Run these before adding new gameplay systems.
 | 1 | Start a Solar Guardian run and trigger LevelUpScreen | Upgrade titles/descriptions use solar/radiant/aerial wording where flavored |
 | 2 | Start a Night Tactician run and trigger LevelUpScreen | Upgrade titles/descriptions use gadget/precision/trap/tactical wording where flavored |
 | 3 | Start a Fury Vanguard run and trigger LevelUpScreen | Upgrade titles/descriptions use rage/bruiser/impact/slam wording where flavored |
-| 4 | Inspect ability upgrades for each hero | Slot 1/2/3 upgrade text uses Solar Burst/Smoke Charge/Rage Burst, Solar Beam/Grapnel Shot/Crushing Leap, and Aerial Impact/Shock Trap/Titan Slam as appropriate |
+| 4 | Inspect ability upgrades for each hero | Slot 1/2/3 upgrade text uses hero-appropriate wording; Night Tactician sees smoke/trap/hook flavor; no nova/laser/slam flavored upgrades appear for Blaster |
 | 5 | Select any flavored upgrade | LevelUpScreen emits the original upgrade id and the original effect applies |
 | 6 | Pick synergy and build-defining upgrades | Rarity, archetype, synergy/build-defining markers, prerequisites, and build tracking still work |
 | 7 | Inspect diff | No upgrade effects, weights, rarity, max levels, prerequisites, archetype points, synergies, hero stats, enemies, stages, rewards, saves, or persistence changed |
@@ -1083,10 +1083,99 @@ DEBUG_PLAYER: invulnerable=true
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Start a Night Tactician run | No solar_energy shown in debug; gadget_darts fires projectiles normally; multishot_up offered |
+| 1 | Start a Night Tactician run | No solar_energy shown in debug; homing_rockets fires; DebugStatsOverlay shows Tactical Marks: 0; nova/laser/slam/bouncing_bolts/pierce upgrades NOT offered |
 | 2 | Start a Fury Vanguard run | shockwave_strike still fires; slam upgrades appear; rage builds normally |
-| 3 | Nova/laser/slam upgrades work for Night Tactician | Offered and applied correctly |
+| 3 | Nova/laser/slam upgrades work for Fury Vanguard | Offered and applied correctly; Night Tactician does NOT see them |
 | 4 | RunBriefingScreen for Solar Guardian | Shows Solar Beam / Frost Breath / Death Dash ability names |
 | 5 | Character Select for Solar Guardian | Shows Solar Beam / Frost Breath / Death Dash; passive shows "Solar Energy" |
 | 6 | HUD ability cooldown bars for guardian | Slot 1 ~7s, Slot 2 ~8s, Slot 3 ~9s base cooldowns |
 | 7 | Inspect diff | No enemy values, boss flow, rewards, saves, meta economy, Build Evolution, stage objectives, or shared passive skills changed |
+
+---
+
+## Night Tactician Full Kit Rework
+
+### Autoattack — Homing Rockets
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start Night Tactician; let autoattack trigger | Homing rockets spawn and track enemies; each rocket goes to a different enemy (round-robin when multiple enemies present) |
+| 2 | Pick `projectile_pierce_up` in debug | Upgrade NOT offered to Night Tactician (hero_exclude: blaster) |
+| 3 | Pick `bouncing_bolts` in debug | Upgrade NOT offered to Night Tactician (hero_exclude: blaster) |
+| 4 | Pick `rocket_count` upgrade | Volley size increases; rockets still distribute round-robin |
+| 5 | Pick `rocket_damage` upgrade | Rocket damage increases; marked-target damage scales on top of it |
+| 6 | Pick `rocket_explosion_radius` upgrade | Explosion radius visibly larger on impact |
+| 7 | Pick `rocket_reload` upgrade | Fire interval decreases |
+| 8 | Pick `marked_target_payload` upgrade | Tactical Mark damage multiplier increases; DebugStatsOverlay shows higher mult |
+
+### Passive — Tactical Mark
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Cast any active ability near multiple enemies | DebugStatsOverlay shows Tactical Marks: N (matching enemies hit/inside area) |
+| 2 | Wait for mark duration to expire | Mark count decreases; expired marks removed from dictionary |
+| 3 | Apply marks with Smoke Screen tick, then immediately with Grappling Hook | Both sources stack on separate enemies; combined count shown |
+| 4 | Fire homing rockets at a marked enemy | Floating damage numbers higher than on unmarked enemy with same stats |
+| 5 | Switch hero to Solar Guardian mid-session (or restart as Guardian) | No Tactical Marks shown; no rocket multiplier applied; Guardian kit unaffected |
+
+### Smoke Screen (Slot 1)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Cast Smoke Screen near enemies | Blue-gray semi-transparent ColorRect zone appears at player position; persists for full duration |
+| 2 | Enemies walk into the zone | Enemies slow; their speed is visibly reduced while inside |
+| 3 | Player stands inside the zone and takes a hit | Damage reduced by smoke_screen_damage_reduction (default 30%) |
+| 4 | Player exits the zone and takes a hit | Full damage applies; damage_reduction reset to 0 |
+| 5 | Wait for smoke duration to expire | ColorRect disappears; player damage_reduction returns to 0 |
+| 6 | Pick `smoke_screen_radius` upgrade | Zone is visibly wider after casting |
+| 7 | Pick `smoke_screen_duration` upgrade | Zone persists longer |
+| 8 | Pick `smoke_screen_slow` upgrade | Enemy slowdown inside is more severe |
+| 9 | Pick `smoke_screen_damage_reduction` upgrade | Damage reduction while inside increases (capped at 70%) |
+| 10 | Cast while previous smoke is active | Both zones coexist; both apply their effects independently |
+
+### Explosive Trap (Slot 2)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Cast Explosive Trap | Orange ColorRect trap appears at player position; cooldown starts |
+| 2 | Enemy walks within trigger_radius of trap | Trap triggers: explosion in explosion_radius damages all enemies hit; they receive Tactical Mark |
+| 3 | Trap placed with no enemies; wait for duration | Trap disappears after duration expires with no crash |
+| 4 | Multiple traps placed in sequence | Each is tracked independently; all can coexist |
+| 5 | Pick `trap_radius` upgrade | Explosion radius is visibly larger |
+| 6 | Pick `trap_damage` upgrade | Explosion deals more damage (visible in floating numbers) |
+| 7 | Pick `trap_cooldown_down` upgrade | Cooldown between casts is shorter |
+| 8 | Pick `trap_mark_bonus` upgrade | Tactical Mark duration from trap explosion is longer |
+
+### Grappling Hook (Slot 3)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Cast Grappling Hook with enemy in range | Player instantly moves to enemy; high damage number; Line2D hook visual appears then fades |
+| 2 | Cast Grappling Hook with no enemy in range | No dash; no damage; cooldown does NOT trigger; no crash |
+| 3 | Enemy hit by hook has Tactical Mark applied | DebugStatsOverlay shows +1 marked enemy after the hook lands |
+| 4 | Cast hook at enemy already marked | Mark duration refreshes |
+| 5 | Pick `hook_damage` upgrade | Impact damage increases |
+| 6 | Pick `hook_range` upgrade | Hook targets enemies further away |
+| 7 | Pick `hook_cooldown_down` upgrade | Cooldown between casts is shorter |
+| 8 | Pick `hook_mark_bonus` upgrade | Tactical Mark duration from hook impact is longer |
+
+### Upgrade Pool Integrity
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Level-up as Night Tactician (many levels) | Only rocket_*/smoke_*/trap_*/hook_* and shared upgrades offered; nova_*/laser_*/slam_*/bouncing_bolts/pierce never appear |
+| 2 | Level-up as Solar Guardian | Guardian-only upgrades appear; no rocket_*/smoke_*/trap_*/hook_* offered |
+| 3 | Level-up as Fury Vanguard | Vanguard nova/laser/slam upgrades appear; no rocket_*/smoke_*/trap_*/hook_* offered |
+| 4 | Attack slot upgrades for Night Tactician | rocket_damage/count/explosion_radius/reload/marked_target_payload fill attack slots only |
+| 5 | Active slot upgrades for Night Tactician | smoke_/trap_/hook_ upgrades fill active slots only |
+| 6 | Inspect Build Slots Window as Night Tactician | Attack section: up to 4 rocket lines; Active section: smoke/trap/hook upgrades |
+
+### Regression — Other Heroes Unaffected
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Play Solar Guardian full run | Solar Ray, Solar Beam, Frost Breath, Death Dash, Solar Energy all function normally |
+| 2 | Play Fury Vanguard full run | Shockwave Strike, Rage Burst, Crushing Leap, Titan Slam, Rage passive all function normally |
+| 3 | Player.damage_reduction for non-blaster heroes | Always 0; no smoke screen sets it; no damage reduction applied |
+| 4 | Shared passive skills (shield, speed, haste) | Unchanged; apply to all heroes including Night Tactician |
+| 5 | Inspect diff | 4/4/4 slot rules, Build Slots Window, stage objectives, enemies, boss flow, rewards, saves, meta economy, Build Evolution unchanged |

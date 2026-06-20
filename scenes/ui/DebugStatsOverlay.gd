@@ -203,7 +203,7 @@ func _build_stats_text() -> String:
 					if bool(kit.get("solar_empowered", false)):
 						lines.append("EMPOWERED %.1fs" % float(kit.get("solar_empowered_time_left", 0.0)))
 				"night_tactician":
-					lines.append("Tactical Mark: %s" % str(kit.get("tactical_mark_target", "none")))
+					lines.append("Tactical Marks: %s" % str(kit.get("tactical_mark_count", 0)))
 				"fury_vanguard":
 					lines.append("Rage: %.0f / %.0f" % [float(kit.get("rage", 0.0)), float(kit.get("rage_max", 0.0))])
 	else:

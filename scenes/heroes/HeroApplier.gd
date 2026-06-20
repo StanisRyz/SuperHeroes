@@ -37,6 +37,10 @@ static func apply_hero(hero: Dictionary, player: Node, auto_attack: Node, abilit
 			_apply_cooldown_multiplier(ability_manager, "nova_cooldown", cooldown_multiplier)
 			_apply_cooldown_multiplier(ability_manager, "laser_cooldown", cooldown_multiplier)
 			_apply_cooldown_multiplier(ability_manager, "slam_cooldown", cooldown_multiplier)
+			if str(hero.get("id", "")) == "blaster":
+				_apply_cooldown_multiplier(ability_manager, "smoke_screen_cooldown", cooldown_multiplier)
+				_apply_cooldown_multiplier(ability_manager, "explosive_trap_cooldown", cooldown_multiplier)
+				_apply_cooldown_multiplier(ability_manager, "grappling_hook_cooldown", cooldown_multiplier)
 		_add_number(ability_manager, "nova_damage", stats.get("nova_damage_bonus", 0))
 		_add_number(ability_manager, "nova_radius", stats.get("nova_radius_bonus", 0.0))
 		_add_number(ability_manager, "laser_damage", stats.get("laser_damage_bonus", 0))

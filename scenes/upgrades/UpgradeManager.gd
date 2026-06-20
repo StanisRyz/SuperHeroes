@@ -56,42 +56,49 @@ const HERO_UPGRADE_FLAVOR := {
 	},
 	"blaster": {
 		"titles": {
-			"attack_damage_up": "Precision Dart",
+			"attack_damage_up": "Rocket Striker",
 			"attack_speed_up": "Tactical Tempo",
 			"attack_range_up": "Optic Rangefinder",
 			"move_speed_up": "Shadow Step",
 			"max_health_up": "Armored Lining",
-			"projectile_speed_up": "Quick-Fire Gadget",
-			"nova_damage_up": "Smoke Charge Payload",
-			"nova_cooldown_down": "Smoke Charge Reset",
-			"laser_damage_up": "Grapnel Shot Focus",
-			"laser_cooldown_down": "Grapnel Reload",
-			"laser_width_up": "Wide Grapnel Arc",
-			"slam_damage_up": "Shock Trap Charge",
-			"slam_radius_up": "Trap Field",
-			"slam_cooldown_down": "Trap Reset",
+			"projectile_speed_up": "Quick Rocket",
 			"shielded_dash": "Evasive Guard",
 			"heroic_endurance": "Reinforced Kit",
 			"power_collector": "Utility Sweep",
-			"nova_aftershock": "Smoke Aftercharge",
-			"laser_overcharge": "Grapnel Overdrive",
-			"slam_quake": "Shock Trap Array",
-			"nova_aftershock_zone": "Lingering Smoke",
-			"laser_double_pulse": "Follow-Up Grapnel",
-			"slam_second_wave": "Delayed Trap",
 			"dash_damage_trail": "Tactical Exit",
-			"bouncing_bolts": "Ricochet Tools",
+			"rocket_damage": "Rocket Payload",
+			"rocket_count": "Multi-Rocket",
+			"rocket_explosion_radius": "Impact Warhead",
+			"rocket_reload": "Reload Cycle",
+			"marked_target_payload": "Mark Amplifier",
+			"smoke_screen_radius": "Wide Cover",
+			"smoke_screen_duration": "Lingering Smoke",
+			"smoke_screen_slow": "Thick Haze",
+			"smoke_screen_damage_reduction": "Smoke Cover",
+			"trap_radius": "Big Blast",
+			"trap_damage": "Overcharge Trap",
+			"trap_cooldown_down": "Trap Ready",
+			"trap_mark_bonus": "Marked Detonation",
+			"hook_damage": "Heavy Hook",
+			"hook_range": "Extended Cable",
+			"hook_cooldown_down": "Quick Hook",
+			"hook_mark_bonus": "Reel & Mark",
 		},
 		"descriptions": {
-			"attack_damage_up": "Increase precision autoattack damage by %s.",
-			"attack_speed_up": "Reduce tactical autoattack interval by %ss.",
-			"attack_range_up": "Increase targeting range by %s.",
+			"attack_damage_up": "Increase homing rocket base damage by %s.",
+			"attack_speed_up": "Reduce rocket fire interval by %ss.",
+			"attack_range_up": "Increase rocket targeting range by %s.",
 			"move_speed_up": "Increase tactical movement speed by %s.",
 			"max_health_up": "Increase armor reserves and heal by %s.",
-			"projectile_speed_up": "Increase speed of newly fired gadgets by %s.",
+			"projectile_speed_up": "Increase homing rocket travel speed by %s.",
 			"shielded_dash": "Extend evasive invulnerability and trim dash cooldown.",
 			"heroic_endurance": "Increase reinforced max health by %s and restore HP.",
 			"power_collector": "Increase movement speed for cleaner pickup routes.",
+			"rocket_damage": "Increase homing rocket impact damage by %s.",
+			"rocket_count": "Fire +%s additional homing rocket per attack.",
+			"rocket_explosion_radius": "Rockets explode on impact, adding +%s blast radius.",
+			"rocket_reload": "Reduce rocket fire interval by %ss.",
+			"marked_target_payload": "Increase Tactical Mark autoattack damage bonus.",
 		},
 	},
 	"vanguard": {
@@ -281,7 +288,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 5,
 		"archetype": "nova",
 		"tags": ["ability", "damage", "aoe"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	{
 		"id": "nova_cooldown_down",
@@ -293,7 +300,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.5,
 		"archetype": "nova",
 		"tags": ["ability", "cooldown"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	{
 		"id": "dash_cooldown_down",
@@ -327,7 +334,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 1,
 		"archetype": "projectile",
 		"tags": ["weapon", "pierce"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	{
 		"id": "multishot_up",
@@ -387,7 +394,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 8,
 		"archetype": "laser",
 		"tags": ["ability", "damage"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	{
 		"id": "laser_cooldown_down",
@@ -399,7 +406,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.5,
 		"archetype": "laser",
 		"tags": ["ability", "cooldown"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	{
 		"id": "laser_width_up",
@@ -411,7 +418,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 20.0,
 		"archetype": "laser",
 		"tags": ["ability", "area"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	{
 		"id": "slam_damage_up",
@@ -423,7 +430,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 10,
 		"archetype": "slam",
 		"tags": ["ability", "damage"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	{
 		"id": "slam_radius_up",
@@ -435,7 +442,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 25.0,
 		"archetype": "slam",
 		"tags": ["ability", "aoe"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	{
 		"id": "slam_cooldown_down",
@@ -447,7 +454,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0.6,
 		"archetype": "slam",
 		"tags": ["ability", "cooldown"],
-		"hero_exclude": ["guardian"]
+		"hero_exclude": ["guardian", "blaster"]
 	},
 	# ── PROJECTILE SYNERGY UPGRADES ─────────────────────────────────────────────
 	{
@@ -500,7 +507,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "projectile",
 		"tags": ["weapon", "synergy", "pierce"],
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "blaster"],
 		"prerequisites": {
 			"upgrade_levels": {"projectile_pierce_up": 1}
 		},
@@ -520,7 +527,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "nova",
 		"tags": ["ability", "synergy", "aoe"],
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "blaster"],
 		"prerequisites": {
 			"archetype_points": {"nova": 2}
 		},
@@ -539,7 +546,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "laser",
 		"tags": ["ability", "synergy", "beam"],
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "blaster"],
 		"prerequisites": {
 			"archetype_points": {"laser": 2}
 		},
@@ -558,7 +565,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "slam",
 		"tags": ["ability", "synergy", "aoe"],
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "blaster"],
 		"prerequisites": {
 			"archetype_points": {"slam": 2}
 		},
@@ -629,7 +636,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "nova",
 		"tags": ["ability", "synergy", "aoe", "build_defining"],
 		"is_build_defining": true,
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "blaster"],
 		"prerequisites": {
 			"any_of": [
 				{"upgrade_levels": {"nova_aftershock": 1}},
@@ -653,7 +660,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "laser",
 		"tags": ["ability", "synergy", "beam", "build_defining"],
 		"is_build_defining": true,
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "blaster"],
 		"prerequisites": {"archetype_points": {"laser": 3}},
 		"effects": [
 			{"target": "ability_manager", "property": "laser_double_pulse_enabled", "operation": "set", "value": true},
@@ -671,7 +678,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "slam",
 		"tags": ["ability", "synergy", "aoe", "build_defining"],
 		"is_build_defining": true,
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "blaster"],
 		"prerequisites": {"archetype_points": {"slam": 3}},
 		"effects": [
 			{"target": "ability_manager", "property": "slam_second_wave_enabled", "operation": "set", "value": true},
@@ -708,7 +715,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "projectile",
 		"tags": ["weapon", "bounce", "synergy", "build_defining"],
 		"is_build_defining": true,
-		"hero_exclude": ["guardian"],
+		"hero_exclude": ["guardian", "blaster"],
 		"prerequisites": {
 			"archetype_points": {"projectile": 3},
 			"any_upgrade_levels": {"projectile_pierce_up": 1, "multishot_up": 1}
@@ -872,6 +879,282 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effects": [
 			{"target": "ability_manager", "property": "solar_empowered_damage_multiplier", "operation": "add", "value": 0.25},
 			{"target": "ability_manager", "property": "solar_empowered_duration", "operation": "add", "value": 3.0}
+		]
+	},
+	# ── NIGHT TACTICIAN: ATTACK UPGRADES (homing_rockets) ────────────────────────
+	{
+		"id": "rocket_damage",
+		"title": "Warhead Payload",
+		"rarity": "common",
+		"weight": 0.9,
+		"max_level": 5,
+		"description_template": "Increase homing rocket damage by %s.",
+		"effect_value": 4,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"tags": ["weapon", "damage"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "auto_attack", "property": "attack_damage", "operation": "add", "value": 4}
+		]
+	},
+	{
+		"id": "rocket_count",
+		"title": "Rocket Barrage",
+		"rarity": "rare",
+		"weight": 0.7,
+		"max_level": 3,
+		"description_template": "Fire %s additional homing rocket per volley.",
+		"effect_value": 1,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"tags": ["weapon", "multishot"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "auto_attack", "property": "projectile_count", "operation": "add", "value": 1, "max_value": 7}
+		]
+	},
+	{
+		"id": "rocket_explosion_radius",
+		"title": "Blast Radius",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase rocket explosion radius by %s.",
+		"effect_value": 20.0,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"tags": ["weapon", "area"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "auto_attack", "property": "projectile_aoe_radius", "operation": "add", "value": 20.0}
+		]
+	},
+	{
+		"id": "rocket_reload",
+		"title": "Fast Reload",
+		"rarity": "rare",
+		"weight": 0.7,
+		"max_level": 4,
+		"description_template": "Reduce rocket fire interval by %ss.",
+		"effect_value": 0.08,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"tags": ["weapon", "speed"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "auto_attack", "property": "attack_interval", "operation": "subtract", "value": 0.08, "min_value": 0.25}
+		]
+	},
+	{
+		"id": "marked_target_payload",
+		"title": "Marked Target Protocol",
+		"rarity": "epic",
+		"weight": 0.4,
+		"max_level": 3,
+		"description_template": "Increase bonus damage multiplier on Tactically Marked enemies by %s%%.",
+		"effect_value": 10,
+		"archetype": "rocket",
+		"slot_category": "attack",
+		"tags": ["weapon", "damage", "synergy"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "tactical_mark_autoattack_damage_multiplier", "operation": "add", "value": 0.10, "max_value": 2.0}
+		]
+	},
+	# ── NIGHT TACTICIAN: ACTIVE UPGRADES (Smoke Screen) ──────────────────────────
+	{
+		"id": "smoke_screen_radius",
+		"title": "Wide Smoke",
+		"rarity": "rare",
+		"weight": 0.7,
+		"max_level": 4,
+		"description_template": "Increase Smoke Screen radius by %s.",
+		"effect_value": 40.0,
+		"archetype": "smoke",
+		"slot_category": "active",
+		"tags": ["ability", "area"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "smoke_screen_radius", "operation": "add", "value": 40.0}
+		]
+	},
+	{
+		"id": "smoke_screen_duration",
+		"title": "Lingering Haze",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Extend Smoke Screen duration by %ss.",
+		"effect_value": 1.0,
+		"archetype": "smoke",
+		"slot_category": "active",
+		"tags": ["ability", "duration"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "smoke_screen_duration", "operation": "add", "value": 1.0}
+		]
+	},
+	{
+		"id": "smoke_screen_slow",
+		"title": "Choking Cloud",
+		"rarity": "epic",
+		"weight": 0.5,
+		"max_level": 3,
+		"description_template": "Increase Smoke Screen slow potency by %s%%.",
+		"effect_value": 10,
+		"archetype": "smoke",
+		"slot_category": "active",
+		"tags": ["ability", "slow"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "smoke_screen_slow_multiplier", "operation": "subtract", "value": 0.10, "min_value": 0.10}
+		]
+	},
+	{
+		"id": "smoke_screen_damage_reduction",
+		"title": "Tactical Cover",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 3,
+		"description_template": "Increase damage reduction inside Smoke Screen by %s%%.",
+		"effect_value": 10,
+		"archetype": "smoke",
+		"slot_category": "active",
+		"tags": ["ability", "defense"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "smoke_screen_damage_reduction", "operation": "add", "value": 0.10, "max_value": 0.70}
+		]
+	},
+	# ── NIGHT TACTICIAN: ACTIVE UPGRADES (Explosive Trap) ────────────────────────
+	{
+		"id": "trap_radius",
+		"title": "Wide Detonation",
+		"rarity": "rare",
+		"weight": 0.7,
+		"max_level": 4,
+		"description_template": "Increase Explosive Trap blast radius by %s.",
+		"effect_value": 25.0,
+		"archetype": "trap",
+		"slot_category": "active",
+		"tags": ["ability", "area"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "explosive_trap_explosion_radius", "operation": "add", "value": 25.0}
+		]
+	},
+	{
+		"id": "trap_damage",
+		"title": "Overcharged Warhead",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase Explosive Trap damage by %s.",
+		"effect_value": 10,
+		"archetype": "trap",
+		"slot_category": "active",
+		"tags": ["ability", "damage"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "explosive_trap_damage", "operation": "add", "value": 10}
+		]
+	},
+	{
+		"id": "trap_cooldown_down",
+		"title": "Fast Deployment",
+		"rarity": "epic",
+		"weight": 0.5,
+		"max_level": 3,
+		"description_template": "Reduce Explosive Trap cooldown by %ss.",
+		"effect_value": 1.2,
+		"archetype": "trap",
+		"slot_category": "active",
+		"tags": ["ability", "cooldown"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "explosive_trap_cooldown", "operation": "subtract", "value": 1.2, "min_value": 3.0}
+		]
+	},
+	{
+		"id": "trap_mark_bonus",
+		"title": "Blast Marking",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 3,
+		"description_template": "Extend Tactical Mark duration from Explosive Trap by %ss.",
+		"effect_value": 1.5,
+		"archetype": "trap",
+		"slot_category": "active",
+		"tags": ["ability", "synergy"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "tactical_mark_duration", "operation": "add", "value": 1.5}
+		]
+	},
+	# ── NIGHT TACTICIAN: ACTIVE UPGRADES (Grappling Hook) ────────────────────────
+	{
+		"id": "hook_damage",
+		"title": "Impact Strike",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase Grappling Hook impact damage by %s.",
+		"effect_value": 12,
+		"archetype": "hook",
+		"slot_category": "active",
+		"tags": ["ability", "damage"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "grappling_hook_damage", "operation": "add", "value": 12}
+		]
+	},
+	{
+		"id": "hook_range",
+		"title": "Extended Line",
+		"rarity": "rare",
+		"weight": 0.7,
+		"max_level": 3,
+		"description_template": "Increase Grappling Hook targeting range by %s.",
+		"effect_value": 60.0,
+		"archetype": "hook",
+		"slot_category": "active",
+		"tags": ["ability", "range"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "grappling_hook_range", "operation": "add", "value": 60.0}
+		]
+	},
+	{
+		"id": "hook_cooldown_down",
+		"title": "Rapid Grapple",
+		"rarity": "epic",
+		"weight": 0.5,
+		"max_level": 3,
+		"description_template": "Reduce Grappling Hook cooldown by %ss.",
+		"effect_value": 1.2,
+		"archetype": "hook",
+		"slot_category": "active",
+		"tags": ["ability", "cooldown"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "grappling_hook_cooldown", "operation": "subtract", "value": 1.2, "min_value": 3.0}
+		]
+	},
+	{
+		"id": "hook_mark_bonus",
+		"title": "Marking Strike",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 3,
+		"description_template": "Extend Tactical Mark duration from Grappling Hook by %ss.",
+		"effect_value": 1.5,
+		"archetype": "hook",
+		"slot_category": "active",
+		"tags": ["ability", "synergy"],
+		"hero_only": ["blaster"],
+		"effects": [
+			{"target": "ability_manager", "property": "tactical_mark_duration", "operation": "add", "value": 1.5}
 		]
 	}
 ]
