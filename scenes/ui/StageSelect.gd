@@ -263,7 +263,8 @@ func _refresh_details() -> void:
 		str(stage.get("threat_summary", "Stage pressure follows its selected event profile.")),
 		str(stage.get("enemy_pressure", "Standard")),
 	]
-	_goal_label.text = "Run Objective\n%s" % str(stage.get("stage_goal", _build_default_stage_goal(stage)))
+	var _obj_type_raw := str(stage.get("objective_type", "survival"))
+	_goal_label.text = "Run Objective  [%s]\n%s" % [_format_objective_type(_obj_type_raw), str(stage.get("stage_goal", _build_default_stage_goal(stage)))]
 	_playstyle_label.text = "Recommended\n%s" % str(stage.get("recommended_playstyle", "Use the build that fits your selected hero."))
 
 	var boss_id := str(stage.get("final_boss_id", ""))
@@ -300,6 +301,14 @@ func _create_detail_label() -> Label:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return label
+
+
+func _format_objective_type(objective_type: String) -> String:
+	match objective_type:
+		"survival": return "Survival"
+		"defense": return "Defense"
+		"destroy_structures": return "Destroy Structures"
+		_: return objective_type.capitalize()
 
 
 func _build_default_stage_goal(stage: Dictionary) -> String:

@@ -838,3 +838,85 @@ DEBUG_PLAYER: invulnerable=true
 | 16 | Use J/K/L abilities during a wave package | Hero abilities still work and hit package enemies normally |
 | 17 | Open level-up screen during run | Tree pauses; wave timer pauses automatically; packages resume after level-up |
 | 18 | Inspect diff | Enemy stats, XP values, behavior_ids, hero kits, upgrade effects, reward formulas, save format, and arena hazards are unchanged |
+
+---
+
+## Stage Objectives & Win Conditions
+
+### StageSelect & RunBriefingScreen objective display
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open StageSelect and select City Rooftop | Run Objective shows `[Survival]` with the 10:00 survive + boss goal |
+| 2 | Select Neon Lab in StageSelect | Run Objective shows `[Defense]` with "Defend the Lab Reactor for 10:00" text |
+| 3 | Select Wasteland Gate in StageSelect | Run Objective shows `[Destroy Structures]` with "Destroy all 3 Dark Portals" text |
+| 4 | Confirm Neon Lab and open RunBriefingScreen | Objective block shows `[Defense]` tag and the Reactor defense goal |
+| 5 | Confirm Wasteland Gate and open RunBriefingScreen | Objective block shows `[Destroy Structures]` tag and the portal destruction goal |
+| 6 | Inspect diff | No stage_id, event_profile, final_boss_id, run_settings, enemy values, rewards, or persistence changed |
+
+---
+
+### City Rooftop (Survival — behavior unchanged)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start City Rooftop | No objective entity spawns; HUD still shows "Survive: 00:00 / 10:00" |
+| 2 | Survive to 10:00 | Final boss triggers normally as before |
+| 3 | Player dies | GameOverScreen shows; no objective cleanup errors in console |
+| 4 | Restart from game over or victory | Fresh run starts correctly with no leftover objective nodes |
+
+---
+
+### Neon Lab (Defense — Lab Reactor)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start Neon Lab | "Defend the Lab Reactor!" announcement appears a few seconds in; a cyan-blue structure is visible near the center-top of the arena |
+| 2 | Inspect HUD | Objective area shows "Lab Reactor: 300 / 300 HP" in a healthy color |
+| 3 | Let enemies reach the Reactor | Reactor HP decreases at ~15 damage/enemy/second; HUD HP number updates live |
+| 4 | Reactor HP drops to ~30% | HUD HP label turns warning/danger color |
+| 5 | Reactor HP reaches 0 | "Reactor Destroyed!" announcement appears; GameOverScreen shows with defeat summary |
+| 6 | Survive with Reactor alive to 10:00 | Final boss triggers normally; Reactor remains on screen |
+| 7 | Defeat final boss after 10:00 with Reactor alive | VictoryScreen shows; run ends in victory |
+| 8 | Player dies with Reactor still alive | GameOverScreen shows (player death, not reactor failure) |
+| 9 | Reactor hits 0 after boss phase has already started | Boss phase guard prevents double-trigger; game over fires once |
+| 10 | Restart after reactor defeat | Fresh Neon Lab run starts with a new Reactor at full HP; no leftover nodes |
+| 11 | Quit to menu from reactor defeat GameOverScreen | Returns to MainMenu safely; no leftover objective nodes |
+| 12 | Quit via PauseMenu ConfirmDialog during active Neon Lab run | Reactor is cleaned up before scene transition; no console errors |
+| 13 | Confirm the Reactor has no collision with the player | Player walks through the Reactor structure freely; it deals no damage |
+
+---
+
+### Wasteland Gate (Destroy Structures — Dark Portals)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start Wasteland Gate | "Destroy the Dark Portals!" announcement appears; 3 dark purple octagonal structures visible at spread positions around the arena |
+| 2 | Inspect HUD | Objective area shows "Portals: 0 / 3" |
+| 3 | Attack a portal with any hero | Portal HP bar decreases; floating damage numbers appear |
+| 4 | Solar Guardian / Night Tactician projectiles hit portal | Projectiles connect and deal damage; portal HP decreases |
+| 5 | Fury Vanguard shockwave fires near portal | Shockwave deals direct damage to the portal |
+| 6 | Destroy one portal | Portal disappears; HUD updates to "Portals: 1 / 3"; "Dark Portal Destroyed! (1/3)" announcement shows |
+| 7 | Destroy second portal | HUD updates to "Portals: 2 / 3"; announcement shows |
+| 8 | Destroy third portal | HUD updates to "Portals: ALL DESTROYED"; "All Portals Destroyed! Final Boss incoming…" announcement; final boss triggers immediately |
+| 9 | Confirm final boss triggers before 10:00 | Boss spawns without waiting for the timer; BossHealthBar appears; boss arena activates |
+| 10 | Reach 10:00 naturally with portals all destroyed | Timer does NOT trigger a second boss spawn; `mark_boss_phase_triggered()` prevented double-trigger |
+| 11 | Reach 10:00 with some portals remaining | Timer does NOT trigger the boss phase; only portal destruction triggers it |
+| 12 | Defeat final boss after portal destruction | VictoryScreen shows; run ends in victory |
+| 13 | Player dies with portals remaining | GameOverScreen shows with defeat summary |
+| 14 | Player dies after all portals destroyed but during boss fight | GameOverScreen shows normally |
+| 15 | Restart after a portal-destroy run | Fresh Wasteland Gate run starts with 3 new portals; no leftover nodes |
+| 16 | Quit to menu from GameOverScreen mid-run | Returns to MainMenu safely; no leftover portal nodes |
+| 17 | Quit via PauseMenu ConfirmDialog | All portals are cleaned up before scene transition |
+| 18 | Attack a portal when enemies are nearby | Enemies are not affected by portal attack; only portal takes damage |
+| 19 | Portals do not chase or shoot | Portals are static structures; they deal no damage to the player |
+
+---
+
+### Objective Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Complete all 3 stages back-to-back (City / Neon / Wasteland) | Each stage resets cleanly with no leftover objective nodes from the previous stage |
+| 2 | Check DebugStatsOverlay during any objective run | No new objective state is shown in the debug overlay (objectives are not wired to DebugStatsOverlay) |
+| 3 | Inspect diff | No hero kits, upgrade effects, reward formulas, enemy stats, XP values, save format, meta economy, or Build Evolution added

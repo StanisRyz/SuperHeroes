@@ -170,7 +170,8 @@ func _refresh_content() -> void:
 		str(_stage.get("difficulty_label", "Normal")),
 	]
 
-	_objective_label.text = "Objective\n%s" % str(_stage.get("stage_goal", _build_default_stage_goal(_stage)))
+	var _obj_type_raw := str(_stage.get("objective_type", "survival"))
+	_objective_label.text = "Objective  [%s]\n%s" % [_format_objective_type(_obj_type_raw), str(_stage.get("stage_goal", _build_default_stage_goal(_stage)))]
 
 	var boss_id: String = str(_stage.get("final_boss_id", ""))
 	var boss_name: String = _format_boss_name(boss_id)
@@ -213,6 +214,14 @@ func _build_training_summary(hero_id: String) -> String:
 		return "0 total levels\nNo purchased Training for this hero yet."
 	var strongest_name: String = str(TRAINING_TITLES.get(strongest_id, strongest_id))
 	return "%d total levels\nStrongest: %s %d" % [total, strongest_name, strongest_level]
+
+
+func _format_objective_type(objective_type: String) -> String:
+	match objective_type:
+		"survival": return "Survival"
+		"defense": return "Defense"
+		"destroy_structures": return "Destroy Structures"
+		_: return objective_type.capitalize()
 
 
 func _build_default_stage_goal(stage: Dictionary) -> String:

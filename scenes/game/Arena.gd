@@ -63,6 +63,7 @@ var _transition_in_progress: bool = false
 var _final_boss_arena_active: bool = false
 var _boss_arena_boundary: Node2D = null
 var _original_playable_rect: Rect2
+var _stage_objective_manager: Node = null
 const BOSS_ARENA_SIZE := Vector2(1200.0, 900.0)
 const DEBUG_POWERUP_CYCLE: Array = ["heal", "shield", "bomb", "magnet_burst", "move_speed_boost", "attack_speed_boost"]
 const DEBUG_KILL_RADIUS: float = 500.0
@@ -193,6 +194,7 @@ func _ready() -> void:
 		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner).")
 
 	_setup_debug_stats_overlay()
+	_setup_stage_objective()
 	_run_project_health_check()
 
 
@@ -386,8 +388,11 @@ func _setup_run_lifecycle() -> void:
 	else:
 		if run_manager.has_signal("final_phase_started") and not run_manager.final_phase_started.is_connected(_on_final_phase_started):
 			run_manager.final_phase_started.connect(_on_final_phase_started)
-		if run_manager.has_signal("target_time_reached") and not run_manager.target_time_reached.is_connected(_on_boss_phase_triggered):
-			run_manager.target_time_reached.connect(_on_boss_phase_triggered)
+		# destroy_structures triggers boss via objective completion, not by timer
+		var _obj_type := str(stage_data.get("objective_type", "survival"))
+		if _obj_type != "destroy_structures":
+			if run_manager.has_signal("target_time_reached") and not run_manager.target_time_reached.is_connected(_on_boss_phase_triggered):
+				run_manager.target_time_reached.connect(_on_boss_phase_triggered)
 		if run_manager.has_signal("victory_reached") and not run_manager.victory_reached.is_connected(_on_victory_reached):
 			run_manager.victory_reached.connect(_on_victory_reached)
 		if run_manager.has_signal("special_kill_count_changed") and not run_manager.special_kill_count_changed.is_connected(_on_special_kill_count_changed):
@@ -540,6 +545,8 @@ func _on_miniboss_defeated() -> void:
 
 
 func _on_boss_phase_triggered() -> void:
+	if _run_ended:
+		return
 	if _feedback_manager != null and _feedback_manager.has_method("shake"):
 		_feedback_manager.shake(10.0, 0.3)
 	_start_final_boss_encounter()
@@ -890,6 +897,113 @@ func _setup_debug_stats_overlay() -> void:
 		print("DEBUG_WIRING: DebugStatsOverlay instantiated=%s" % (_debug_stats_overlay != null))
 
 
+func _setup_stage_objective() -> void:
+	var objective_type := str(stage_data.get("objective_type", "survival"))
+	if objective_type == "survival":
+		return
+
+	var om_script: Script = load("res://scenes/objectives/StageObjectiveManager.gd")
+	if om_script == null:
+		push_warning("Arena: StageObjectiveManager.gd not found — objective skipped.")
+		return
+
+	_stage_objective_manager = om_script.new()
+	_stage_objective_manager.name = "StageObjectiveManager"
+	add_child(_stage_objective_manager)
+
+	if _stage_objective_manager.has_method("setup"):
+		_stage_objective_manager.setup(stage_data, self, player, enemy_container, get_playable_rect())
+
+	if _stage_objective_manager.has_signal("objective_completed"):
+		_stage_objective_manager.objective_completed.connect(_on_objective_completed)
+	if _stage_objective_manager.has_signal("objective_failed"):
+		_stage_objective_manager.objective_failed.connect(_on_objective_failed)
+	if _stage_objective_manager.has_signal("objective_state_changed"):
+		_stage_objective_manager.objective_state_changed.connect(_on_objective_state_changed)
+
+	if hud != null and hud.has_method("setup_objective_manager"):
+		hud.setup_objective_manager(_stage_objective_manager, objective_type)
+
+	var announcement := ""
+	match objective_type:
+		"defense":
+			announcement = "Defend the Lab Reactor!"
+		"destroy_structures":
+			announcement = "Destroy All Dark Portals!"
+	if announcement != "" and event_announcement != null and event_announcement.has_method("show_announcement"):
+		get_tree().create_timer(2.0).timeout.connect(
+			func() -> void:
+				if event_announcement != null and is_instance_valid(event_announcement) and event_announcement.has_method("show_announcement"):
+					event_announcement.show_announcement(announcement, 4.0)
+		)
+
+
+func _on_objective_completed() -> void:
+	var objective_type := str(stage_data.get("objective_type", "survival"))
+	if objective_type == "destroy_structures":
+		if run_manager != null and run_manager.has_method("mark_boss_phase_triggered"):
+			run_manager.mark_boss_phase_triggered()
+		if event_announcement != null and event_announcement.has_method("show_announcement"):
+			event_announcement.show_announcement("All Portals Destroyed!", 3.5)
+		_on_boss_phase_triggered()
+
+
+func _on_objective_failed() -> void:
+	var objective_type := str(stage_data.get("objective_type", "survival"))
+	if objective_type == "defense":
+		_trigger_objective_defeat()
+
+
+func _on_objective_state_changed(state: Dictionary) -> void:
+	if hud != null and hud.has_method("update_objective_state"):
+		hud.update_objective_state(state)
+
+
+func _trigger_objective_defeat() -> void:
+	if run_manager != null and run_manager.get("has_victory") == true:
+		return
+	if _run_ended:
+		return
+	_run_ended = true
+
+	if event_announcement != null and event_announcement.has_method("show_announcement"):
+		event_announcement.show_announcement("Reactor Destroyed!", 3.0)
+
+	var stats: Dictionary = {}
+	if run_manager != null and run_manager.has_method("end_run"):
+		run_manager.end_run()
+	if run_manager != null and run_manager.has_method("get_stats"):
+		stats = run_manager.get_stats()
+
+	var summary := _build_run_summary(stats)
+	summary["result"] = "defeat"
+
+	if not _run_result_emitted:
+		_run_result_emitted = true
+		run_result_ready.emit(summary)
+
+	if level_up_screen != null:
+		level_up_screen.hide()
+
+	get_tree().paused = true
+	_reset_mobile_controls()
+	if audio_manager != null and audio_manager.has_method("play_game_over"):
+		audio_manager.play_game_over()
+	if game_over_screen != null and game_over_screen.has_method("setup_audio_manager"):
+		game_over_screen.setup_audio_manager(audio_manager)
+	if game_over_screen != null and game_over_screen.has_method("show_stats"):
+		game_over_screen.show_stats(summary)
+	else:
+		push_warning("Arena: GameOverScreen does not implement show_stats(stats).")
+
+
+func _cleanup_stage_objective_manager() -> void:
+	if _stage_objective_manager != null and is_instance_valid(_stage_objective_manager):
+		if _stage_objective_manager.has_method("cleanup"):
+			_stage_objective_manager.cleanup()
+	_stage_objective_manager = null
+
+
 func _run_project_health_check() -> void:
 	var checker_script: Script = load("res://scenes/debug/ProjectHealthCheck.gd")
 	if checker_script == null:
@@ -1028,6 +1142,7 @@ func _on_restart_requested() -> void:
 		return
 	_transition_in_progress = true
 	_clear_boss_arena_boundary()
+	_cleanup_stage_objective_manager()
 	get_tree().paused = false
 	restart_run_requested.emit()
 
@@ -1037,6 +1152,7 @@ func _on_quit_to_menu_requested() -> void:
 		return
 	_transition_in_progress = true
 	_clear_boss_arena_boundary()
+	_cleanup_stage_objective_manager()
 	get_tree().paused = false
 	quit_to_menu_requested.emit()
 
@@ -1185,10 +1301,12 @@ func _on_confirm_dialog_confirmed(action_id: String) -> void:
 	match action_id:
 		"restart_run":
 			_clear_boss_arena_boundary()
+			_cleanup_stage_objective_manager()
 			get_tree().paused = false
 			restart_run_requested.emit()
 		"quit_to_menu":
 			_clear_boss_arena_boundary()
+			_cleanup_stage_objective_manager()
 			get_tree().paused = false
 			quit_to_menu_requested.emit()
 		_:

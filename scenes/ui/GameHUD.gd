@@ -7,6 +7,7 @@ var player: Node
 var _run_manager: Node = null
 var _target_run_time: float = 600.0
 var _evolution_manager: Node = null
+var _objective_type: String = "survival"
 var _ability_names: Dictionary = {
 	1: "A1",
 	2: "A2",
@@ -197,9 +198,56 @@ func _update_run_time(seconds: float) -> void:
 	_update_objective(seconds)
 
 
+func setup_objective_manager(obj_manager: Node, objective_type: String) -> void:
+	_objective_type = objective_type
+	if obj_manager == null:
+		return
+	if obj_manager.has_signal("objective_state_changed") and not obj_manager.objective_state_changed.is_connected(_on_objective_state_changed):
+		obj_manager.objective_state_changed.connect(_on_objective_state_changed)
+	if obj_manager.has_method("get_objective_state"):
+		_on_objective_state_changed(obj_manager.get_objective_state())
+
+
+func _on_objective_state_changed(state: Dictionary) -> void:
+	update_objective_state(state)
+
+
+func update_objective_state(state: Dictionary) -> void:
+	if objective_label == null:
+		return
+	match _objective_type:
+		"defense":
+			var cur := int(state.get("defense_hp", 0))
+			var max_hp := int(state.get("defense_max_hp", 1))
+			var disp := str(state.get("defense_display_name", "Reactor"))
+			if state.get("failed", false):
+				objective_label.text = "%s: DESTROYED" % disp
+				objective_label.modulate = Color(1.0, 0.2, 0.2)
+			else:
+				var ratio := float(cur) / float(max_hp) if max_hp > 0 else 0.0
+				objective_label.text = "%s: %d / %d HP" % [disp, cur, max_hp]
+				if ratio <= 0.30:
+					objective_label.modulate = Color(1.0, 0.35, 0.1)
+				elif ratio <= 0.60:
+					objective_label.modulate = Color(1.0, 0.85, 0.2)
+				else:
+					objective_label.modulate = Color(0.4, 0.92, 1.0)
+		"destroy_structures":
+			var destroyed := int(state.get("portals_destroyed", 0))
+			var total := int(state.get("portals_total", 0))
+			if destroyed >= total and total > 0:
+				objective_label.text = "Portals: ALL DESTROYED"
+				objective_label.modulate = Color(0.2, 1.0, 0.35)
+			else:
+				objective_label.text = "Portals: %d / %d" % [destroyed, total]
+				objective_label.modulate = Color(1.0, 0.55, 0.1)
+
+
 func _update_objective(seconds: float) -> void:
+	if _objective_type != "survival":
+		return
 	if objective_label != null:
-		objective_label.text = "Goal: Survive %s / %s" % [UIFormat.format_time(seconds), UIFormat.format_time(_target_run_time)]
+		objective_label.text = "Survive: %s / %s" % [UIFormat.format_time(seconds), UIFormat.format_time(_target_run_time)]
 
 
 func _update_kill_count(kills: int) -> void:

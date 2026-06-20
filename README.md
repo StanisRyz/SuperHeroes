@@ -254,7 +254,7 @@ Each hero now has a distinct primary weapon identity routed by `PlayerAutoAttack
 - `GameHUD` shows `Weapon: <display name>` in the BuildPanel.
 - `DebugStatsOverlay` shows `Primary: <weapon_id>`, plus damage, interval, range, count, pierce, and bounce.
 
-Build Evolution and Stage Objectives are not included in this patch. No arena hazards were added.
+Build Evolution is not included in this patch. No arena hazards were added.
 
 ### Hero Signature Kits Real Mechanics
 
@@ -375,6 +375,52 @@ Not implemented yet (feedback):
 - **XP gems and powerup pickups** already on the ground are kept; they can still be collected during the boss fight.
 - **Enemy projectiles** already in flight are kept; they expire naturally by their max_lifetime.
 
+### Stage Objectives & Win Conditions
+
+Each stage now has a distinct gameplay objective that shapes how the run plays out. The final boss remains the victory climax for all stages. No damaging arena hazards were added.
+
+#### Stage Objectives
+
+| Stage | Objective Type | Win Condition |
+|-------|---------------|---------------|
+| City Rooftop | **Survival** | Survive 10:00, then defeat the Titan Guardian. |
+| Neon Lab | **Defense** | Defend the Lab Reactor for 10:00, then defeat the Prism Overlord. Reactor reaching 0 HP ends the run in defeat. |
+| Wasteland Gate | **Destroy Structures** | Destroy all 3 Dark Portals to trigger the final boss, then defeat the Molten Colossus. |
+
+#### City Rooftop — Survival
+
+- Classic timer-based survival. Enemies spawn in waves for 10:00.
+- Final Phase begins at 9:00. Boss phase triggers at 10:00.
+- HUD shows "Survive MM:SS / 10:00" as before.
+- No new objective entities spawned.
+
+#### Neon Lab — Defense
+
+- A **Lab Reactor** structure spawns near the player at arena start.
+- Enemies deal contact damage to the Reactor (15 HP/s per enemy in contact).
+- The player must stay near the Reactor to prevent enemies from destroying it.
+- **HUD** shows live Reactor HP (color-coded: blue → amber at 60% → red at 30%).
+- If the Reactor HP reaches 0, the run ends immediately in defeat ("Reactor Destroyed!").
+- If the Reactor survives until 10:00, the final boss phase triggers normally.
+
+#### Wasteland Gate — Destroy Structures
+
+- Three **Dark Portals** spawn at spread positions across the arena.
+- Portals are damageable by player attacks and abilities (150 HP each, pulsing purple).
+- **HUD** shows "Portals: N / 3".
+- Destroying all 3 portals immediately triggers the final boss encounter.
+- No timer countdown required — portals can be destroyed at any time.
+- Player death still ends the run in defeat regardless of portal count.
+
+#### Architecture Notes
+
+- `StageObjectiveManager` (new, `scenes/objectives/`) is instantiated at Arena start for defense and destroy_structures stages; survival stages require no extra node.
+- `DefenseObjective` (new) detects enemy contact via its own Area2D (mask=2); enemies never need to know about the structure.
+- `PortalObjective` (new) extends `StaticBody2D` on the enemy collision layer so existing player projectile and auto-attack systems naturally damage it.
+- `RunManager.mark_boss_phase_triggered()` (new) lets the objective manager signal the end of the portal phase without waiting for the timer.
+- For destroy_structures, `Arena._setup_run_lifecycle()` skips connecting `target_time_reached` to the boss phase handler; the objective completion fires the trigger instead.
+- Restart and quit-to-menu paths call `StageObjectiveManager.cleanup()` before transitioning.
+
 ### Enemy Roles & Wave Director 2.0
 
 Waves now feel intentional, role-based, and stage-specific. This patch sits entirely inside `SpawnDirector` and `EnemySpawner`; hero kits, bosses, upgrades, rewards, and saves are unchanged.
@@ -447,7 +493,7 @@ Stage event profiles bias package selection via `profile_bonus` weights:
 
 `EnemySpawner.spawn_debug_logging = true` prints `WAVE_PACKAGE: id=... role=... alive=N/M` each time a package fires.
 
-Not included in this patch: Boss Rework, Primary Weapon Rework, Build Evolution, Stage Objectives, arena hazards.
+Not included in this patch: Boss Rework, Primary Weapon Rework, Build Evolution, arena hazards.
 
 ### Balance / Cleanup / Production Readiness
 

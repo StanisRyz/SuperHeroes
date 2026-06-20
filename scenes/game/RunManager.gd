@@ -151,6 +151,10 @@ func can_trigger_victory() -> bool:
 	return true
 
 
+func mark_boss_phase_triggered() -> void:
+	_boss_phase_triggered = true
+
+
 func get_target_run_time() -> float:
 	return _effective_target_run_time
 

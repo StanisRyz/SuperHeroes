@@ -29,7 +29,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/game/GameplayTuning.tscn` - central exported gameplay tuning node instanced under Arena.
 - `scenes/game/GameplayTuning.gd` - applies safe balance/logging defaults to existing Arena systems.
 - `scenes/game/RunManager.tscn` - runtime run state manager scene.
-- `scenes/game/RunManager.gd` - run timer, kill counter, and run end signal.
+- `scenes/game/RunManager.gd` - run timer, kill counter, and run end signal. Exposes `mark_boss_phase_triggered()` so StageObjectiveManager can prevent the timer from re-triggering the boss phase after an objective-driven trigger.
 - `scenes/abilities/AbilityManager.tscn` - player active ability manager scene (3 slots wired).
 - `scenes/abilities/AbilityManager.gd` - 3-slot active ability logic, hero-kit routing, legacy Nova/Laser/Slam tuning hooks, cooldown tracking, cast signals.
 - `scenes/abilities/NovaPulseFeedback.tscn` - simple in-world Nova Pulse feedback scene.
@@ -59,7 +59,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/upgrades/UpgradeManager.tscn` - runtime upgrade manager scene.
 - `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade definitions, option weighting, upgrade levels, and application logic.
 - `scenes/ui/GameHUD.tscn` - player HP, XP, time, and kill counter HUD scene.
-- `scenes/ui/GameHUD.gd` - player and run HUD binding.
+- `scenes/ui/GameHUD.gd` - player and run HUD binding. `setup_objective_manager(obj_manager, objective_type)` wires objective state; `update_objective_state(state)` renders defense HP or portal count; `_update_objective()` skips the survival timer when objective_type is non-survival.
 - `scenes/ui/MobileControls.tscn` - mobile virtual joystick and 3 ability buttons scene.
 - `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source (ability_1/2/3_pressed).
 - `scenes/ui/MainMenu.tscn` - frontend main menu scene.
@@ -125,7 +125,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MetaUpgradeShop.gd` - display-only Training shop UI. Shows meta upgrade levels and costs. Emits buy_requested; Main handles the purchase. Accessed via "Training" button on MainMenu.
 - `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, meta progression/rewards, expected console log patterns).
 - `scenes/stages/StageDataProvider.tscn` - runtime stage definition provider scene.
-- `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, display-only identity metadata, background_colors, run_settings, event_profile, final_boss_id.
+- `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, display-only identity metadata, background_colors, run_settings, event_profile, final_boss_id, `objective_type` ("survival"/"defense"/"destroy_structures"), and `objective_data` (per-type parameters).
+- `scenes/objectives/StageObjectiveManager.gd` - central objective controller; instantiated at runtime by Arena; reads stage_data.objective_type and .objective_data; spawns DefenseObjective or PortalObjective × N; tracks progress; emits `objective_completed`, `objective_failed`, `objective_state_changed`.
+- `scenes/objectives/DefenseObjective.gd` - Node2D Lab Reactor structure for "defense" stages; has a Polygon2D visual and HP label; Area2D (collision_mask=2) accumulates contact damage from nearby enemies at `damage_per_enemy_per_second`; emits `health_changed` and `objective_destroyed`.
+- `scenes/objectives/PortalObjective.gd` - StaticBody2D Dark Portal for "destroy_structures" stages; collision_layer=2 (enemy layer) so existing player projectiles and autoattack Area2Ds detect it naturally; added to "enemies" group; implements `take_damage(amount)`; emits `portal_destroyed` and `health_changed`.
 - `scenes/stages/StageApplier.gd` - static helper; applies selected stage to Arena at startup: background colors, run settings, event/spawn profiles. Called by Arena._ready() when stage_data is non-empty.
 - `scenes/ui/StageSelect.tscn` - stage selection screen CanvasLayer scene (child of Main).
 - `scenes/ui/StageSelect.gd` - display-only stage list + bounded scrollable detail panel UI. Emits the original stage_confirmed(stage_id) and back_requested.
@@ -228,6 +231,52 @@ The game is an original superhero survivors-like: the player moves around an are
 - `EnemySpawner._can_spawn()` also checks `_final_boss_encounter_active` as a redundant guard.
 - `EventDirector._process()` returns early → no new elites, no new miniboss events, no new timed modifiers.
 - `EnemySpawner.spawn_final_boss()` is exempt: it accepts an optional `override_position: Vector2` (defaults to `NO_SPAWN_POSITION` which triggers the normal ring-based search). Arena passes the boss arena center.
+
+## Stage Objectives & Win Conditions Architecture
+
+Each stage has an `objective_type` and `objective_data` in StageDataProvider. Victory always requires defeating the final boss; the objective type determines how the boss phase is triggered.
+
+### Per-stage objectives
+- **City Rooftop** (`objective_type: "survival"`) — classic survival; `RunManager.target_time_reached` drives the boss trigger unchanged.
+- **Neon Lab** (`objective_type: "defense"`) — a Lab Reactor spawns at `Vector2(0, -110)`; enemies deal contact damage to it; reactor reaching 0 HP triggers immediate defeat; surviving to 10:00 triggers the boss phase normally.
+- **Wasteland Gate** (`objective_type: "destroy_structures"`) — 3 Dark Portals spawn at spread positions; destroying all 3 immediately triggers the boss phase; the 10:00 timer does NOT connect to the boss trigger for this objective type.
+
+### StageObjectiveManager responsibilities
+- Instantiated at runtime in `Arena._setup_stage_objective()` using `load(...).new()` — same pattern as FeedbackManager/DebugStatsOverlay.
+- Added as child of Arena with position `Vector2.ZERO`.
+- Reads `stage_data.objective_type` and `stage_data.objective_data` to spawn the correct entity/entities.
+- Emits `objective_completed`, `objective_failed`, `objective_state_changed(state)`.
+- `get_objective_state()` returns a Dictionary describing current progress (defense HP or portals destroyed / total).
+- `cleanup()` removes spawned entities and disconnects signals; called by Arena in all restart/quit/death paths.
+
+### Objective entities are gameplay targets, not hazards
+- `DefenseObjective` has no collision_layer of its own and no arena effect on the player. It is a damage-receiving structure, not an obstacle or trap.
+- `PortalObjective` is on collision_layer=2 (enemy layer) solely so player attacks detect it. It deals no damage and has no effect on movement.
+- The boss arena boundary (`BossArenaBoundary`) remains a display-only Line2D with no collision or damage. No damaging arena hazards are added anywhere.
+
+### Arena integration
+- `Arena._setup_run_lifecycle()` conditionally connects `RunManager.target_time_reached` → `_on_boss_phase_triggered()` only when `objective_type != "destroy_structures"`.
+- `_on_boss_phase_triggered()` guards `if _run_ended: return` to prevent triggering after a defense defeat.
+- `_on_objective_completed()` (destroy_structures path): calls `run_manager.mark_boss_phase_triggered()`, shows announcement, then calls `_on_boss_phase_triggered()` directly.
+- `_on_objective_failed()` (defense path): calls `_trigger_objective_defeat()` — mirrors `_on_player_died()` flow with "Reactor Destroyed!" announcement.
+- `_on_objective_state_changed(state)` forwards state to `hud.update_objective_state(state)`.
+
+### HUD integration
+- `GameHUD.setup_objective_manager(obj_manager, objective_type)` wires signals and sets `_objective_type`.
+- `update_objective_state(state)` renders defense HP (with color coding) or portal count ("Portals: N / 3" / "Portals: ALL DESTROYED").
+- `_update_objective()` skips the survival-timer label when `_objective_type != "survival"`.
+
+### PortalObjective detectability
+- `collision_layer=2`, `collision_mask=0`, added to `"enemies"` group.
+- Player autoattack Area2D (mask=2) detects portals as bodies via `body_entered`; `shockwave_strike` includes portals in `_enemies_in_range`.
+- Portals implement `take_damage(amount)` — the same interface called by projectile and shockwave damage paths.
+- No modifications to `PlayerProjectile.gd` or `PlayerAutoAttack.gd` were needed.
+
+### Cleanup invariant
+`Arena._cleanup_stage_objective_manager()` is called in every exit path: restart from game over, restart from victory, quit to menu, and pause-menu ConfirmDialog confirm. The manager node is freed and the reference set to null.
+
+### No Build Evolution
+Build Evolution is not included in any stage objectives patch. The `objective_type` field is the only new stage data; it does not add build paths, meta economy changes, or upgrade categories.
 
 ## Stage & Final Boss Architecture
 
@@ -485,7 +534,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `GameHUD.set_primary_weapon_name(display_name)` dynamically adds a `WeaponLabel` child to `BuildPanel`.
 - `Arena._ready()` calls `hud.set_primary_weapon_name(auto_attack.get_primary_weapon_display_name())` inside the HUD setup block, after `_apply_selected_hero`.
 - `DebugStatsOverlay` Weapon section now shows `Primary: <weapon_id>`, then `DMG / Interval / Range`, then `Count / Pierce / Bounce`, then `Spread / Size / Expl R`.
-- No arena hazards were added. Build Evolution and Stage Objectives are not included in this patch.
+- No arena hazards were added. Build Evolution is not included in this patch.
 
 ## Weapon Modifier Notes
 
@@ -826,7 +875,6 @@ The game is an original superhero survivors-like: the player moves around an are
 - Advanced dodge perks.
 - Controller remapping.
 - Build Evolution rework.
-- Stage Objectives.
 - Enemy projectile patterns.
 - Status effects.
 - Real audio assets.
