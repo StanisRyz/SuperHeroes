@@ -49,6 +49,8 @@ const KIT_GENERIC := "generic"
 @export var solar_beam_range: float = 520.0
 @export var solar_beam_width: float = 80.0
 @export var solar_beam_cooldown: float = 7.0
+@export var solar_beam_burn_damage: int = 0
+@export var solar_beam_empowered_bonus: float = 0.0
 
 @export var frost_breath_damage: int = 18
 @export var frost_breath_range: float = 280.0
@@ -56,12 +58,15 @@ const KIT_GENERIC := "generic"
 @export var frost_breath_cooldown: float = 8.0
 @export var frost_breath_slow_multiplier: float = 0.55
 @export var frost_breath_slow_duration: float = 2.5
+@export var frost_breath_freeze_enabled: bool = false
+@export var frost_breath_freeze_duration: float = 0.0
 
 @export var death_dash_damage: int = 28
 @export var death_dash_distance: float = 220.0
 @export var death_dash_path_width: float = 60.0
 @export var death_dash_cooldown: float = 9.0
 @export var death_dash_invulnerability: float = 0.30
+@export var death_dash_safety_bonus: float = 0.0
 
 # Night Tactician — Smoke Screen
 @export var smoke_screen_radius: float = 200.0
@@ -395,10 +400,15 @@ func _try_cast_hero_slam() -> void:
 func _try_cast_solar_beam_ability() -> void:
 	if not _guard_cast(1):
 		return
-	var damage := _scale_int(solar_beam_damage, get_solar_damage_multiplier())
+	var multiplier := get_solar_damage_multiplier()
+	if solar_beam_empowered_bonus > 0.0 and is_solar_empowered():
+		multiplier += solar_beam_empowered_bonus
+	var damage := _scale_int(solar_beam_damage, multiplier)
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
 	var hits := _damage_enemies_in_laser(origin, direction, damage, solar_beam_range, solar_beam_width)
+	if solar_beam_burn_damage > 0:
+		_damage_enemies_in_laser(origin, direction, solar_beam_burn_damage, solar_beam_range, solar_beam_width)
 	_spawn_laser_feedback_at(origin, direction, solar_beam_range, solar_beam_width)
 	_status("SOLAR BEAM" if hits > 0 else "BEAM MISS", origin + Vector2.UP * 42.0)
 	_shake(5.0, 0.14)
@@ -414,6 +424,9 @@ func _try_cast_frost_breath() -> void:
 	var half_angle := frost_breath_cone_degrees * 0.5
 	var hits := _damage_enemies_in_cone(origin, direction, damage, frost_breath_range, half_angle)
 	_apply_slow_in_cone(origin, direction, frost_breath_range, half_angle, frost_breath_slow_multiplier, frost_breath_slow_duration)
+	if frost_breath_freeze_enabled and frost_breath_freeze_duration > 0.0:
+		_apply_enemy_modifier_in_cone(origin, direction, frost_breath_range, half_angle, "frost_breath_freeze",
+			{"speed_multiplier": 0.05}, frost_breath_freeze_duration)
 	var approx_width := minf(frost_breath_range * sin(deg_to_rad(half_angle)) * 1.4, 220.0)
 	_spawn_laser_feedback_at(origin, direction, frost_breath_range, approx_width)
 	_status("FROST BREATH" if hits > 0 else "FROST MISS", origin + Vector2.UP * 42.0)
@@ -427,7 +440,7 @@ func _try_cast_death_dash() -> void:
 	var start_position := player.global_position
 	var damage := _scale_int(death_dash_damage, get_solar_damage_multiplier())
 	var path_hits := _damage_enemies_in_laser(start_position, direction, damage, death_dash_distance, death_dash_path_width)
-	_grant_brief_invulnerability(death_dash_invulnerability)
+	_grant_brief_invulnerability(death_dash_invulnerability + death_dash_safety_bonus)
 	_move_player_safely(direction, death_dash_distance)
 	var trail_length := start_position.distance_to(player.global_position)
 	_spawn_laser_feedback_at(start_position, direction, trail_length, death_dash_path_width)
@@ -1007,6 +1020,10 @@ func get_solar_damage_multiplier() -> float:
 	return 1.0
 
 
+func is_solar_empowered() -> bool:
+	return current_kit_id == KIT_SOLAR and _solar_empowered
+
+
 func _damage_enemies_in_cone(origin: Vector2, direction: Vector2, damage: int, cone_range: float, half_angle_deg: float) -> int:
 	if enemy_container == null or not is_instance_valid(enemy_container):
 		push_warning("AbilityManager is missing EnemyContainer reference.")
@@ -1027,6 +1044,26 @@ func _damage_enemies_in_cone(origin: Vector2, direction: Vector2, damage: int, c
 			enemy.take_damage(damage)
 			hit_count += 1
 	return hit_count
+
+
+func _apply_enemy_modifier_in_cone(origin: Vector2, direction: Vector2, cone_range: float, half_angle_deg: float, modifier_id: String, values: Dictionary, duration: float) -> void:
+	if enemy_container == null or not is_instance_valid(enemy_container):
+		return
+	var half_angle_rad := deg_to_rad(half_angle_deg)
+	for enemy in enemy_container.get_children():
+		if not _is_valid_enemy(enemy):
+			continue
+		if not enemy.has_method("apply_temporary_modifier"):
+			continue
+		var to_enemy: Vector2 = (enemy as Node2D).global_position - origin
+		var dist := to_enemy.length()
+		if dist > cone_range:
+			continue
+		var angle := 0.0
+		if not to_enemy.is_zero_approx():
+			angle = absf(direction.angle_to(to_enemy.normalized()))
+		if angle <= half_angle_rad:
+			enemy.apply_temporary_modifier(modifier_id, values, duration)
 
 
 func _apply_slow_in_cone(origin: Vector2, direction: Vector2, cone_range: float, half_angle_deg: float, slow_multiplier: float, slow_duration: float) -> void:

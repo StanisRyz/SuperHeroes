@@ -1,5 +1,7 @@
 extends Node
 
+const SOLAR_RAY_INTERVAL_MIN := 0.20
+
 @export var attack_damage: int = 5
 @export var attack_interval: float = 0.6
 @export var attack_range: float = 260.0
@@ -18,6 +20,12 @@ extends Node
 @export var max_projectile_bounce: int = 5
 @export var max_projectile_explosion_radius: float = 180.0
 @export var solar_ray_width: float = 40.0
+@export var solar_ray_burn_damage: int = 0
+@export var solar_ray_tick_rate_bonus: float = 0.0
+@export var solar_ray_empowered_bonus: float = 0.0
+@export var solar_ray_lingering_heat_enabled: bool = false
+@export var solar_ray_focus_bonus: float = 0.0
+@export var solar_ray_execution_threshold: float = 0.0
 @export var splash_melee_radius: float = 85.0
 @export var splash_melee_knockback: float = 0.0
 
@@ -82,7 +90,7 @@ func _physics_process(delta: float) -> void:
 				attacked = _tick_solar_bolt(enemy)
 
 	if attacked:
-		_cooldown = attack_interval
+		_cooldown = _get_attack_cooldown()
 
 
 func setup_projectile_container(container: Node) -> void:
@@ -166,7 +174,11 @@ func _tick_solar_ray() -> bool:
 		if proj < 0.0 or proj > attack_range:
 			continue
 		if absf(to_target.dot(perp_axis)) <= half_width:
-			target.take_damage(ray_damage)
+			target.take_damage(_get_solar_ray_damage_for_target(target, ray_damage, target == nearest))
+			if solar_ray_burn_damage > 0:
+				target.take_damage(solar_ray_burn_damage)
+			if solar_ray_lingering_heat_enabled:
+				_schedule_solar_ray_lingering_heat(target)
 			hit_any = true
 
 	_spawn_solar_ray_visual(origin, direction)
@@ -178,7 +190,40 @@ func _get_solar_ray_damage() -> int:
 	if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
 		if _ability_manager_ref.has_method("get_solar_damage_multiplier"):
 			multiplier = float(_ability_manager_ref.get_solar_damage_multiplier())
+		if solar_ray_empowered_bonus > 0.0 and _ability_manager_ref.has_method("is_solar_empowered") and _ability_manager_ref.is_solar_empowered():
+			multiplier += solar_ray_empowered_bonus
 	return maxi(roundi(float(attack_damage) * multiplier), 1)
+
+
+func _get_solar_ray_damage_for_target(target: Node2D, base_damage: int, is_primary_target: bool) -> int:
+	var multiplier := 1.0
+	if is_primary_target and solar_ray_focus_bonus > 0.0:
+		multiplier += solar_ray_focus_bonus
+	if solar_ray_execution_threshold > 0.0 and target != null:
+		var max_health = target.get("max_health")
+		var current_health = target.get("current_health")
+		if max_health != null and current_health != null and int(max_health) > 0:
+			var health_ratio := float(current_health) / float(max_health)
+			if health_ratio <= solar_ray_execution_threshold:
+				multiplier += 0.35
+	return maxi(roundi(float(base_damage) * multiplier), 1)
+
+
+func _schedule_solar_ray_lingering_heat(target: Node2D) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	var damage := maxi(solar_ray_burn_damage, 1)
+	var timer := get_tree().create_timer(0.22)
+	timer.timeout.connect(func() -> void:
+		if is_instance_valid(target) and target.has_method("take_damage"):
+			target.take_damage(damage)
+	)
+
+
+func _get_attack_cooldown() -> float:
+	if _primary_weapon_id == "solar_ray" and solar_ray_tick_rate_bonus > 0.0:
+		return maxf(SOLAR_RAY_INTERVAL_MIN, attack_interval - solar_ray_tick_rate_bonus)
+	return attack_interval
 
 
 func _spawn_solar_ray_visual(origin: Vector2, direction: Vector2) -> void:

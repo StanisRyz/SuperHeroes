@@ -182,9 +182,18 @@ Implemented foundation:
   - Missing `upgrade_line_id` falls back to `id`; missing `slot_category` is inferred from existing category/type/tags/effect targets so old definitions keep working.
   - Future target grid: 9 Attack lines per hero, 9 Active lines per hero, and 9 shared Passive lines.
   - Future Evolution triples will link one attack line, one passive line, one active line, and one evolved active skill.
-  - This patch only adds schema and validation support; it does not add evolutions, Overdrive UI, new passive packs, or evolved active skills.
+  - Solar Guardian now has a complete Guardian-only future grid slice: 9 Solar Ray Attack lines and 9 Active lines across Solar Beam, Frost Breath, and Death Dash.
+  - This patch does not add new evolutions, Overdrive UI, new evolved active skills, or Evolution triples.
   - `UpgradeManager.validate_upgrade_grid(false)` reports incomplete target counts as warnings, while strict mode can promote target-count gaps for future content gates.
   - `debug_get_upgrade_grid_state()` exposes warning/error counts and current hero line counts; DebugStatsOverlay displays a compact grid audit summary.
+
+- Solar Guardian Upgrade Grid:
+  - Attack lines for Solar Ray: `solar_ray_damage`, `solar_ray_range`, `solar_ray_width`, `solar_ray_pierce_burn`, `solar_ray_tick_rate`, `solar_ray_empowered_bonus`, `solar_ray_lingering_heat`, `solar_ray_focus`, and `solar_ray_execution`.
+  - Active lines for Solar Beam: `solar_beam_damage_up`, `solar_beam_range_up`, and `solar_beam_overheat`.
+  - Active lines for Frost Breath: `frost_breath_power`, `frost_breath_cone_up`, and `frost_breath_freeze`.
+  - Active lines for Death Dash: `death_dash_power`, `death_dash_distance`, and `death_dash_cooldown_down`.
+  - Guardian-specific attack and active lines include explicit grid metadata for future Evolution triples, but this does not implement Evolution triples or Overdrive.
+  - Guardian no longer receives generic projectile-only or duplicate generic autoattack lines; shared passive skills remain available and the 4/4/4 slot limits still apply.
 
 - Shared Passive Skills 9-Line Pack:
   - Passive skills are shared by all heroes, selected through the normal level-up upgrade pool, and reset every run.
@@ -194,11 +203,11 @@ Implemented foundation:
   - New shared passive ids: `chain_lightning` (periodic bouncing lightning arcs), `recovery_field` (small periodic heal pulse), `battle_focus` (periodic focus strike plus short attack-speed buff), `static_field` (nearby electric damage pulse), and `time_dilator` (nearby enemy slow pulse through temporary enemy modifiers).
   - Passive effects have visible runtime feedback: shield indicators track charges, shield blocks show `SHIELD BLOCK`, Storm/Drone/Chain/Focus hits draw Line2D arcs, field effects draw pulse rings, and damage/heal/status text appears in-world.
   - Passive upgrade definitions use `type/category/slot_category: "passive"`, `source_type: "passive"`, `source_skill_id`, `upgrade_line_id`, `grid_index` 1-9, `evolution_role: "passive"`, and `tags: ["passive", ...]`; LevelUpScreen marks them with `PASSIVE`.
-  - The 4/4/4 upgrade slot limits now apply to new upgrade lines, while repeated levels stay within the already owned line. Solar/Night/Fury 9-line attack/active grid normalization, Overdrive, and Build Evolution are not included in this pack.
+  - The 4/4/4 upgrade slot limits now apply to new upgrade lines, while repeated levels stay within the already owned line. Solar Guardian attack/active grid normalization is implemented separately; Night/Fury 9-line attack/active grids, Overdrive, and Build Evolution are not included in this pack.
   - Build Slots Overview Window: an in-run `Build` button under Pause opens a compact read-only window showing Attack, Passive, and Active slot usage plus the filled/empty rows for all 12 build slots.
   - The Build Slots window reads runtime slot state from `UpgradeManager`; it does not change slot rules, upgrade weights, upgrade effects, saves, rewards, or meta progression.
   - DebugStatsOverlay shows selected passive ids/levels, timers, shield count/max, pickup radius bonus, and the last passive event while Debug Mode is enabled.
-  - This patch does not add Solar/Night/Fury attack or active 9-line grids, Overdrive UI, or new Evolution/Overdrive behavior.
+  - This patch does not add Night/Fury attack or active 9-line grids, Overdrive UI, or new Evolution/Overdrive behavior.
 
 - PowerupPickup foundation (generic in-run pickup that delegates to PowerupManager).
 - PowerupManager (applies powerup effects to player and world).

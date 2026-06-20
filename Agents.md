@@ -837,7 +837,18 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Non-strict validation treats incomplete future 9/9/9 targets as warnings. Strict validation may promote target-count gaps to errors for future release gates.
 - Future target counts are 9 Attack lines per hero, 9 Active lines per hero, and 9 shared Passive lines. Passive upgrade lines should remain shared, not hero-specific, unless a future task explicitly changes that rule.
 - Future Evolution triples link one attack line, one passive line, one active line, and one evolved active skill. Each upgrade line may be used only once per hero triple grid.
-- The shared passive target is now implemented as the Shared Passive Skills 9-Line Pack below; do not add Solar/Night/Fury attack or active grid normalization unless explicitly requested.
+- The shared passive target is now implemented as the Shared Passive Skills 9-Line Pack below. Solar Guardian attack/active grid normalization is implemented for `hero_id = "guardian"` only; do not add Night Tactician or Fury Vanguard attack/active grid normalization unless explicitly requested.
+
+## Solar Guardian Upgrade Grid
+
+- Guardian strict grid target is exactly 9 Attack lines and exactly 9 Active lines. Use `UpgradeManager.validate_upgrade_grid_for_hero("guardian", true)` as the release gate for this slice.
+- Guardian Attack lines are exactly: `solar_ray_damage`, `solar_ray_range`, `solar_ray_width`, `solar_ray_pierce_burn`, `solar_ray_tick_rate`, `solar_ray_empowered_bonus`, `solar_ray_lingering_heat`, `solar_ray_focus`, and `solar_ray_execution`.
+- Guardian Active lines are exactly: `solar_beam_damage_up`, `solar_beam_range_up`, `solar_beam_overheat`, `frost_breath_power`, `frost_breath_cone_up`, `frost_breath_freeze`, `death_dash_power`, `death_dash_distance`, and `death_dash_cooldown_down`.
+- Every Guardian Attack line must include `hero_only: ["guardian"]`, `slot_category: "attack"`, `upgrade_line_id`, `source_type: "autoattack"`, `source_skill_id: "solar_ray"`, unique `grid_index` 1-9, `evolution_role: "attack"`, and tags containing weapon/solar/beam or equivalent.
+- Every Guardian Active line must include `hero_only: ["guardian"]`, `slot_category: "active"`, `upgrade_line_id`, `source_type: "ability"`, `source_skill_id` for `solar_beam`, `frost_breath`, or `death_dash`, unique `grid_index` 1-9, `evolution_role: "active"`, `evolution_target_active_skill`, and ability/skill tags.
+- Guardian must not receive projectile-count-only, multishot, spread, projectile-speed, projectile-pierce, bounce, rocket-only, melee, or rage-only upgrade lines. Generic duplicate autoattack damage/speed/range lines are also excluded from Guardian so the Solar Ray grid stays exactly 9 lines.
+- Shared passive skills remain shared and available to Guardian; do not make shared passive lines Guardian-specific.
+- This grid prepares future Evolution triples, but this patch does not implement new `EvolutionManager` behavior, Evolution triples, Overdrive UI, evolved active skills, rewards, saves, meta economy, enemies, stages, boss flow, hero kits, primary weapon identity, Build Evolution, or 4/4/4 slot-rule changes.
 
 ## Shared Passive Skills 9-Line Pack
 
@@ -848,7 +859,7 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Passive state is runtime-only and must reset on restart, victory, defeat, quit, or Arena reload. Do not save passive levels, timers, buffs, or visuals.
 - Every shared passive must be visible in gameplay through shield markers, arcs, pulse rings, floating damage/heal/status text, or equivalent built-in feedback.
 - The 4 passive slot limit still applies: a new passive line consumes a Passive slot, while already selected passive lines can continue leveling after Passive slots are full.
-- This pack does not add Solar/Night/Fury 9 attack grids, Solar/Night/Fury 9 active grids, new EvolutionManager behavior, Overdrive UI, evolved active skills, rewards, saves, meta economy, enemies, stages, boss flow, hero kits, primary weapons, or 4/4/4 slot-limit changes.
+- This pack does not add Night/Fury 9 attack grids, Night/Fury 9 active grids, new EvolutionManager behavior, Overdrive UI, evolved active skills, rewards, saves, meta economy, enemies, stages, boss flow, hero kits, primary weapons, or 4/4/4 slot-limit changes.
 
 ## Input Flow
 

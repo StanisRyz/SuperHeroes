@@ -55,7 +55,6 @@ const HERO_UPGRADE_FLAVOR := {
 			"frost_breath_cone_up": "Arctic Spread",
 			"death_dash_power": "Death Drive",
 			"death_dash_cooldown_down": "Reaper's Stride",
-			"solar_empower_boost": "Radiant Surge",
 		},
 		"descriptions": {
 			"attack_damage_up": "Increase Solar Ray beam damage by %s.",
@@ -182,7 +181,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase autoattack damage by %s.",
 		"effect_value": 2,
 		"archetype": "projectile",
-		"tags": ["weapon", "damage"]
+		"tags": ["weapon", "damage"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "attack_speed_up",
@@ -193,7 +193,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Reduce autoattack interval by %ss.",
 		"effect_value": 0.08,
 		"archetype": "projectile",
-		"tags": ["weapon", "speed"]
+		"tags": ["weapon", "speed"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "attack_range_up",
@@ -204,7 +205,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase autoattack targeting range by %s.",
 		"effect_value": 45.0,
 		"archetype": "projectile",
-		"tags": ["weapon", "range"]
+		"tags": ["weapon", "range"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "move_speed_up",
@@ -867,7 +869,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Solar Ray beam damage by %s.",
 		"effect_value": 2,
 		"archetype": "solar_ray",
-		"tags": ["weapon", "damage"],
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_damage",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 1,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "damage"],
 		"hero_only": ["guardian"]
 	},
 	{
@@ -879,7 +887,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Solar Ray beam targeting range by %s.",
 		"effect_value": 50.0,
 		"archetype": "solar_ray",
-		"tags": ["weapon", "range"],
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_range",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 2,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "range"],
 		"hero_only": ["guardian"]
 	},
 	{
@@ -891,7 +905,13 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Solar Ray beam hit corridor by %s.",
 		"effect_value": 8.0,
 		"archetype": "solar_ray",
-		"tags": ["weapon", "area"],
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_width",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 3,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "area"],
 		"hero_only": ["guardian"]
 	},
 	{
@@ -900,11 +920,125 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"rarity": "epic",
 		"weight": 0.45,
 		"max_level": 3,
-		"description_template": "Increase Solar Ray burn intensity, adding %s bonus damage.",
+		"description_template": "Add Solar Ray burn, dealing %s extra damage on beam hits.",
 		"effect_value": 3,
 		"archetype": "solar_ray",
-		"tags": ["weapon", "damage"],
-		"hero_only": ["guardian"]
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_pierce_burn",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 4,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "burn", "damage"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "auto_attack", "property": "solar_ray_burn_damage", "operation": "add", "value": 3}
+		]
+	},
+	{
+		"id": "solar_ray_tick_rate",
+		"title": "Solar Tempo",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Reduce Solar Ray firing interval by %ss.",
+		"effect_value": 0.05,
+		"archetype": "solar_ray",
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_tick_rate",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 5,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "speed"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "auto_attack", "property": "solar_ray_tick_rate_bonus", "operation": "add", "value": 0.05, "max_value": 0.25}
+		]
+	},
+	{
+		"id": "solar_ray_empowered_bonus",
+		"title": "Radiant Lens",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 3,
+		"description_template": "Increase Solar Ray damage while Solar Energy is empowered.",
+		"effect_value": 0,
+		"archetype": "solar_ray",
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_empowered_bonus",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 6,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "empowered", "damage"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "auto_attack", "property": "solar_ray_empowered_bonus", "operation": "add", "value": 0.18}
+		]
+	},
+	{
+		"id": "solar_ray_lingering_heat",
+		"title": "Lingering Heat",
+		"rarity": "epic",
+		"weight": 0.4,
+		"max_level": 1,
+		"description_template": "Solar Ray leaves a delayed heat tick on enemies it hits.",
+		"effect_value": 0,
+		"archetype": "solar_ray",
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_lingering_heat",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 7,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "burn", "delayed"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "auto_attack", "property": "solar_ray_lingering_heat_enabled", "operation": "set", "value": true}
+		]
+	},
+	{
+		"id": "solar_ray_focus",
+		"title": "Solar Focus",
+		"rarity": "rare",
+		"weight": 0.58,
+		"max_level": 3,
+		"description_template": "Increase Solar Ray damage to the primary target.",
+		"effect_value": 0,
+		"archetype": "solar_ray",
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_focus",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 8,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "focus", "damage"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "auto_attack", "property": "solar_ray_focus_bonus", "operation": "add", "value": 0.18}
+		]
+	},
+	{
+		"id": "solar_ray_execution",
+		"title": "Dawn Execution",
+		"rarity": "epic",
+		"weight": 0.38,
+		"max_level": 3,
+		"description_template": "Solar Ray deals bonus damage to enemies below %s%% HP.",
+		"effect_value": 10,
+		"archetype": "solar_ray",
+		"slot_category": "attack",
+		"upgrade_line_id": "solar_ray_execution",
+		"source_type": "autoattack",
+		"source_skill_id": "solar_ray",
+		"grid_index": 9,
+		"evolution_role": "attack",
+		"tags": ["weapon", "solar", "beam", "execute", "damage"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "auto_attack", "property": "solar_ray_execution_threshold", "operation": "add", "value": 0.10, "max_value": 0.50}
+		]
 	},
 	# ── SOLAR GUARDIAN: ACTIVE UPGRADES ─────────────────────────────────────────
 	{
@@ -916,7 +1050,14 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Solar Beam ability damage by %s.",
 		"effect_value": 7,
 		"archetype": "solar_beam",
-		"tags": ["ability", "damage"],
+		"slot_category": "active",
+		"upgrade_line_id": "solar_beam_damage_up",
+		"source_type": "ability",
+		"source_skill_id": "solar_beam",
+		"grid_index": 1,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "solar_beam",
+		"tags": ["ability", "solar", "beam", "damage"],
 		"hero_only": ["guardian"],
 		"effects": [
 			{"target": "ability_manager", "property": "solar_beam_damage", "operation": "add", "value": 7}
@@ -931,11 +1072,41 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Solar Beam ability range by %s.",
 		"effect_value": 55.0,
 		"archetype": "solar_beam",
-		"tags": ["ability", "area"],
+		"slot_category": "active",
+		"upgrade_line_id": "solar_beam_range_up",
+		"source_type": "ability",
+		"source_skill_id": "solar_beam",
+		"grid_index": 2,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "solar_beam",
+		"tags": ["ability", "solar", "beam", "range", "area"],
 		"hero_only": ["guardian"],
 		"effects": [
 			{"target": "ability_manager", "property": "solar_beam_range", "operation": "add", "value": 55.0},
 			{"target": "ability_manager", "property": "solar_beam_width", "operation": "add", "value": 10.0}
+		]
+	},
+	{
+		"id": "solar_beam_overheat",
+		"title": "Solar Overheat",
+		"rarity": "epic",
+		"weight": 0.42,
+		"max_level": 3,
+		"description_template": "Solar Beam adds burn damage and scales harder while empowered.",
+		"effect_value": 0,
+		"archetype": "solar_beam",
+		"slot_category": "active",
+		"upgrade_line_id": "solar_beam_overheat",
+		"source_type": "ability",
+		"source_skill_id": "solar_beam",
+		"grid_index": 3,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "solar_beam",
+		"tags": ["ability", "solar", "beam", "burn", "empowered"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "solar_beam_burn_damage", "operation": "add", "value": 4},
+			{"target": "ability_manager", "property": "solar_beam_empowered_bonus", "operation": "add", "value": 0.12}
 		]
 	},
 	{
@@ -947,7 +1118,14 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Frost Breath damage by %s and extend slow duration.",
 		"effect_value": 6,
 		"archetype": "frost_breath",
-		"tags": ["ability", "damage"],
+		"slot_category": "active",
+		"upgrade_line_id": "frost_breath_power",
+		"source_type": "ability",
+		"source_skill_id": "frost_breath",
+		"grid_index": 4,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "frost_breath",
+		"tags": ["ability", "frost", "cone", "damage"],
 		"hero_only": ["guardian"],
 		"effects": [
 			{"target": "ability_manager", "property": "frost_breath_damage", "operation": "add", "value": 6},
@@ -963,11 +1141,41 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Widen Frost Breath cone and increase its range by %s.",
 		"effect_value": 30.0,
 		"archetype": "frost_breath",
-		"tags": ["ability", "area"],
+		"slot_category": "active",
+		"upgrade_line_id": "frost_breath_cone_up",
+		"source_type": "ability",
+		"source_skill_id": "frost_breath",
+		"grid_index": 5,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "frost_breath",
+		"tags": ["ability", "frost", "cone", "range", "area"],
 		"hero_only": ["guardian"],
 		"effects": [
 			{"target": "ability_manager", "property": "frost_breath_cone_degrees", "operation": "add", "value": 14.0},
 			{"target": "ability_manager", "property": "frost_breath_range", "operation": "add", "value": 30.0}
+		]
+	},
+	{
+		"id": "frost_breath_freeze",
+		"title": "Flash Freeze",
+		"rarity": "epic",
+		"weight": 0.42,
+		"max_level": 2,
+		"description_template": "Frost Breath briefly freezes enemies after its slow.",
+		"effect_value": 0,
+		"archetype": "frost_breath",
+		"slot_category": "active",
+		"upgrade_line_id": "frost_breath_freeze",
+		"source_type": "ability",
+		"source_skill_id": "frost_breath",
+		"grid_index": 6,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "frost_breath",
+		"tags": ["ability", "frost", "cone", "freeze", "control"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "frost_breath_freeze_enabled", "operation": "set", "value": true},
+			{"target": "ability_manager", "property": "frost_breath_freeze_duration", "operation": "add", "value": 0.18, "max_value": 0.75}
 		]
 	},
 	{
@@ -979,11 +1187,42 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Death Dash path damage by %s and extend dash distance.",
 		"effect_value": 8,
 		"archetype": "death_dash",
-		"tags": ["ability", "damage"],
+		"slot_category": "active",
+		"upgrade_line_id": "death_dash_power",
+		"source_type": "ability",
+		"source_skill_id": "death_dash",
+		"grid_index": 7,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "death_dash",
+		"tags": ["ability", "solar", "dash", "damage"],
 		"hero_only": ["guardian"],
 		"effects": [
 			{"target": "ability_manager", "property": "death_dash_damage", "operation": "add", "value": 8},
 			{"target": "ability_manager", "property": "death_dash_distance", "operation": "add", "value": 30.0}
+		]
+	},
+	{
+		"id": "death_dash_distance",
+		"title": "Reaper Lane",
+		"rarity": "rare",
+		"weight": 0.48,
+		"max_level": 3,
+		"description_template": "Increase Death Dash distance, path width, and safety window.",
+		"effect_value": 0,
+		"archetype": "death_dash",
+		"slot_category": "active",
+		"upgrade_line_id": "death_dash_distance",
+		"source_type": "ability",
+		"source_skill_id": "death_dash",
+		"grid_index": 8,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "death_dash",
+		"tags": ["ability", "solar", "dash", "range", "safety"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "death_dash_distance", "operation": "add", "value": 28.0},
+			{"target": "ability_manager", "property": "death_dash_path_width", "operation": "add", "value": 10.0},
+			{"target": "ability_manager", "property": "death_dash_safety_bonus", "operation": "add", "value": 0.05, "max_value": 0.20}
 		]
 	},
 	{
@@ -995,23 +1234,17 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Reduce Death Dash cooldown by %ss.",
 		"effect_value": 0.8,
 		"archetype": "death_dash",
-		"tags": ["ability", "cooldown"],
-		"hero_only": ["guardian"]
-	},
-	{
-		"id": "solar_empower_boost",
-		"title": "Radiant Surge",
-		"rarity": "epic",
-		"weight": 0.4,
-		"max_level": 3,
-		"description_template": "Increase Solar Empowered damage multiplier and extend duration.",
-		"effect_value": 0,
-		"archetype": "solar_ray",
-		"tags": ["ability", "damage", "synergy"],
+		"slot_category": "active",
+		"upgrade_line_id": "death_dash_cooldown_down",
+		"source_type": "ability",
+		"source_skill_id": "death_dash",
+		"grid_index": 9,
+		"evolution_role": "active",
+		"evolution_target_active_skill": "death_dash",
+		"tags": ["ability", "solar", "dash", "cooldown"],
 		"hero_only": ["guardian"],
 		"effects": [
-			{"target": "ability_manager", "property": "solar_empowered_damage_multiplier", "operation": "add", "value": 0.25},
-			{"target": "ability_manager", "property": "solar_empowered_duration", "operation": "add", "value": 3.0}
+			{"target": "ability_manager", "property": "death_dash_cooldown", "operation": "subtract", "value": 0.8, "min_value": 3.5}
 		]
 	},
 	# ── NIGHT TACTICIAN: ATTACK UPGRADES (homing_rockets) ────────────────────────
@@ -2103,10 +2336,9 @@ func _validate_upgrade_grid_for_heroes(hero_scope: Array, strict: bool) -> Dicti
 		if slot_category == SLOT_CATEGORY_PASSIVE and _definition_has_hero_specific_marker(definition):
 			_record_grid_issue(errors, warnings, strict, "hero_specific_passive_line", upgrade_id, "", slot_category, "Passive upgrade lines should stay shared.")
 
-		var applicable_heroes := get_upgrade_hero_ids(definition)
 		for scoped_hero_id in hero_scope:
 			var hero_id := str(scoped_hero_id)
-			if not applicable_heroes.is_empty() and not applicable_heroes.has(hero_id):
+			if not _definition_applies_to_hero(definition, hero_id):
 				continue
 
 			var line_key := "%s|%s|%s" % [hero_id, slot_category, upgrade_line_id]
@@ -2157,7 +2389,7 @@ func _validate_upgrade_grid_for_heroes(hero_scope: Array, strict: bool) -> Dicti
 					if evolution_role == EVOLUTION_ROLE_ACTIVE and get_upgrade_evolution_target(definition).is_empty():
 						_record_grid_issue(errors, warnings, true, "active_triple_missing_target", upgrade_id, hero_id, slot_category, "Active triple member is missing evolution_target_active_skill.")
 
-		if slot_category == SLOT_CATEGORY_PASSIVE and not shared_passive_lines.has(upgrade_line_id):
+		if slot_category == SLOT_CATEGORY_PASSIVE and get_upgrade_evolution_role(definition) == EVOLUTION_ROLE_PASSIVE and not shared_passive_lines.has(upgrade_line_id):
 			shared_passive_lines.append(upgrade_line_id)
 
 	for hero_id in hero_scope:
@@ -2210,6 +2442,22 @@ func _record_grid_issue(errors: Array, warnings: Array, as_error: bool, code: St
 
 func _definition_has_hero_specific_marker(definition: Dictionary) -> bool:
 	return definition.has("hero_id") or definition.has("hero_ids") or definition.has("hero_only")
+
+
+func _definition_applies_to_hero(definition: Dictionary, hero_id: String) -> bool:
+	if hero_id.is_empty():
+		return false
+	var hero_only: Array = definition.get("hero_only", [])
+	if not hero_only.is_empty():
+		return hero_only.has(hero_id)
+	if definition.has("hero_ids"):
+		var hero_ids_value = definition.get("hero_ids", [])
+		if hero_ids_value is Array:
+			return (hero_ids_value as Array).has(hero_id)
+	if definition.has("hero_id"):
+		return str(definition.get("hero_id", "")) == hero_id
+	var hero_exclude: Array = definition.get("hero_exclude", [])
+	return not hero_exclude.has(hero_id)
 
 
 func _increment_upgrade_level(upgrade_id: String) -> void:

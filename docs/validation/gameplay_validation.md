@@ -71,9 +71,9 @@ Run these before adding new gameplay systems.
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Start Solar Guardian and cast slot 1 near enemies | Solar Burst damages a radius, builds Solar Charge on hits, and updates cooldown |
-| 2 | Build high Solar Charge, then cast Solar Beam or Aerial Impact | Charge is spent; damage/radius is stronger and DebugStatsOverlay charge decreases |
-| 3 | Cast Aerial Impact near enemies | Impact occurs near/forward of the player and grants brief invulnerability |
+| 1 | Start Solar Guardian and cast slot 1 near enemies | Solar Beam damages enemies in a forward beam and updates cooldown |
+| 2 | Build Solar Energy to empowered state, then cast Solar Beam or Frost Breath | Empowered damage multiplier applies and DebugStatsOverlay shows Solar Energy / empowered state |
+| 3 | Cast Death Dash near enemies | Player dashes forward with brief invulnerability and path damage |
 | 4 | Start Night Tactician and cast Smoke Screen near enemies | Smoke zone appears; enemies inside are slowed and marked every 0.5s; DebugStatsOverlay shows Tactical Marks: N |
 | 5 | Cast Explosive Trap near enemies, then let them walk over it | Trap triggers, explosion damages and marks all enemies in radius |
 | 6 | Cast Grappling Hook near an enemy | Player dashes to the enemy, deals high damage, and marks it |
@@ -95,7 +95,7 @@ Run these before adding new gameplay systems.
 | 1 | Start a run and press J/K/L immediately before enemies are in range | Each ready ability casts once, shows available feedback/status, enters cooldown, and updates HUD labels |
 | 2 | Enable forced mobile controls and press each ability button once at run start | Each mobile button emits the same slot cast path and does not require repeated presses |
 | 3 | Cast any ready ability with no enemies hit | Ability does not silently return; cooldown and `ability_cast` still happen |
-| 4 | Cast Solar Guardian abilities with and without nearby enemies | Solar Charge feedback appears on hits; miss casts still show feedback/cooldown |
+| 4 | Cast Solar Guardian abilities with and without nearby enemies | Solar Beam / Frost Breath / Death Dash show feedback; miss casts still show feedback/cooldown |
 | 5 | Cast Night Tactician Explosive Trap with no enemies present | Trap places, enters cooldown, and triggers after duration with no crash |
 | 6 | Cast Fury Vanguard abilities with no enemies present | Rage/status feedback appears where applicable and cooldowns update |
 | 7 | Trigger LevelUpScreen, then choose any upgrade | LevelUpScreen hides and the game unpauses automatically if no other blocking modal is open |
@@ -109,10 +109,10 @@ Run these before adding new gameplay systems.
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Solar Guardian: hit enemies with Solar Burst | Solar Charge increases and "SOLAR CHARGED" appears when threshold is reached |
-| 2 | Solar Guardian: cast empowered Solar Burst | Charge is consumed; burst radius/damage increase; small heal/defensive window triggers |
-| 3 | Solar Guardian: cast Solar Beam with and without charge | Normal beam is narrow/focused; empowered beam is stronger and visibly wider/longer |
-| 4 | Solar Guardian: cast Aerial Impact | Player shifts in aim direction, gains brief invulnerability, and impact damage lands at the new position |
+| 1 | Solar Guardian: wait during combat | Solar Energy charges over time and empowered state starts at 100 energy |
+| 2 | Solar Guardian: attack/cast while empowered | Solar Ray, Solar Beam, Frost Breath, and Death Dash deal empowered damage |
+| 3 | Solar Guardian: cast Solar Beam | Forward beam damages enemies in aim direction and enters cooldown |
+| 4 | Solar Guardian: cast Death Dash | Player moves in aim direction, gains brief invulnerability, and path damage lands during movement |
 | 5 | Night Tactician: cast Smoke Screen near enemies | Smoke zone persists for full duration; enemies inside slowed and marked; player inside takes reduced damage |
 | 6 | Night Tactician: cast Explosive Trap then let enemies walk over it | Trap triggers explosion, marks all enemies in blast radius |
 | 7 | Night Tactician: cast Grappling Hook with an enemy in range | Player dashes to enemy, deals high damage, applies Tactical Mark |
@@ -120,7 +120,7 @@ Run these before adding new gameplay systems.
 | 9 | Fury Vanguard: cast Rage Burst at low/high Rage | Damage/radius noticeably scale with current Rage |
 | 10 | Fury Vanguard: cast Crushing Leap | Player moves forward with brief invulnerability; path/landing impact damage fires |
 | 11 | Fury Vanguard: cast Titan Slam with Rage | Slam scales, spends Rage, and creates a delayed shockwave when Rage or second-wave support is present |
-| 12 | Check DebugStatsOverlay for all heroes | Overlay shows kit id plus Solar Charge, Tactical Mark, or Rage |
+| 12 | Check DebugStatsOverlay for all heroes | Overlay shows kit id plus Solar Energy, Tactical Mark, or Rage |
 | 13 | Pick Nova/Laser/Slam upgrades | Slot 1/2/3 upgrade hooks still affect the corresponding hero abilities |
 | 14 | Inspect scope | No Enemy Roles, Boss Rework, Build Evolution, Stage Objectives, arena hazards, enemy/stage/reward/save/meta changes |
 
@@ -130,20 +130,20 @@ Run these before adding new gameplay systems.
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Start **Solar Guardian** and let autoattack fire | Slower, heavier bolt fires toward nearest enemy; projectile is visibly larger (1.35× size) |
+| 1 | Start **Solar Guardian** and let autoattack fire | Solar Ray fires a short direct beam toward the nearest enemy; no projectile is spawned |
 | 2 | Start **Night Tactician** and let autoattack fire | Homing rockets track individual enemies; each rocket goes to a different target (round-robin); no pierce, no bounce |
 | 3 | Start **Fury Vanguard** and stand near enemies | Close-range shockwave deals damage directly with no visible projectile; floating damage numbers appear |
 | 4 | Fury Vanguard: step out of range of all enemies | Shockwave does not fire; cooldown does not tick down from a no-target state |
 | 5 | Night Tactician: apply Tactical Mark, then let autoattack fire at that enemy | Homing rocket to marked target shows higher damage number than unmark equivalent |
-| 6 | Pick `attack_damage_up` upgrade on any hero | Autoattack damage increases for all three weapon modes |
-| 7 | Pick `attack_speed_up` upgrade on any hero | Cooldown between attacks decreases for all three weapon modes |
-| 8 | Pick `attack_range_up` upgrade on any hero | Range area grows; Solar and Tactician target enemies further away; Vanguard shockwave reaches further |
-| 9 | Pick `projectile_count` (multishot) upgrade on Solar Guardian / Night Tactician | Multiple projectiles fire per attack; Fury Vanguard is unaffected (no crash) |
-| 10 | Pick `projectile_pierce` upgrade on Solar Guardian | Bolt passes through an enemy and hits the next one |
-| 11 | Pick `projectile_bounce` upgrade on any hero | Solar/Tactician darts bounce; Fury Vanguard direct damage is unaffected (no crash) |
-| 12 | Pick `projectile_explosion_radius` upgrade on any hero | Solar/Tactician projectiles explode on hit; Fury Vanguard direct damage is unaffected (no crash) |
-| 13 | Enable Debug Mode (F12) | DebugStatsOverlay Weapon section shows `Primary: solar_bolt`, `gadget_darts`, or `shockwave_strike`; range, interval, count, pierce, bounce all display correctly |
-| 14 | Check GameHUD BuildPanel | `Weapon: Solar Bolt`, `Weapon: Gadget Darts`, or `Weapon: Shockwave Strike` label is visible |
+| 6 | Pick autoattack damage upgrades | Blaster/Vanguard use generic lines; Guardian uses `solar_ray_damage` |
+| 7 | Pick autoattack speed upgrades | Blaster/Vanguard use generic lines; Guardian uses `solar_ray_tick_rate` |
+| 8 | Pick autoattack range upgrades | Blaster/Vanguard use generic lines; Guardian uses `solar_ray_range` |
+| 9 | Pick projectile-count / multishot upgrades on Night Tactician | Homing rocket count increases; Solar Guardian and Fury Vanguard are not offered projectile-count lines |
+| 10 | Pick projectile pierce / bounce / speed upgrades | Solar Guardian is not offered projectile-only pierce, bounce, or speed lines because Solar Ray is a direct beam |
+| 11 | Pick `projectile_bounce` upgrade as Night Tactician | Homing rockets can bounce; Solar Guardian and Fury Vanguard direct damage are unaffected |
+| 12 | Pick explosion-radius upgrades as Night Tactician | Homing rockets gain explosion radius; Solar Guardian and Fury Vanguard direct damage are unaffected |
+| 13 | Enable Debug Mode (F12) | DebugStatsOverlay Weapon section shows `Primary: solar_ray`, `homing_rockets`, or `splash_melee`; range/interval and relevant weapon stats display correctly |
+| 14 | Check GameHUD BuildPanel | `Weapon: Solar Ray`, `Weapon: Homing Rockets`, or `Weapon: Fury Strike` label is visible |
 | 15 | Restart run keeping same hero | Weapon identity, range, and stat bonuses reset and re-apply correctly to the fresh run |
 | 16 | Restart run changing hero | New hero's weapon mode, range, speed, and bounce defaults apply; no stale values from previous hero |
 | 17 | Inspect diff | No saves, rewards, stages, arena hazards, enemy roles/wave director, boss flow, meta economy, or Build Evolution changes |
@@ -228,8 +228,8 @@ Run these before adding new gameplay systems.
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Call `UpgradeManager.validate_upgrade_grid(false)` from a live run or remote console | Returns a Dictionary with `errors`, `warnings`, `error_count`, `warning_count`, `line_counts`, and `target_counts` |
-| 2 | Inspect non-strict audit result | Shared Passive count is exactly 9/9; incomplete Attack/Active target counts remain warnings only and do not block gameplay |
-| 3 | Call `UpgradeManager.validate_upgrade_grid(true)` | Future target-count gaps may report as errors for strict validation |
+| 2 | Inspect non-strict audit result | Shared Passive count is exactly 9/9; Guardian attack and active counts are exactly 9/9; incomplete Night/Fury Attack/Active target counts remain warnings only and do not block gameplay |
+| 3 | Call `UpgradeManager.validate_upgrade_grid_for_hero("guardian", true)` | Returns ok with exactly 9 Guardian Attack lines and 9 Guardian Active lines |
 | 4 | Call `UpgradeManager.validate_upgrade_grid_for_hero("guardian", false)` | Returns Guardian attack/passive/active line counts without mutating upgrades |
 | 5 | Call `UpgradeManager.debug_get_upgrade_grid_state()` | Returns schema warning/error counts plus current hero line counts |
 | 6 | Enable Debug Mode during a run | DebugStatsOverlay shows compact grid audit warning/error counts and current hero A/P/Act line counts |
@@ -238,7 +238,7 @@ Run these before adding new gameplay systems.
 | 9 | Open Build Slots Window after selecting upgrades | Window still reads selected line ids and displays filled rows correctly |
 | 10 | Pick shared passive skills | PassiveAbilityManager applies all nine shared passive ids; no passive state is saved |
 | 11 | Start runs as Solar Guardian, Night Tactician, and Fury Vanguard | Existing hero-specific upgrade filtering and kit behavior still work |
-| 12 | Inspect diff/save behavior | No new EvolutionManager behavior, Overdrive UI, attack/active 9-line grids, rewards, saves, stages, enemies, boss flow, or meta economy changes |
+| 12 | Inspect diff/save behavior | No new EvolutionManager behavior, Overdrive UI, Night/Fury attack/active 9-line grids, rewards, saves, stages, enemies, boss flow, or meta economy changes |
 
 ---
 
@@ -369,7 +369,7 @@ Run these before adding new gameplay systems.
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Open CharacterSelect from MainMenu | Three hero cards appear in the left panel with display name, playstyle, and compact state markers |
-| 2 | Select Solar Guardian | Detail card shows Solar Guardian, skyborne subtitle, description, Solar Burst / Solar Beam / Aerial Impact, strengths, and Training summary |
+| 2 | Select Solar Guardian | Detail card shows Solar Guardian, skyborne subtitle, description, Solar Beam / Frost Breath / Death Dash, strengths, and Training summary |
 | 3 | Select Night Tactician | Detail card shows Night Tactician, rocket tactician subtitle, description, Smoke Screen / Explosive Trap / Grappling Hook, strengths, and Training summary |
 | 4 | Select Fury Vanguard | Detail card shows Fury Vanguard, rage bruiser subtitle, description, Rage Burst / Crushing Leap / Titan Slam, strengths, and Training summary |
 | 5 | Return to CharacterSelect after a remembered hero exists | Remembered hero preselects and the matching card shows a compact Last marker |
@@ -389,10 +389,10 @@ Run these before adding new gameplay systems.
 |---|------|----------|
 | 1 | Open CharacterSelect | Guardian appears as Solar Guardian with solar/sky powerhouse role text |
 | 2 | Select Guardian and start a run | Run starts normally with Guardian selected |
-| 3 | Check GameHUD ability panel | Slot labels show Solar Burst, Solar Beam, and Aerial Impact presentation |
-| 4 | Press ability_1 / J as Guardian near enemies | Radiant close-area pulse casts, damages enemies, and cooldown updates |
-| 5 | Press ability_2 / K as Guardian with enemies ahead | Focused forward beam casts, damages enemies, and cooldown updates |
-| 6 | Press ability_3 / L as Guardian near enemies | Impact burst casts, damages enemies, and cooldown updates |
+| 3 | Check GameHUD ability panel | Slot labels show Solar Beam, Frost Breath, and Death Dash presentation |
+| 4 | Press ability_1 / J as Guardian near enemies | Solar Beam casts forward, damages enemies, and cooldown updates |
+| 5 | Press ability_2 / K as Guardian with enemies ahead | Frost Breath cone casts, damages/slows enemies, and cooldown updates |
+| 6 | Press ability_3 / L as Guardian near enemies | Death Dash moves forward, damages enemies along the path, and cooldown updates |
 | 7 | Enable mobile controls while Guardian is selected | Ability buttons use Guardian-specific labels and still cast slots 1/2/3 |
 | 8 | Open DebugStatsOverlay during Guardian run | Ability stats still display without errors |
 | 9 | Start a Night Tactician run | Blaster uses Smoke Screen, Explosive Trap, and Grappling Hook presentation without changing ability ids |
@@ -445,7 +445,7 @@ Run these before adding new gameplay systems.
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Open CharacterSelect | Solar Guardian, Night Tactician, and Fury Vanguard names, subtitles, role text, and starting modifiers fit without overlap |
-| 2 | Select Solar Guardian | Ability details show Solar Burst, Solar Beam, and Aerial Impact |
+| 2 | Select Solar Guardian | Ability details show Solar Beam, Frost Breath, and Death Dash |
 | 3 | Select Night Tactician | Ability details show Smoke Screen, Explosive Trap, and Grappling Hook |
 | 4 | Select Fury Vanguard | Ability details show Rage Burst, Crushing Leap, and Titan Slam |
 | 5 | Start each hero and inspect GameHUD | Cooldown labels use the selected hero's short ability names and update Ready/cooldown states |
@@ -1096,11 +1096,14 @@ DEBUG_PLAYER: invulnerable=true
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Guardian attack slot pool | Contains: solar_ray_damage, solar_ray_range, solar_ray_width, solar_ray_pierce_burn (plus generic attack_damage_up, attack_speed_up, attack_range_up) |
-| 2 | Guardian active slot pool | Contains: solar_beam_damage_up, solar_beam_range_up, frost_breath_power, frost_breath_cone_up, death_dash_power, death_dash_cooldown_down, solar_empower_boost |
-| 3 | Open Build Slots Window mid-run as guardian | Attack section shows up to 4 solar_ray lines; Active section shows chosen ability upgrades |
-| 4 | solar_empower_boost upgrade taken | `solar_empowered_damage_multiplier` and `solar_empowered_duration` increase; effects visible in empowered state |
-| 5 | Inspect diff | Night Tactician and Fury Vanguard build pools are unchanged |
+| 1 | Guardian attack slot pool | Contains exactly 9 Guardian-only Solar Ray lines: solar_ray_damage, solar_ray_range, solar_ray_width, solar_ray_pierce_burn, solar_ray_tick_rate, solar_ray_empowered_bonus, solar_ray_lingering_heat, solar_ray_focus, solar_ray_execution |
+| 2 | Guardian active slot pool | Contains exactly 9 Guardian-only active lines: solar_beam_damage_up, solar_beam_range_up, solar_beam_overheat, frost_breath_power, frost_breath_cone_up, frost_breath_freeze, death_dash_power, death_dash_distance, death_dash_cooldown_down |
+| 3 | Pick Solar Ray lines | Damage/range/width/burn/tick/empowered/lingering/focus/execution effects all change Solar Ray behavior; generic attack_damage_up, attack_speed_up, and attack_range_up are not offered to Guardian |
+| 4 | Pick Solar Beam, Frost Breath, and Death Dash lines | Solar Beam damage/range/overheat affect Solar Beam; Frost Breath damage/cone/freeze affect Frost Breath; Death Dash damage/distance/cooldown affect Death Dash |
+| 5 | Open Build Slots Window mid-run as guardian | Attack section shows up to 4 selected Solar Ray lines; Active section shows up to 4 selected Guardian active lines with current/max levels |
+| 6 | Fill Guardian Attack or Active slots | New lines from the full category stop appearing, but already selected non-maxed Guardian lines can continue leveling |
+| 7 | Call `validate_upgrade_grid_for_hero("guardian", true)` | No duplicate grid_index, duplicate upgrade_line_id, missing source_skill_id, missing slot_category, missing evolution_role, or accidental Night/Fury ownership |
+| 8 | Inspect diff | Night Tactician and Fury Vanguard grids are unchanged; no Evolution triples, Overdrive UI, Build Evolution, shared passive changes, rewards, saves, stages, enemies, or boss flow were added |
 
 ---
 
