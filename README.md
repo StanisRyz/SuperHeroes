@@ -741,6 +741,48 @@ Not implemented yet:
 - Additional stages beyond 3.
 - TileMap-based arena layouts.
 
+## Evolution Triple Grid Foundation
+
+Each hero has a 9-line evolution grid that defines candidate evolutions for their active skills. An **evolution triple** binds exactly:
+
+- **1 attack upgrade line** (hero-specific autoattack upgrades)
+- **1 passive upgrade line** (shared passives: Orbit Shields, Storm Relay, etc.)
+- **1 active upgrade line** (hero-specific active skill upgrades)
+
+### Triple Rule
+
+```
+attack line + passive line + active line = evolution candidate for an active skill
+```
+
+Each upgrade line can appear in only one triple per hero. Each hero has exactly 9 triples, one per grid index (1–9). Every hero attack line, every shared passive line, and every hero active line is used exactly once in that hero's triple grid.
+
+### Ready Conditions
+
+An evolution becomes **ready** only when:
+1. All 3 required upgrade lines have been selected (any level taken).
+2. All 3 required upgrade lines are at max level.
+
+### Triple States
+
+| State | Condition |
+|-------|-----------|
+| `locked` | No lines from this triple selected |
+| `partial` | 1–2 lines selected |
+| `collected` | All 3 lines selected, not all maxed |
+| `ready` | All 3 lines selected AND all 3 at max level |
+| `selected` | Evolution was chosen (no effect yet) |
+
+### Implementation Status
+
+- EvolutionManager tracks triple definitions and runtime state.
+- Triple readiness is computed live from UpgradeManager slot state.
+- 9 triples per hero (Guardian, Blaster, Vanguard) are defined.
+- DebugStatsOverlay shows ready count and closest triple progress.
+- **Overdrive choice screen is NOT implemented yet.**
+- **Actual evolved ability behavior is NOT implemented yet.**
+- Evolution state is runtime-only: no save/meta persistence.
+
 ## Architecture Principles
 
 - Separate runtime state, config data, UI, gameplay formulas, and Yandex SDK calls.

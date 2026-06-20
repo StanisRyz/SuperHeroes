@@ -2271,6 +2271,15 @@ func has_upgrade(upgrade_id: String, min_level: int = 1) -> bool:
 	return get_upgrade_level(upgrade_id) >= min_level
 
 
+func has_selected_line(upgrade_line_id: String) -> bool:
+	return _is_selected_upgrade_line(upgrade_line_id)
+
+
+func get_upgrade_max_level(upgrade_id: String) -> int:
+	var definition := _get_upgrade_definition(upgrade_id)
+	return int(definition.get("max_level", 1))
+
+
 func get_selected_upgrade_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for entry in selected_upgrade_history:

@@ -1034,6 +1034,67 @@ DEBUG_PLAYER: invulnerable=true
 
 ---
 
+## Evolution Triple Grid Foundation
+
+### Triple grid uniqueness (offline / code inspection)
+
+| # | Check | Expected |
+|---|-------|----------|
+| 1 | Count Guardian triples in EvolutionManager | Exactly 9 (grid_index 1–9, no gaps or duplicates) |
+| 2 | Count Blaster triples in EvolutionManager | Exactly 9 (grid_index 1–9, no gaps or duplicates) |
+| 3 | Count Vanguard triples in EvolutionManager | Exactly 9 (grid_index 1–9, no gaps or duplicates) |
+| 4 | Each Guardian attack line used once | solar_ray_damage/range/width/pierce_burn/tick_rate/empowered_bonus/lingering_heat/focus/execution each appear in exactly 1 Guardian triple |
+| 5 | Each Guardian active line used once | solar_beam_damage_up/range_up/overheat, frost_breath_power/cone_up/freeze, death_dash_power/distance/cooldown_down each in exactly 1 Guardian triple |
+| 6 | Each shared passive used once per Guardian | orbit_shields/storm_relay/chain_lightning/time_dilator/static_field/recovery_field/guardian_drone/magnet_core/battle_focus each in exactly 1 Guardian triple |
+| 7 | Each Blaster attack line used once | rocket_damage/count/explosion_radius/reload/marked_target_payload/seek_range/split/cluster_payload/priority_targeting each in exactly 1 Blaster triple |
+| 8 | Each Blaster active line used once | smoke_screen_radius/duration/slow, trap_damage/radius/chain_detonation, hook_damage/range/cooldown_down each in exactly 1 Blaster triple |
+| 9 | Each shared passive used once per Blaster | All 9 shared passives used exactly once in Blaster triples |
+| 10 | Each Vanguard attack line used once | splash_melee_damage/radius/speed/impact/frenzy/shockwave/lifesteal/combo/execute each in exactly 1 Vanguard triple |
+| 11 | Each Vanguard active line used once | rage_wave_power/radius/deep_slow, mighty_clap_power/range/shockwave, rage_leap_power/radius/cooldown each in exactly 1 Vanguard triple |
+| 12 | Each shared passive used once per Vanguard | All 9 shared passives used exactly once in Vanguard triples |
+| 13 | No duplicate evolution_id across all triples | All 27 evolution_id values are unique |
+| 14 | All triples have target_active_skill_id | None are empty |
+
+### EvolutionManager.validate_evolution_grid() (manual console check)
+
+| # | Check | Expected |
+|---|-------|----------|
+| 1 | Call `validate_evolution_grid("guardian")` | `ok: true`, `error_count: 0`, `triple_count: 9` |
+| 2 | Call `validate_evolution_grid("blaster")` | `ok: true`, `error_count: 0`, `triple_count: 9` |
+| 3 | Call `validate_evolution_grid("vanguard")` | `ok: true`, `error_count: 0`, `triple_count: 9` |
+
+### Runtime triple state progression (in-game)
+
+| # | Test | Expected |
+|---|-------|----------|
+| 1 | Start a Guardian run; enable Debug Mode (F12) | DebugStatsOverlay shows `-- Evolutions --` section with `Ready: 0  Selected: 0` |
+| 2 | Take solar_ray_damage upgrade | Triple 1 (guardian_solar_cataclysm) moves from locked to partial |
+| 3 | Also take orbit_shields upgrade | Triple 1 moves to partial (2/3 lines) |
+| 4 | Also take solar_beam_damage_up upgrade | Triple 1 moves to collected (3/3 lines, not all maxed) |
+| 5 | Max all 3 lines (solar_ray_damage to L5, orbit_shields to L3, solar_beam_damage_up to L4) | Triple 1 state becomes ready; `Ready: 1` appears in DebugStatsOverlay |
+| 6 | Check DebugStatsOverlay closest triple | Shows title "Solar Cataclysm" with state and sel/max counts |
+| 7 | Start a Blaster run; take rocket_damage + orbit_shields + smoke_screen_radius | Triple 1 (blaster_blackout) moves to collected |
+| 8 | Start a Vanguard run; take splash_melee_damage + orbit_shields + rage_wave_power | Triple 1 (vanguard_worldbreaker) moves to collected |
+
+### Slot limits and Build Slots Window unchanged
+
+| # | Test | Expected |
+|---|-------|----------|
+| 1 | Fill 4 attack + 4 passive + 4 active lines in any hero run | Level-up screen stops offering new lines in the full category; existing upgrade levels still appear |
+| 2 | Open Build Slots Window mid-run | Shows 4 attack / 4 passive / 4 active rows correctly; no evolution-related entries added |
+| 3 | Check that taking upgrades for a triple does not bypass slot limits | Triple completion follows normal slot rules; no extra slots granted |
+
+### No evolution effects or Overdrive screen
+
+| # | Test | Expected |
+|---|-------|----------|
+| 1 | Max all 3 lines of any triple | No popup, no Overdrive screen, no ability change; only DebugStatsOverlay shows `Ready: 1` |
+| 2 | Inspect gameplay after triple completion | Hero plays exactly as before; no damage, cooldown, or range changes |
+| 3 | Complete run (victory or defeat) after triple completion | VictoryScreen / GameOverScreen show normally; no evolution reward screen forced |
+| 4 | Inspect diff | Upgrade balance, hero kits, slot rules, BuildSlotsWindow, stages, enemies, bosses, rewards, saves, and meta economy are unchanged |
+
+---
+
 ## Solar Guardian Full Kit Rework
 
 ### Solar Energy Passive

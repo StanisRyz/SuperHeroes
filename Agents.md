@@ -367,8 +367,72 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 
 ## Evolution System Architecture
 
-- UpgradeManager owns level-up upgrade options, upgrade history, archetype points, and synergy/build-defining upgrade state.
-- EvolutionManager owns evolution definitions, prerequisite checks, effect application, and applied evolution state.
+### Triple Grid Foundation (current patch)
+
+- `EvolutionManager` owns the triple definitions (27 total: 9 per hero), triple state computation, selection tracking, validation, and debug output.
+- A **triple** binds exactly 1 attack upgrade line + 1 passive upgrade line + 1 active upgrade line into an evolution candidate for one active skill.
+- Each hero has exactly 9 triples with grid_index 1–9. Each hero attack line, each shared passive line, and each hero active line is used exactly once in that hero's triple grid.
+- `EvolutionManager.setup(player, auto_attack, ability_manager, upgrade_manager)` wires all node refs. Hero data is read from `upgrade_manager.hero_data` (populated before EvolutionManager.setup is called in Arena._ready).
+- `EvolutionManager.reset_run_state()` clears `_selected_evolutions`; the arena node being freed and recreated on restart/victory/defeat/quit also resets state naturally.
+- `EvolutionManager.get_triple_state(hero_id)` returns a dictionary of `{triple_id → state_dict}` where each state_dict contains: `state` (locked/partial/collected/ready/selected), `selected_lines_count` (0–3), `maxed_lines_count` (0–3), `required_lines` (array of 3 line dicts with id/category/current_level/max_level/selected/maxed).
+- `EvolutionManager.get_ready_evolutions(hero_id)` returns triples whose state is `ready` or `selected`.
+- `EvolutionManager.mark_evolution_selected(evolution_id)` tracks selection. Evolution effects are **not applied** in this patch.
+- `EvolutionManager.validate_evolution_grid(hero_id)` checks uniqueness of attack/passive/active/evolution lines per hero, grid_index range/uniqueness, presence of target_active_skill_id, and correct triple count.
+- `EvolutionManager.debug_get_evolution_grid_state()` exposes full state for DebugStatsOverlay (ready count, closest triple, triple states dict, validation result).
+- `EvolutionManager.debug_get_evolution_state()` provides the legacy-compatible dict (available_count, applied_ids, applied_titles) for overlay backward compat.
+
+### Triple Definition Schema
+
+Each triple definition contains:
+- `triple_id`: unique string slug (e.g. "guardian_solar_cataclysm")
+- `hero_id`: "guardian" | "blaster" | "vanguard"
+- `grid_index`: int 1–9 (unique per hero)
+- `attack_line_id`: hero-specific attack upgrade_line_id
+- `passive_line_id`: shared passive upgrade_line_id
+- `active_line_id`: hero-specific active upgrade_line_id
+- `target_active_skill_id`: source_skill_id of the active skill being evolved
+- `evolution_id`: unique string slug for the evolved ability
+- `title`: display name
+- `description`: placeholder description
+- `required_levels`: {} (empty = use each upgrade's own max_level automatically)
+
+### Triple State Rules
+
+| State | Condition |
+|-------|-----------|
+| locked | 0 lines selected |
+| partial | 1–2 lines selected |
+| collected | 3 selected, not all maxed |
+| ready | 3 selected AND all 3 at max level |
+| selected | evolution marked as selected (no game effect yet) |
+
+### UpgradeManager Integration
+
+- `UpgradeManager.has_selected_line(upgrade_line_id)` — public wrapper for `_is_selected_upgrade_line`; EvolutionManager calls this to check line selection.
+- `UpgradeManager.get_upgrade_max_level(upgrade_id)` — returns the max_level for any upgrade definition.
+- Existing: `get_upgrade_level(upgrade_id)`, `get_slot_state()`, `get_upgrade_definition_summary(upgrade_id)`.
+- EvolutionManager never duplicates upgrade state. It only reads from UpgradeManager.
+
+### What Is NOT in This Patch
+
+- No Overdrive choice screen.
+- No evolved ability behavior or gameplay effect changes.
+- No build slot changes, hero kit changes, or balance changes.
+- No persistence, meta-economy, or save format changes.
+- No UI popup for evolution readiness (only DebugStatsOverlay shows triple progress).
+- Evolution effect application via `apply_evolution()` is a no-op stub for forward compat.
+
+### Legacy Compatibility
+
+- `EvolutionManager.setup(player, auto_attack, ability_manager, upgrade_manager)` — same 4-arg signature that Arena already calls.
+- `EvolutionManager.get_available_evolutions()` — maps to `get_ready_evolutions(hero_id)`.
+- `EvolutionManager.apply_evolution(evolution_id)` — calls `mark_evolution_selected` and emits `evolution_applied` signal; no gameplay effect.
+- `EvolutionManager.has_evolution(evolution_id)` — alias for `is_evolution_selected`.
+- Signals `evolution_available`, `evolution_applied`, `evolution_state_changed` are preserved.
+- `elite_reward_chance` export var is preserved.
+
+### Other rules
+
 - EvolutionRewardScreen is display-only; it never applies evolutions directly.
 - Arena coordinates opening the reward screen, pausing/resuming, applying selected evolutions, and announcements.
 - Evolutions are runtime-only and reset naturally with every new Arena.

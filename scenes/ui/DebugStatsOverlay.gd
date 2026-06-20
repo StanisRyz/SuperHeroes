@@ -268,11 +268,23 @@ func _build_stats_text() -> String:
 
 	if _evolution_manager != null and is_instance_valid(_evolution_manager):
 		lines.append("-- Evolutions --")
-		if _evolution_manager.has_method("debug_get_evolution_state"):
+		if _evolution_manager.has_method("debug_get_evolution_grid_state"):
+			var evo: Dictionary = _evolution_manager.debug_get_evolution_grid_state()
+			lines.append("Ready: %d  Selected: %d" % [int(evo.get("ready_count", 0)), int(evo.get("selected_count", 0))])
+			var closest: Dictionary = evo.get("closest_triple", {})
+			if not closest.is_empty():
+				var sel := int(closest.get("selected_lines_count", 0))
+				var maxed := int(closest.get("maxed_lines_count", 0))
+				var state := str(closest.get("state", "locked"))
+				lines.append("Closest: %s [%s] %d/3 sel %d/3 max" % [
+					str(closest.get("title", "?")), state, sel, maxed
+				])
+		elif _evolution_manager.has_method("debug_get_evolution_state"):
 			var evo: Dictionary = _evolution_manager.debug_get_evolution_state()
-			lines.append("Available: %d" % int(evo.get("available_count", 0)))
+			lines.append("Ready: %d  Selected: %d" % [int(evo.get("ready_count", 0)), int(evo.get("selected_count", 0))])
 			var titles: Array = evo.get("applied_titles", [])
-			lines.append("Applied: %s" % (", ".join(titles) if not titles.is_empty() else "None"))
+			if not titles.is_empty():
+				lines.append("Applied: %s" % ", ".join(titles))
 
 	if _passive_ability_manager != null and is_instance_valid(_passive_ability_manager):
 		lines.append("-- Passives --")
