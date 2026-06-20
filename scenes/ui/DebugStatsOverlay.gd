@@ -155,6 +155,16 @@ func _build_stats_text() -> String:
 		lines.append("DMG: %d  Interval: %.2f  Range: %.0f" % [dmg, interval, rng])
 		lines.append("Count: %d  Pierce: %d  Bounce: %d" % [count, pierce, bounce])
 		lines.append("Spread: %.0f  Size: %.2f  Expl R: %.0f" % [spread, size_m, expl])
+		if _auto_attack.has_method("debug_get_attack_evolutions"):
+			var attack_evolutions: Dictionary = _auto_attack.debug_get_attack_evolutions()
+			if attack_evolutions.is_empty():
+				lines.append("Attack evos: none")
+			else:
+				var evo_parts: PackedStringArray = []
+				for evo_id in attack_evolutions:
+					var evo_data: Dictionary = attack_evolutions[evo_id]
+					evo_parts.append("%s->%s" % [str(evo_id), str(evo_data.get("target_id", "?"))])
+				lines.append("Attack evos: %s" % ", ".join(evo_parts))
 	else:
 		lines.append("-- Weapon: null --")
 

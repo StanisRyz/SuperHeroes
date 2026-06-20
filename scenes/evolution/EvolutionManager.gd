@@ -60,10 +60,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "solar_beam_range_up",
 		"target_type": "attack",
 		"target_id": "solar_ray",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "solar_beam_sky_lance",
 		"title": "Sky Lance",
-		"description": "Future evolution for Solar Beam: extreme reach and width.",
+		"description": "Solar Ray becomes a huge red lance with much longer range, wider corridor hits, and heavier visual presence.",
 		"required_levels": {},
 	},
 	{
@@ -75,10 +75,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "solar_beam_overheat",
 		"target_type": "attack",
 		"target_id": "solar_ray",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "solar_beam_burning_judgment",
 		"title": "Burning Judgment",
-		"description": "Future evolution for Solar Beam: burn and empowered synergy.",
+		"description": "Solar Ray applies strong burning judgment damage after hits; Solar Empowered doubles the heat pulses.",
 		"required_levels": {},
 	},
 	# Frost Breath evolutions (attack grids 4-6, passive grids 4-6, active grids 4-6)
@@ -107,10 +107,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "frost_breath_cone_up",
 		"target_type": "attack",
 		"target_id": "solar_ray",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "frost_breath_glacier_front",
-		"title": "Glacier Front",
-		"description": "Future evolution for Frost Breath: wide cone area denial.",
+		"title": "Solar Glacier Front",
+		"description": "Solar Ray creates a delayed radiant line pulse after firing. This evolves Solar Ray despite the legacy frost-themed id.",
 		"required_levels": {},
 	},
 	{
@@ -202,10 +202,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "smoke_screen_duration",
 		"target_type": "attack",
 		"target_id": "homing_rockets",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "smoke_screen_tactical_cover",
 		"title": "Tactical Cover",
-		"description": "Future evolution for Smoke Screen: extended tactical shroud.",
+		"description": "Homing Rockets call in extra support rockets that spread cover fire across available targets.",
 		"required_levels": {},
 	},
 	{
@@ -217,10 +217,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "smoke_screen_slow",
 		"target_type": "attack",
 		"target_id": "homing_rockets",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "smoke_screen_choking_zone",
 		"title": "Choking Zone",
-		"description": "Future evolution for Smoke Screen: oppressive slow field.",
+		"description": "Homing Rocket impacts leave choking smoke bursts that slow and tactically mark nearby enemies.",
 		"required_levels": {},
 	},
 	# Explosive Trap evolutions (attack grids 4-6, passive grids 4-6, active grids 4-6)
@@ -249,10 +249,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "trap_radius",
 		"target_type": "attack",
 		"target_id": "homing_rockets",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "trap_cluster_minefield",
 		"title": "Cluster Minefield",
-		"description": "Future evolution for Explosive Trap: saturation trap field.",
+		"description": "Homing Rocket impacts split into clustered secondary explosions for a large, safe AoE burst.",
 		"required_levels": {},
 	},
 	{
@@ -344,10 +344,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "rage_wave_radius",
 		"target_type": "attack",
 		"target_id": "splash_melee",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "rage_wave_earthsplitter",
 		"title": "Earthsplitter",
-		"description": "Future evolution for Rage Wave: wide ground-splitting pulse.",
+		"description": "Fury Strikes carve a forward ground crack that reaches well beyond the normal melee splash.",
 		"required_levels": {},
 	},
 	{
@@ -359,10 +359,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "rage_wave_deep_slow",
 		"target_type": "attack",
 		"target_id": "splash_melee",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "rage_wave_crushing_storm",
 		"title": "Crushing Storm",
-		"description": "Future evolution for Rage Wave: rage-fueled suppression wave.",
+		"description": "Fury Strikes scale harder with Rage and release a slowing pressure storm, becoming brutal at high Rage.",
 		"required_levels": {},
 	},
 	# Mighty Clap evolutions (attack grids 4-6, passive grids 4-6, active grids 4-6)
@@ -391,10 +391,10 @@ var _triple_definitions: Array[Dictionary] = [
 		"active_line_id": "mighty_clap_range",
 		"target_type": "attack",
 		"target_id": "splash_melee",
-		"effect_status": "placeholder",
+		"effect_status": "implemented",
 		"evolution_id": "mighty_clap_seismic_fan",
 		"title": "Seismic Fan",
-		"description": "Future evolution for Mighty Clap: wide seismic shockwave fan.",
+		"description": "Fury Strikes emit a forward seismic fan that hits enemies in front of the hero.",
 		"required_levels": {},
 	},
 	{
@@ -478,6 +478,8 @@ func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node, n
 
 func reset_run_state() -> void:
 	_selected_evolutions.clear()
+	if auto_attack != null and is_instance_valid(auto_attack) and auto_attack.has_method("_reset_attack_evolution_state"):
+		auto_attack.call("_reset_attack_evolution_state")
 	evolution_state_changed.emit()
 
 
@@ -815,10 +817,19 @@ func _is_evolution_offerable(triple: Dictionary) -> bool:
 func _is_implemented_evolution_id(evolution_id: String) -> bool:
 	return [
 		"solar_beam_cataclysm",
+		"solar_beam_sky_lance",
+		"solar_beam_burning_judgment",
 		"frost_breath_absolute_zero",
+		"frost_breath_glacier_front",
+		"smoke_screen_tactical_cover",
+		"smoke_screen_choking_zone",
 		"trap_chain_detonation_evolution",
+		"trap_cluster_minefield",
 		"hook_execution_pull",
 		"rage_wave_worldbreaker",
+		"rage_wave_earthsplitter",
+		"rage_wave_crushing_storm",
+		"mighty_clap_seismic_fan",
 		"rage_leap_meteor_crash",
 	].has(evolution_id)
 

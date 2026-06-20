@@ -22,6 +22,7 @@ var bounce_range: float = 260.0
 var homing_enabled: bool = true
 var attack_id: int = -1
 var projectile_index: int = 0
+var hit_callback: Callable = Callable()
 var _lifetime := 0.0
 # Per projectile instance only: prevents one projectile from damaging the same enemy twice,
 # but separate projectiles can still damage the same enemy independently.
@@ -62,6 +63,10 @@ func setup(origin: Vector2, new_target: Node2D, new_damage: int, extra_data: Dic
 		attack_id = int(extra_data["attack_id"])
 	if extra_data.has("projectile_index"):
 		projectile_index = int(extra_data["projectile_index"])
+	if extra_data.has("hit_callback"):
+		var callback = extra_data["hit_callback"]
+		if callback is Callable:
+			hit_callback = callback
 
 	if is_instance_valid(target):
 		var offset := target.global_position - global_position
@@ -123,6 +128,8 @@ func _try_hit_enemy(enemy: Node2D) -> bool:
 		])
 	_spawn_hit_spark(enemy.global_position)
 	_apply_explosion(enemy)
+	if hit_callback.is_valid():
+		hit_callback.call(enemy, enemy.global_position, damage)
 	if audio_manager != null and audio_manager.has_method("play_projectile_hit"):
 		audio_manager.play_projectile_hit()
 

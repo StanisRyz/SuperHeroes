@@ -653,7 +653,7 @@ Not implemented yet (meta):
 - Each hero has 9 evolution triples organized as 3 attack targets, 3 active targets, and 3 passive targets.
 - Each triple still requires exactly 1 attack upgrade line, 1 passive upgrade line, and 1 active upgrade line, all selected and maxed.
 - Triple definitions use `target_type` (`attack`, `active`, `passive`) plus `target_id`; old `target_active_skill_id` remains supported as active-evolution compatibility data.
-- The current implemented pack preserves the six existing active evolutions. Attack and passive target slots are schema placeholders and are not offered in Overdrive until their real effect packs exist.
+- The current implemented packs preserve the six existing active evolutions and add the nine Attack Evolutions Pack effects. Passive target slots remain schema placeholders and are not offered in Overdrive until their real effect pack exists.
 - Elite evolution rewards are supported behind `EvolutionManager.elite_reward_chance`, defaulting to `0.0`.
 - GameHUD shows current evolution state, and Victory/GameOver summaries list applied evolutions.
 - Debug Mode F9 can open the evolution reward screen when implemented evolutions are available.
@@ -672,15 +672,24 @@ The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** ch
 6. Only a successfully applied evolution is marked SELECTED and announced.
 7. The evolved skill permanently replaces its base behavior for the rest of the run. Only one evolution per triple; no stacking.
 
-#### Implemented Evolutions (6 of 27)
+#### Implemented Evolutions (15 of 27)
 
 | Evolution ID | Hero | Target Type | Target ID | Effect |
 |---|---|---|---|---|
 | `solar_beam_cataclysm` | Solar Guardian | active | `solar_beam` | 3x damage, 1.8x range/width, fires a delayed burn pulse (0.18 s); status: CATACLYSM |
+| `solar_beam_sky_lance` | Solar Guardian | attack | `solar_ray` | Solar Ray gains much longer range and a wider red lance corridor; status: SKY LANCE |
+| `solar_beam_burning_judgment` | Solar Guardian | attack | `solar_ray` | Solar Ray adds burning heat pulses after hits, doubled during Solar Empowered; status: BURNING JUDGMENT |
 | `frost_breath_absolute_zero` | Solar Guardian | active | `frost_breath` | 2x damage, 1.8x cone angle, double slow (0.08 speed + 0.02 freeze), status: ABSOLUTE ZERO |
+| `frost_breath_glacier_front` | Solar Guardian | attack | `solar_ray` | Despite the legacy id, evolves Solar Ray with a delayed radiant line pulse; status: SOLAR GLACIER FRONT / SOLAR PULSE |
+| `smoke_screen_tactical_cover` | Night Tactician | attack | `homing_rockets` | Homing Rockets fire extra support rockets and spread cover fire across targets; status: TACTICAL COVER |
+| `smoke_screen_choking_zone` | Night Tactician | attack | `homing_rockets` | Rocket impacts leave choking slow/mark bursts; status: CHOKING ZONE |
 | `trap_chain_detonation_evolution` | Night Tactician | active | `explosive_trap` | 2x damage, 2x explosion radius, two aftershock pulse rings (0.2 s + 0.42 s), marks all hit enemies; status: CHAIN DETONATION |
+| `trap_cluster_minefield` | Night Tactician | attack | `homing_rockets` | Rocket impacts split into clustered secondary explosions; status: CLUSTER MINEFIELD |
 | `hook_execution_pull` | Night Tactician | active | `grappling_hook` | 3x damage; if target was already Tactically Marked, triggers AoE mark explosion on hit enemies; status: EXECUTION |
 | `rage_wave_worldbreaker` | Fury Vanguard | active | `rage_wave` | 2x damage, fires 3 expanding shockwaves (0 / 0.22 / 0.44 s), heavy 0.22x speed slow; status: WORLDBREAKER |
+| `rage_wave_earthsplitter` | Fury Vanguard | attack | `splash_melee` | Fury Strikes carve a forward ground crack beyond normal melee reach; status: EARTHSPLITTER |
+| `rage_wave_crushing_storm` | Fury Vanguard | attack | `splash_melee` | Fury Strikes scale harder with Rage and emit a slowing pressure pulse; status: CRUSHING STORM |
+| `mighty_clap_seismic_fan` | Fury Vanguard | attack | `splash_melee` | Fury Strikes emit a forward seismic fan; status: SEISMIC FAN |
 | `rage_leap_meteor_crash` | Fury Vanguard | active | `rage_leap` | 2x damage, 1.5x radius, ring visual, delayed second impact at 0.45 s (0.2x speed slow); status: METEOR CRASH |
 
 #### Architecture
@@ -689,7 +698,8 @@ The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** ch
 - **EvolutionManager.get_overdrive_options()** returns merged dicts: triple definition + computed state (including `required_lines` for card display), filtered to implemented effects only.
 - **EvolutionManager.apply_evolution()** calls `_apply_evolution_effect(evolution_id, triple)`, routes by `target_type`, then marks triple SELECTED only on success and emits `evolution_applied`.
 - **AbilityManager evolution flags** are the current active-effect implementation surface. All flags reset in `set_hero_kit()`.
-- **DebugStatsOverlay** (F12) shows total and selected Attack / Active / Passive evolution counts plus `Overdrive: <title>, <title>` when evolutions are applied.
+- **PlayerAutoAttack.apply_attack_evolution(evolution_id, target_id)** is the attack-effect implementation surface. Attack evolutions are runtime-only, reset with the primary weapon on each fresh run, and expose `debug_get_attack_evolutions()` for debug UI.
+- **DebugStatsOverlay** (F12) shows total and selected Attack / Active / Passive evolution counts plus `Overdrive: <title>, <title>` and attack evolution ids when evolutions are applied. BuildSlotsWindow remains read-only and shows selected evolution titles.
 - OverdriveScreen is closed (hidden) on victory, defeat, restart, and quit-to-menu. No evolution state is saved to meta.
 
 ### Run Progression & Victory
@@ -822,7 +832,7 @@ An evolution becomes **ready** only when:
 - Triple readiness is computed live from UpgradeManager slot state.
 - 9 triples per hero (Guardian, Blaster, Vanguard) are defined with 3 attack / 3 active / 3 passive targets.
 - Six active evolutions are implemented and preserved.
-- Attack and passive evolution definitions are placeholders only and are not offered to players.
+- The nine attack evolution definitions are implemented and offerable through Overdrive. Passive evolution definitions remain placeholders and are not offered to players.
 - Evolution state is runtime-only: no save/meta persistence.
 
 ## Architecture Principles

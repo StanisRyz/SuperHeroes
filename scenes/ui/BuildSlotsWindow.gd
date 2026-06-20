@@ -15,8 +15,10 @@ const CATEGORY_COLORS := {
 }
 
 var _upgrade_manager: Node = null
+var _evolution_manager: Node = null
 var _section_labels: Dictionary = {}
 var _slot_rows: Dictionary = {}
+var _evolution_label: Label = null
 
 
 func _ready() -> void:
@@ -26,10 +28,13 @@ func _ready() -> void:
 	hide()
 
 
-func setup(upgrade_manager: Node) -> void:
+func setup(upgrade_manager: Node, evolution_manager: Node = null) -> void:
 	_upgrade_manager = upgrade_manager
+	_evolution_manager = evolution_manager
 	if _upgrade_manager != null and _upgrade_manager.has_signal("build_changed") and not _upgrade_manager.build_changed.is_connected(_on_build_changed):
 		_upgrade_manager.build_changed.connect(_on_build_changed)
+	if _evolution_manager != null and _evolution_manager.has_signal("evolution_state_changed") and not _evolution_manager.evolution_state_changed.is_connected(_on_evolution_state_changed):
+		_evolution_manager.evolution_state_changed.connect(_on_evolution_state_changed)
 	_refresh()
 
 
@@ -113,6 +118,14 @@ func _build_ui() -> void:
 	for category in CATEGORY_ORDER:
 		main.add_child(_create_section(category))
 
+	_evolution_label = Label.new()
+	_evolution_label.name = "EvolutionLabel"
+	_evolution_label.custom_minimum_size = Vector2(0.0, 28.0)
+	_evolution_label.clip_text = true
+	_evolution_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_evolution_label.modulate = Color(1.0, 0.85, 0.32, 1.0)
+	main.add_child(_evolution_label)
+
 
 func _create_section(category: String) -> Control:
 	var section := VBoxContainer.new()
@@ -164,6 +177,7 @@ func _refresh() -> void:
 			else:
 				row.text = "%d. Empty" % (index + 1)
 				row.modulate = Color(0.68, 0.68, 0.68, 1.0)
+	_update_evolution_label()
 
 
 func _get_slot_state() -> Dictionary:
@@ -191,3 +205,18 @@ func _format_upgrade_line(upgrade_id: String) -> String:
 func _on_build_changed(_dominant_archetype: String, _points: Dictionary) -> void:
 	if visible:
 		_refresh()
+
+
+func _on_evolution_state_changed() -> void:
+	if visible:
+		_refresh()
+
+
+func _update_evolution_label() -> void:
+	if _evolution_label == null:
+		return
+	if _evolution_manager == null or not _evolution_manager.has_method("get_applied_evolution_titles"):
+		_evolution_label.text = "Evolutions: None"
+		return
+	var titles: Array = _evolution_manager.get_applied_evolution_titles()
+	_evolution_label.text = "Evolutions: %s" % (", ".join(titles) if not titles.is_empty() else "None")

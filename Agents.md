@@ -89,7 +89,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/GameOverScreen.gd` - displays run stats and emits restart requests.
 - `scenes/player/Player.tscn` - player scene with camera.
 - `scenes/player/Player.gd` - movement, bounds clamp, health state.
-- `scenes/player/PlayerAutoAttack.gd` - autoattack range tracking and periodic enemy damage.
+- `scenes/player/PlayerAutoAttack.gd` - autoattack range tracking, periodic enemy damage, and runtime-only attack evolution effects via `apply_attack_evolution(evolution_id, target_id)`.
 - `scenes/enemies/Enemy.tscn` - enemy scene and contact damage area.
 - `scenes/enemies/Enemy.gd` - chase movement, enemy health, contact damage.
 - `scenes/enemies/SpawnDirector.tscn` - time-based spawn progression scene.
@@ -412,7 +412,7 @@ Each triple definition contains:
 
 - `EvolutionManager.apply_evolution(evolution_id)` finds the triple, routes by `target_type`, and marks SELECTED only if the effect handler succeeds.
 - `active` routes to `AbilityManager` and currently preserves the six implemented active effects through existing boolean flags.
-- `attack` routes to `PlayerAutoAttack` if a future `apply_attack_evolution(evolution_id, target_id)` handler exists; otherwise it warns and returns false.
+- `attack` routes to `PlayerAutoAttack.apply_attack_evolution(evolution_id, target_id)`; implemented handlers return true and unknown or placeholder ids return false without marking selected.
 - `passive` routes to `PassiveAbilityManager` if a future `apply_passive_evolution(evolution_id, target_id)` handler exists; otherwise it warns and returns false.
 - Unknown `target_type`, missing handler, or placeholder effect must return false and must not silently apply a no-op.
 
@@ -420,13 +420,31 @@ Each triple definition contains:
 
 - **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) is runtime-instantiated by Arena. It shows the evolution type label (ATTACK / ACTIVE / PASSIVE), target id, title, description, and required-line progress.
 - `EvolutionManager.get_overdrive_options()` returns READY, not-yet-selected triples for the active hero, filtered to `effect_status: "implemented"` only.
-- DebugStatsOverlay shows ready/selected totals plus Attack / Active / Passive target and selected counts.
-- BuildSlotsWindow remains read-only slot display. It must not mutate evolution state or slot rules.
+- DebugStatsOverlay shows ready/selected totals, Attack / Active / Passive target and selected counts, plus selected attack evolution ids from `PlayerAutoAttack.debug_get_attack_evolutions()`.
+- BuildSlotsWindow remains read-only slot display. It may show applied evolution titles, but must not mutate evolution state or slot rules.
 - OverdriveScreen is blocking: no skip/close-without-selection while visible.
+
+### Implemented Attack Evolution IDs
+
+The Attack Evolutions Pack is implemented in `PlayerAutoAttack.gd`. These effects must be game-breaking behavior changes with obvious visuals/status text, not simple stat-only bonuses:
+
+| evolution_id | hero_id | target_type | target_id |
+|---|---|---|---|
+| `solar_beam_sky_lance` | guardian | attack | `solar_ray` |
+| `solar_beam_burning_judgment` | guardian | attack | `solar_ray` |
+| `frost_breath_glacier_front` | guardian | attack | `solar_ray` |
+| `smoke_screen_tactical_cover` | blaster | attack | `homing_rockets` |
+| `smoke_screen_choking_zone` | blaster | attack | `homing_rockets` |
+| `trap_cluster_minefield` | blaster | attack | `homing_rockets` |
+| `rage_wave_earthsplitter` | vanguard | attack | `splash_melee` |
+| `rage_wave_crushing_storm` | vanguard | attack | `splash_melee` |
+| `mighty_clap_seismic_fan` | vanguard | attack | `splash_melee` |
+
+Attack evolution state is runtime-only in `PlayerAutoAttack`; it is cleared on new run/restart through fresh Arena setup and `set_primary_weapon()`. Never save attack evolution state to meta, preferences, settings, rewards, or any persistent file.
 
 ### Implemented Active Evolution IDs
 
-Do not add the full Attack Evolutions Pack or Passive Evolutions Pack unless explicitly requested. Current implemented active evolutions are:
+Do not add the Active Evolutions Pack or Passive Evolutions Pack unless explicitly requested. Current implemented active evolutions are:
 
 | evolution_id | hero_id | target_type | target_id |
 |---|---|---|---|
@@ -442,7 +460,7 @@ Do not add the full Attack Evolutions Pack or Passive Evolutions Pack unless exp
 - EvolutionRewardScreen is display-only for legacy evolution reward flow; OverdriveScreen is the triple-grid path.
 - Arena coordinates opening screens, pausing/resuming, applying selected evolutions, and announcements.
 - Miniboss defeat remains the main evolution reward path for legacy evolutions; elite rewards are optional through `elite_reward_chance` and default to off.
-- Do not add persistence, meta-progression, evolution unlock storage, evolution art assets, attack/passive effect packs, slot-rule changes, rewards changes, stage changes, enemy changes, boss-flow changes, or Build Evolution unless explicitly requested.
+- Placeholder evolutions must not be offered. Do not add persistence, meta-progression, evolution unlock storage, evolution art assets, active/passive effect packs, slot-rule changes, rewards changes, stage changes, enemy changes, boss-flow changes, or Build Evolution unless explicitly requested.
 
 ## Meta Progression Architecture
 

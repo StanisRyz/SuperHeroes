@@ -1,6 +1,7 @@
 extends Node
 
 const SOLAR_RAY_INTERVAL_MIN := 0.20
+const STATUS_SENTINEL := Vector2(100000000.0, 100000000.0)
 
 @export var attack_damage: int = 5
 @export var attack_interval: float = 0.6
@@ -27,6 +28,13 @@ const SOLAR_RAY_INTERVAL_MIN := 0.20
 @export var solar_ray_lingering_heat_enabled: bool = false
 @export var solar_ray_focus_bonus: float = 0.0
 @export var solar_ray_execution_threshold: float = 0.0
+@export var solar_ray_sky_lance_enabled: bool = false
+@export var solar_ray_sky_lance_range_bonus: float = 360.0
+@export var solar_ray_sky_lance_width_bonus: float = 52.0
+@export var solar_ray_burning_judgment_enabled: bool = false
+@export var solar_ray_burning_judgment_damage: int = 8
+@export var solar_ray_glacier_front_enabled: bool = false
+@export var solar_ray_line_pulse_enabled: bool = false
 @export var splash_melee_radius: float = 85.0
 @export var splash_melee_knockback: float = 0.0
 @export var splash_melee_shockwave_enabled: bool = false
@@ -34,15 +42,30 @@ const SOLAR_RAY_INTERVAL_MIN := 0.20
 @export var splash_melee_combo_enabled: bool = false
 @export var splash_melee_combo_bonus: float = 0.0
 @export var splash_melee_execute_threshold: float = 0.0
+@export var rocket_tactical_cover_enabled: bool = false
+@export var rocket_support_count_bonus: int = 2
+@export var rocket_choking_zone_enabled: bool = false
+@export var rocket_impact_slow_enabled: bool = false
+@export var rocket_cluster_minefield_enabled: bool = false
+@export var rocket_cluster_explosion_count: int = 4
+@export var rocket_cluster_explosion_radius: float = 96.0
+@export var splash_melee_earthsplitter_enabled: bool = false
+@export var splash_melee_earthsplitter_range: float = 260.0
+@export var splash_melee_crushing_storm_enabled: bool = false
+@export var splash_melee_crushing_storm_rage_bonus: float = 1.35
+@export var splash_melee_seismic_fan_enabled: bool = false
+@export var splash_melee_seismic_fan_width: float = 82.0
 
 var projectile_container: Node
 var audio_manager: Node
+var feedback_manager: Node
 var _cooldown := 0.0
 var _enemies_in_range: Array[Node2D] = []
 var _missing_projectile_warning_shown := false
 var _attack_sequence_id: int = 0
 var _splash_combo_stacks: int = 0
 var _splash_combo_decay_timer: float = 0.0
+var _selected_attack_evolutions: Dictionary = {}
 
 # Primary weapon identity set by HeroApplier via set_primary_weapon().
 # Defaults to empty so existing scenes with no hero selected fall back to
@@ -113,6 +136,10 @@ func setup_audio_manager(new_audio_manager: Node) -> void:
 	audio_manager = new_audio_manager
 
 
+func setup_feedback_manager(new_feedback_manager: Node) -> void:
+	feedback_manager = new_feedback_manager
+
+
 # Called by HeroApplier after hero stats are applied. Sets weapon identity and
 # applies weapon-specific property defaults (speed, size, range, bounce).
 # Upgrade hooks (attack_damage, attack_interval, attack_range, projectile_count,
@@ -121,6 +148,7 @@ func setup_audio_manager(new_audio_manager: Node) -> void:
 func set_primary_weapon(_hero_id: String, weapon_id: String, weapon_data: Dictionary) -> void:
 	_primary_weapon_id = weapon_id
 	_primary_weapon_data = weapon_data
+	_reset_attack_evolution_state()
 
 	if weapon_data.has("projectile_speed"):
 		projectile_speed = float(weapon_data["projectile_speed"])
@@ -145,6 +173,82 @@ func get_primary_weapon_id() -> String:
 
 func get_primary_weapon_display_name() -> String:
 	return str(_primary_weapon_data.get("display_name", _primary_weapon_id))
+
+
+func apply_attack_evolution(evolution_id: String, target_id: String) -> bool:
+	if has_attack_evolution(evolution_id):
+		return false
+	match evolution_id:
+		"solar_beam_sky_lance":
+			if target_id != "solar_ray" or _primary_weapon_id != "solar_ray":
+				return false
+			solar_ray_sky_lance_enabled = true
+			attack_range += solar_ray_sky_lance_range_bonus
+			solar_ray_width += solar_ray_sky_lance_width_bonus
+			_update_attack_range_shape()
+			_mark_attack_evolution(evolution_id, target_id, "Sky Lance")
+			_show_status("SKY LANCE")
+		"solar_beam_burning_judgment":
+			if target_id != "solar_ray" or _primary_weapon_id != "solar_ray":
+				return false
+			solar_ray_burning_judgment_enabled = true
+			_mark_attack_evolution(evolution_id, target_id, "Burning Judgment")
+			_show_status("BURNING JUDGMENT")
+		"frost_breath_glacier_front":
+			if target_id != "solar_ray" or _primary_weapon_id != "solar_ray":
+				return false
+			solar_ray_glacier_front_enabled = true
+			solar_ray_line_pulse_enabled = true
+			_mark_attack_evolution(evolution_id, target_id, "Solar Glacier Front")
+			_show_status("SOLAR GLACIER FRONT")
+		"smoke_screen_tactical_cover":
+			if target_id != "homing_rockets" or _primary_weapon_id != "homing_rockets":
+				return false
+			rocket_tactical_cover_enabled = true
+			_mark_attack_evolution(evolution_id, target_id, "Tactical Cover")
+			_show_status("TACTICAL COVER")
+		"smoke_screen_choking_zone":
+			if target_id != "homing_rockets" or _primary_weapon_id != "homing_rockets":
+				return false
+			rocket_choking_zone_enabled = true
+			rocket_impact_slow_enabled = true
+			_mark_attack_evolution(evolution_id, target_id, "Choking Zone")
+			_show_status("CHOKING ZONE")
+		"trap_cluster_minefield":
+			if target_id != "homing_rockets" or _primary_weapon_id != "homing_rockets":
+				return false
+			rocket_cluster_minefield_enabled = true
+			_mark_attack_evolution(evolution_id, target_id, "Cluster Minefield")
+			_show_status("CLUSTER MINEFIELD")
+		"rage_wave_earthsplitter":
+			if target_id != "splash_melee" or _primary_weapon_id != "splash_melee":
+				return false
+			splash_melee_earthsplitter_enabled = true
+			_mark_attack_evolution(evolution_id, target_id, "Earthsplitter")
+			_show_status("EARTHSPLITTER")
+		"rage_wave_crushing_storm":
+			if target_id != "splash_melee" or _primary_weapon_id != "splash_melee":
+				return false
+			splash_melee_crushing_storm_enabled = true
+			_mark_attack_evolution(evolution_id, target_id, "Crushing Storm")
+			_show_status("CRUSHING STORM")
+		"mighty_clap_seismic_fan":
+			if target_id != "splash_melee" or _primary_weapon_id != "splash_melee":
+				return false
+			splash_melee_seismic_fan_enabled = true
+			_mark_attack_evolution(evolution_id, target_id, "Seismic Fan")
+			_show_status("SEISMIC FAN")
+		_:
+			return false
+	return true
+
+
+func has_attack_evolution(evolution_id: String) -> bool:
+	return _selected_attack_evolutions.has(evolution_id)
+
+
+func debug_get_attack_evolutions() -> Dictionary:
+	return _selected_attack_evolutions.duplicate(true)
 
 
 # ── Per-weapon tick methods ───────────────────────────────────────────────────
@@ -189,11 +293,22 @@ func _tick_solar_ray() -> bool:
 			target.take_damage(_get_solar_ray_damage_for_target(target, ray_damage, target == nearest))
 			if solar_ray_burn_damage > 0:
 				target.take_damage(solar_ray_burn_damage)
+			if solar_ray_burning_judgment_enabled:
+				_apply_burning_judgment(target)
 			if solar_ray_lingering_heat_enabled:
 				_schedule_solar_ray_lingering_heat(target)
 			hit_any = true
 
 	_spawn_solar_ray_visual(origin, direction)
+	if solar_ray_line_pulse_enabled:
+		_schedule_solar_ray_line_pulse(origin, direction, ray_damage)
+	if hit_any:
+		if solar_ray_sky_lance_enabled:
+			_show_status("SKY LANCE", origin + direction * minf(attack_range, 160.0) + Vector2.UP * 24.0)
+		elif solar_ray_burning_judgment_enabled:
+			_show_status("BURNING JUDGMENT", origin + direction * minf(attack_range, 160.0) + Vector2.UP * 24.0)
+		elif solar_ray_glacier_front_enabled:
+			_show_status("SOLAR PULSE", origin + direction * minf(attack_range, 160.0) + Vector2.UP * 24.0)
 	return hit_any
 
 
@@ -232,6 +347,39 @@ func _schedule_solar_ray_lingering_heat(target: Node2D) -> void:
 	)
 
 
+func _apply_burning_judgment(target: Node2D) -> void:
+	if target == null or not is_instance_valid(target) or not target.has_method("take_damage"):
+		return
+	var damage := solar_ray_burning_judgment_damage
+	if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
+		if _ability_manager_ref.has_method("is_solar_empowered") and _ability_manager_ref.is_solar_empowered():
+			damage = maxi(roundi(float(damage) * 2.0), 1)
+	target.take_damage(damage)
+	_schedule_delayed_enemy_damage(target, maxi(roundi(float(damage) * 0.75), 1), 0.18)
+	_schedule_delayed_enemy_damage(target, maxi(roundi(float(damage) * 0.55), 1), 0.38)
+
+
+func _schedule_delayed_enemy_damage(target: Node2D, damage: int, delay: float) -> void:
+	var timer := get_tree().create_timer(delay)
+	timer.timeout.connect(func() -> void:
+		if is_instance_valid(target) and target.has_method("take_damage"):
+			target.take_damage(damage)
+	)
+
+
+func _schedule_solar_ray_line_pulse(origin: Vector2, direction: Vector2, base_damage: int) -> void:
+	var pulse_range := attack_range * 0.92
+	var pulse_width := solar_ray_width * 1.65
+	var pulse_damage := maxi(roundi(float(base_damage) * 0.55), 1)
+	var timer := get_tree().create_timer(0.20)
+	timer.timeout.connect(func() -> void:
+		if not is_instance_valid(self):
+			return
+		_damage_enemies_in_line(origin, direction, pulse_damage, pulse_range, pulse_width)
+		_spawn_beam_visual(origin, direction, pulse_range, pulse_width, Color(1.0, 0.78, 0.20, 0.72), 0.24)
+	)
+
+
 func _get_attack_cooldown() -> float:
 	if _primary_weapon_id == "solar_ray" and solar_ray_tick_rate_bonus > 0.0:
 		return maxf(SOLAR_RAY_INTERVAL_MIN, attack_interval - solar_ray_tick_rate_bonus)
@@ -250,8 +398,8 @@ func _spawn_solar_ray_visual(origin: Vector2, direction: Vector2) -> void:
 		return
 
 	var line := Line2D.new()
-	line.width = maxf(solar_ray_width * 0.28, 4.0)
-	line.default_color = Color(1.0, 0.18, 0.0, 0.88)
+	line.width = maxf(solar_ray_width * (0.42 if solar_ray_sky_lance_enabled else 0.28), 4.0)
+	line.default_color = Color(1.0, 0.05, 0.0, 0.92) if solar_ray_sky_lance_enabled else Color(1.0, 0.18, 0.0, 0.88)
 	line.add_point(origin)
 	line.add_point(origin + direction * attack_range)
 	parent.add_child(line)
@@ -271,7 +419,10 @@ func _tick_splash_melee() -> bool:
 	if _enemies_in_range.is_empty():
 		return false
 	var origin := owner_body.global_position
+	var facing := _get_forward_direction()
 	var multiplier := _get_splash_melee_rage_multiplier()
+	if splash_melee_crushing_storm_enabled:
+		multiplier += _get_rage_ratio() * splash_melee_crushing_storm_rage_bonus
 	var combo_multiplier := 1.0
 	if splash_melee_combo_enabled and _splash_combo_stacks > 0:
 		combo_multiplier = 1.0 + float(_splash_combo_stacks) * splash_melee_combo_bonus
@@ -309,6 +460,12 @@ func _tick_splash_melee() -> bool:
 			_splash_combo_decay_timer = 3.0
 		if splash_melee_shockwave_enabled:
 			_schedule_splash_shockwave(origin)
+		if splash_melee_earthsplitter_enabled:
+			_apply_earthsplitter(origin, facing, hit_damage)
+		if splash_melee_crushing_storm_enabled:
+			_apply_crushing_storm(origin, hit_damage)
+		if splash_melee_seismic_fan_enabled:
+			_apply_seismic_fan(origin, facing, hit_damage)
 	return hit_any
 
 
@@ -317,6 +474,14 @@ func _get_splash_melee_rage_multiplier() -> float:
 		if _ability_manager_ref.has_method("get_rage_damage_multiplier"):
 			return float(_ability_manager_ref.get_rage_damage_multiplier())
 	return 1.0
+
+
+func _get_rage_ratio() -> float:
+	if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
+		if _ability_manager_ref.has_method("get_rage_state"):
+			var state: Dictionary = _ability_manager_ref.get_rage_state()
+			return clampf(float(state.get("rage_ratio", 0.0)), 0.0, 1.0)
+	return 0.0
 
 
 func _spawn_splash_melee_visual(origin: Vector2) -> void:
@@ -409,7 +574,8 @@ func _tick_homing_rockets() -> bool:
 					unmarked.append(e)
 			valid_enemies = marked + unmarked
 
-	var safe_count := clampi(projectile_count, 1, max_projectile_count)
+	var support_bonus := rocket_support_count_bonus if rocket_tactical_cover_enabled else 0
+	var safe_count := clampi(projectile_count + support_bonus, 1, max_projectile_count + support_bonus)
 	var next_attack_id := _attack_sequence_id + 1
 	var spawned_any := false
 
@@ -429,6 +595,8 @@ func _tick_homing_rockets() -> bool:
 
 	if spawned_any:
 		_attack_sequence_id = next_attack_id
+		if rocket_tactical_cover_enabled:
+			_show_status("TACTICAL COVER", owner_body.global_position + Vector2.UP * 42.0)
 	return spawned_any
 
 
@@ -457,10 +625,24 @@ func _spawn_homing_rocket(target: Node2D, direction: Vector2, rocket_damage: int
 			"homing_enabled": true,
 			"attack_id": attack_id,
 			"projectile_index": index,
+			"hit_callback": Callable(self, "_on_homing_rocket_hit") if _has_rocket_impact_evolution() else Callable(),
 		})
 	else:
 		projectile.global_position = spawn_position
 	return true
+
+
+func _on_homing_rocket_hit(enemy: Node2D, world_position: Vector2, rocket_damage: int) -> void:
+	if rocket_choking_zone_enabled:
+		_apply_rocket_choking_zone(world_position)
+	if rocket_cluster_minefield_enabled:
+		_apply_rocket_cluster_minefield(world_position, rocket_damage)
+	if rocket_tactical_cover_enabled and enemy != null and is_instance_valid(enemy):
+		_spawn_ring_visual(world_position, 54.0, Color(0.35, 0.72, 1.0, 0.82), 0.18, 3.0)
+
+
+func _has_rocket_impact_evolution() -> bool:
+	return rocket_choking_zone_enabled or rocket_cluster_minefield_enabled or rocket_tactical_cover_enabled
 
 
 # Fury Vanguard: close-range shockwave. Damages all enemies currently in the
@@ -480,6 +662,49 @@ func _tick_shockwave_strike() -> bool:
 		hit_any = true
 
 	return hit_any
+
+
+func _apply_earthsplitter(origin: Vector2, direction: Vector2, base_damage: int) -> void:
+	var damage := maxi(roundi(float(base_damage) * 0.75), 1)
+	var width := splash_melee_seismic_fan_width * 0.65
+	var hits := _damage_enemies_in_line(origin, direction, damage, splash_melee_earthsplitter_range, width)
+	_spawn_beam_visual(origin, direction, splash_melee_earthsplitter_range, width, Color(1.0, 0.46, 0.12, 0.70), 0.22)
+	if hits > 0:
+		_show_status("EARTHSPLITTER", origin + direction * 120.0 + Vector2.UP * 22.0)
+
+
+func _apply_crushing_storm(origin: Vector2, base_damage: int) -> void:
+	var ratio := _get_rage_ratio()
+	var radius := splash_melee_radius * lerpf(1.55, 2.45, ratio)
+	var damage := maxi(roundi(float(base_damage) * lerpf(0.55, 1.15, ratio)), 1)
+	var hits := _damage_enemies_in_radius(origin, radius, damage)
+	_apply_modifier_in_radius(origin, radius, "crushing_storm_pressure", {"speed_multiplier": lerpf(0.62, 0.28, ratio)}, 1.25 + ratio)
+	_spawn_ring_visual(origin, radius, Color(0.95, 0.28, 0.08, 0.78), 0.24, 5.0)
+	if hits > 0:
+		_show_status("CRUSHING STORM", origin + Vector2.UP * 52.0)
+
+
+func _apply_seismic_fan(origin: Vector2, direction: Vector2, base_damage: int) -> void:
+	var range_dist := splash_melee_radius + 175.0
+	var half_angle := deg_to_rad(34.0)
+	var damage := maxi(roundi(float(base_damage) * 0.85), 1)
+	var hits := 0
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if not _is_valid_enemy(node):
+			continue
+		var target := node as Node2D
+		var to_target := target.global_position - origin
+		if to_target.length() > range_dist:
+			continue
+		var angle := 0.0
+		if not to_target.is_zero_approx():
+			angle = absf(direction.angle_to(to_target.normalized()))
+		if angle <= half_angle:
+			node.take_damage(damage)
+			hits += 1
+	_spawn_fan_visual(origin, direction, range_dist, splash_melee_seismic_fan_width)
+	if hits > 0:
+		_show_status("SEISMIC FAN", origin + direction * 110.0 + Vector2.UP * 24.0)
 
 
 # Returns the Tactical Mark target from AbilityManager if it is valid and
@@ -654,6 +879,166 @@ func get_weapon_stats() -> Dictionary:
 		"projectile_bounce": projectile_bounce,
 		"max_projectile_count": max_projectile_count,
 	}
+
+
+func _reset_attack_evolution_state() -> void:
+	_selected_attack_evolutions.clear()
+	solar_ray_sky_lance_enabled = false
+	solar_ray_burning_judgment_enabled = false
+	solar_ray_glacier_front_enabled = false
+	solar_ray_line_pulse_enabled = false
+	rocket_tactical_cover_enabled = false
+	rocket_choking_zone_enabled = false
+	rocket_impact_slow_enabled = false
+	rocket_cluster_minefield_enabled = false
+	splash_melee_earthsplitter_enabled = false
+	splash_melee_crushing_storm_enabled = false
+	splash_melee_seismic_fan_enabled = false
+
+
+func _mark_attack_evolution(evolution_id: String, target_id: String, title: String) -> void:
+	_selected_attack_evolutions[evolution_id] = {
+		"target_id": target_id,
+		"title": title,
+	}
+
+
+func _get_forward_direction() -> Vector2:
+	var nearest := _find_nearest_enemy()
+	if nearest != null and owner_body != null:
+		var to_target := nearest.global_position - owner_body.global_position
+		if not to_target.is_zero_approx():
+			return to_target.normalized()
+	return Vector2.RIGHT
+
+
+func _damage_enemies_in_line(origin: Vector2, direction: Vector2, damage: int, range_dist: float, width: float) -> int:
+	var half_width := width * 0.5
+	var perp_axis := direction.orthogonal()
+	var hits := 0
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if not _is_valid_enemy(node):
+			continue
+		var target := node as Node2D
+		var to_target: Vector2 = target.global_position - origin
+		var proj := to_target.dot(direction)
+		if proj < 0.0 or proj > range_dist:
+			continue
+		if absf(to_target.dot(perp_axis)) <= half_width:
+			node.take_damage(damage)
+			hits += 1
+	return hits
+
+
+func _damage_enemies_in_radius(origin: Vector2, radius: float, damage: int) -> int:
+	var hits := 0
+	var radius_sq := radius * radius
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if not _is_valid_enemy(node):
+			continue
+		var enemy := node as Node2D
+		if origin.distance_squared_to(enemy.global_position) <= radius_sq:
+			enemy.take_damage(damage)
+			hits += 1
+	return hits
+
+
+func _apply_modifier_in_radius(origin: Vector2, radius: float, modifier_id: String, values: Dictionary, duration: float) -> void:
+	var radius_sq := radius * radius
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if not _is_valid_enemy(node) or not node.has_method("apply_temporary_modifier"):
+			continue
+		var enemy := node as Node2D
+		if origin.distance_squared_to(enemy.global_position) <= radius_sq:
+			node.apply_temporary_modifier(modifier_id, values, duration)
+
+
+func _apply_rocket_choking_zone(world_position: Vector2) -> void:
+	var radius := 128.0
+	_apply_modifier_in_radius(world_position, radius, "rocket_choking_zone", {"speed_multiplier": 0.42}, 1.65)
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if not _is_valid_enemy(node):
+			continue
+		var enemy := node as Node2D
+		if world_position.distance_to(enemy.global_position) > radius:
+			continue
+		if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref) and _ability_manager_ref.has_method("apply_tactical_mark"):
+			_ability_manager_ref.apply_tactical_mark(enemy)
+	_spawn_ring_visual(world_position, radius, Color(0.48, 0.58, 0.66, 0.62), 0.28, 4.0)
+	_show_status("CHOKING ZONE", world_position + Vector2.UP * 28.0)
+
+
+func _apply_rocket_cluster_minefield(world_position: Vector2, rocket_damage: int) -> void:
+	var count := clampi(rocket_cluster_explosion_count, 1, 6)
+	var damage := maxi(roundi(float(rocket_damage) * 0.45), 1)
+	for index in range(count):
+		var angle := TAU * float(index) / float(count)
+		var center := world_position + Vector2(cos(angle), sin(angle)) * (rocket_cluster_explosion_radius * 0.42)
+		_damage_enemies_in_radius(center, rocket_cluster_explosion_radius, damage)
+		_spawn_ring_visual(center, rocket_cluster_explosion_radius, Color(1.0, 0.48, 0.10, 0.72), 0.22, 3.0)
+	_show_status("CLUSTER MINEFIELD", world_position + Vector2.UP * 28.0)
+
+
+func _spawn_ring_visual(world_position: Vector2, radius: float, color: Color, duration: float, width: float) -> void:
+	var parent := _get_feedback_parent()
+	if parent == null:
+		return
+	var line := Line2D.new()
+	line.width = width
+	line.default_color = color
+	line.z_index = 30
+	var segments := 32
+	for i in range(segments + 1):
+		var angle := TAU * float(i) / float(segments)
+		line.add_point(world_position + Vector2(cos(angle), sin(angle)) * radius)
+	parent.add_child(line)
+	var tween := line.create_tween()
+	tween.tween_property(line, "modulate:a", 0.0, duration)
+	tween.finished.connect(line.queue_free)
+
+
+func _spawn_beam_visual(origin: Vector2, direction: Vector2, range_dist: float, width: float, color: Color, duration: float) -> void:
+	var parent := _get_feedback_parent()
+	if parent == null:
+		return
+	var line := Line2D.new()
+	line.width = width
+	line.default_color = color
+	line.z_index = 30
+	line.add_point(origin)
+	line.add_point(origin + direction * range_dist)
+	parent.add_child(line)
+	var tween := line.create_tween()
+	tween.tween_property(line, "modulate:a", 0.0, duration)
+	tween.finished.connect(line.queue_free)
+
+
+func _spawn_fan_visual(origin: Vector2, direction: Vector2, range_dist: float, width: float) -> void:
+	var parent := _get_feedback_parent()
+	if parent == null:
+		return
+	var left := direction.rotated(deg_to_rad(-34.0)).normalized()
+	var right := direction.rotated(deg_to_rad(34.0)).normalized()
+	_spawn_beam_visual(origin, left, range_dist, width * 0.34, Color(1.0, 0.62, 0.16, 0.68), 0.20)
+	_spawn_beam_visual(origin, direction, range_dist, width * 0.42, Color(1.0, 0.72, 0.24, 0.74), 0.20)
+	_spawn_beam_visual(origin, right, range_dist, width * 0.34, Color(1.0, 0.62, 0.16, 0.68), 0.20)
+
+
+func _get_feedback_parent() -> Node:
+	if projectile_container != null and is_instance_valid(projectile_container):
+		return projectile_container
+	if owner_body != null and owner_body.get_parent() != null:
+		return owner_body.get_parent()
+	return get_tree().current_scene
+
+
+func _show_status(text: String, world_position: Vector2 = STATUS_SENTINEL) -> void:
+	if feedback_manager == null or not feedback_manager.has_method("show_status"):
+		return
+	var pos := world_position
+	if pos == STATUS_SENTINEL and owner_body != null:
+		pos = owner_body.global_position + Vector2.UP * 42.0
+	feedback_manager.show_status(text, pos)
 
 
 func _update_attack_range_shape() -> void:

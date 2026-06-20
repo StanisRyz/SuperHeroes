@@ -1096,6 +1096,26 @@ DEBUG_PLAYER: invulnerable=true
 | 5 | Select `rage_wave_worldbreaker`, then cast Rage Wave | Worldbreaker behavior still applies |
 | 6 | Select `rage_leap_meteor_crash`, then cast Rage Leap | Meteor Crash behavior still applies |
 
+### Attack Evolutions Pack
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Complete a ready attack triple | OverdriveScreen offers an `ATTACK EVOLUTION -> <TARGET>` card only when `effect_status` is implemented |
+| 2 | Select `solar_beam_sky_lance` | Solar Ray range/width visibly increase; beam appears as a large red lance and hits enemies through the full wider corridor |
+| 3 | Select `solar_beam_burning_judgment` | Solar Ray hits trigger `BURNING JUDGMENT` feedback and extra delayed heat damage; heat is stronger while Solar Empowered |
+| 4 | Select `frost_breath_glacier_front` | Solar Ray creates a delayed radiant line pulse; this remains a Solar Ray attack evolution despite the legacy id |
+| 5 | Select `smoke_screen_tactical_cover` | Homing Rockets fire extra support rockets, prefer different targets when possible, and show `TACTICAL COVER` feedback |
+| 6 | Select `smoke_screen_choking_zone` | Rocket impacts create visible smoke/slow bursts, mark affected enemies when possible, and show `CHOKING ZONE` feedback |
+| 7 | Select `trap_cluster_minefield` | Rocket impacts split into clustered AoE explosions and show `CLUSTER MINEFIELD` feedback |
+| 8 | Select `rage_wave_earthsplitter` | Fury Strikes emit a forward ground crack with greater reach than normal splash and show `EARTHSPLITTER` feedback |
+| 9 | Select `rage_wave_crushing_storm` | Fury Strikes scale harder with Rage, release a slowing pressure pulse, and show `CRUSHING STORM` feedback |
+| 10 | Select `mighty_clap_seismic_fan` | Fury Strikes emit a visible forward seismic fan and show `SEISMIC FAN` feedback |
+| 11 | Re-open Overdrive after selecting an attack evolution | The selected attack evolution does not appear again |
+| 12 | Complete a passive placeholder triple | Placeholder passive evolutions are still filtered out and not offered |
+| 13 | Check DebugStatsOverlay and BuildSlotsWindow | DebugStatsOverlay shows selected attack evolution ids; BuildSlotsWindow remains read-only and shows applied evolution titles |
+| 14 | Restart, win, defeat, or quit to menu | Attack evolution state is cleared with the fresh run; no evolution state is saved |
+| 15 | Inspect scope | Active Evolutions Pack and Passive Evolutions Pack are not implemented; 4/4/4 slots, shared passives, stages, enemies, boss flow, rewards, saves, and meta economy are unchanged |
+
 ### Regression - unchanged systems
 
 | # | Test | Expected |

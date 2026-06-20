@@ -219,6 +219,9 @@ func _setup_feedback_manager() -> void:
 	var ability_manager := player.get_node_or_null("AbilityManager") if player != null else null
 	if ability_manager != null and ability_manager.has_method("setup_feedback_manager"):
 		ability_manager.setup_feedback_manager(_feedback_manager)
+	var auto_attack := player.get_node_or_null("AutoAttack") if player != null else null
+	if auto_attack != null and auto_attack.has_method("setup_feedback_manager"):
+		auto_attack.setup_feedback_manager(_feedback_manager)
 
 
 func _setup_passive_ability_manager() -> void:
@@ -372,7 +375,7 @@ func _setup_build_slots_window() -> void:
 		push_warning("Arena could not find BuildSlotsWindow node.")
 		return
 	if build_slots_window.has_method("setup"):
-		build_slots_window.setup(upgrade_manager)
+		build_slots_window.setup(upgrade_manager, evolution_manager)
 	if build_slots_window.has_signal("closed") and not build_slots_window.closed.is_connected(_on_build_slots_window_closed):
 		build_slots_window.closed.connect(_on_build_slots_window_closed)
 
