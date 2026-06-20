@@ -17,6 +17,8 @@ var _evolution_manager: Node = null
 var _meta_manager: Node = null
 var _settings_manager: Node = null
 
+var _objective_manager: Node = null
+
 var _debug_enabled: bool = false
 var _refresh_timer: float = 0.0
 
@@ -70,6 +72,10 @@ func setup_meta_manager(meta_manager: Node) -> void:
 
 func setup_settings_manager(settings_manager: Node) -> void:
 	_settings_manager = settings_manager
+
+
+func setup_objective_manager(obj_manager: Node) -> void:
+	_objective_manager = obj_manager
 
 
 func set_debug_enabled(enabled: bool) -> void:
@@ -440,6 +446,30 @@ func _build_stats_text() -> String:
 				lines.append("Training: none")
 			else:
 				lines.append("Training: %s" % " | ".join(training_lines))
+
+	# Objective
+	if _objective_manager != null and is_instance_valid(_objective_manager):
+		lines.append("-- Objective --")
+		if _objective_manager.has_method("debug_get_objective_state"):
+			var obj: Dictionary = _objective_manager.debug_get_objective_state()
+			var obj_type := str(obj.get("objective_type", "?"))
+			var done := bool(obj.get("objective_done", false))
+			lines.append("Type: %s  Done: %s" % [obj_type, done])
+			match obj_type:
+				"defense":
+					var cur := int(obj.get("defense_hp", 0))
+					var max_hp := int(obj.get("defense_max_hp", 1))
+					var failed := bool(obj.get("failed", false))
+					lines.append("Reactor: %d / %d HP  Failed: %s" % [cur, max_hp, failed])
+				"destroy_structures":
+					var destroyed := int(obj.get("portals_destroyed", 0))
+					var total := int(obj.get("portals_total", 0))
+					var alive := int(obj.get("portals_alive", 0))
+					var pressure := bool(obj.get("portal_pressure_active", false))
+					lines.append("Portals: %d / %d  Alive: %d  Pressure: %s" % [destroyed, total, alive, pressure])
+					var mod: Dictionary = obj.get("portal_modifier", {})
+					if not mod.is_empty():
+						lines.append("Portal mod: pressure=%.2f" % float(mod.get("spawn_pressure", 1.0)))
 
 	# Feedback settings
 	if _settings_manager != null and is_instance_valid(_settings_manager):

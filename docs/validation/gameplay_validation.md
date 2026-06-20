@@ -1560,3 +1560,74 @@ DEBUG_PLAYER: invulnerable=true
 | 2 | Check miniboss and final boss | Triggered by EventDirector/EnemySpawner as before; unaffected by role pack |
 | 3 | Check EnemyProjectile | No changes; still detects Player only |
 | 4 | Inspect diff | No arena hazards, Stage Objectives Pack, or Boss Encounter 2.0 added |
+
+---
+
+## Stage Events & Objective Pressure
+
+### EventDirector Presence
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start any run; check console | No "EventDirector not found" warning; EventDirector created dynamically |
+| 2 | Wait until t=1:15 on City Rooftop | "Emergency wave approaching!" announcement appears |
+| 3 | Wait until t=1:30 on City Rooftop | Elite spawns; "Elite Incoming!" announcement |
+| 4 | Wait until t=2:30 on City Rooftop | "Wave surge!" announcement; spawn interval noticeably faster for ~30 s |
+| 5 | Reach Final Phase | "Pre-boss surge!" or final phase modifier applies; DebugStatsOverlay shows active_timed modifier |
+| 6 | Start final boss | No new elites or modifiers fire after boss phase begins |
+
+### City Rooftop — Survival
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select City Rooftop; start run | HUD shows "Survive: 0:00 / 10:00" timer in ObjectiveLabel |
+| 2 | Run to 10:00 | Final boss encounter triggered as before |
+| 3 | Upgrade/evolution/level-up while running | All unaffected |
+| 4 | Confirm no arena hazards | Arena is open; only Line2D boundary appears during final boss |
+| 5 | Pause and restart | Objective timer resets cleanly |
+
+### Neon Lab — Defense
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select Neon Lab; start run | Lab Reactor structure spawns near center; HUD ObjectiveLabel shows "Lab Reactor: 300 / 300 HP" |
+| 2 | Let enemies approach the Reactor | Reactor HP slowly decreases; HUD label updates within 0.25 s |
+| 3 | Reactor HP drops below 60% | Label turns yellow |
+| 4 | Reactor HP drops below 30% | Label turns orange |
+| 5 | Reactor HP reaches 0 | "Reactor Destroyed!" announcement; game over screen appears |
+| 6 | Restart after defense defeat | Run resets cleanly; new Reactor spawns at full HP |
+| 7 | Reactor is never damaged by the final boss | Final boss's `is_final_boss` flag excludes it from contact list |
+| 8 | Wait until t=1:00 | "Ranged support detected!" announcement |
+| 9 | Wait until t=2:00 | Elite spawns |
+| 10 | Check DebugStatsOverlay (F12) | Shows "Type: defense  Done: false" and current Reactor HP |
+| 11 | Confirm no arena hazards | Only the Reactor structure and Boss arena boundary (on final boss) exist |
+
+### Wasteland Gate — Portal Closure
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select Wasteland Gate; start run | Three Dark Portals appear at spread positions; HUD shows "Portals: 0 / 3" |
+| 2 | Attack a portal with the primary weapon | Portal HP decreases; HP label updates |
+| 3 | Portal HP reaches 0 | Portal visual darkens; "0 / 3" → "1 / 3" in HUD |
+| 4 | Check DebugStatsOverlay after portal destroyed | "Portals: 1 / 3  Alive: 2  Pressure: true"; portal_modifier spawn_pressure decreases |
+| 5 | Destroy all 3 portals | "All Portals Destroyed!" announcement; portal pressure cleared; final boss encounter begins |
+| 6 | Confirm run timer does NOT trigger boss | Timer runs normally but `target_time_reached` is not connected to boss for this stage |
+| 7 | Wait until t=1:00 | "Swarms detected at the portals!" announcement |
+| 8 | Wait until t=3:00 | "Swarm rush!" surge with swarm/exploder weight boost; faster spawning for ~25 s |
+| 9 | Check DebugStatsOverlay while portals alive | Shows portal_modifier with spawn_pressure > 1.0 |
+| 10 | Confirm portals do not create hazards | Portals do not deal damage to player or restrict movement |
+
+### General Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Play all 3 stages to victory | Win conditions unchanged; final boss still required on all stages |
+| 2 | Open build window during any objective stage | Build window opens/closes cleanly; objective state unaffected |
+| 3 | Pause during objective stage | Pause menu works; Reactor/portal timers frozen while paused |
+| 4 | Level-up during defense stage | Level-up screen opens cleanly; Reactor still accepts damage after close |
+| 5 | Miniboss spawns on Neon Lab | Miniboss health bar shows; miniboss does NOT damage the Reactor |
+| 6 | Final boss spawns on Neon Lab before Reactor is destroyed | Reactor still shows HP; boss fight proceeds normally |
+| 7 | Restart from game over on Wasteland Gate | Three fresh portals spawn; portal pressure re-applies |
+| 8 | Inspect diff | No hero kits, upgrades, evolutions, saves, meta, rewards, or 4/4/4 slot changes |
+| 9 | Inspect diff | No Boss Encounter 2.0 changes |
+| 10 | Inspect diff | No arena hazards of any kind |

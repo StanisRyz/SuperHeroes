@@ -105,8 +105,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/pickups/PowerupPickup.gd` - magnet movement and delegation to PowerupManager on collection.
 - `scenes/effects/BombBurst.tscn` - bomb burst radius visual effect scene.
 - `scenes/effects/BombBurst.gd` - expanding ring tween and cleanup logic.
-- `scenes/game/EventDirector.tscn` - event director scene.
-- `scenes/game/EventDirector.gd` - timed event schedule, elite/miniboss spawn signals, and active timed event tracking.
+- `scenes/events/EventDirector.gd` - timed event schedule per stage profile (`balanced`, `ranged_support`, `swarm_exploder`); fires `event_started`, `event_finished`, `elite_spawn_requested`, `miniboss_spawn_requested`; instantiated dynamically by Arena if not found as a scene child. Unknown profiles fall back to `balanced`.
 - `scenes/ui/EventAnnouncement.tscn` - event announcement overlay scene.
 - `scenes/ui/EventAnnouncement.gd` - fade-in/out label announcement for run events.
 - `scenes/ui/MinibossHealthBar.tscn` - miniboss health bar overlay scene.
@@ -116,7 +115,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/effects/AttackTelegraph.tscn` - short-lived visual warning zone scene (Node2D root).
 - `scenes/effects/AttackTelegraph.gd` - plays circle or line danger zone using dynamically created Line2D; fades/pulses and queue_frees; never applies damage.
 - `scenes/ui/DebugStatsOverlay.tscn` - minimal CanvasLayer root scene for the debug stats panel; all UI built programmatically in _ready().
-- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, passive ids/levels/timers, buff/shield state, spawner wiring. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
+- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, passive ids/levels/timers, buff/shield state, spawner wiring, and objective state (type, HP or portal count, portal pressure modifier). `setup_objective_manager(obj_manager)` wires it after `_setup_stage_objective()`; safe if nil. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
 - `scenes/ui/VictoryScreen.tscn` - pause-time victory UI scene.
 - `scenes/ui/VictoryScreen.gd` - displays run summary on victory and emits restart_requested / quit_to_menu_requested.
 - `scenes/meta/MetaProgressionManager.tscn` - persistent meta manager node scene (instantiated at runtime by Main).
@@ -159,16 +158,27 @@ The game is an original superhero survivors-like: the player moves around an are
 
 ## Event Director System Architecture
 
-- `EventDirector` owns the run event schedule and fires signals when events trigger.
+- `EventDirector` (`scenes/events/EventDirector.gd`) owns the run event schedule and fires signals when events trigger.
+- Arena instantiates EventDirector dynamically if not found as a child node (script-only, no `.tscn` required).
 - Arena wires `EventDirector.setup(run_manager)` and connects all event signals.
-- Timed events (`type: "timed"`) call `SpawnDirector.apply_event_modifier(event_data)` on start and `clear_event_modifier(event_id)` on finish.
-- Elite events (`type: "elite"`) call `EnemySpawner.spawn_elite_enemy(event_data)`.
-- Miniboss events (`type: "miniboss"`) call `EnemySpawner.spawn_miniboss_enemy(event_data)`.
-- `EventAnnouncement` shows a fade-in/out announcement label when an event with a non-empty announcement text starts.
+- Event types:
+  - `"timed"` — emits `event_started(event_data)` immediately; Arena calls `SpawnDirector.apply_event_modifier(event_data)`. After `duration` seconds, emits `event_finished(event_id)` and Arena calls `SpawnDirector.clear_event_modifier(event_id)`.
+  - `"announce_only"` — emits `event_started(event_data)` for the announcement; no modifier applied.
+  - `"spawn_elite"` — emits `elite_spawn_requested(event_data)`; Arena calls `EnemySpawner.spawn_elite_enemy()`.
+  - `"spawn_miniboss"` — emits `miniboss_spawn_requested(event_data)`; Arena calls `EnemySpawner.spawn_miniboss_enemy()`.
+- Stage profiles and their scheduled events:
+  - `"balanced"` (City Rooftop): wave warning (t=1:15), elite (t=1:30), wave surge (t=2:30), supply drop (t=3:50), elite (t=5:00), miniboss (t=7:00), pre-boss surge (t=8:00).
+  - `"ranged_support"` (Neon Lab): ranged warning (t=1:00), elite (t=2:00), lab assault surge (t=3:20), reactor warning (t=4:50), miniboss (t=6:00), final lab assault (t=7:40).
+  - `"swarm_exploder"` (Wasteland Gate): swarm warning (t=1:00), elite (t=1:30), swarm surge (t=3:00), miniboss (t=6:00), final siege (t=7:30).
+  - Unknown profiles fall back to `"balanced"`.
+- `start_final_phase_event()` applies a 60-second `spawn_pressure: 1.6, max_alive_bonus: 5` modifier.
+- `stop_for_final_boss_encounter()` sets `_stopped = true` and clears all active timed modifiers.
+- `EventAnnouncement` shows a fade-in/out announcement label when an event with non-empty announcement text starts.
 - `MinibossHealthBar` is wired by Arena to `EnemySpawner.miniboss_spawned` and calls `track_enemy(enemy)`.
 - Elite and miniboss enemies are spawned using the normal variant then `apply_special_modifier()` applies stat multipliers, color overrides, and flags.
 - Elite and miniboss enemies always drop a powerup pickup on death (guaranteed drop).
 - SpawnDirector reads `active_event_modifiers` in `get_spawn_interval`, `get_max_alive_enemies`, and `get_enemy_variant`.
+- **No arena hazards**: EventDirector fires spawn/pressure events only. It must not add collision shapes, damage areas, or arena obstacles.
 
 ## Powerup Wiring Notes
 
@@ -200,7 +210,7 @@ The game is an original superhero survivors-like: the player moves around an are
 ### Final boss encounter state
 - `Arena._final_boss_arena_active: bool` — set to `true` when the final boss encounter begins; reset by Arena scene reload.
 - `EnemySpawner._final_boss_encounter_active: bool` — stops `_can_spawn()`, `spawn_timer`, and `_wave_timer` for the duration of the encounter.
-- `EventDirector._final_boss_encounter_active: bool` — causes `_process()` to return early, preventing new event triggers and active-timed-event ticks.
+- `EventDirector._stopped: bool` — set by `stop_for_final_boss_encounter()`; causes `_process()` to return early, preventing new event triggers and active-timed-event ticks.
 
 ### Encounter trigger flow
 1. `RunManager.target_time_reached` → `Arena._on_boss_phase_triggered()`.
@@ -250,7 +260,10 @@ Each stage has an `objective_type` and `objective_data` in StageDataProvider. Vi
 - Reads `stage_data.objective_type` and `stage_data.objective_data` to spawn the correct entity/entities.
 - Emits `objective_completed`, `objective_failed`, `objective_state_changed(state)`.
 - `get_objective_state()` returns a Dictionary describing current progress (defense HP or portals destroyed / total).
-- `cleanup()` removes spawned entities and disconnects signals; called by Arena in all restart/quit/death paths.
+- `debug_get_objective_state()` returns an extended debug Dictionary including `portals_alive`, `portal_pressure_active`, and `portal_modifier`.
+- `cleanup()` clears portal pressure modifier, removes spawned entities, and sets references to null; called by Arena in all restart/quit/death paths.
+- **Portal pressure**: on `destroy_structures` setup, calls `spawn_director.apply_event_modifier("portal_pressure")` with a `spawn_pressure` bonus proportional to portals still alive (max +0.55 at full count). Updated on each `_on_portal_destroyed`; cleared when all portals are destroyed or on `cleanup()`.
+- **No arena hazards**: StageObjectiveManager does not apply collision, damage areas, or environmental hazards to the arena.
 
 ### Objective entities are gameplay targets, not hazards
 - `DefenseObjective` has no collision_layer of its own and no arena effect on the player. It is a damage-receiving structure, not an obstacle or trap.
@@ -292,7 +305,7 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - RunBriefingScreen is display-only: it may read hero data, stage data, and Training summaries, but it must not mutate meta/training data, saves, gameplay state, or persistence.
 - RunBriefingScreen Start emits intent only and Main starts the current selected hero/stage flow. RunBriefingScreen Back returns to StageSelect.
 - Do not add arena hazards unless the user explicitly requests hazards. The boss arena boundary (`BossArenaBoundary`) is a display-only Line2D with no collision or damage; it must remain that way.
-- `EventDirector.set_event_profile(profile)` appends profile-specific extra events to the schedule. "balanced" adds nothing. "ranged_support" adds early shooter and support surge events. "swarm_exploder" adds early exploder and swarm rush events.
+- `EventDirector.set_event_profile(profile)` selects the active event schedule. Profiles: `"balanced"`, `"ranged_support"`, `"swarm_exploder"`. Unknown profiles fall back to `"balanced"`. Called by `StageApplier._apply_event_profile()` from Arena._ready().
 - `SpawnDirector.set_stage_profile(profile)` stores the profile and applies per-variant weight bonuses in `_get_modified_weight()`.
 - **Final boss victory gating**: when `RunManager.final_boss_required == true` (set from stage run_settings), reaching target time emits `target_time_reached` instead of victory. Arena spawns the boss. Victory only triggers after `register_final_boss_defeated()`.
 - `EnemySpawner.spawn_final_boss(boss_id)` mirrors `spawn_miniboss_enemy` but calls `_attach_final_boss_controller()` instead. Emits `final_boss_spawned(enemy)` and `final_boss_defeated(enemy)`.

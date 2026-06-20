@@ -10,6 +10,7 @@ var _arena: Node = null
 var _player: Node2D = null
 var _enemy_container: Node = null
 var _playable_rect: Rect2
+var _spawn_director: Node = null
 
 var _defense_objective: Node = null
 var _portals: Array = []
@@ -33,6 +34,7 @@ func setup(stage_data: Dictionary, arena: Node, player: Node, enemy_container: N
 	_arena = arena
 	_enemy_container = enemy_container
 	_playable_rect = playable_rect
+	_spawn_director = _arena.get_node_or_null("SpawnDirector") if _arena != null else null
 
 	if player is Node2D:
 		_player = player as Node2D
@@ -42,6 +44,7 @@ func setup(stage_data: Dictionary, arena: Node, player: Node, enemy_container: N
 			_spawn_defense_objective()
 		"destroy_structures":
 			_spawn_portals()
+			_apply_portal_pressure()
 
 
 func _spawn_defense_objective() -> void:
@@ -101,6 +104,28 @@ func _spawn_portals() -> void:
 	objective_state_changed.emit(get_objective_state())
 
 
+func _apply_portal_pressure() -> void:
+	if _spawn_director == null or not _spawn_director.has_method("apply_event_modifier"):
+		return
+	var alive := _portals_total - _portals_destroyed
+	if alive <= 0:
+		_clear_portal_pressure()
+		return
+	var pressure_bonus := clampf(float(alive) / float(maxi(_portals_total, 1)) * 0.55, 0.0, 0.55)
+	_spawn_director.apply_event_modifier({
+		"id": "portal_pressure",
+		"modifier": {
+			"spawn_pressure": 1.0 + pressure_bonus,
+			"boost_variant_weights": {"runner": 1.3, "exploder": 1.3},
+		},
+	})
+
+
+func _clear_portal_pressure() -> void:
+	if _spawn_director != null and _spawn_director.has_method("clear_event_modifier"):
+		_spawn_director.clear_event_modifier("portal_pressure")
+
+
 func _on_defense_health_changed(_current_hp: int, _max_hp: int) -> void:
 	objective_state_changed.emit(get_objective_state())
 
@@ -115,8 +140,10 @@ func _on_defense_objective_destroyed() -> void:
 func _on_portal_destroyed(_portal: Node) -> void:
 	_portals_destroyed += 1
 	objective_state_changed.emit(get_objective_state())
+	_apply_portal_pressure()
 	if _portals_destroyed >= _portals_total and not _objective_done:
 		_objective_done = true
+		_clear_portal_pressure()
 		objective_completed.emit()
 
 
@@ -142,7 +169,22 @@ func get_objective_state() -> Dictionary:
 	return state
 
 
+func debug_get_objective_state() -> Dictionary:
+	var state := get_objective_state()
+	state["portals_alive"] = maxi(_portals_total - _portals_destroyed, 0)
+	state["portal_pressure_active"] = _objective_type == "destroy_structures" and not _objective_done
+	if _spawn_director != null:
+		var mods = _spawn_director.get("active_event_modifiers")
+		if mods is Dictionary:
+			state["portal_modifier"] = (mods as Dictionary).get("portal_pressure", {})
+		else:
+			state["portal_modifier"] = {}
+	return state
+
+
 func cleanup() -> void:
+	_clear_portal_pressure()
+
 	if _defense_objective != null and is_instance_valid(_defense_objective):
 		_defense_objective.queue_free()
 	_defense_objective = null

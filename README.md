@@ -967,6 +967,79 @@ cd export
 python -m http.server 8000
 ```
 
+## Stage Events & Objective Pressure
+
+This patch makes each stage play differently through objectives and timed stage events. No arena hazards are added. Boss Encounter 2.0 is not part of this patch.
+
+### Objective Types
+
+| Type | Stage | Behavior |
+|------|-------|----------|
+| `survival` | City Rooftop | Survive until the final timer triggers the boss phase. Standard flow unchanged. |
+| `defense` | Neon Lab | A **Lab Reactor** spawns at the arena center. Enemies in contact deal damage to it over time. If the Reactor reaches 0 HP the run ends in defeat. The HUD shows Reactor HP. |
+| `destroy_structures` | Wasteland Gate | Three **Dark Portals** spawn across the arena. Each portal is damageable and targetable. Portals increase spawn pressure while alive. Destroying all portals triggers the final boss encounter. The HUD shows portal count. |
+
+### Stage Objective Details
+
+**City Rooftop — Survival**
+- Standard arena survival to the 10:00 mark, then the Titan Guardian.
+- EventDirector fires timed events: emergency wave warning (t=1:15), elite spawn (t=1:30), wave surge with spawn pressure boost (t=2:30), supply drop announcement (t=3:50), second elite (t=5:00), miniboss (t=7:00), pre-boss surge (t=8:00).
+- No arena hazards.
+
+**Neon Lab — Defense**
+- Lab Reactor object placed at center of arena.
+- Enemies touching the Reactor deal damage at a fixed rate. Final boss enemies do not damage the Reactor.
+- Reactor HP is shown in the HUD objective label, color-coded by health ratio.
+- If Reactor HP reaches 0 the run triggers defeat — game over screen shown.
+- EventDirector fires: ranged support warning (t=1:00), elite (t=2:00), lab assault spawn pressure (t=3:20), reactor threat warning (t=4:50), miniboss (t=6:00), final lab assault (t=7:40).
+- Run failure via objective does not rewrite the final boss flow.
+
+**Wasteland Gate — Portal Closure**
+- Three Dark Portals placed at fixed spread positions across the arena.
+- Portals are `StaticBody2D`, added to the `enemies` group so player projectiles hit them.
+- Each portal has HP (default 150). Portals take damage from player attacks via `take_damage()`.
+- While portals are alive, `portal_pressure` event modifier is applied to SpawnDirector, scaling with number of portals remaining.
+- Destroying a portal reduces pressure, shows updated HUD count.
+- Destroying all portals clears pressure, emits `objective_completed`, and triggers the final boss encounter.
+- EventDirector fires: swarm warning (t=1:00), elite (t=1:30), swarm surge (t=3:00), miniboss (t=6:00), final siege (t=7:30).
+- Portals do not spawn enemies directly and do not create permanent arena hazards.
+
+### EventDirector
+
+`scenes/events/EventDirector.gd` — runtime-only staged event scheduler.
+
+- Created dynamically by Arena if not found as a child node.
+- Reads `run_time` from RunManager each frame.
+- Fires scheduled events per profile: `balanced`, `ranged_support`, `swarm_exploder`.
+- Unknown profiles fall back to `balanced`.
+- Event types: `announce_only` (announcement only), `timed` (applies SpawnDirector modifier for duration), `spawn_elite`, `spawn_miniboss`.
+- Final phase event (`start_final_phase_event()`) applies a heavy 60-second spawn pressure burst.
+- Stops cleanly on `stop_for_final_boss_encounter()`.
+
+### StageObjectiveManager
+
+`scenes/objectives/StageObjectiveManager.gd` — runtime-only objective coordinator.
+
+- Receives `arena`, `player`, `enemy_container`, `playable_rect`, and `stage_data` at setup.
+- Spawns `DefenseObjective` (Neon Lab) or `PortalObjective` × N (Wasteland Gate).
+- Emits `objective_completed`, `objective_failed`, `objective_state_changed`.
+- Portal pressure: calls `spawn_director.apply_event_modifier("portal_pressure")` on setup and updates it as portals are destroyed.
+- Cleared automatically on `cleanup()`.
+- No saves, no meta persistence, resets on restart / victory / defeat / quit.
+
+### Objective Structures
+
+- `scenes/objectives/DefenseObjective.gd` — `Node2D` with Area2D contact detection (collision_mask = 2, enemies layer). Damage is rate-limited per frame. Visual: colored square with HP label.
+- `scenes/objectives/PortalObjective.gd` — `StaticBody2D` added to `enemies` group (collision_layer = 2). Damaged by `take_damage()`. Visual: pulsing octagonal shape with HP label.
+
+### Rules
+
+- Boss Encounter 2.0 is **not** implemented in this patch.
+- No arena hazards are added by any objective type.
+- Enemy default target remains the player.
+- Objective failure (defense destroyed) triggers game over through the existing run lifecycle.
+- Objective completion (portals all destroyed) triggers the final boss flow through the existing run lifecycle.
+
 ## Yandex Games Notes
 
 - Yandex SDK integration will be added later through a wrapper.

@@ -520,8 +520,13 @@ func _setup_confirm_dialog() -> void:
 
 func _setup_event_director() -> void:
 	if event_director == null:
-		push_warning("Arena could not find EventDirector node.")
-		return
+		var ed_script: Script = load("res://scenes/events/EventDirector.gd")
+		if ed_script == null:
+			push_warning("Arena: EventDirector.gd not found.")
+			return
+		event_director = ed_script.new()
+		event_director.name = "EventDirector"
+		add_child(event_director)
 	if event_director.has_method("setup"):
 		event_director.setup(run_manager)
 	else:
@@ -1027,6 +1032,9 @@ func _setup_stage_objective() -> void:
 
 	if hud != null and hud.has_method("setup_objective_manager"):
 		hud.setup_objective_manager(_stage_objective_manager, objective_type)
+
+	if _debug_stats_overlay != null and _debug_stats_overlay.has_method("setup_objective_manager"):
+		_debug_stats_overlay.setup_objective_manager(_stage_objective_manager)
 
 	var announcement := ""
 	match objective_type:
