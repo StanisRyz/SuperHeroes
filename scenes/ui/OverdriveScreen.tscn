@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://overdrive_screen_v1"]
+
+[ext_resource type="Script" path="res://scenes/ui/OverdriveScreen.gd" id="1_overdrive"]
+
+[node name="OverdriveScreen" type="CanvasLayer"]
+script = ExtResource("1_overdrive")

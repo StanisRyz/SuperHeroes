@@ -125,6 +125,14 @@ const KIT_GENERIC := "generic"
 @export var rage_leap_slow_duration: float = 2.0
 @export var rage_leap_invulnerability: float = 0.22
 
+# ── Evolution flags — set by EvolutionManager.apply_evolution() ───────────────
+@export var solar_beam_cataclysm_enabled: bool = false
+@export var frost_breath_absolute_zero_enabled: bool = false
+@export var explosive_trap_chain_evolution_enabled: bool = false
+@export var grappling_hook_execution_enabled: bool = false
+@export var rage_wave_worldbreaker_enabled: bool = false
+@export var rage_leap_meteor_crash_enabled: bool = false
+
 var player: Node2D
 var enemy_container: Node
 var _feedback_manager: Node = null
@@ -175,6 +183,12 @@ func set_hero_kit(hero_id: String, kit_id: String, kit_data: Dictionary = {}) ->
 	_solar_empowered = false
 	_solar_empowered_time_left = 0.0
 	rage = 0.0
+	solar_beam_cataclysm_enabled = false
+	frost_breath_absolute_zero_enabled = false
+	explosive_trap_chain_evolution_enabled = false
+	grappling_hook_execution_enabled = false
+	rage_wave_worldbreaker_enabled = false
+	rage_leap_meteor_crash_enabled = false
 	_tactical_marks.clear()
 	for screen in _active_smoke_screens:
 		var visual = screen.get("visual")
@@ -404,6 +418,22 @@ func _try_cast_solar_beam_ability() -> void:
 	var multiplier := get_solar_damage_multiplier()
 	if solar_beam_empowered_bonus > 0.0 and is_solar_empowered():
 		multiplier += solar_beam_empowered_bonus
+
+	if solar_beam_cataclysm_enabled:
+		var evo_damage := _scale_int(solar_beam_damage * 3, multiplier)
+		var evo_range := solar_beam_range * 1.8
+		var evo_width := solar_beam_width * 1.8
+		var evo_dir := _get_player_aim_direction()
+		var evo_origin := player.global_position
+		var evo_hits := _damage_enemies_in_laser(evo_origin, evo_dir, evo_damage, evo_range, evo_width)
+		_schedule_delayed_laser(evo_origin, evo_dir, maxi(int(evo_damage / 3.0), 1), evo_range, evo_width, 0.18)
+		_spawn_laser_feedback_at(evo_origin, evo_dir, evo_range, evo_width)
+		_spawn_colored_beam_visual(evo_origin, evo_dir, evo_range, evo_width, Color(1.0, 0.12, 0.04, 0.72), 0.42)
+		_status("CATACLYSM" if evo_hits > 0 else "CATACLYSM MISS", evo_origin + Vector2.UP * 42.0)
+		_shake(10.0, 0.26)
+		_finish_cast(1, "solar_beam", solar_beam_cooldown)
+		return
+
 	var damage := _scale_int(solar_beam_damage, multiplier)
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
@@ -419,6 +449,26 @@ func _try_cast_solar_beam_ability() -> void:
 func _try_cast_frost_breath() -> void:
 	if not _guard_cast(2):
 		return
+
+	if frost_breath_absolute_zero_enabled:
+		var evo_damage := _scale_int(frost_breath_damage * 2, get_solar_damage_multiplier())
+		var evo_dir := _get_player_aim_direction()
+		var evo_origin := player.global_position
+		var evo_half_angle := frost_breath_cone_degrees * 0.5 * 1.8
+		var evo_hits := _damage_enemies_in_cone(evo_origin, evo_dir, evo_damage, frost_breath_range, evo_half_angle)
+		_apply_enemy_modifier_in_cone(evo_origin, evo_dir, frost_breath_range, evo_half_angle, "absolute_zero_slow",
+			{"speed_multiplier": 0.08}, frost_breath_slow_duration * 1.5)
+		_apply_enemy_modifier_in_cone(evo_origin, evo_dir, frost_breath_range, evo_half_angle, "absolute_zero_freeze",
+			{"speed_multiplier": 0.02}, 0.7)
+		var evo_approx_width := minf(frost_breath_range * sin(deg_to_rad(evo_half_angle)) * 1.6, 340.0)
+		_spawn_laser_feedback_at(evo_origin, evo_dir, frost_breath_range, evo_approx_width)
+		_spawn_colored_beam_visual(evo_origin, evo_dir, frost_breath_range, evo_approx_width, Color(0.3, 0.72, 1.0, 0.55), 0.52)
+		_spawn_ring_visual(evo_origin, evo_approx_width * 0.5, Color(0.5, 0.85, 1.0, 0.85), 0.62)
+		_status("ABSOLUTE ZERO" if evo_hits > 0 else "ABSOLUTE ZERO MISS", evo_origin + Vector2.UP * 42.0)
+		_shake(7.0, 0.18)
+		_finish_cast(2, "frost_breath", frost_breath_cooldown)
+		return
+
 	var damage := _scale_int(frost_breath_damage, get_solar_damage_multiplier())
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
@@ -496,6 +546,32 @@ func _try_cast_grappling_hook() -> void:
 		_finish_cast(3, "grappling_hook", grappling_hook_cooldown * 0.5)
 		return
 	var origin := player.global_position
+
+	if grappling_hook_execution_enabled:
+		var was_marked := is_tactically_marked(hook_target)
+		_spawn_hook_visual(origin, hook_target.global_position)
+		apply_tactical_mark(hook_target)
+		var evo_damage := grappling_hook_damage * 3
+		hook_target.take_damage(evo_damage)
+		_grant_brief_invulnerability(grappling_hook_invulnerability)
+		var evo_dir := (hook_target.global_position - origin).normalized()
+		var evo_raw_dist := origin.distance_to(hook_target.global_position)
+		_move_player_safely(evo_dir, maxf(evo_raw_dist - 40.0, 0.0))
+		if was_marked and is_instance_valid(hook_target):
+			var explosion_pos := (hook_target as Node2D).global_position
+			var explosion_r := explosive_trap_explosion_radius * 1.6
+			_damage_enemies_in_radius_at(explosion_pos, evo_damage, explosion_r)
+			_apply_enemy_modifier_in_radius(explosion_pos, explosion_r, "execution_mark_aoe",
+				{"speed_multiplier": 0.35}, 1.5)
+			for enemy in enemy_container.get_children():
+				if _is_valid_enemy(enemy) and explosion_pos.distance_to((enemy as Node2D).global_position) <= explosion_r:
+					apply_tactical_mark(enemy)
+			_spawn_ring_visual(explosion_pos, explosion_r, Color(0.55, 0.85, 1.0, 0.9), 0.48)
+		_status("EXECUTION", origin + Vector2.UP * 42.0)
+		_shake(8.0, 0.20)
+		_finish_cast(3, "grappling_hook", grappling_hook_cooldown)
+		return
+
 	_spawn_hook_visual(origin, hook_target.global_position)
 	apply_tactical_mark(hook_target)
 	hook_target.take_damage(grappling_hook_damage)
@@ -516,6 +592,21 @@ func _try_cast_rage_wave() -> void:
 	var damage := _scale_int(rage_wave_damage, multiplier)
 	var radius := rage_wave_radius * (1.0 + (0.18 + rage_wave_radius_rage_bonus) * _rage_ratio())
 	var cast_position := player.global_position
+
+	if rage_wave_worldbreaker_enabled:
+		var wb_damage := _scale_int(rage_wave_damage * 2, multiplier)
+		for wave_index in range(3):
+			var wave_radius := radius * (1.0 + wave_index * 0.55)
+			var delay := wave_index * 0.22
+			_schedule_shockwave(cast_position, wave_radius, wb_damage, delay)
+		_apply_enemy_modifier_in_radius(cast_position, radius * 2.1, "worldbreaker_slow",
+			{"speed_multiplier": 0.22}, rage_wave_slow_duration * 1.8)
+		_add_rage_from_ability_damage(3, wb_damage)
+		_status("WORLDBREAKER", cast_position + Vector2.UP * 42.0)
+		_shake(12.0, 0.30)
+		_finish_cast(1, "rage_wave", rage_wave_cooldown)
+		return
+
 	var hits := _damage_enemies_in_radius_at(cast_position, damage, radius)
 	_apply_enemy_modifier_in_radius(cast_position, radius, "rage_wave_slow",
 		{"speed_multiplier": rage_wave_slow_multiplier}, rage_wave_slow_duration)
@@ -560,6 +651,23 @@ func _try_cast_rage_leap() -> void:
 	_grant_brief_invulnerability(rage_leap_invulnerability)
 	_move_player_safely(direction, rage_leap_distance)
 	var landing_position := player.global_position
+
+	if rage_leap_meteor_crash_enabled:
+		var meteor_damage := _scale_int(rage_leap_damage * 2, multiplier)
+		var meteor_radius := rage_leap_radius * 1.5
+		_damage_enemies_in_radius_at(landing_position, meteor_damage, meteor_radius)
+		_apply_enemy_modifier_in_radius(landing_position, meteor_radius, "meteor_crash_slow",
+			{"speed_multiplier": 0.25}, rage_leap_slow_duration * 1.4)
+		_add_rage_from_ability_damage(5, meteor_damage)
+		_spawn_slam_feedback_at(landing_position, meteor_radius)
+		_spawn_rage_leap_trail_visual(origin, direction, origin.distance_to(landing_position))
+		_spawn_ring_visual(landing_position, meteor_radius, Color(1.0, 0.45, 0.1, 0.9), 0.35)
+		_schedule_meteor_second_impact(landing_position, meteor_damage, meteor_radius * 0.8)
+		_status("METEOR CRASH", origin + Vector2.UP * 42.0)
+		_shake(14.0, 0.34)
+		_finish_cast(3, "rage_leap", rage_leap_cooldown)
+		return
+
 	var hits := _damage_enemies_in_radius_at(landing_position, damage, rage_leap_radius)
 	_apply_enemy_modifier_in_radius(landing_position, rage_leap_radius, "rage_leap_slow",
 		{"speed_multiplier": rage_leap_slow_multiplier}, rage_leap_slow_duration)
@@ -893,6 +1001,33 @@ func _trigger_explosive_trap(trap: Dictionary) -> void:
 	var visual = trap.get("visual")
 	if visual != null and is_instance_valid(visual):
 		visual.queue_free()
+
+	if explosive_trap_chain_evolution_enabled:
+		var chain_r := explosion_r * 2.0
+		var chain_damage := damage * 2
+		if enemy_container != null and is_instance_valid(enemy_container):
+			for enemy in enemy_container.get_children():
+				if _is_valid_enemy(enemy) and pos.distance_to((enemy as Node2D).global_position) <= chain_r:
+					enemy.take_damage(chain_damage)
+					apply_tactical_mark(enemy)
+		_apply_enemy_modifier_in_radius(pos, chain_r, "chain_det_slow",
+			{"speed_multiplier": 0.4}, 1.2)
+		_schedule_trap_pulse(pos, chain_r * 0.6, maxi(int(chain_damage / 2.0), 1), 0.20)
+		_schedule_trap_pulse(pos, chain_r * 1.0, maxi(int(chain_damage / 3.0), 1), 0.42)
+		if explosive_trap_chain_enabled:
+			var traps_to_chain: Array[Dictionary] = []
+			for other_trap in _active_explosive_traps:
+				if pos.distance_to(other_trap["position"]) <= chain_r:
+					traps_to_chain.append(other_trap)
+			for chained in traps_to_chain:
+				_active_explosive_traps.erase(chained)
+				_trigger_explosive_trap(chained)
+		_spawn_slam_feedback_at(pos, chain_r)
+		_spawn_ring_visual(pos, chain_r, Color(1.0, 0.70, 0.1, 0.85), 0.45)
+		_status("CHAIN DETONATION", pos + Vector2.UP * 42.0)
+		_shake(9.0, 0.22)
+		return
+
 	var hits := 0
 	if enemy_container != null and is_instance_valid(enemy_container):
 		for enemy in enemy_container.get_children():
@@ -936,6 +1071,90 @@ func _spawn_hook_visual(origin: Vector2, target_pos: Vector2) -> void:
 	timer.timeout.connect(func() -> void:
 		if is_instance_valid(line):
 			line.queue_free()
+	)
+
+
+func _spawn_ring_visual(world_position: Vector2, radius: float, color: Color, duration: float) -> void:
+	var parent := _get_feedback_parent()
+	if parent == null:
+		return
+	var line := Line2D.new()
+	line.width = 3.0
+	line.default_color = color
+	var segments := 32
+	for i in range(segments + 1):
+		var angle := TAU * i / segments
+		line.add_point(world_position + Vector2(cos(angle), sin(angle)) * radius)
+	parent.add_child(line)
+	var tw := create_tween()
+	tw.tween_property(line, "modulate:a", 0.0, duration)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(line):
+			line.queue_free()
+	)
+
+
+func _spawn_colored_beam_visual(origin: Vector2, direction: Vector2, beam_range: float, width: float, color: Color, duration: float) -> void:
+	var parent := _get_feedback_parent()
+	if parent == null:
+		return
+	var line := Line2D.new()
+	line.add_point(origin)
+	line.add_point(origin + direction * beam_range)
+	line.width = width
+	line.default_color = color
+	parent.add_child(line)
+	var tw := create_tween()
+	tw.tween_property(line, "modulate:a", 0.0, duration)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(line):
+			line.queue_free()
+	)
+
+
+func _schedule_delayed_laser(origin: Vector2, direction: Vector2, damage: int, beam_range: float, width: float, delay: float) -> void:
+	var timer := get_tree().create_timer(delay)
+	timer.timeout.connect(func() -> void:
+		if not is_instance_valid(self):
+			return
+		_damage_enemies_in_laser(origin, direction, damage, beam_range, width)
+		_spawn_colored_beam_visual(origin, direction, beam_range, width * 1.4, Color(1.0, 0.28, 0.08, 0.85), 0.28)
+	)
+
+
+func _schedule_trap_pulse(world_position: Vector2, radius: float, damage: int, delay: float) -> void:
+	var timer := get_tree().create_timer(delay)
+	timer.timeout.connect(func() -> void:
+		if not is_instance_valid(self):
+			return
+		_damage_enemies_in_radius_at(world_position, damage, radius)
+		_spawn_ring_visual(world_position, radius, Color(1.0, 0.65, 0.1, 0.80), 0.32)
+	)
+
+
+func _schedule_shockwave(world_position: Vector2, radius: float, damage: int, delay: float) -> void:
+	var timer := get_tree().create_timer(delay)
+	timer.timeout.connect(func() -> void:
+		if not is_instance_valid(self):
+			return
+		_damage_enemies_in_radius_at(world_position, damage, radius)
+		_spawn_ring_visual(world_position, radius, Color(0.95, 0.50, 0.1, 0.88), 0.40)
+		_spawn_slam_feedback_at(world_position, radius * 0.4)
+		_shake(5.0, 0.12)
+	)
+
+
+func _schedule_meteor_second_impact(world_position: Vector2, damage: int, radius: float) -> void:
+	var timer := get_tree().create_timer(0.45)
+	timer.timeout.connect(func() -> void:
+		if not is_instance_valid(self):
+			return
+		_damage_enemies_in_radius_at(world_position, damage, radius)
+		_apply_enemy_modifier_in_radius(world_position, radius, "meteor_aftershock_slow",
+			{"speed_multiplier": 0.20}, 1.2)
+		_spawn_slam_feedback_at(world_position, radius)
+		_spawn_ring_visual(world_position, radius, Color(1.0, 0.30, 0.05, 0.92), 0.50)
+		_shake(10.0, 0.26)
 	)
 
 

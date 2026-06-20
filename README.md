@@ -656,6 +656,39 @@ Not implemented yet (meta):
 - GameHUD shows current evolution state, and Victory/GameOver summaries list applied evolutions.
 - Debug Mode F9 can open the evolution reward screen when evolutions are available.
 
+### Overdrive Trigger & First Game-Breaking Evolutions
+
+The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** choice screen whenever a triple becomes READY after an upgrade is applied.
+
+#### Overdrive Flow
+
+1. Player picks an upgrade from LevelUpScreen.
+2. Arena calls `EvolutionManager.get_overdrive_options()` — returns all READY (not yet selected) triples for the active hero.
+3. If any READY triples exist, **OverdriveScreen** opens (paused, layer 22, no skip). Player must select one.
+4. `EvolutionManager.apply_evolution(evolution_id)` sets the triple to SELECTED and routes the effect to **AbilityManager** via `ability_manager.set("flag_name", true)`.
+5. The evolved skill permanently replaces its base behavior for the rest of the run. Only one evolution per triple; no stacking.
+
+#### Implemented Evolutions (6 of 27)
+
+| Evolution ID | Hero | Upgraded Skill | Effect |
+|---|---|---|---|
+| `solar_beam_cataclysm` | Solar Guardian | Solar Beam | 3× damage, 1.8× range/width, fires a delayed burn pulse (0.18 s); status: CATACLYSM |
+| `frost_breath_absolute_zero` | Solar Guardian | Frost Breath | 2× damage, 1.8× cone angle, double slow (0.08 speed + 0.02 freeze), status: ABSOLUTE ZERO |
+| `trap_chain_detonation_evolution` | Night Tactician | Explosive Trap | 2× damage, 2× explosion radius, two aftershock pulse rings (0.2 s + 0.42 s), marks all hit enemies; status: CHAIN DETONATION |
+| `hook_execution_pull` | Night Tactician | Grappling Hook | 3× damage; if target was already Tactically Marked, triggers AoE mark explosion on hit enemies; status: EXECUTION |
+| `rage_wave_worldbreaker` | Fury Vanguard | Rage Wave | 2× damage, fires 3 expanding shockwaves (0 / 0.22 / 0.44 s), heavy 0.22× speed slow; status: WORLDBREAKER |
+| `rage_leap_meteor_crash` | Fury Vanguard | Rage Leap | 2× damage, 1.5× radius, ring visual, delayed second impact at 0.45 s (0.2× speed slow); status: METEOR CRASH |
+
+#### Architecture
+
+- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) — runtime-instantiated CanvasLayer (layer=22, PROCESS_MODE_WHEN_PAUSED). Builds UI procedurally. Emits `evolution_chosen(evolution_id)`. No close-without-selection button — player must pick.
+- **EvolutionManager.get_overdrive_options()** — returns merged dicts: triple definition + computed state (including `required_lines` for card display).
+- **EvolutionManager.apply_evolution()** — calls `_apply_evolution_effect()` which does `ability_manager.set("flag_name", true)`, then marks triple SELECTED and emits `evolution_applied`.
+- **AbilityManager evolution flags** — `@export var bool = false` properties per evolution. Each cast function checks its flag at the top and returns early after the evolved path. All flags reset in `set_hero_kit()`.
+- **Visual helpers** (procedural, no custom assets): `_spawn_ring_visual()`, `_spawn_colored_beam_visual()`, `_schedule_delayed_laser()`, `_schedule_trap_pulse()`, `_schedule_shockwave()`, `_schedule_meteor_second_impact()`.
+- **DebugStatsOverlay** (F12) shows `Overdrive: <title>, <title>` in the Evolutions section when evolutions are applied.
+- OverdriveScreen is closed (hidden) on victory, defeat, restart, and quit-to-menu. No evolution state is saved to meta.
+
 ### Run Progression & Victory
 
 - **Run target duration** — 10 minutes (600 seconds) by default, configurable per RunManager inspector.

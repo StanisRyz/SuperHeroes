@@ -1084,14 +1084,92 @@ DEBUG_PLAYER: invulnerable=true
 | 2 | Open Build Slots Window mid-run | Shows 4 attack / 4 passive / 4 active rows correctly; no evolution-related entries added |
 | 3 | Check that taking upgrades for a triple does not bypass slot limits | Triple completion follows normal slot rules; no extra slots granted |
 
-### No evolution effects or Overdrive screen
+---
+
+## Overdrive Trigger & First Game-Breaking Evolutions
+
+### Overdrive Screen Flow
 
 | # | Test | Expected |
-|---|-------|----------|
-| 1 | Max all 3 lines of any triple | No popup, no Overdrive screen, no ability change; only DebugStatsOverlay shows `Ready: 1` |
-| 2 | Inspect gameplay after triple completion | Hero plays exactly as before; no damage, cooldown, or range changes |
-| 3 | Complete run (victory or defeat) after triple completion | VictoryScreen / GameOverScreen show normally; no evolution reward screen forced |
-| 4 | Inspect diff | Upgrade balance, hero kits, slot rules, BuildSlotsWindow, stages, enemies, bosses, rewards, saves, and meta economy are unchanged |
+|---|------|----------|
+| 1 | Use debug console to max all 3 lines of any triple (`solar_ray_damage`, `shield_focus`, `solar_beam_damage_up` for Solar Guardian triple 1), then pick any upgrade | After LevelUpScreen closes, OverdriveScreen appears — dark overlay, gold "⚡ OVERDRIVE READY" title, evolution card button |
+| 2 | Press Escape or pause while OverdriveScreen is open | No effect — game stays paused, OverdriveScreen stays visible; Escape does nothing |
+| 3 | Click an evolution card button | OverdriveScreen hides; game resumes; ability immediately has evolved behavior |
+| 4 | If 2+ triples are READY at the same time (edge case, requires 2 different triples maxed) | All READY triples appear as separate buttons (up to 3); player must pick exactly one |
+| 5 | Trigger a second triple READY after the first is already SELECTED | Overdrive fires again for the second triple; previous selection is unaffected |
+| 6 | Win or die while OverdriveScreen is open | OverdriveScreen hides cleanly; VictoryScreen/GameOverScreen shows normally |
+| 7 | Restart from GameOverScreen mid-Overdrive | OverdriveScreen hidden; new run starts fresh with no evolutions applied |
+
+### DebugStatsOverlay Overdrive Info
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable F12 debug overlay; complete a triple | `Ready: 1  Selected: 0` shown in Evolutions section |
+| 2 | Select an evolution via Overdrive | `Ready: 0  Selected: 1` and `Overdrive: <Title>` appear in Evolutions section |
+| 3 | Select two evolutions over two triples | `Selected: 2` and `Overdrive: Title1, Title2` |
+
+### Solar Beam Cataclysm (Solar Guardian, Triple 1)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select solar_beam_cataclysm via Overdrive, then cast Solar Beam | Status shows "CATACLYSM"; beam is visibly wider/longer (1.8×) |
+| 2 | Count enemy hits vs base Solar Beam | Cataclysm deals ~3× more damage per hit |
+| 3 | Wait 0.18 s after Cataclysm cast | A red burn pulse fires along the same beam path (delayed laser) |
+| 4 | Solar Beam without Cataclysm (other heroes / fresh run) | Normal beam behavior; no delayed pulse, no CATACLYSM status |
+
+### Frost Breath Absolute Zero (Solar Guardian, Triple 2)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select frost_breath_absolute_zero via Overdrive, then cast Frost Breath | Status shows "ABSOLUTE ZERO"; cone is visibly much wider (1.8× half-angle) |
+| 2 | Observe enemies in cone | Two slow stages applied: speed drops to 0.08× (strong slow), then to 0.02× (near-freeze) for 0.7 s |
+| 3 | Check damage | ~2× base Frost Breath damage per hit |
+| 4 | Blue icy ring visual spawns at cast origin | Ring fades out after ~0.4 s |
+
+### Trap Chain Detonation (Night Tactician, Triple 4)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select trap_chain_detonation_evolution via Overdrive, then trigger an Explosive Trap | Status shows "CHAIN DETONATION"; explosion radius visibly larger (2×) |
+| 2 | Place 2 traps close together; trigger one | Both detonate; chain triggers normally if within new chain radius |
+| 3 | Two aftershock rings | A second and third ring pulse at 0.20 s and 0.42 s after the initial blast |
+| 4 | Enemies in chain radius | All hit enemies receive Tactical Mark |
+
+### Hook Execution Pull (Night Tactician, Triple 5)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select hook_execution_pull via Overdrive, hook an unmarked enemy | Status shows "EXECUTION"; damage is 3× base; no AoE explosion (enemy was not marked) |
+| 2 | Mark an enemy (Smoke Screen or prior Hook), then hook the same enemy | AoE explosion fires at enemy position, hitting and marking all nearby enemies; ring visual spawns |
+| 3 | AoE slow applied | Enemies in explosion radius slowed to 0.35× speed for 1.5 s |
+
+### Rage Wave Worldbreaker (Fury Vanguard, Triple 7)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select rage_wave_worldbreaker via Overdrive, then cast Rage Wave | Status shows "WORLDBREAKER"; screen shake is noticeably heavier (12.0 intensity) |
+| 2 | Count damage pulses | 3 expanding shockwave rings appear at ~0, 0.22, 0.44 s; each deals ~2× base damage |
+| 3 | Enemy slow | Enemies in a 2.1× base radius are slowed to 0.22× speed |
+| 4 | Normal Rage Wave on non-Vanguard hero | Unchanged; no shockwaves |
+
+### Rage Leap Meteor Crash (Fury Vanguard, Triple 9)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select rage_leap_meteor_crash via Overdrive, then leap | Status shows "METEOR CRASH"; ring visual at landing; 1.5× crater radius, 2× damage |
+| 2 | Wait 0.45 s after landing | Second impact fires at same position: additional damage, 0.2× speed slow, second ring visual |
+| 3 | Screen shake | First impact: 14.0 intensity, 0.34 s; second impact: 10.0 intensity, 0.26 s |
+| 4 | Normal Rage Leap | Unchanged: one impact, no delayed second crater |
+
+### Regression — Unchanged Systems
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | 4/4/4 upgrade slot limits | Unchanged; Overdrive does not consume or grant upgrade slots |
+| 2 | Hero base kits on non-Overdrive runs (reach triple but don't have Overdrive yet) | All 3 heroes' base cast behaviors unchanged before any evolution selected |
+| 3 | Miniboss EvolutionRewardScreen | Still fires on miniboss defeat as before; separate from Overdrive |
+| 4 | Stage objectives, enemies, boss flow, rewards, saves, meta economy | All unchanged |
+| 5 | Fresh run after restart | All 6 evolution flags reset to false; OverdriveScreen starts hidden |
 
 ---
 

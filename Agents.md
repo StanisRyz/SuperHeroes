@@ -413,30 +413,76 @@ Each triple definition contains:
 - Existing: `get_upgrade_level(upgrade_id)`, `get_slot_state()`, `get_upgrade_definition_summary(upgrade_id)`.
 - EvolutionManager never duplicates upgrade state. It only reads from UpgradeManager.
 
-### What Is NOT in This Patch
+### Overdrive Trigger & OverdriveScreen (current patch)
 
-- No Overdrive choice screen.
-- No evolved ability behavior or gameplay effect changes.
-- No build slot changes, hero kit changes, or balance changes.
-- No persistence, meta-economy, or save format changes.
-- No UI popup for evolution readiness (only DebugStatsOverlay shows triple progress).
-- Evolution effect application via `apply_evolution()` is a no-op stub for forward compat.
+- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) — runtime-instantiated CanvasLayer (layer=22, PROCESS_MODE_WHEN_PAUSED). Arena adds it as a child in `_ready()` via `_setup_overdrive_screen()`. Emits `evolution_chosen(evolution_id: String)`.
+- `show_evolutions(options: Array)` — accepts up to 3 triple dicts (merged triple definition + computed state), shows one Button per option, no close-without-selection.
+- `_format_card(triple)` — formats `"★ OVERDRIVE → TARGET_SKILL\nTitle\nDescription\n[ATK] line_id N/N  |  [PAS] line_id N/N  |  [ACT] line_id N/N"`.
+- **Trigger flow** (Arena): after `_on_upgrade_selected()` hides LevelUpScreen → `_check_overdrive_after_upgrade()` → if `get_overdrive_options()` returns ≥1 result, `_open_overdrive_screen(options)` pauses and shows screen; else `_resume_game_if_safe()`.
+- **No skip** — `_is_blocking_run_screen_open()` and `_handle_pause_back_requested()` both include `_is_overdrive_visible()`, preventing escape/pause while Overdrive is open.
+- **Cleanup** — `_close_overdrive_screen()` is called from `_on_victory_reached()`, `_on_player_died()`, `_on_restart_requested()`, `_on_quit_to_menu_requested()`, and both action branches of `_on_confirm_dialog_confirmed()`.
+
+### apply_evolution() Routing
+
+- `EvolutionManager.apply_evolution(evolution_id)` now calls `_apply_evolution_effect(evolution_id)` first, then marks triple SELECTED, adds `announcement` key, emits `evolution_applied`.
+- `_apply_evolution_effect()` matches on `evolution_id` and calls `ability_manager.set("flag_name", true)` for each implemented evolution.
+- `EvolutionManager.get_overdrive_options()` — iterates hero triples, skips SELECTED ones, calls `_compute_triple_state()`, returns only READY triples as merged dicts (triple definition + computed state).
+- `EvolutionManager.debug_get_evolution_grid_state()` now includes `"applied_titles": get_applied_evolution_titles()`.
+
+### AbilityManager Evolution Flags
+
+Six `@export var bool = false` flags added to AbilityManager. All reset to `false` in `set_hero_kit()`.
+
+| Flag | Evolution |
+|---|---|
+| `solar_beam_cataclysm_enabled` | solar_beam_cataclysm |
+| `frost_breath_absolute_zero_enabled` | frost_breath_absolute_zero |
+| `explosive_trap_chain_evolution_enabled` | trap_chain_detonation_evolution |
+| `grappling_hook_execution_enabled` | hook_execution_pull |
+| `rage_wave_worldbreaker_enabled` | rage_wave_worldbreaker |
+| `rage_leap_meteor_crash_enabled` | rage_leap_meteor_crash |
+
+Each evolved cast function checks its flag at the top and returns early. Base behavior is unchanged when flag is false.
+
+### Visual Helper Methods (AbilityManager)
+
+All procedural, no custom assets:
+- `_spawn_ring_visual(pos, radius, color, duration)` — Line2D circle with fade tween.
+- `_spawn_colored_beam_visual(origin, dir, range, width, color, duration)` — Line2D beam with fade tween.
+- `_schedule_delayed_laser(origin, dir, damage, range, width, delay)` — timer-delayed laser damage + beam visual. Used by Cataclysm.
+- `_schedule_trap_pulse(pos, radius, damage, delay)` — timer-delayed ring damage. Used by Chain Detonation.
+- `_schedule_shockwave(pos, radius, damage, delay)` — timer-delayed ring + slam feedback + shake. Used by Worldbreaker.
+- `_schedule_meteor_second_impact(pos, damage, radius)` — 0.45 s delayed second crater + slow + ring. Used by Meteor Crash.
+
+### Evolution IDs (Implemented)
+
+Do not add new evolutions until explicitly requested. Do not modify triple definitions for unimplemented evolutions. The remaining 21 triple ids exist as grid data only and have no gameplay effect.
+
+| evolution_id | hero_id | target_active_skill_id |
+|---|---|---|
+| solar_beam_cataclysm | guardian | solar_beam |
+| frost_breath_absolute_zero | guardian | frost_breath |
+| trap_chain_detonation_evolution | blaster | explosive_trap |
+| hook_execution_pull | blaster | grappling_hook |
+| rage_wave_worldbreaker | vanguard | rage_wave |
+| rage_leap_meteor_crash | vanguard | rage_leap |
 
 ### Legacy Compatibility
 
 - `EvolutionManager.setup(player, auto_attack, ability_manager, upgrade_manager)` — same 4-arg signature that Arena already calls.
 - `EvolutionManager.get_available_evolutions()` — maps to `get_ready_evolutions(hero_id)`.
-- `EvolutionManager.apply_evolution(evolution_id)` — calls `mark_evolution_selected` and emits `evolution_applied` signal; no gameplay effect.
 - `EvolutionManager.has_evolution(evolution_id)` — alias for `is_evolution_selected`.
 - Signals `evolution_available`, `evolution_applied`, `evolution_state_changed` are preserved.
 - `elite_reward_chance` export var is preserved.
 
 ### Other rules
 
-- EvolutionRewardScreen is display-only; it never applies evolutions directly.
-- Arena coordinates opening the reward screen, pausing/resuming, applying selected evolutions, and announcements.
+- EvolutionRewardScreen is display-only for legacy evolution rewards (miniboss); OverdriveScreen is the new path for triple-grid evolutions.
+- Arena coordinates opening the reward screen / overdrive screen, pausing/resuming, applying selected evolutions, and announcements.
 - Evolutions are runtime-only and reset naturally with every new Arena.
-- Miniboss defeat is the main evolution reward path; elite rewards are optional through `elite_reward_chance` and default to off.
+- Miniboss defeat is the main evolution reward path for legacy evolutions; elite rewards are optional through `elite_reward_chance` and default to off.
+- Overdrive fires after any upgrade that completes a triple — not tied to miniboss.
+- No evolution state is saved to meta progression.
 - Do not add persistence, meta-progression, evolution unlock storage, or evolution art assets unless explicitly requested.
 
 ## Meta Progression Architecture

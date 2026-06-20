@@ -37,7 +37,7 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "solar_beam",
 		"evolution_id": "solar_beam_cataclysm",
 		"title": "Solar Cataclysm",
-		"description": "Future evolution for Solar Beam: raw power focus.",
+		"description": "Transforms Solar Beam into a devastating red cataclysm. 3x damage, wider beam, leaves a burning pulse.",
 		"required_levels": {},
 	},
 	{
@@ -77,7 +77,7 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "frost_breath",
 		"evolution_id": "frost_breath_absolute_zero",
 		"title": "Absolute Zero",
-		"description": "Future evolution for Frost Breath: total cold suppression.",
+		"description": "Transforms Frost Breath into absolute zero. Much wider cone, near-freezes all enemies hit.",
 		"required_levels": {},
 	},
 	{
@@ -198,7 +198,7 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "explosive_trap",
 		"evolution_id": "trap_chain_detonation_evolution",
 		"title": "Chain Detonation",
-		"description": "Future evolution for Explosive Trap: cascade blast network.",
+		"description": "Transforms Explosive Trap into cascading detonations. Chain blast pulses + Tactical Mark in wide radius.",
 		"required_levels": {},
 	},
 	{
@@ -238,7 +238,7 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "grappling_hook",
 		"evolution_id": "hook_execution_pull",
 		"title": "Execution Pull",
-		"description": "Future evolution for Grappling Hook: lethal long-range snare.",
+		"description": "Transforms Grappling Hook into an execution strike. 3x damage; AoE mark explosion if target was marked.",
 		"required_levels": {},
 	},
 	{
@@ -279,7 +279,7 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "rage_wave",
 		"evolution_id": "rage_wave_worldbreaker",
 		"title": "Worldbreaker",
-		"description": "Future evolution for Rage Wave: shockwave that reshapes the battlefield.",
+		"description": "Transforms Rage Wave into a worldbreaker. Multiple expanding shockwaves, heavy slow, Rage-scaled.",
 		"required_levels": {},
 	},
 	{
@@ -359,7 +359,7 @@ var _triple_definitions: Array[Dictionary] = [
 		"target_active_skill_id": "rage_leap",
 		"evolution_id": "rage_leap_meteor_crash",
 		"title": "Meteor Crash",
-		"description": "Future evolution for Rage Leap: high-velocity crater landing.",
+		"description": "Transforms Rage Leap into a meteor crash. Huge crater damage + delayed second impact, Rage-scaled.",
 		"required_levels": {},
 	},
 	{
@@ -557,13 +557,33 @@ func has_evolution(evolution_id: String) -> bool:
 
 
 func apply_evolution(evolution_id: String) -> bool:
-	# Effects are not implemented in this patch — only tracks selection state.
 	if is_evolution_selected(evolution_id):
 		return false
 	mark_evolution_selected(evolution_id)
+	_apply_evolution_effect(evolution_id)
 	var triple := _get_triple_by_evolution_id(evolution_id)
-	evolution_applied.emit(evolution_id, triple.duplicate(true))
+	var triple_data := triple.duplicate(true)
+	triple_data["announcement"] = "★ " + str(triple_data.get("title", evolution_id)).to_upper() + "!"
+	evolution_applied.emit(evolution_id, triple_data)
 	return true
+
+
+func get_overdrive_options() -> Array[Dictionary]:
+	var hero_id := str(_hero_data.get("id", ""))
+	var result: Array[Dictionary] = []
+	for triple in _triple_definitions:
+		if str(triple.get("hero_id", "")) != hero_id:
+			continue
+		var evo_id := str(triple.get("evolution_id", ""))
+		if is_evolution_selected(evo_id):
+			continue
+		var state := _compute_triple_state(triple)
+		if str(state.get("state", "")) != TRIPLE_STATE_READY:
+			continue
+		var merged := triple.duplicate(true)
+		merged.merge(state, true)
+		result.append(merged)
+	return result
 
 
 func get_applied_evolutions() -> Array[String]:
@@ -583,8 +603,8 @@ func get_applied_evolution_titles() -> Array[String]:
 func debug_print_evolution_state() -> void:
 	print("=== EvolutionManager ===")
 	var hero_id := str(_hero_data.get("id", "unknown"))
-	var ready := get_ready_evolutions(hero_id)
-	print("hero=%s  ready=%d  selected=%s" % [hero_id, ready.size(), str(get_applied_evolution_titles())])
+	var ready_evos := get_ready_evolutions(hero_id)
+	print("hero=%s  ready=%d  selected=%s" % [hero_id, ready_evos.size(), str(get_applied_evolution_titles())])
 	var triple_states := get_triple_state(hero_id)
 	for triple_id in triple_states:
 		var ts: Dictionary = triple_states[triple_id]
@@ -619,6 +639,7 @@ func debug_get_evolution_grid_state() -> Dictionary:
 		"triple_count": get_triple_definitions(hero_id).size(),
 		"ready_count": get_ready_evolutions(hero_id).size(),
 		"selected_count": _selected_evolutions.size(),
+		"applied_titles": get_applied_evolution_titles(),
 		"triple_states": triple_states,
 		"closest_triple": closest,
 		"validation": validate_evolution_grid(hero_id),
@@ -626,6 +647,27 @@ func debug_get_evolution_grid_state() -> Dictionary:
 
 
 # ── PRIVATE HELPERS ───────────────────────────────────────────────────────────
+
+func _apply_evolution_effect(evolution_id: String) -> void:
+	if ability_manager == null or not is_instance_valid(ability_manager):
+		push_warning("EvolutionManager: AbilityManager unavailable for evolution '%s'." % evolution_id)
+		return
+	match evolution_id:
+		"solar_beam_cataclysm":
+			ability_manager.set("solar_beam_cataclysm_enabled", true)
+		"frost_breath_absolute_zero":
+			ability_manager.set("frost_breath_absolute_zero_enabled", true)
+		"trap_chain_detonation_evolution":
+			ability_manager.set("explosive_trap_chain_evolution_enabled", true)
+		"hook_execution_pull":
+			ability_manager.set("grappling_hook_execution_enabled", true)
+		"rage_wave_worldbreaker":
+			ability_manager.set("rage_wave_worldbreaker_enabled", true)
+		"rage_leap_meteor_crash":
+			ability_manager.set("rage_leap_meteor_crash_enabled", true)
+		_:
+			push_warning("EvolutionManager: no effect implemented for evolution '%s'." % evolution_id)
+
 
 func _compute_triple_state(triple: Dictionary) -> Dictionary:
 	var attack_id := str(triple.get("attack_line_id", ""))

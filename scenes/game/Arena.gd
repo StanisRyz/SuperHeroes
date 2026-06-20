@@ -52,6 +52,7 @@ var _run_result_emitted := false
 @onready var build_slots_window: Node = get_node_or_null("BuildSlotsWindow")
 
 var _debug_stats_overlay: Node = null
+var _overdrive_screen: Node = null
 var _feedback_manager: Node = null
 var _passive_ability_manager: Node = null
 var _debug_powerup_cycle_index: int = 0
@@ -199,6 +200,7 @@ func _ready() -> void:
 		push_warning("EnemySpawner does not implement setup(player, playable_rect, enemy_container, pickup_container, run_manager, spawn_director, floating_text_spawner).")
 
 	_setup_debug_stats_overlay()
+	_setup_overdrive_screen()
 	_setup_stage_objective()
 	_run_project_health_check()
 
@@ -405,7 +407,7 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 
 	if level_up_screen != null and level_up_screen.visible:
 		level_up_screen.hide()
-	_resume_game_if_safe()
+	_check_overdrive_after_upgrade()
 
 
 # Run lifecycle
@@ -772,6 +774,7 @@ func _on_victory_reached(stats: Dictionary) -> void:
 
 	if level_up_screen != null:
 		level_up_screen.hide()
+	_close_overdrive_screen()
 	_cleanup_passive_ability_manager()
 	_close_build_slots_window()
 	if pause_menu != null and pause_menu.has_method("close"):
@@ -898,6 +901,52 @@ func _connect_debug_signal(signal_name: String, callable: Callable) -> void:
 			debug_manager.get(signal_name).connect(callable)
 	else:
 		push_warning("DebugManager is missing signal: %s" % signal_name)
+
+
+func _setup_overdrive_screen() -> void:
+	var scene: PackedScene = load("res://scenes/ui/OverdriveScreen.tscn")
+	if scene == null:
+		push_warning("Arena: OverdriveScreen.tscn not found.")
+		return
+	_overdrive_screen = scene.instantiate()
+	add_child(_overdrive_screen)
+	if _overdrive_screen.has_signal("evolution_chosen"):
+		_overdrive_screen.evolution_chosen.connect(_on_overdrive_evolution_chosen)
+
+
+func _check_overdrive_after_upgrade() -> void:
+	if evolution_manager == null or not evolution_manager.has_method("get_overdrive_options"):
+		_resume_game_if_safe()
+		return
+	var options: Array = evolution_manager.get_overdrive_options()
+	if options.is_empty():
+		_resume_game_if_safe()
+	else:
+		_open_overdrive_screen(options)
+
+
+func _open_overdrive_screen(options: Array) -> void:
+	if _overdrive_screen == null or not is_instance_valid(_overdrive_screen):
+		_resume_game_if_safe()
+		return
+	get_tree().paused = true
+	if _overdrive_screen.has_method("show_evolutions"):
+		_overdrive_screen.show_evolutions(options)
+
+
+func _on_overdrive_evolution_chosen(evolution_id: String) -> void:
+	if evolution_manager != null and evolution_manager.has_method("apply_evolution"):
+		evolution_manager.apply_evolution(evolution_id)
+	_resume_game_if_safe()
+
+
+func _is_overdrive_visible() -> bool:
+	return _overdrive_screen != null and is_instance_valid(_overdrive_screen) and _overdrive_screen.visible
+
+
+func _close_overdrive_screen() -> void:
+	if _overdrive_screen != null and is_instance_valid(_overdrive_screen):
+		_overdrive_screen.hide()
 
 
 func _setup_debug_stats_overlay() -> void:
@@ -1166,6 +1215,7 @@ func _on_player_died() -> void:
 
 	if level_up_screen != null:
 		level_up_screen.hide()
+	_close_overdrive_screen()
 	_cleanup_passive_ability_manager()
 
 	get_tree().paused = true
@@ -1184,6 +1234,7 @@ func _on_restart_requested() -> void:
 	if _transition_in_progress:
 		return
 	_transition_in_progress = true
+	_close_overdrive_screen()
 	_close_build_slots_window()
 	_clear_boss_arena_boundary()
 	_cleanup_stage_objective_manager()
@@ -1196,6 +1247,7 @@ func _on_quit_to_menu_requested() -> void:
 	if _transition_in_progress:
 		return
 	_transition_in_progress = true
+	_close_overdrive_screen()
 	_close_build_slots_window()
 	_clear_boss_arena_boundary()
 	_cleanup_stage_objective_manager()
@@ -1224,7 +1276,7 @@ func _handle_pause_back_requested() -> void:
 	if _is_build_slots_open():
 		_close_build_slots_window()
 		return
-	if _is_level_up_visible() or _is_evolution_reward_visible() or _is_game_over_visible() or _is_victory_visible():
+	if _is_level_up_visible() or _is_evolution_reward_visible() or _is_game_over_visible() or _is_victory_visible() or _is_overdrive_visible():
 		return
 	if _is_pause_menu_open():
 		_on_pause_resume_requested()
@@ -1377,12 +1429,14 @@ func _on_confirm_dialog_confirmed(action_id: String) -> void:
 
 	match action_id:
 		"restart_run":
+			_close_overdrive_screen()
 			_clear_boss_arena_boundary()
 			_cleanup_stage_objective_manager()
 			_cleanup_passive_ability_manager()
 			get_tree().paused = false
 			restart_run_requested.emit()
 		"quit_to_menu":
+			_close_overdrive_screen()
 			_clear_boss_arena_boundary()
 			_cleanup_stage_objective_manager()
 			_cleanup_passive_ability_manager()
@@ -1674,7 +1728,7 @@ func _is_modal_open() -> bool:
 
 
 func _is_blocking_run_screen_open() -> bool:
-	return _is_level_up_visible() or _is_evolution_reward_visible() or _is_victory_visible() or _is_game_over_visible()
+	return _is_level_up_visible() or _is_evolution_reward_visible() or _is_victory_visible() or _is_game_over_visible() or _is_overdrive_visible()
 
 
 func _is_help_open() -> bool:

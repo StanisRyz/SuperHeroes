@@ -271,6 +271,9 @@ func _build_stats_text() -> String:
 		if _evolution_manager.has_method("debug_get_evolution_grid_state"):
 			var evo: Dictionary = _evolution_manager.debug_get_evolution_grid_state()
 			lines.append("Ready: %d  Selected: %d" % [int(evo.get("ready_count", 0)), int(evo.get("selected_count", 0))])
+			var applied_titles: Array = evo.get("applied_titles", [])
+			if not applied_titles.is_empty():
+				lines.append("Overdrive: %s" % ", ".join(applied_titles))
 			var closest: Dictionary = evo.get("closest_triple", {})
 			if not closest.is_empty():
 				var sel := int(closest.get("selected_lines_count", 0))
