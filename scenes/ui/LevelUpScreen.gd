@@ -47,6 +47,10 @@ func _format_option_text(option: Dictionary) -> String:
 	var is_synergy := bool(option.get("is_synergy", false))
 	var is_build_defining := bool(option.get("is_build_defining", false))
 	var is_passive := bool(option.get("is_passive", false))
+	var slot_category := str(option.get("slot_category", ""))
+	var category_slots_used := int(option.get("category_slots_used", 0))
+	var category_slots_max := int(option.get("category_slots_max", 0))
+	var is_new_line := bool(option.get("is_new_line", false))
 	var title := str(option.get("title", "Upgrade"))
 	var level := int(option.get("level", 0))
 	var max_level := int(option.get("max_level", 1))
@@ -66,7 +70,25 @@ func _format_option_text(option: Dictionary) -> String:
 
 	var level_line := "Lv %d  →  %d / %d" % [level, mini(level + 1, max_level), max_level]
 
-	return "%s\n%s%s\n%s\n%s" % [title, rarity_line, markers, level_line, description]
+	var slot_line := _format_slot_line(slot_category, category_slots_used, category_slots_max, is_new_line)
+	return "%s\n%s%s\n%s\n%s\n%s" % [title, rarity_line, markers, slot_line, level_line, description]
+
+
+func _format_slot_line(slot_category: String, used: int, max_slots: int, is_new_line: bool) -> String:
+	var label := "Upgrade"
+	match slot_category:
+		"attack":
+			label = "Attack"
+		"passive":
+			label = "Passive"
+		"active":
+			label = "Active"
+
+	if max_slots <= 0:
+		return label
+	var projected_used := mini(used + (1 if is_new_line else 0), max_slots)
+	var suffix := "new line" if is_new_line else "owned line"
+	return "%s %d/%d  %s" % [label, projected_used, max_slots, suffix]
 
 
 func _get_rarity_modulate(rarity: String) -> Color:

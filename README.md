@@ -163,6 +163,10 @@ Implemented foundation:
 - Upgrade Pool v3 — Build Archetypes:
   - Every upgrade definition carries an optional `archetype` (projectile / nova / laser / slam / dash / tank / speed / utility) and `tags` array.
   - UpgradeManager tracks `archetype_points` (how many upgrades from each archetype the player has taken) and `selected_upgrade_history` per run.
+  - Runs now use a 12-line upgrade structure: 4 Attack lines, 4 Passive lines, and 4 Active lines.
+  - A new upgrade id consumes one slot in its category; repeated levels of an already selected upgrade id do not consume extra slots.
+  - When a category is full, new lines from that category stop appearing, but already selected non-maxed lines remain eligible.
+  - Attack lines cover primary weapon / autoattack upgrades, Passive lines cover shared passives plus defense / mobility / utility run-stat lines, and Active lines cover slot 1/2/3 ability upgrades.
   - Build-aware weighted option selection: upgrades from the player's dominant archetype receive a small weight bonus (up to +60 %). At least one offered option usually comes from a different archetype when alternatives exist.
   - Synergy upgrades are epic-rarity upgrades that appear only when `prerequisites` are met (minimum archetype points and/or upgrade levels). They apply multiple effects via an `effects` array.
   - Projectile synergy upgrades: Split Barrage (multishot + spread), Shrapnel Burst (explosion radius + power), Heavy Piercer (pierce + size).
@@ -170,7 +174,7 @@ Implemented foundation:
   - Defensive synergy upgrades: Shielded Dash (invulnerability + cooldown), Heroic Endurance (max health + heal), Power Collector (movement speed).
   - Build summary label in GameHUD: shows "Build: Projectile" (or current dominant) / "Build: Mixed" when no archetype leads.
   - UpgradeManager emits `build_changed(dominant_archetype, points)` whenever an upgrade is applied.
-  - `debug_print_upgrade_pool()` and `debug_get_available_upgrade_ids()` helpers available for console verification.
+  - `debug_print_upgrade_pool()`, `debug_get_available_upgrade_ids()`, and `debug_get_slot_state()` helpers available for console verification.
 
 - Passive Ability System Foundation + visibility hotfix:
   - Passive skills are shared by all heroes, selected through the normal level-up upgrade pool, and reset every run.
@@ -178,7 +182,7 @@ Implemented foundation:
   - First shared passive lines: Orbit Shields (regenerating shield charges with orbiting shield indicators), Storm Relay (periodic nearest-enemy lightning with a visible arc), Guardian Drone (orbiting drone indicator with visible attack arc), and Magnet Core (increases XP/powerup magnet reach and pulses when upgraded).
   - Passive effects now have visible runtime feedback: shield indicators track charges, shield blocks show `SHIELD BLOCK`, Storm/Drone hits draw short Line2D arcs, and damage/status text appears at the target.
   - Passive upgrade definitions use `type/category: "passive"` plus `tags: ["passive", ...]`; LevelUpScreen marks them with `PASSIVE`.
-  - Slot limits such as 4/4/4 are not implemented yet. Hero-specific attack/active upgrade rewrites and Build Evolution are not included in this foundation patch.
+  - The 4/4/4 upgrade slot limits now apply to new upgrade lines, while repeated levels stay within the already owned line. Hero-specific attack/active upgrade rewrites and Build Evolution are not included yet.
   - DebugStatsOverlay shows selected passive ids/levels, timers, shield count/max, pickup radius bonus, and the last passive event while Debug Mode is enabled.
 
 - PowerupPickup foundation (generic in-run pickup that delegates to PowerupManager).
@@ -229,7 +233,7 @@ Implemented foundation:
   - DebugManager: 6 new validation signals and request methods (spawn powerup, spawn elite, spawn miniboss, add XP, print stats, kill nearby).
   - Player.debug_add_experience(amount): adds XP through normal level-up flow.
   - EnemySpawner.debug_get_powerup_wiring_state(): returns pickup_scene/manager/container/drop_chance snapshot.
-  - UpgradeManager.debug_get_build_state(): returns dominant_archetype, archetype_points, history size, available count, unlocked synergy IDs.
+  - UpgradeManager.debug_get_build_state(): returns dominant_archetype, archetype_points, history size, available count, unlocked synergy IDs, and 4/4/4 slot state.
   - docs/validation/gameplay_validation.md: manual test checklist for all systems.
 
 ### Ability & Build Synergy v4

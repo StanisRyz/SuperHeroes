@@ -226,6 +226,21 @@ func _build_stats_text() -> String:
 				build.get("selected_build_defining_upgrade_ids", []).size(),
 				build.get("unlocked_build_defining_upgrade_ids", []).size()
 			])
+			var slot_state: Dictionary = build.get("slot_state", {})
+			if slot_state.is_empty() and _upgrade_manager.has_method("debug_get_slot_state"):
+				slot_state = _upgrade_manager.debug_get_slot_state()
+			if not slot_state.is_empty():
+				lines.append("Slots: A %d/%d  P %d/%d  Act %d/%d" % [
+					int(slot_state.get("attack", {}).get("used", 0)),
+					int(slot_state.get("attack", {}).get("max", 0)),
+					int(slot_state.get("passive", {}).get("used", 0)),
+					int(slot_state.get("passive", {}).get("max", 0)),
+					int(slot_state.get("active", {}).get("used", 0)),
+					int(slot_state.get("active", {}).get("max", 0)),
+				])
+				lines.append("Attack ids: %s" % _format_slot_ids(slot_state, "attack"))
+				lines.append("Passive ids: %s" % _format_slot_ids(slot_state, "passive"))
+				lines.append("Active ids: %s" % _format_slot_ids(slot_state, "active"))
 		elif _upgrade_manager.has_method("get_dominant_archetype"):
 			lines.append("Dominant: %s" % _upgrade_manager.get_dominant_archetype())
 	else:
@@ -347,3 +362,9 @@ func _build_stats_text() -> String:
 
 func _count_children(node: Node) -> int:
 	return node.get_child_count() if node != null and is_instance_valid(node) else 0
+
+
+func _format_slot_ids(slot_state: Dictionary, category: String) -> String:
+	var category_state: Dictionary = slot_state.get(category, {})
+	var ids: Array = category_state.get("selected", [])
+	return ", ".join(ids) if not ids.is_empty() else "none"

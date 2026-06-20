@@ -223,6 +223,23 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Upgrade Slot Limits
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Pick 4 different Attack upgrade lines | A 5th new Attack line no longer appears, but already selected non-maxed Attack lines can still appear |
+| 2 | Pick 4 different Passive upgrade lines | A 5th new Passive line no longer appears, but already selected non-maxed Passive lines can still appear |
+| 3 | Pick 4 different Active upgrade lines | A 5th new Active line no longer appears, but already selected non-maxed Active lines can still appear |
+| 4 | Fill all 12 slots | LevelUpScreen offers only already selected, non-maxed upgrade lines |
+| 5 | Open LevelUpScreen before and after slot limits are reached | Options show compact Attack / Passive / Active slot markers with category usage |
+| 6 | Enable Debug Mode after selecting lines | DebugStatsOverlay shows attack/passive/active selected counts, limits, and selected ids |
+| 7 | Pick repeated levels of an already selected line | Slot count for that category does not increase |
+| 8 | Restart the run | Upgrade slot state resets to 0/4 for Attack, Passive, and Active |
+| 9 | Pick passive, autoattack, and active ability upgrades after slot filtering | Passive visuals/effects, autoattack upgrades, active ability upgrades, and hero-flavored text still work |
+| 10 | Inspect diff/save behavior | No hero-specific upgrade rewrites, Build Evolution, saves, meta economy, rewards, stages, enemies, boss flow, or objective flow changes |
+
+---
+
 ## Passive Ability System
 
 | # | Test | Expected |

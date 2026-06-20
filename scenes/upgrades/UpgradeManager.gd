@@ -12,6 +12,12 @@ const PROJECTILE_COUNT_MAX := 7
 const PROJECTILE_SIZE_MAX := 2.0
 const PROJECTILE_EXPLOSION_RADIUS_MAX := 180.0
 const PROJECTILE_BOUNCE_MAX := 5
+const SLOT_CATEGORY_ATTACK := "attack"
+const SLOT_CATEGORY_PASSIVE := "passive"
+const SLOT_CATEGORY_ACTIVE := "active"
+const MAX_ATTACK_LINES := 4
+const MAX_PASSIVE_LINES := 4
+const MAX_ACTIVE_LINES := 4
 
 const HERO_UPGRADE_FLAVOR := {
 	"guardian": {
@@ -144,6 +150,9 @@ var hero_data: Dictionary = {}
 var upgrade_levels: Dictionary = {}
 var archetype_points: Dictionary = {}
 var selected_upgrade_history: Array[Dictionary] = []
+var selected_attack_lines: Array[String] = []
+var selected_passive_lines: Array[String] = []
+var selected_active_lines: Array[String] = []
 
 # Upgrade definitions are hardcoded for now. Archetypes drive build identity,
 # prerequisites unlock synergies, and build-defining entries reshape a run.
@@ -836,7 +845,14 @@ func is_upgrade_available(upgrade_id: String) -> bool:
 		return false
 	if get_upgrade_level(upgrade_id) >= int(definition.get("max_level", 1)):
 		return false
-	return _meets_prerequisites(definition)
+	if not _meets_prerequisites(definition):
+		return false
+	if _is_selected_upgrade_line(upgrade_id):
+		return true
+	var slot_category := _get_slot_category(definition)
+	if slot_category.is_empty():
+		return false
+	return _get_selected_slot_lines(slot_category).size() < _get_slot_category_max(slot_category)
 
 
 # ── BUILD STATE ──────────────────────────────────────────────────────────────
@@ -864,12 +880,14 @@ func get_upgrade_definition_summary(upgrade_id: String) -> Dictionary:
 	var definition := _get_upgrade_definition(upgrade_id)
 	if definition.is_empty():
 		return {}
+	var slot_category := _get_slot_category(definition)
 	return {
 		"id": upgrade_id,
 		"title": definition.get("title", ""),
 		"rarity": definition.get("rarity", "common"),
 		"archetype": definition.get("archetype", ""),
 		"tags": definition.get("tags", []),
+		"slot_category": slot_category,
 		"max_level": definition.get("max_level", 1),
 		"current_level": get_upgrade_level(upgrade_id),
 		"prerequisites": definition.get("prerequisites", {})
@@ -971,6 +989,29 @@ func debug_get_build_state() -> Dictionary:
 		"unlocked_synergy_upgrade_ids": synergy_ids,
 		"unlocked_build_defining_upgrade_ids": build_defining_available,
 		"selected_build_defining_upgrade_ids": build_defining_selected,
+		"slot_state": debug_get_slot_state(),
+	}
+
+
+func debug_get_slot_state() -> Dictionary:
+	return {
+		SLOT_CATEGORY_ATTACK: {
+			"selected": selected_attack_lines.duplicate(),
+			"used": selected_attack_lines.size(),
+			"max": MAX_ATTACK_LINES,
+		},
+		SLOT_CATEGORY_PASSIVE: {
+			"selected": selected_passive_lines.duplicate(),
+			"used": selected_passive_lines.size(),
+			"max": MAX_PASSIVE_LINES,
+		},
+		SLOT_CATEGORY_ACTIVE: {
+			"selected": selected_active_lines.duplicate(),
+			"used": selected_active_lines.size(),
+			"max": MAX_ACTIVE_LINES,
+		},
+		"total_used": selected_attack_lines.size() + selected_passive_lines.size() + selected_active_lines.size(),
+		"total_max": MAX_ATTACK_LINES + MAX_PASSIVE_LINES + MAX_ACTIVE_LINES,
 	}
 
 
@@ -1003,17 +1044,23 @@ func debug_print_upgrade_pool() -> void:
 # ── INTERNAL ─────────────────────────────────────────────────────────────────
 
 func _increment_upgrade_level(upgrade_id: String) -> void:
+	var definition := _get_upgrade_definition(upgrade_id)
+	var was_new_line := get_upgrade_level(upgrade_id) <= 0
+	if was_new_line:
+		_add_selected_slot_line(upgrade_id, _get_slot_category(definition))
+
 	upgrade_levels[upgrade_id] = get_upgrade_level(upgrade_id) + 1
 
-	var definition := _get_upgrade_definition(upgrade_id)
 	var archetype := str(definition.get("archetype", ""))
 	if not archetype.is_empty():
 		archetype_points[archetype] = int(archetype_points.get(archetype, 0)) + 1
 
+	var slot_category := _get_slot_category(definition)
 	selected_upgrade_history.append({
 		"id": upgrade_id,
 		"title": str(definition.get("title", upgrade_id)),
 		"archetype": archetype,
+		"slot_category": slot_category,
 		"tags": definition.get("tags", []),
 		"level_after_pick": get_upgrade_level(upgrade_id)
 	})
@@ -1029,6 +1076,9 @@ func _build_option(definition: Dictionary) -> Dictionary:
 	var tags: Array = definition.get("tags", [])
 	var is_synergy := tags.has("synergy")
 	var is_passive := _is_passive_definition(definition)
+	var slot_category := _get_slot_category(definition)
+	var selected_lines := _get_selected_slot_lines(slot_category)
+	var is_new_line := not _is_selected_upgrade_line(upgrade_id)
 
 	var description: String
 	var effect_text := ""
@@ -1049,6 +1099,10 @@ func _build_option(definition: Dictionary) -> Dictionary:
 		"archetype": definition.get("archetype", ""),
 		"tags": tags,
 		"type": definition.get("type", definition.get("category", "")),
+		"slot_category": slot_category,
+		"is_new_line": is_new_line,
+		"category_slots_used": selected_lines.size(),
+		"category_slots_max": _get_slot_category_max(slot_category),
 		"level": current_level,
 		"max_level": max_level,
 		"description": description,
@@ -1061,6 +1115,67 @@ func _build_option(definition: Dictionary) -> Dictionary:
 func _is_passive_definition(definition: Dictionary) -> bool:
 	var tags: Array = definition.get("tags", [])
 	return str(definition.get("type", definition.get("category", ""))) == "passive" or tags.has("passive")
+
+
+func _get_slot_category(definition: Dictionary) -> String:
+	var explicit := str(definition.get("slot_category", ""))
+	if [SLOT_CATEGORY_ATTACK, SLOT_CATEGORY_PASSIVE, SLOT_CATEGORY_ACTIVE].has(explicit):
+		return explicit
+
+	var tags: Array = definition.get("tags", [])
+	var archetype := str(definition.get("archetype", ""))
+	if _is_passive_definition(definition):
+		return SLOT_CATEGORY_PASSIVE
+	if tags.has("weapon") or tags.has("projectile") or tags.has("primary") or _definition_targets(definition, "auto_attack"):
+		return SLOT_CATEGORY_ATTACK
+	if tags.has("ability") or ["nova", "laser", "slam"].has(archetype) or _definition_targets(definition, "ability_manager"):
+		return SLOT_CATEGORY_ACTIVE
+	if tags.has("defense") or tags.has("mobility") or tags.has("utility") or tags.has("pickup") or ["dash", "tank", "speed", "utility"].has(archetype):
+		return SLOT_CATEGORY_PASSIVE
+
+	push_warning("UpgradeManager: upgrade '%s' has no slot category." % str(definition.get("id", "")))
+	return ""
+
+
+func _definition_targets(definition: Dictionary, target_id: String) -> bool:
+	var effects: Array = definition.get("effects", [])
+	for effect in effects:
+		if effect is Dictionary and str(effect.get("target", "")) == target_id:
+			return true
+	return false
+
+
+func _is_selected_upgrade_line(upgrade_id: String) -> bool:
+	return get_upgrade_level(upgrade_id) > 0
+
+
+func _add_selected_slot_line(upgrade_id: String, slot_category: String) -> void:
+	var lines := _get_selected_slot_lines(slot_category)
+	if lines.has(upgrade_id):
+		return
+	lines.append(upgrade_id)
+
+
+func _get_selected_slot_lines(slot_category: String) -> Array[String]:
+	match slot_category:
+		SLOT_CATEGORY_ATTACK:
+			return selected_attack_lines
+		SLOT_CATEGORY_PASSIVE:
+			return selected_passive_lines
+		SLOT_CATEGORY_ACTIVE:
+			return selected_active_lines
+	return []
+
+
+func _get_slot_category_max(slot_category: String) -> int:
+	match slot_category:
+		SLOT_CATEGORY_ATTACK:
+			return MAX_ATTACK_LINES
+		SLOT_CATEGORY_PASSIVE:
+			return MAX_PASSIVE_LINES
+		SLOT_CATEGORY_ACTIVE:
+			return MAX_ACTIVE_LINES
+	return 0
 
 
 func _apply_passive_upgrade(upgrade_id: String) -> bool:
