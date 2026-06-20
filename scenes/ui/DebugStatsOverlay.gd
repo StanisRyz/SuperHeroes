@@ -247,6 +247,20 @@ func _build_stats_text() -> String:
 				lines.append("Attack ids: %s" % _format_slot_ids(slot_state, "attack"))
 				lines.append("Passive ids: %s" % _format_slot_ids(slot_state, "passive"))
 				lines.append("Active ids: %s" % _format_slot_ids(slot_state, "active"))
+			var grid_state: Dictionary = build.get("upgrade_grid_state", {})
+			if grid_state.is_empty() and _upgrade_manager.has_method("debug_get_upgrade_grid_state"):
+				grid_state = _upgrade_manager.debug_get_upgrade_grid_state()
+			if not grid_state.is_empty():
+				var counts: Dictionary = grid_state.get("current_hero_line_counts", {})
+				lines.append("Grid audit: %d warn / %d err" % [
+					int(grid_state.get("schema_warning_count", 0)),
+					int(grid_state.get("schema_error_count", 0))
+				])
+				lines.append("Grid lines: A %d/9  P %d/9  Act %d/9" % [
+					counts.get("attack", []).size(),
+					counts.get("passive", []).size(),
+					counts.get("active", []).size(),
+				])
 		elif _upgrade_manager.has_method("get_dominant_archetype"):
 			lines.append("Dominant: %s" % _upgrade_manager.get_dominant_archetype())
 	else:

@@ -177,6 +177,15 @@ Implemented foundation:
   - UpgradeManager emits `build_changed(dominant_archetype, points)` whenever an upgrade is applied.
   - `debug_print_upgrade_pool()`, `debug_get_available_upgrade_ids()`, and `debug_get_slot_state()` helpers available for console verification.
 
+- Upgrade Grid Schema foundation:
+  - Upgrade definitions now support optional grid metadata: `upgrade_line_id`, `slot_category`, `hero_id` / `hero_ids`, `hero_exclude`, `source_type`, `source_skill_id`, `grid_index`, `triple_id`, `evolution_role`, `evolution_target_active_skill`, and `evolution_candidate_id`.
+  - Missing `upgrade_line_id` falls back to `id`; missing `slot_category` is inferred from existing category/type/tags/effect targets so old definitions keep working.
+  - Future target grid: 9 Attack lines per hero, 9 Active lines per hero, and 9 shared Passive lines.
+  - Future Evolution triples will link one attack line, one passive line, one active line, and one evolved active skill.
+  - This patch only adds schema and validation support; it does not add evolutions, Overdrive UI, new passive packs, or evolved active skills.
+  - `UpgradeManager.validate_upgrade_grid(false)` reports incomplete target counts as warnings, while strict mode can promote target-count gaps for future content gates.
+  - `debug_get_upgrade_grid_state()` exposes warning/error counts and current hero line counts; DebugStatsOverlay displays a compact grid audit summary.
+
 - Passive Ability System Foundation + visibility hotfix:
   - Passive skills are shared by all heroes, selected through the normal level-up upgrade pool, and reset every run.
   - `PassiveAbilityManager` is instantiated by Arena at run startup and is never saved to meta/progression data.

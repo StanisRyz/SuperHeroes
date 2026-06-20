@@ -15,9 +15,23 @@ const PROJECTILE_BOUNCE_MAX := 5
 const SLOT_CATEGORY_ATTACK := "attack"
 const SLOT_CATEGORY_PASSIVE := "passive"
 const SLOT_CATEGORY_ACTIVE := "active"
+const VALID_SLOT_CATEGORIES := [SLOT_CATEGORY_ATTACK, SLOT_CATEGORY_PASSIVE, SLOT_CATEGORY_ACTIVE]
+const EVOLUTION_ROLE_ATTACK := "attack"
+const EVOLUTION_ROLE_PASSIVE := "passive"
+const EVOLUTION_ROLE_ACTIVE := "active"
+const VALID_EVOLUTION_ROLES := [EVOLUTION_ROLE_ATTACK, EVOLUTION_ROLE_PASSIVE, EVOLUTION_ROLE_ACTIVE]
+const SOURCE_TYPE_AUTOATTACK := "autoattack"
+const SOURCE_TYPE_PASSIVE := "passive"
+const SOURCE_TYPE_ABILITY := "ability"
+const SOURCE_TYPE_GENERIC := "generic"
+const VALID_SOURCE_TYPES := [SOURCE_TYPE_AUTOATTACK, SOURCE_TYPE_PASSIVE, SOURCE_TYPE_ABILITY, SOURCE_TYPE_GENERIC]
+const HERO_IDS := ["guardian", "blaster", "vanguard"]
 const MAX_ATTACK_LINES := 4
 const MAX_PASSIVE_LINES := 4
 const MAX_ACTIVE_LINES := 4
+const TARGET_ATTACK_LINES_PER_HERO := 9
+const TARGET_ACTIVE_LINES_PER_HERO := 9
+const TARGET_SHARED_PASSIVE_LINES := 9
 
 const HERO_UPGRADE_FLAVOR := {
 	"guardian": {
@@ -1449,6 +1463,7 @@ func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node = 
 	ability_manager = new_ability_manager
 	hero_data = new_hero_data.duplicate(true)
 	passive_ability_manager = new_passive_ability_manager
+	_normalize_upgrade_definitions()
 
 
 func get_upgrade_options(count: int = 3) -> Array[Dictionary]:
@@ -1604,12 +1619,16 @@ func is_upgrade_available(upgrade_id: String) -> bool:
 	var hero_only: Array = definition.get("hero_only", [])
 	if not hero_only.is_empty() and not hero_only.has(hero_id):
 		return false
+	var hero_ids := get_upgrade_hero_ids(definition)
+	if not hero_id.is_empty() and not hero_ids.is_empty() and not hero_ids.has(hero_id):
+		return false
 	var hero_exclude: Array = definition.get("hero_exclude", [])
 	if hero_exclude.has(hero_id):
 		return false
-	if _is_selected_upgrade_line(upgrade_id):
+	var upgrade_line_id := get_upgrade_line_id(definition)
+	if _is_selected_upgrade_line(upgrade_line_id):
 		return true
-	var slot_category := _get_slot_category(definition)
+	var slot_category := get_upgrade_slot_category(definition)
 	if slot_category.is_empty():
 		return false
 	return _get_selected_slot_lines(slot_category).size() < _get_slot_category_max(slot_category)
@@ -1640,18 +1659,96 @@ func get_upgrade_definition_summary(upgrade_id: String) -> Dictionary:
 	var definition := _get_upgrade_definition(upgrade_id)
 	if definition.is_empty():
 		return {}
-	var slot_category := _get_slot_category(definition)
+	var slot_category := get_upgrade_slot_category(definition)
 	return {
 		"id": upgrade_id,
+		"upgrade_line_id": get_upgrade_line_id(definition),
 		"title": definition.get("title", ""),
 		"rarity": definition.get("rarity", "common"),
 		"archetype": definition.get("archetype", ""),
 		"tags": definition.get("tags", []),
 		"slot_category": slot_category,
+		"hero_ids": get_upgrade_hero_ids(definition),
+		"source_type": get_upgrade_source_type(definition),
+		"source_skill_id": get_upgrade_source_skill_id(definition),
+		"grid_index": get_upgrade_grid_index(definition),
+		"triple_id": get_upgrade_triple_id(definition),
+		"evolution_role": get_upgrade_evolution_role(definition),
+		"evolution_target_active_skill": get_upgrade_evolution_target(definition),
 		"max_level": definition.get("max_level", 1),
 		"current_level": get_upgrade_level(upgrade_id),
 		"prerequisites": definition.get("prerequisites", {})
 	}
+
+
+func get_upgrade_line_id(definition: Dictionary) -> String:
+	return str(definition.get("upgrade_line_id", definition.get("id", "")))
+
+
+func get_upgrade_slot_category(definition: Dictionary) -> String:
+	return _infer_slot_category(definition, false)
+
+
+func get_upgrade_hero_ids(definition: Dictionary) -> Array:
+	if definition.has("hero_ids"):
+		var hero_ids_value = definition.get("hero_ids", [])
+		if hero_ids_value is Array:
+			return (hero_ids_value as Array).duplicate()
+	if definition.has("hero_id"):
+		var hero_id := str(definition.get("hero_id", ""))
+		return [hero_id] if not hero_id.is_empty() else []
+	if definition.has("hero_only"):
+		var hero_only_value = definition.get("hero_only", [])
+		if hero_only_value is Array:
+			return (hero_only_value as Array).duplicate()
+
+	var ids := HERO_IDS.duplicate()
+	var excluded: Array = definition.get("hero_exclude", [])
+	for hero_id in excluded:
+		ids.erase(str(hero_id))
+	return ids
+
+
+func get_upgrade_source_type(definition: Dictionary) -> String:
+	var explicit := str(definition.get("source_type", ""))
+	if VALID_SOURCE_TYPES.has(explicit):
+		return explicit
+	if _is_passive_definition(definition):
+		return SOURCE_TYPE_PASSIVE
+	if _definition_targets(definition, "ability_manager") or get_upgrade_slot_category(definition) == SLOT_CATEGORY_ACTIVE:
+		return SOURCE_TYPE_ABILITY
+	if _definition_targets(definition, "auto_attack") or get_upgrade_slot_category(definition) == SLOT_CATEGORY_ATTACK:
+		return SOURCE_TYPE_AUTOATTACK
+	return SOURCE_TYPE_GENERIC
+
+
+func get_upgrade_source_skill_id(definition: Dictionary) -> String:
+	var explicit := str(definition.get("source_skill_id", ""))
+	if not explicit.is_empty():
+		return explicit
+	match get_upgrade_source_type(definition):
+		SOURCE_TYPE_PASSIVE:
+			return str(definition.get("id", ""))
+		SOURCE_TYPE_ABILITY, SOURCE_TYPE_AUTOATTACK:
+			var archetype := str(definition.get("archetype", ""))
+			return archetype if not archetype.is_empty() else get_upgrade_line_id(definition)
+	return ""
+
+
+func get_upgrade_grid_index(definition: Dictionary) -> int:
+	return int(definition.get("grid_index", 0))
+
+
+func get_upgrade_triple_id(definition: Dictionary) -> String:
+	return str(definition.get("triple_id", ""))
+
+
+func get_upgrade_evolution_role(definition: Dictionary) -> String:
+	return str(definition.get("evolution_role", ""))
+
+
+func get_upgrade_evolution_target(definition: Dictionary) -> String:
+	return str(definition.get("evolution_target_active_skill", ""))
 
 
 # ── PREREQUISITE HELPERS ─────────────────────────────────────────────────────
@@ -1750,6 +1847,7 @@ func debug_get_build_state() -> Dictionary:
 		"unlocked_build_defining_upgrade_ids": build_defining_available,
 		"selected_build_defining_upgrade_ids": build_defining_selected,
 		"slot_state": debug_get_slot_state(),
+		"upgrade_grid_state": debug_get_upgrade_grid_state(),
 	}
 
 
@@ -1776,6 +1874,31 @@ func get_slot_state() -> Dictionary:
 		},
 		"total_used": selected_attack_lines.size() + selected_passive_lines.size() + selected_active_lines.size(),
 		"total_max": MAX_ATTACK_LINES + MAX_PASSIVE_LINES + MAX_ACTIVE_LINES,
+	}
+
+
+func validate_upgrade_grid(strict: bool = false) -> Dictionary:
+	return _validate_upgrade_grid_for_heroes(HERO_IDS, strict)
+
+
+func validate_upgrade_grid_for_hero(hero_id: String, strict: bool = false) -> Dictionary:
+	return _validate_upgrade_grid_for_heroes([hero_id], strict)
+
+
+func debug_get_upgrade_grid_state() -> Dictionary:
+	var selected_hero_id := str(hero_data.get("id", ""))
+	var audit := validate_upgrade_grid(false)
+	var hero_counts: Dictionary = {}
+	if not selected_hero_id.is_empty():
+		hero_counts = validate_upgrade_grid_for_hero(selected_hero_id, false).get("line_counts", {}).get(selected_hero_id, {})
+	return {
+		"schema_warning_count": int(audit.get("warning_count", 0)),
+		"schema_error_count": int(audit.get("error_count", 0)),
+		"current_hero_id": selected_hero_id,
+		"current_hero_line_counts": hero_counts,
+		"target_counts": audit.get("target_counts", {}),
+		"warnings": audit.get("warnings", []),
+		"errors": audit.get("errors", []),
 	}
 
 
@@ -1807,11 +1930,175 @@ func debug_print_upgrade_pool() -> void:
 
 # ── INTERNAL ─────────────────────────────────────────────────────────────────
 
+func _normalize_upgrade_definitions() -> void:
+	for definition in _upgrade_definitions:
+		if not definition.has("upgrade_line_id"):
+			definition["upgrade_line_id"] = str(definition.get("id", ""))
+		if not definition.has("slot_category"):
+			var slot_category := _infer_slot_category(definition, false)
+			if not slot_category.is_empty():
+				definition["slot_category"] = slot_category
+		if not definition.has("source_type"):
+			definition["source_type"] = get_upgrade_source_type(definition)
+		if not definition.has("source_skill_id"):
+			var source_skill_id := get_upgrade_source_skill_id(definition)
+			if not source_skill_id.is_empty():
+				definition["source_skill_id"] = source_skill_id
+
+
+func _validate_upgrade_grid_for_heroes(hero_scope: Array, strict: bool) -> Dictionary:
+	var errors: Array = []
+	var warnings: Array = []
+	var line_seen: Dictionary = {}
+	var grid_seen: Dictionary = {}
+	var triple_roles: Dictionary = {}
+	var line_triples: Dictionary = {}
+	var line_counts: Dictionary = {}
+	var shared_passive_lines: Array[String] = []
+
+	for hero_id in hero_scope:
+		line_counts[str(hero_id)] = {
+			SLOT_CATEGORY_ATTACK: [],
+			SLOT_CATEGORY_PASSIVE: [],
+			SLOT_CATEGORY_ACTIVE: [],
+		}
+
+	for definition in _upgrade_definitions:
+		var upgrade_id := str(definition.get("id", ""))
+		var explicit_slot_category := str(definition.get("slot_category", ""))
+		var slot_category := get_upgrade_slot_category(definition)
+		if explicit_slot_category.is_empty() and slot_category.is_empty():
+			_record_grid_issue(errors, warnings, true, "missing_slot_category", upgrade_id, "", "", "Upgrade has no slot category and could not be inferred.")
+			continue
+		if not explicit_slot_category.is_empty() and not VALID_SLOT_CATEGORIES.has(explicit_slot_category):
+			_record_grid_issue(errors, warnings, true, "invalid_slot_category", upgrade_id, "", explicit_slot_category, "Upgrade has an invalid slot category.")
+			continue
+		if slot_category.is_empty():
+			continue
+
+		var upgrade_line_id := get_upgrade_line_id(definition)
+		if upgrade_line_id.is_empty():
+			_record_grid_issue(errors, warnings, true, "missing_upgrade_line_id", upgrade_id, "", slot_category, "Upgrade has no upgrade_line_id or id fallback.")
+			continue
+
+		if slot_category == SLOT_CATEGORY_PASSIVE and _definition_has_hero_specific_marker(definition):
+			_record_grid_issue(errors, warnings, strict, "hero_specific_passive_line", upgrade_id, "", slot_category, "Passive upgrade lines should stay shared.")
+
+		var applicable_heroes := get_upgrade_hero_ids(definition)
+		for scoped_hero_id in hero_scope:
+			var hero_id := str(scoped_hero_id)
+			if not applicable_heroes.is_empty() and not applicable_heroes.has(hero_id):
+				continue
+
+			var line_key := "%s|%s|%s" % [hero_id, slot_category, upgrade_line_id]
+			if line_seen.has(line_key):
+				_record_grid_issue(errors, warnings, true, "duplicate_upgrade_line_id", upgrade_id, hero_id, slot_category, "Duplicate upgrade_line_id '%s' in this hero/category." % upgrade_line_id)
+			else:
+				line_seen[line_key] = upgrade_id
+				var category_lines: Array = line_counts[hero_id][slot_category]
+				category_lines.append(upgrade_line_id)
+
+			var grid_index := get_upgrade_grid_index(definition)
+			if grid_index != 0:
+				if grid_index < 1 or grid_index > 9:
+					_record_grid_issue(errors, warnings, true, "invalid_grid_index", upgrade_id, hero_id, slot_category, "grid_index must be 1-9.")
+				else:
+					var grid_key := "%s|%s|%d" % [hero_id, slot_category, grid_index]
+					if grid_seen.has(grid_key):
+						_record_grid_issue(errors, warnings, true, "duplicate_grid_index", upgrade_id, hero_id, slot_category, "Duplicate grid_index %d in this hero/category." % grid_index)
+					else:
+						grid_seen[grid_key] = upgrade_id
+
+			var triple_id := get_upgrade_triple_id(definition)
+			var evolution_role := get_upgrade_evolution_role(definition)
+			if not triple_id.is_empty():
+				if not VALID_EVOLUTION_ROLES.has(evolution_role):
+					_record_grid_issue(errors, warnings, true, "invalid_evolution_role", upgrade_id, hero_id, slot_category, "Triple member has an invalid or missing evolution_role.")
+				else:
+					var triple_key := "%s|%s" % [hero_id, triple_id]
+					if not triple_roles.has(triple_key):
+						triple_roles[triple_key] = {}
+					var roles: Dictionary = triple_roles[triple_key]
+					if not roles.has(evolution_role):
+						roles[evolution_role] = []
+					var role_lines: Array = roles[evolution_role]
+					role_lines.append(upgrade_line_id)
+					if role_lines.size() > 1:
+						_record_grid_issue(errors, warnings, true, "duplicate_triple_role", upgrade_id, hero_id, slot_category, "Triple '%s' has more than one %s line." % [triple_id, evolution_role])
+
+					var hero_line_key := "%s|%s" % [hero_id, upgrade_line_id]
+					if not line_triples.has(hero_line_key):
+						line_triples[hero_line_key] = []
+					var triples: Array = line_triples[hero_line_key]
+					if not triples.has(triple_id):
+						triples.append(triple_id)
+					if triples.size() > 1:
+						_record_grid_issue(errors, warnings, true, "line_used_in_multiple_triples", upgrade_id, hero_id, slot_category, "Upgrade line '%s' is used in multiple triples." % upgrade_line_id)
+
+					if evolution_role == EVOLUTION_ROLE_ACTIVE and get_upgrade_evolution_target(definition).is_empty():
+						_record_grid_issue(errors, warnings, true, "active_triple_missing_target", upgrade_id, hero_id, slot_category, "Active triple member is missing evolution_target_active_skill.")
+
+		if slot_category == SLOT_CATEGORY_PASSIVE and not shared_passive_lines.has(upgrade_line_id):
+			shared_passive_lines.append(upgrade_line_id)
+
+	for hero_id in hero_scope:
+		var hero_key := str(hero_id)
+		var counts: Dictionary = line_counts.get(hero_key, {})
+		_validate_target_count(errors, warnings, strict, hero_key, SLOT_CATEGORY_ATTACK, counts.get(SLOT_CATEGORY_ATTACK, []).size(), TARGET_ATTACK_LINES_PER_HERO)
+		_validate_target_count(errors, warnings, strict, hero_key, SLOT_CATEGORY_ACTIVE, counts.get(SLOT_CATEGORY_ACTIVE, []).size(), TARGET_ACTIVE_LINES_PER_HERO)
+
+	_validate_target_count(errors, warnings, strict, "shared", SLOT_CATEGORY_PASSIVE, shared_passive_lines.size(), TARGET_SHARED_PASSIVE_LINES)
+
+	return {
+		"ok": errors.is_empty(),
+		"strict": strict,
+		"errors": errors,
+		"warnings": warnings,
+		"error_count": errors.size(),
+		"warning_count": warnings.size(),
+		"heroes": hero_scope.duplicate(),
+		"line_counts": line_counts,
+		"shared_passive_line_count": shared_passive_lines.size(),
+		"target_counts": {
+			SLOT_CATEGORY_ATTACK: TARGET_ATTACK_LINES_PER_HERO,
+			SLOT_CATEGORY_PASSIVE: TARGET_SHARED_PASSIVE_LINES,
+			SLOT_CATEGORY_ACTIVE: TARGET_ACTIVE_LINES_PER_HERO,
+		},
+	}
+
+
+func _validate_target_count(errors: Array, warnings: Array, strict: bool, hero_id: String, slot_category: String, actual: int, target: int) -> void:
+	if actual == target:
+		return
+	var issue_code := "target_line_count_incomplete" if actual < target else "target_line_count_exceeded"
+	var message := "%s has %d/%d %s upgrade lines." % [hero_id, actual, target, slot_category]
+	_record_grid_issue(errors, warnings, strict, issue_code, "", hero_id, slot_category, message)
+
+
+func _record_grid_issue(errors: Array, warnings: Array, as_error: bool, code: String, upgrade_id: String, hero_id: String, slot_category: String, message: String) -> void:
+	var issue := {
+		"code": code,
+		"upgrade_id": upgrade_id,
+		"hero_id": hero_id,
+		"slot_category": slot_category,
+		"message": message,
+	}
+	if as_error:
+		errors.append(issue)
+	else:
+		warnings.append(issue)
+
+
+func _definition_has_hero_specific_marker(definition: Dictionary) -> bool:
+	return definition.has("hero_id") or definition.has("hero_ids") or definition.has("hero_only")
+
+
 func _increment_upgrade_level(upgrade_id: String) -> void:
 	var definition := _get_upgrade_definition(upgrade_id)
+	var upgrade_line_id := get_upgrade_line_id(definition)
 	var was_new_line := get_upgrade_level(upgrade_id) <= 0
 	if was_new_line:
-		_add_selected_slot_line(upgrade_id, _get_slot_category(definition))
+		_add_selected_slot_line(upgrade_line_id, get_upgrade_slot_category(definition))
 
 	upgrade_levels[upgrade_id] = get_upgrade_level(upgrade_id) + 1
 
@@ -1819,9 +2106,10 @@ func _increment_upgrade_level(upgrade_id: String) -> void:
 	if not archetype.is_empty():
 		archetype_points[archetype] = int(archetype_points.get(archetype, 0)) + 1
 
-	var slot_category := _get_slot_category(definition)
+	var slot_category := get_upgrade_slot_category(definition)
 	selected_upgrade_history.append({
 		"id": upgrade_id,
+		"upgrade_line_id": upgrade_line_id,
 		"title": str(definition.get("title", upgrade_id)),
 		"archetype": archetype,
 		"slot_category": slot_category,
@@ -1840,9 +2128,9 @@ func _build_option(definition: Dictionary) -> Dictionary:
 	var tags: Array = definition.get("tags", [])
 	var is_synergy := tags.has("synergy")
 	var is_passive := _is_passive_definition(definition)
-	var slot_category := _get_slot_category(definition)
+	var slot_category := get_upgrade_slot_category(definition)
 	var selected_lines := _get_selected_slot_lines(slot_category)
-	var is_new_line := not _is_selected_upgrade_line(upgrade_id)
+	var is_new_line := not _is_selected_upgrade_line(get_upgrade_line_id(definition))
 
 	var description: String
 	var effect_text := ""
@@ -1858,6 +2146,7 @@ func _build_option(definition: Dictionary) -> Dictionary:
 
 	return {
 		"id": upgrade_id,
+		"upgrade_line_id": get_upgrade_line_id(definition),
 		"title": _get_flavored_upgrade_title(upgrade_id, str(definition.get("title", "Upgrade"))),
 		"rarity": definition.get("rarity", "common"),
 		"archetype": definition.get("archetype", ""),
@@ -1882,8 +2171,12 @@ func _is_passive_definition(definition: Dictionary) -> bool:
 
 
 func _get_slot_category(definition: Dictionary) -> String:
+	return get_upgrade_slot_category(definition)
+
+
+func _infer_slot_category(definition: Dictionary, warn_on_missing: bool = true) -> String:
 	var explicit := str(definition.get("slot_category", ""))
-	if [SLOT_CATEGORY_ATTACK, SLOT_CATEGORY_PASSIVE, SLOT_CATEGORY_ACTIVE].has(explicit):
+	if VALID_SLOT_CATEGORIES.has(explicit):
 		return explicit
 
 	var tags: Array = definition.get("tags", [])
@@ -1897,7 +2190,8 @@ func _get_slot_category(definition: Dictionary) -> String:
 	if tags.has("defense") or tags.has("mobility") or tags.has("utility") or tags.has("pickup") or ["dash", "tank", "speed", "utility"].has(archetype):
 		return SLOT_CATEGORY_PASSIVE
 
-	push_warning("UpgradeManager: upgrade '%s' has no slot category." % str(definition.get("id", "")))
+	if warn_on_missing:
+		push_warning("UpgradeManager: upgrade '%s' has no slot category." % str(definition.get("id", "")))
 	return ""
 
 
@@ -1909,8 +2203,8 @@ func _definition_targets(definition: Dictionary, target_id: String) -> bool:
 	return false
 
 
-func _is_selected_upgrade_line(upgrade_id: String) -> bool:
-	return get_upgrade_level(upgrade_id) > 0
+func _is_selected_upgrade_line(upgrade_line_id: String) -> bool:
+	return selected_attack_lines.has(upgrade_line_id) or selected_passive_lines.has(upgrade_line_id) or selected_active_lines.has(upgrade_line_id)
 
 
 func _add_selected_slot_line(upgrade_id: String, slot_category: String) -> void:

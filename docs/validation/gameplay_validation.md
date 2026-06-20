@@ -223,6 +223,25 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Upgrade Grid Schema Validation
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Call `UpgradeManager.validate_upgrade_grid(false)` from a live run or remote console | Returns a Dictionary with `errors`, `warnings`, `error_count`, `warning_count`, `line_counts`, and `target_counts` |
+| 2 | Inspect non-strict audit result | Current incomplete 9/9/9 target counts are warnings only and do not block gameplay |
+| 3 | Call `UpgradeManager.validate_upgrade_grid(true)` | Future target-count gaps may report as errors for strict validation |
+| 4 | Call `UpgradeManager.validate_upgrade_grid_for_hero("guardian", false)` | Returns Guardian attack/passive/active line counts without mutating upgrades |
+| 5 | Call `UpgradeManager.debug_get_upgrade_grid_state()` | Returns schema warning/error counts plus current hero line counts |
+| 6 | Enable Debug Mode during a run | DebugStatsOverlay shows compact grid audit warning/error counts and current hero A/P/Act line counts |
+| 7 | Trigger level-up options after schema changes | LevelUpScreen still displays valid options and slot markers |
+| 8 | Fill Attack / Passive / Active slots | Existing 4/4/4 slot limits still work; already selected lines can still level up |
+| 9 | Open Build Slots Window after selecting upgrades | Window still reads selected line ids and displays filled rows correctly |
+| 10 | Pick shared passive skills | PassiveAbilityManager still applies passives; no passive state is saved |
+| 11 | Start runs as Solar Guardian, Night Tactician, and Fury Vanguard | Existing hero-specific upgrade filtering and kit behavior still work |
+| 12 | Inspect diff/save behavior | No EvolutionManager changes, Overdrive UI, new passive pack, upgrade effects, balance, rewards, saves, stages, enemies, boss flow, or meta economy changes |
+
+---
+
 ## Upgrade Slot Limits
 
 | # | Test | Expected |

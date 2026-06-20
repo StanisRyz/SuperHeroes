@@ -827,6 +827,18 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - `UpgradeManager` owns all build-defining unlock rules and effect application.
 - `LevelUpScreen`, `GameHUD`, and `DebugStatsOverlay` are display-only for build/synergy information.
 
+## Upgrade Grid Schema Foundation
+
+- `UpgradeManager` owns upgrade grid schema normalization and validation. Existing upgrade definitions remain dictionary-backed and hardcoded for now.
+- Supported optional fields on upgrade definitions: `upgrade_line_id`, `slot_category`, `hero_id`, `hero_ids`, `hero_exclude`, `source_type`, `source_skill_id`, `grid_index`, `triple_id`, `evolution_role`, `evolution_target_active_skill`, and `evolution_candidate_id`.
+- Backward compatibility rules: missing `upgrade_line_id` falls back to `id`; missing `slot_category` is inferred from existing `category`, `type`, `tags`, `archetype`, and effect targets. Existing upgrade effects, weights, prerequisites, 4/4/4 slot limits, and hero filtering must keep working.
+- Normalization helpers exposed by `UpgradeManager`: `get_upgrade_line_id`, `get_upgrade_slot_category`, `get_upgrade_hero_ids`, `get_upgrade_source_skill_id`, `get_upgrade_grid_index`, `get_upgrade_triple_id`, `get_upgrade_evolution_role`, and `get_upgrade_evolution_target`.
+- Validation helpers exposed by `UpgradeManager`: `validate_upgrade_grid(strict := false)`, `validate_upgrade_grid_for_hero(hero_id, strict := false)`, and `debug_get_upgrade_grid_state()`.
+- Non-strict validation treats incomplete future 9/9/9 targets as warnings. Strict validation may promote target-count gaps to errors for future release gates.
+- Future target counts are 9 Attack lines per hero, 9 Active lines per hero, and 9 shared Passive lines. Passive upgrade lines should remain shared, not hero-specific, unless a future task explicitly changes that rule.
+- Future Evolution triples link one attack line, one passive line, one active line, and one evolved active skill. Each upgrade line may be used only once per hero triple grid.
+- Do not implement EvolutionManager changes, Overdrive screens, evolved active skills, the 9-passive pack, or Solar/Night/Fury grid normalization in this schema-only patch.
+
 ## Input Flow
 
 - Keyboard movement and ability input still use the Godot InputMap.
