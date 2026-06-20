@@ -646,47 +646,50 @@ Not implemented yet (meta):
 - **Debug**: `Arena.debug_spawn_final_boss(boss_id: String = "")` can be called from the Godot remote console. No new key binding.
 - Restart from Victory/GameOver keeps the same hero and stage. Quit to MainMenu clears both selections.
 
-### Weapon / Ability Evolution System
+### 3/3/3 Evolution System
 
 - **EvolutionManager** owns runtime-only evolution definitions and applied evolution state for the current run.
 - **EvolutionRewardScreen** is a display-only paused reward screen; Arena opens it and applies selected evolutions.
-- Evolutions added: Projectile Storm, Supernova Core, Prism Laser, Earthbreaker Slam, and Comet Engine.
-- Miniboss defeat checks available evolutions and opens the reward screen when prerequisites are met.
+- Each hero has 9 evolution triples organized as 3 attack targets, 3 active targets, and 3 passive targets.
+- Each triple still requires exactly 1 attack upgrade line, 1 passive upgrade line, and 1 active upgrade line, all selected and maxed.
+- Triple definitions use `target_type` (`attack`, `active`, `passive`) plus `target_id`; old `target_active_skill_id` remains supported as active-evolution compatibility data.
+- The current implemented pack preserves the six existing active evolutions. Attack and passive target slots are schema placeholders and are not offered in Overdrive until their real effect packs exist.
 - Elite evolution rewards are supported behind `EvolutionManager.elite_reward_chance`, defaulting to `0.0`.
 - GameHUD shows current evolution state, and Victory/GameOver summaries list applied evolutions.
-- Debug Mode F9 can open the evolution reward screen when evolutions are available.
+- Debug Mode F9 can open the evolution reward screen when implemented evolutions are available.
 
 ### Overdrive Trigger & First Game-Breaking Evolutions
 
-The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** choice screen whenever a triple becomes READY after an upgrade is applied.
+The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** choice screen whenever a triple becomes READY after an upgrade is applied, but only implemented effects are offered.
 
 #### Overdrive Flow
 
 1. Player picks an upgrade from LevelUpScreen.
-2. Arena calls `EvolutionManager.get_overdrive_options()` — returns all READY (not yet selected) triples for the active hero.
-3. If any READY triples exist, **OverdriveScreen** opens (paused, layer 22, no skip). Player must select one.
-4. `EvolutionManager.apply_evolution(evolution_id)` sets the triple to SELECTED and routes the effect to **AbilityManager** via `ability_manager.set("flag_name", true)`.
-5. The evolved skill permanently replaces its base behavior for the rest of the run. Only one evolution per triple; no stacking.
+2. Arena calls `EvolutionManager.get_overdrive_options()` to collect READY, not-yet-selected triples for the active hero.
+3. Placeholder attack/passive evolutions and unimplemented active evolutions are filtered out so no no-op evolution is offered.
+4. If any implemented READY triples exist, **OverdriveScreen** opens (paused, layer 22, no skip). Player must select one.
+5. `EvolutionManager.apply_evolution(evolution_id)` routes by `target_type`: active to AbilityManager, attack to PlayerAutoAttack, passive to PassiveAbilityManager.
+6. Only a successfully applied evolution is marked SELECTED and announced.
+7. The evolved skill permanently replaces its base behavior for the rest of the run. Only one evolution per triple; no stacking.
 
 #### Implemented Evolutions (6 of 27)
 
-| Evolution ID | Hero | Upgraded Skill | Effect |
-|---|---|---|---|
-| `solar_beam_cataclysm` | Solar Guardian | Solar Beam | 3× damage, 1.8× range/width, fires a delayed burn pulse (0.18 s); status: CATACLYSM |
-| `frost_breath_absolute_zero` | Solar Guardian | Frost Breath | 2× damage, 1.8× cone angle, double slow (0.08 speed + 0.02 freeze), status: ABSOLUTE ZERO |
-| `trap_chain_detonation_evolution` | Night Tactician | Explosive Trap | 2× damage, 2× explosion radius, two aftershock pulse rings (0.2 s + 0.42 s), marks all hit enemies; status: CHAIN DETONATION |
-| `hook_execution_pull` | Night Tactician | Grappling Hook | 3× damage; if target was already Tactically Marked, triggers AoE mark explosion on hit enemies; status: EXECUTION |
-| `rage_wave_worldbreaker` | Fury Vanguard | Rage Wave | 2× damage, fires 3 expanding shockwaves (0 / 0.22 / 0.44 s), heavy 0.22× speed slow; status: WORLDBREAKER |
-| `rage_leap_meteor_crash` | Fury Vanguard | Rage Leap | 2× damage, 1.5× radius, ring visual, delayed second impact at 0.45 s (0.2× speed slow); status: METEOR CRASH |
+| Evolution ID | Hero | Target Type | Target ID | Effect |
+|---|---|---|---|---|
+| `solar_beam_cataclysm` | Solar Guardian | active | `solar_beam` | 3x damage, 1.8x range/width, fires a delayed burn pulse (0.18 s); status: CATACLYSM |
+| `frost_breath_absolute_zero` | Solar Guardian | active | `frost_breath` | 2x damage, 1.8x cone angle, double slow (0.08 speed + 0.02 freeze), status: ABSOLUTE ZERO |
+| `trap_chain_detonation_evolution` | Night Tactician | active | `explosive_trap` | 2x damage, 2x explosion radius, two aftershock pulse rings (0.2 s + 0.42 s), marks all hit enemies; status: CHAIN DETONATION |
+| `hook_execution_pull` | Night Tactician | active | `grappling_hook` | 3x damage; if target was already Tactically Marked, triggers AoE mark explosion on hit enemies; status: EXECUTION |
+| `rage_wave_worldbreaker` | Fury Vanguard | active | `rage_wave` | 2x damage, fires 3 expanding shockwaves (0 / 0.22 / 0.44 s), heavy 0.22x speed slow; status: WORLDBREAKER |
+| `rage_leap_meteor_crash` | Fury Vanguard | active | `rage_leap` | 2x damage, 1.5x radius, ring visual, delayed second impact at 0.45 s (0.2x speed slow); status: METEOR CRASH |
 
 #### Architecture
 
-- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) — runtime-instantiated CanvasLayer (layer=22, PROCESS_MODE_WHEN_PAUSED). Builds UI procedurally. Emits `evolution_chosen(evolution_id)`. No close-without-selection button — player must pick.
-- **EvolutionManager.get_overdrive_options()** — returns merged dicts: triple definition + computed state (including `required_lines` for card display).
-- **EvolutionManager.apply_evolution()** — calls `_apply_evolution_effect()` which does `ability_manager.set("flag_name", true)`, then marks triple SELECTED and emits `evolution_applied`.
-- **AbilityManager evolution flags** — `@export var bool = false` properties per evolution. Each cast function checks its flag at the top and returns early after the evolved path. All flags reset in `set_hero_kit()`.
-- **Visual helpers** (procedural, no custom assets): `_spawn_ring_visual()`, `_spawn_colored_beam_visual()`, `_schedule_delayed_laser()`, `_schedule_trap_pulse()`, `_schedule_shockwave()`, `_schedule_meteor_second_impact()`.
-- **DebugStatsOverlay** (F12) shows `Overdrive: <title>, <title>` in the Evolutions section when evolutions are applied.
+- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) builds UI procedurally, displays ATTACK / ACTIVE / PASSIVE evolution type, target id, description, and required-line progress, then emits `evolution_chosen(evolution_id)`.
+- **EvolutionManager.get_overdrive_options()** returns merged dicts: triple definition + computed state (including `required_lines` for card display), filtered to implemented effects only.
+- **EvolutionManager.apply_evolution()** calls `_apply_evolution_effect(evolution_id, triple)`, routes by `target_type`, then marks triple SELECTED only on success and emits `evolution_applied`.
+- **AbilityManager evolution flags** are the current active-effect implementation surface. All flags reset in `set_hero_kit()`.
+- **DebugStatsOverlay** (F12) shows total and selected Attack / Active / Passive evolution counts plus `Overdrive: <title>, <title>` when evolutions are applied.
 - OverdriveScreen is closed (hidden) on victory, defeat, restart, and quit-to-menu. No evolution state is saved to meta.
 
 ### Run Progression & Victory
@@ -776,7 +779,13 @@ Not implemented yet:
 
 ## Evolution Triple Grid Foundation
 
-Each hero has a 9-line evolution grid that defines candidate evolutions for their active skills. An **evolution triple** binds exactly:
+Each hero has a 9-line evolution grid using the 3/3/3 target schema:
+
+- **3 attack evolution targets** for the hero primary weapon (`target_type: "attack"`).
+- **3 active evolution targets** for hero active skills (`target_type: "active"`).
+- **3 passive evolution targets** for shared passive skills (`target_type: "passive"`).
+
+Every evolution triple still binds exactly:
 
 - **1 attack upgrade line** (hero-specific autoattack upgrades)
 - **1 passive upgrade line** (shared passives: Orbit Shields, Storm Relay, etc.)
@@ -784,36 +793,36 @@ Each hero has a 9-line evolution grid that defines candidate evolutions for thei
 
 ### Triple Rule
 
-```
-attack line + passive line + active line = evolution candidate for an active skill
+```text
+attack line + passive line + active line = evolution candidate for target_type / target_id
 ```
 
-Each upgrade line can appear in only one triple per hero. Each hero has exactly 9 triples, one per grid index (1–9). Every hero attack line, every shared passive line, and every hero active line is used exactly once in that hero's triple grid.
+Each upgrade line can appear in only one triple per hero. Each hero has exactly 9 triples, one per grid index (1-9). Every hero attack line, every shared passive line, and every hero active line is used exactly once in that hero's triple grid.
 
 ### Ready Conditions
 
 An evolution becomes **ready** only when:
 1. All 3 required upgrade lines have been selected (any level taken).
 2. All 3 required upgrade lines are at max level.
+3. The effect is implemented. Placeholder attack/passive paths remain hidden until their packs are added.
 
 ### Triple States
 
 | State | Condition |
 |-------|-----------|
 | `locked` | No lines from this triple selected |
-| `partial` | 1–2 lines selected |
+| `partial` | 1-2 lines selected |
 | `collected` | All 3 lines selected, not all maxed |
 | `ready` | All 3 lines selected AND all 3 at max level |
-| `selected` | Evolution was chosen (no effect yet) |
+| `selected` | Evolution was chosen and applied |
 
 ### Implementation Status
 
-- EvolutionManager tracks triple definitions and runtime state.
+- EvolutionManager tracks triple definitions, target schema, runtime state, selection, routing, and validation.
 - Triple readiness is computed live from UpgradeManager slot state.
-- 9 triples per hero (Guardian, Blaster, Vanguard) are defined.
-- DebugStatsOverlay shows ready count and closest triple progress.
-- **Overdrive choice screen is NOT implemented yet.**
-- **Actual evolved ability behavior is NOT implemented yet.**
+- 9 triples per hero (Guardian, Blaster, Vanguard) are defined with 3 attack / 3 active / 3 passive targets.
+- Six active evolutions are implemented and preserved.
+- Attack and passive evolution definitions are placeholders only and are not offered to players.
 - Evolution state is runtime-only: no save/meta persistence.
 
 ## Architecture Principles

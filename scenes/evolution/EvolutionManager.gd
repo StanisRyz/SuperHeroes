@@ -9,6 +9,7 @@ signal evolution_state_changed
 var player: Node
 var auto_attack: Node
 var ability_manager: Node
+var passive_ability_manager: Node
 var upgrade_manager: Node
 
 var _hero_data: Dictionary = {}
@@ -19,6 +20,13 @@ const TRIPLE_STATE_PARTIAL := "partial"
 const TRIPLE_STATE_COLLECTED := "collected"
 const TRIPLE_STATE_READY := "ready"
 const TRIPLE_STATE_SELECTED := "selected"
+
+const EVOLUTION_TARGET_ATTACK := "attack"
+const EVOLUTION_TARGET_ACTIVE := "active"
+const EVOLUTION_TARGET_PASSIVE := "passive"
+const VALID_EVOLUTION_TARGET_TYPES := [EVOLUTION_TARGET_ATTACK, EVOLUTION_TARGET_ACTIVE, EVOLUTION_TARGET_PASSIVE]
+const EFFECT_STATUS_IMPLEMENTED := "implemented"
+const EFFECT_STATUS_PLACEHOLDER := "placeholder"
 
 # Triple definitions: each triple binds 1 attack line + 1 passive line + 1 active line
 # into an evolution candidate for a specific active skill.
@@ -35,6 +43,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "orbit_shields",
 		"active_line_id": "solar_beam_damage_up",
 		"target_active_skill_id": "solar_beam",
+		"target_type": "active",
+		"target_id": "solar_beam",
+		"effect_status": "implemented",
 		"evolution_id": "solar_beam_cataclysm",
 		"title": "Solar Cataclysm",
 		"description": "Transforms Solar Beam into a devastating red cataclysm. 3x damage, wider beam, leaves a burning pulse.",
@@ -47,7 +58,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "solar_ray_range",
 		"passive_line_id": "storm_relay",
 		"active_line_id": "solar_beam_range_up",
-		"target_active_skill_id": "solar_beam",
+		"target_type": "attack",
+		"target_id": "solar_ray",
+		"effect_status": "placeholder",
 		"evolution_id": "solar_beam_sky_lance",
 		"title": "Sky Lance",
 		"description": "Future evolution for Solar Beam: extreme reach and width.",
@@ -60,7 +73,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "solar_ray_pierce_burn",
 		"passive_line_id": "chain_lightning",
 		"active_line_id": "solar_beam_overheat",
-		"target_active_skill_id": "solar_beam",
+		"target_type": "attack",
+		"target_id": "solar_ray",
+		"effect_status": "placeholder",
 		"evolution_id": "solar_beam_burning_judgment",
 		"title": "Burning Judgment",
 		"description": "Future evolution for Solar Beam: burn and empowered synergy.",
@@ -75,6 +90,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "time_dilator",
 		"active_line_id": "frost_breath_power",
 		"target_active_skill_id": "frost_breath",
+		"target_type": "active",
+		"target_id": "frost_breath",
+		"effect_status": "implemented",
 		"evolution_id": "frost_breath_absolute_zero",
 		"title": "Absolute Zero",
 		"description": "Transforms Frost Breath into absolute zero. Much wider cone, near-freezes all enemies hit.",
@@ -87,7 +105,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "solar_ray_tick_rate",
 		"passive_line_id": "static_field",
 		"active_line_id": "frost_breath_cone_up",
-		"target_active_skill_id": "frost_breath",
+		"target_type": "attack",
+		"target_id": "solar_ray",
+		"effect_status": "placeholder",
 		"evolution_id": "frost_breath_glacier_front",
 		"title": "Glacier Front",
 		"description": "Future evolution for Frost Breath: wide cone area denial.",
@@ -100,7 +120,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "solar_ray_empowered_bonus",
 		"passive_line_id": "recovery_field",
 		"active_line_id": "frost_breath_freeze",
-		"target_active_skill_id": "frost_breath",
+		"target_type": "passive",
+		"target_id": "orbit_shields",
+		"effect_status": "placeholder",
 		"evolution_id": "frost_breath_permafrost",
 		"title": "Permafrost",
 		"description": "Future evolution for Frost Breath: sustained freeze lock.",
@@ -115,6 +137,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "guardian_drone",
 		"active_line_id": "death_dash_power",
 		"target_active_skill_id": "death_dash",
+		"target_type": "active",
+		"target_id": "death_dash",
+		"effect_status": "placeholder",
 		"evolution_id": "death_dash_solar_execution",
 		"title": "Solar Execution",
 		"description": "Future evolution for Death Dash: scorching kill dash.",
@@ -127,7 +152,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "solar_ray_focus",
 		"passive_line_id": "magnet_core",
 		"active_line_id": "death_dash_distance",
-		"target_active_skill_id": "death_dash",
+		"target_type": "passive",
+		"target_id": "storm_relay",
+		"effect_status": "placeholder",
 		"evolution_id": "death_dash_comet_path",
 		"title": "Comet Path",
 		"description": "Future evolution for Death Dash: long-range comet strike.",
@@ -140,7 +167,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "solar_ray_execution",
 		"passive_line_id": "battle_focus",
 		"active_line_id": "death_dash_cooldown_down",
-		"target_active_skill_id": "death_dash",
+		"target_type": "passive",
+		"target_id": "recovery_field",
+		"effect_status": "placeholder",
 		"evolution_id": "death_dash_final_flash",
 		"title": "Final Flash",
 		"description": "Future evolution for Death Dash: rapid execution sprint.",
@@ -156,6 +185,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "orbit_shields",
 		"active_line_id": "smoke_screen_radius",
 		"target_active_skill_id": "smoke_screen",
+		"target_type": "active",
+		"target_id": "smoke_screen",
+		"effect_status": "placeholder",
 		"evolution_id": "smoke_screen_blackout",
 		"title": "Blackout",
 		"description": "Future evolution for Smoke Screen: total area denial cloud.",
@@ -168,7 +200,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "rocket_count",
 		"passive_line_id": "storm_relay",
 		"active_line_id": "smoke_screen_duration",
-		"target_active_skill_id": "smoke_screen",
+		"target_type": "attack",
+		"target_id": "homing_rockets",
+		"effect_status": "placeholder",
 		"evolution_id": "smoke_screen_tactical_cover",
 		"title": "Tactical Cover",
 		"description": "Future evolution for Smoke Screen: extended tactical shroud.",
@@ -181,7 +215,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "rocket_reload",
 		"passive_line_id": "time_dilator",
 		"active_line_id": "smoke_screen_slow",
-		"target_active_skill_id": "smoke_screen",
+		"target_type": "attack",
+		"target_id": "homing_rockets",
+		"effect_status": "placeholder",
 		"evolution_id": "smoke_screen_choking_zone",
 		"title": "Choking Zone",
 		"description": "Future evolution for Smoke Screen: oppressive slow field.",
@@ -196,6 +232,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "static_field",
 		"active_line_id": "trap_damage",
 		"target_active_skill_id": "explosive_trap",
+		"target_type": "active",
+		"target_id": "explosive_trap",
+		"effect_status": "implemented",
 		"evolution_id": "trap_chain_detonation_evolution",
 		"title": "Chain Detonation",
 		"description": "Transforms Explosive Trap into cascading detonations. Chain blast pulses + Tactical Mark in wide radius.",
@@ -208,7 +247,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "rocket_cluster_payload",
 		"passive_line_id": "chain_lightning",
 		"active_line_id": "trap_radius",
-		"target_active_skill_id": "explosive_trap",
+		"target_type": "attack",
+		"target_id": "homing_rockets",
+		"effect_status": "placeholder",
 		"evolution_id": "trap_cluster_minefield",
 		"title": "Cluster Minefield",
 		"description": "Future evolution for Explosive Trap: saturation trap field.",
@@ -221,7 +262,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "marked_target_payload",
 		"passive_line_id": "guardian_drone",
 		"active_line_id": "trap_chain_detonation",
-		"target_active_skill_id": "explosive_trap",
+		"target_type": "passive",
+		"target_id": "guardian_drone",
+		"effect_status": "placeholder",
 		"evolution_id": "trap_marked_blast",
 		"title": "Marked Blast",
 		"description": "Future evolution for Explosive Trap: mark-amplified detonation.",
@@ -236,6 +279,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "magnet_core",
 		"active_line_id": "hook_damage",
 		"target_active_skill_id": "grappling_hook",
+		"target_type": "active",
+		"target_id": "grappling_hook",
+		"effect_status": "implemented",
 		"evolution_id": "hook_execution_pull",
 		"title": "Execution Pull",
 		"description": "Transforms Grappling Hook into an execution strike. 3x damage; AoE mark explosion if target was marked.",
@@ -248,7 +294,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "rocket_split",
 		"passive_line_id": "battle_focus",
 		"active_line_id": "hook_range",
-		"target_active_skill_id": "grappling_hook",
+		"target_type": "passive",
+		"target_id": "chain_lightning",
+		"effect_status": "placeholder",
 		"evolution_id": "hook_shadow_line",
 		"title": "Shadow Line",
 		"description": "Future evolution for Grappling Hook: extreme-range rapid pull.",
@@ -261,7 +309,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "rocket_priority_targeting",
 		"passive_line_id": "recovery_field",
 		"active_line_id": "hook_cooldown_down",
-		"target_active_skill_id": "grappling_hook",
+		"target_type": "passive",
+		"target_id": "time_dilator",
+		"effect_status": "placeholder",
 		"evolution_id": "hook_rapid_abduction",
 		"title": "Rapid Abduction",
 		"description": "Future evolution for Grappling Hook: relentless cycle pull.",
@@ -277,6 +327,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "orbit_shields",
 		"active_line_id": "rage_wave_power",
 		"target_active_skill_id": "rage_wave",
+		"target_type": "active",
+		"target_id": "rage_wave",
+		"effect_status": "implemented",
 		"evolution_id": "rage_wave_worldbreaker",
 		"title": "Worldbreaker",
 		"description": "Transforms Rage Wave into a worldbreaker. Multiple expanding shockwaves, heavy slow, Rage-scaled.",
@@ -289,7 +342,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "splash_melee_radius",
 		"passive_line_id": "static_field",
 		"active_line_id": "rage_wave_radius",
-		"target_active_skill_id": "rage_wave",
+		"target_type": "attack",
+		"target_id": "splash_melee",
+		"effect_status": "placeholder",
 		"evolution_id": "rage_wave_earthsplitter",
 		"title": "Earthsplitter",
 		"description": "Future evolution for Rage Wave: wide ground-splitting pulse.",
@@ -302,7 +357,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "splash_melee_frenzy",
 		"passive_line_id": "time_dilator",
 		"active_line_id": "rage_wave_deep_slow",
-		"target_active_skill_id": "rage_wave",
+		"target_type": "attack",
+		"target_id": "splash_melee",
+		"effect_status": "placeholder",
 		"evolution_id": "rage_wave_crushing_storm",
 		"title": "Crushing Storm",
 		"description": "Future evolution for Rage Wave: rage-fueled suppression wave.",
@@ -317,6 +374,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "storm_relay",
 		"active_line_id": "mighty_clap_power",
 		"target_active_skill_id": "mighty_clap",
+		"target_type": "active",
+		"target_id": "mighty_clap",
+		"effect_status": "placeholder",
 		"evolution_id": "mighty_clap_thunderclap",
 		"title": "Thunderclap",
 		"description": "Future evolution for Mighty Clap: earth-shattering impact slam.",
@@ -329,7 +389,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "splash_melee_shockwave",
 		"passive_line_id": "chain_lightning",
 		"active_line_id": "mighty_clap_range",
-		"target_active_skill_id": "mighty_clap",
+		"target_type": "attack",
+		"target_id": "splash_melee",
+		"effect_status": "placeholder",
 		"evolution_id": "mighty_clap_seismic_fan",
 		"title": "Seismic Fan",
 		"description": "Future evolution for Mighty Clap: wide seismic shockwave fan.",
@@ -342,7 +404,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "splash_melee_combo",
 		"passive_line_id": "battle_focus",
 		"active_line_id": "mighty_clap_shockwave",
-		"target_active_skill_id": "mighty_clap",
+		"target_type": "passive",
+		"target_id": "static_field",
+		"effect_status": "placeholder",
 		"evolution_id": "mighty_clap_rampage_impact",
 		"title": "Rampage Impact",
 		"description": "Future evolution for Mighty Clap: rage-combo amplified shockwave.",
@@ -357,6 +421,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"passive_line_id": "magnet_core",
 		"active_line_id": "rage_leap_power",
 		"target_active_skill_id": "rage_leap",
+		"target_type": "active",
+		"target_id": "rage_leap",
+		"effect_status": "implemented",
 		"evolution_id": "rage_leap_meteor_crash",
 		"title": "Meteor Crash",
 		"description": "Transforms Rage Leap into a meteor crash. Huge crater damage + delayed second impact, Rage-scaled.",
@@ -369,7 +436,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "splash_melee_lifesteal",
 		"passive_line_id": "recovery_field",
 		"active_line_id": "rage_leap_radius",
-		"target_active_skill_id": "rage_leap",
+		"target_type": "passive",
+		"target_id": "battle_focus",
+		"effect_status": "placeholder",
 		"evolution_id": "rage_leap_blood_crater",
 		"title": "Blood Crater",
 		"description": "Future evolution for Rage Leap: lifesteal-infused wide landing.",
@@ -382,7 +451,9 @@ var _triple_definitions: Array[Dictionary] = [
 		"attack_line_id": "splash_melee_execute",
 		"passive_line_id": "guardian_drone",
 		"active_line_id": "rage_leap_cooldown",
-		"target_active_skill_id": "rage_leap",
+		"target_type": "passive",
+		"target_id": "magnet_core",
+		"effect_status": "placeholder",
 		"evolution_id": "rage_leap_final_impact",
 		"title": "Final Impact",
 		"description": "Future evolution for Rage Leap: rapid execution leap strike.",
@@ -393,11 +464,12 @@ var _triple_definitions: Array[Dictionary] = [
 
 # ── SETUP ────────────────────────────────────────────────────────────────────
 
-func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node, new_upgrade_manager: Node) -> void:
+func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node, new_upgrade_manager: Node, new_passive_ability_manager: Node = null) -> void:
 	player = new_player
 	auto_attack = new_auto_attack
 	ability_manager = new_ability_manager
 	upgrade_manager = new_upgrade_manager
+	passive_ability_manager = new_passive_ability_manager
 	if upgrade_manager != null:
 		var hd = upgrade_manager.get("hero_data")
 		if hd is Dictionary:
@@ -415,9 +487,8 @@ func get_triple_definitions(hero_id: String) -> Array:
 	var result: Array = []
 	for triple in _triple_definitions:
 		if str(triple.get("hero_id", "")) == hero_id:
-			result.append(triple.duplicate(true))
+			result.append(_normalize_triple(triple))
 	return result
-
 
 func get_triple_state(hero_id: String) -> Dictionary:
 	var result: Dictionary = {}
@@ -437,9 +508,8 @@ func get_ready_evolutions(hero_id: String) -> Array:
 		var state := _compute_triple_state(triple)
 		var state_id := str(state.get("state", ""))
 		if state_id == TRIPLE_STATE_READY or state_id == TRIPLE_STATE_SELECTED:
-			result.append(triple.duplicate(true))
+			result.append(_merge_triple_state(triple, state))
 	return result
-
 
 func mark_evolution_selected(evolution_id: String) -> void:
 	if not _selected_evolutions.has(evolution_id):
@@ -459,11 +529,11 @@ func validate_evolution_grid(hero_id: String, strict: bool = false) -> Dictionar
 	var active_seen: Dictionary = {}
 	var grid_seen: Dictionary = {}
 	var evo_seen: Dictionary = {}
+	var target_counts := _empty_type_counts()
 
 	var hero_triples := get_triple_definitions(hero_id)
 	if hero_triples.size() != 9:
-		_record_issue(errors, warnings, true, "wrong_triple_count",
-			"Hero '%s' has %d triples, expected 9." % [hero_id, hero_triples.size()])
+		_record_issue(errors, warnings, true, "wrong_triple_count", "Hero '%s' has %d triples, expected 9." % [hero_id, hero_triples.size()])
 
 	for triple in hero_triples:
 		var triple_id := str(triple.get("triple_id", ""))
@@ -472,52 +542,58 @@ func validate_evolution_grid(hero_id: String, strict: bool = false) -> Dictionar
 		var pas := str(triple.get("passive_line_id", ""))
 		var act := str(triple.get("active_line_id", ""))
 		var evo_id := str(triple.get("evolution_id", ""))
-		var target := str(triple.get("target_active_skill_id", ""))
+		var target_type := get_evolution_target_type(triple)
+		var target_id := get_evolution_target_id(triple)
 
 		if grid_idx < 1 or grid_idx > 9:
-			_record_issue(errors, warnings, true, "invalid_grid_index",
-				"Triple '%s' has invalid grid_index %d." % [triple_id, grid_idx])
+			_record_issue(errors, warnings, true, "invalid_grid_index", "Triple '%s' has invalid grid_index %d." % [triple_id, grid_idx])
 		elif grid_seen.has(grid_idx):
-			_record_issue(errors, warnings, true, "duplicate_grid_index",
-				"Duplicate grid_index %d for hero '%s'." % [grid_idx, hero_id])
+			_record_issue(errors, warnings, true, "duplicate_grid_index", "Duplicate grid_index %d for hero '%s'." % [grid_idx, hero_id])
 		else:
 			grid_seen[grid_idx] = triple_id
 
 		if atk.is_empty():
 			_record_issue(errors, warnings, true, "missing_attack_line", "Triple '%s' missing attack_line_id." % triple_id)
 		elif attack_seen.has(atk):
-			_record_issue(errors, warnings, true, "duplicate_attack_line",
-				"Attack line '%s' reused in hero '%s' triples." % [atk, hero_id])
+			_record_issue(errors, warnings, true, "duplicate_attack_line", "Attack line '%s' reused in hero '%s' triples." % [atk, hero_id])
 		else:
 			attack_seen[atk] = triple_id
 
 		if pas.is_empty():
 			_record_issue(errors, warnings, true, "missing_passive_line", "Triple '%s' missing passive_line_id." % triple_id)
 		elif passive_seen.has(pas):
-			_record_issue(errors, warnings, true, "duplicate_passive_line",
-				"Passive line '%s' reused in hero '%s' triples." % [pas, hero_id])
+			_record_issue(errors, warnings, true, "duplicate_passive_line", "Passive line '%s' reused in hero '%s' triples." % [pas, hero_id])
 		else:
 			passive_seen[pas] = triple_id
 
 		if act.is_empty():
 			_record_issue(errors, warnings, true, "missing_active_line", "Triple '%s' missing active_line_id." % triple_id)
 		elif active_seen.has(act):
-			_record_issue(errors, warnings, true, "duplicate_active_line",
-				"Active line '%s' reused in hero '%s' triples." % [act, hero_id])
+			_record_issue(errors, warnings, true, "duplicate_active_line", "Active line '%s' reused in hero '%s' triples." % [act, hero_id])
 		else:
 			active_seen[act] = triple_id
 
 		if evo_id.is_empty():
 			_record_issue(errors, warnings, true, "missing_evolution_id", "Triple '%s' missing evolution_id." % triple_id)
 		elif evo_seen.has(evo_id):
-			_record_issue(errors, warnings, true, "duplicate_evolution_id",
-				"Evolution id '%s' used in multiple triples." % evo_id)
+			_record_issue(errors, warnings, true, "duplicate_evolution_id", "Evolution id '%s' used in multiple triples." % evo_id)
 		else:
 			evo_seen[evo_id] = triple_id
 
-		if target.is_empty():
-			_record_issue(errors, warnings, true, "missing_target_active_skill",
-				"Triple '%s' missing target_active_skill_id." % triple_id)
+		if not VALID_EVOLUTION_TARGET_TYPES.has(target_type):
+			_record_issue(errors, warnings, true, "invalid_target_type", "Triple '%s' has invalid target_type '%s'." % [triple_id, target_type])
+		else:
+			target_counts[target_type] = int(target_counts.get(target_type, 0)) + 1
+
+		if target_id.is_empty():
+			_record_issue(errors, warnings, true, "missing_target_id", "Triple '%s' missing target_id." % triple_id)
+		elif not _is_valid_target_id(hero_id, target_type, target_id):
+			_record_issue(errors, warnings, true, "invalid_target_id", "Triple '%s' target %s/%s does not match upgrade source ids." % [triple_id, target_type, target_id])
+
+	for target_type in VALID_EVOLUTION_TARGET_TYPES:
+		var count := int(target_counts.get(target_type, 0))
+		if count != 3:
+			_record_issue(errors, warnings, true, "wrong_target_type_count", "Hero '%s' has %d %s evolution targets, expected 3." % [hero_id, count, target_type])
 
 	return {
 		"ok": errors.is_empty(),
@@ -528,10 +604,8 @@ func validate_evolution_grid(hero_id: String, strict: bool = false) -> Dictionar
 		"error_count": errors.size(),
 		"warning_count": warnings.size(),
 		"triple_count": hero_triples.size(),
+		"target_counts": target_counts,
 	}
-
-
-# ── LEGACY COMPATIBILITY METHODS (used by Arena / EvolutionRewardScreen) ─────
 
 func get_all_evolutions() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -545,12 +619,13 @@ func get_available_evolutions() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for triple in get_ready_evolutions(hero_id):
 		var evo_id := str(triple.get("evolution_id", ""))
-		if not is_evolution_selected(evo_id):
-			var data := triple as Dictionary
-			result.append(data)
-			evolution_available.emit(data)
+		if is_evolution_selected(evo_id) or not _is_evolution_offerable(triple):
+			continue
+		var data := (triple as Dictionary).duplicate(true)
+		data["id"] = evo_id
+		result.append(data)
+		evolution_available.emit(data)
 	return result
-
 
 func has_evolution(evolution_id: String) -> bool:
 	return is_evolution_selected(evolution_id)
@@ -559,14 +634,17 @@ func has_evolution(evolution_id: String) -> bool:
 func apply_evolution(evolution_id: String) -> bool:
 	if is_evolution_selected(evolution_id):
 		return false
-	mark_evolution_selected(evolution_id)
-	_apply_evolution_effect(evolution_id)
 	var triple := _get_triple_by_evolution_id(evolution_id)
-	var triple_data := triple.duplicate(true)
-	triple_data["announcement"] = "★ " + str(triple_data.get("title", evolution_id)).to_upper() + "!"
+	if triple.is_empty():
+		push_warning("EvolutionManager: unknown evolution '%s'." % evolution_id)
+		return false
+	var triple_data := _normalize_triple(triple)
+	if not _apply_evolution_effect(evolution_id, triple_data):
+		return false
+	mark_evolution_selected(evolution_id)
+	triple_data["announcement"] = "EVOLVED: " + str(triple_data.get("title", evolution_id)).to_upper() + "!"
 	evolution_applied.emit(evolution_id, triple_data)
 	return true
-
 
 func get_overdrive_options() -> Array[Dictionary]:
 	var hero_id := str(_hero_data.get("id", ""))
@@ -580,11 +658,11 @@ func get_overdrive_options() -> Array[Dictionary]:
 		var state := _compute_triple_state(triple)
 		if str(state.get("state", "")) != TRIPLE_STATE_READY:
 			continue
-		var merged := triple.duplicate(true)
-		merged.merge(state, true)
+		var merged := _merge_triple_state(triple, state)
+		if not _is_evolution_offerable(merged):
+			continue
 		result.append(merged)
 	return result
-
 
 func get_applied_evolutions() -> Array[String]:
 	return _selected_evolutions.duplicate()
@@ -627,8 +705,10 @@ func debug_get_evolution_state() -> Dictionary:
 		"hero_id": hero_id,
 		"ready_count": ready_count,
 		"selected_count": _selected_evolutions.size(),
+		"type_counts": get_evolution_type_counts(hero_id),
+		"ready_type_counts": get_ready_evolution_type_counts(hero_id),
+		"selected_type_counts": get_selected_evolution_type_counts(hero_id),
 	}
-
 
 func debug_get_evolution_grid_state() -> Dictionary:
 	var hero_id := str(_hero_data.get("id", ""))
@@ -639,19 +719,114 @@ func debug_get_evolution_grid_state() -> Dictionary:
 		"triple_count": get_triple_definitions(hero_id).size(),
 		"ready_count": get_ready_evolutions(hero_id).size(),
 		"selected_count": _selected_evolutions.size(),
+		"type_counts": get_evolution_type_counts(hero_id),
+		"ready_type_counts": get_ready_evolution_type_counts(hero_id),
+		"selected_type_counts": get_selected_evolution_type_counts(hero_id),
 		"applied_titles": get_applied_evolution_titles(),
 		"triple_states": triple_states,
 		"closest_triple": closest,
 		"validation": validate_evolution_grid(hero_id),
 	}
 
+func get_evolution_target_type(triple: Dictionary) -> String:
+	var target_type := str(triple.get("target_type", ""))
+	if target_type.is_empty() and triple.has("target_active_skill_id"):
+		return EVOLUTION_TARGET_ACTIVE
+	return target_type
 
-# ── PRIVATE HELPERS ───────────────────────────────────────────────────────────
 
-func _apply_evolution_effect(evolution_id: String) -> void:
+func get_evolution_target_id(triple: Dictionary) -> String:
+	var target_id := str(triple.get("target_id", ""))
+	if target_id.is_empty():
+		return str(triple.get("target_active_skill_id", ""))
+	return target_id
+
+
+func get_evolution_type_counts(hero_id: String) -> Dictionary:
+	var counts := _empty_type_counts()
+	for triple in get_triple_definitions(hero_id):
+		var target_type := get_evolution_target_type(triple)
+		if counts.has(target_type):
+			counts[target_type] = int(counts[target_type]) + 1
+	return counts
+
+
+func get_selected_evolution_type_counts(hero_id: String) -> Dictionary:
+	var counts := _empty_type_counts()
+	for evolution_id in _selected_evolutions:
+		var triple := _get_triple_by_evolution_id(evolution_id)
+		if triple.is_empty() or str(triple.get("hero_id", "")) != hero_id:
+			continue
+		var target_type := get_evolution_target_type(triple)
+		if counts.has(target_type):
+			counts[target_type] = int(counts[target_type]) + 1
+	return counts
+
+
+func get_ready_evolution_type_counts(hero_id: String) -> Dictionary:
+	var counts := _empty_type_counts()
+	for triple in _triple_definitions:
+		if str(triple.get("hero_id", "")) != hero_id:
+			continue
+		var state := _compute_triple_state(triple)
+		if str(state.get("state", "")) != TRIPLE_STATE_READY:
+			continue
+		var target_type := get_evolution_target_type(triple)
+		if counts.has(target_type):
+			counts[target_type] = int(counts[target_type]) + 1
+	return counts
+
+
+func _empty_type_counts() -> Dictionary:
+	return {
+		EVOLUTION_TARGET_ATTACK: 0,
+		EVOLUTION_TARGET_ACTIVE: 0,
+		EVOLUTION_TARGET_PASSIVE: 0,
+	}
+
+
+func _normalize_triple(triple: Dictionary) -> Dictionary:
+	var data := triple.duplicate(true)
+	var target_type := get_evolution_target_type(data)
+	var target_id := get_evolution_target_id(data)
+	data["target_type"] = target_type
+	data["target_id"] = target_id
+	data["id"] = str(data.get("evolution_id", ""))
+	if target_type == EVOLUTION_TARGET_ACTIVE and not data.has("target_active_skill_id"):
+		data["target_active_skill_id"] = target_id
+	if not data.has("effect_status"):
+		data["effect_status"] = EFFECT_STATUS_IMPLEMENTED if _is_implemented_evolution_id(str(data.get("evolution_id", ""))) else EFFECT_STATUS_PLACEHOLDER
+	return data
+
+
+func _merge_triple_state(triple: Dictionary, state: Dictionary) -> Dictionary:
+	var merged := _normalize_triple(triple)
+	merged.merge(state, true)
+	merged["target_type"] = get_evolution_target_type(merged)
+	merged["target_id"] = get_evolution_target_id(merged)
+	merged["id"] = str(merged.get("evolution_id", ""))
+	return merged
+
+
+func _is_evolution_offerable(triple: Dictionary) -> bool:
+	return str(triple.get("effect_status", EFFECT_STATUS_PLACEHOLDER)) == EFFECT_STATUS_IMPLEMENTED
+
+
+func _is_implemented_evolution_id(evolution_id: String) -> bool:
+	return [
+		"solar_beam_cataclysm",
+		"frost_breath_absolute_zero",
+		"trap_chain_detonation_evolution",
+		"hook_execution_pull",
+		"rage_wave_worldbreaker",
+		"rage_leap_meteor_crash",
+	].has(evolution_id)
+
+
+func _apply_active_evolution_effect(evolution_id: String) -> bool:
 	if ability_manager == null or not is_instance_valid(ability_manager):
 		push_warning("EvolutionManager: AbilityManager unavailable for evolution '%s'." % evolution_id)
-		return
+		return false
 	match evolution_id:
 		"solar_beam_cataclysm":
 			ability_manager.set("solar_beam_cataclysm_enabled", true)
@@ -666,8 +841,79 @@ func _apply_evolution_effect(evolution_id: String) -> void:
 		"rage_leap_meteor_crash":
 			ability_manager.set("rage_leap_meteor_crash_enabled", true)
 		_:
-			push_warning("EvolutionManager: no effect implemented for evolution '%s'." % evolution_id)
+			push_warning("EvolutionManager: no active effect implemented for evolution '%s'." % evolution_id)
+			return false
+	return true
 
+
+func _apply_attack_evolution_effect(evolution_id: String, target_id: String) -> bool:
+	if auto_attack == null or not is_instance_valid(auto_attack):
+		push_warning("EvolutionManager: PlayerAutoAttack unavailable for attack evolution '%s'." % evolution_id)
+		return false
+	if auto_attack.has_method("apply_attack_evolution"):
+		return bool(auto_attack.apply_attack_evolution(evolution_id, target_id))
+	push_warning("EvolutionManager: attack evolution '%s' for '%s' is placeholder-only in this patch." % [evolution_id, target_id])
+	return false
+
+
+func _apply_passive_evolution_effect(evolution_id: String, target_id: String) -> bool:
+	if passive_ability_manager == null or not is_instance_valid(passive_ability_manager):
+		push_warning("EvolutionManager: PassiveAbilityManager unavailable for passive evolution '%s'." % evolution_id)
+		return false
+	if passive_ability_manager.has_method("apply_passive_evolution"):
+		return bool(passive_ability_manager.apply_passive_evolution(evolution_id, target_id))
+	push_warning("EvolutionManager: passive evolution '%s' for '%s' is placeholder-only in this patch." % [evolution_id, target_id])
+	return false
+
+
+func _is_valid_target_id(hero_id: String, target_type: String, target_id: String) -> bool:
+	if upgrade_manager == null or not upgrade_manager.has_method("get_upgrade_definition_summary"):
+		return true
+	var line_ids: Array[String] = []
+	for triple in get_triple_definitions(hero_id):
+		match target_type:
+			EVOLUTION_TARGET_ATTACK:
+				line_ids.append(str(triple.get("attack_line_id", "")))
+			EVOLUTION_TARGET_ACTIVE:
+				line_ids.append(str(triple.get("active_line_id", "")))
+			EVOLUTION_TARGET_PASSIVE:
+				line_ids.append(str(triple.get("passive_line_id", "")))
+	for line_id in line_ids:
+		if line_id.is_empty():
+			continue
+		var summary: Dictionary = upgrade_manager.get_upgrade_definition_summary(line_id)
+		if summary.is_empty():
+			continue
+		match target_type:
+			EVOLUTION_TARGET_ATTACK:
+				if str(summary.get("slot_category", "")) == "attack" and str(summary.get("source_skill_id", "")) == target_id:
+					return true
+			EVOLUTION_TARGET_ACTIVE:
+				if str(summary.get("slot_category", "")) == "active" and (str(summary.get("source_skill_id", "")) == target_id or str(summary.get("evolution_target_active_skill", "")) == target_id):
+					return true
+			EVOLUTION_TARGET_PASSIVE:
+				if str(summary.get("slot_category", "")) == "passive" and (str(summary.get("source_skill_id", "")) == target_id or str(summary.get("id", "")) == target_id):
+					return true
+	return false
+
+
+func _apply_evolution_effect(evolution_id: String, triple: Dictionary) -> bool:
+	var target_type := get_evolution_target_type(triple)
+	var target_id := get_evolution_target_id(triple)
+	if str(triple.get("effect_status", EFFECT_STATUS_PLACEHOLDER)) != EFFECT_STATUS_IMPLEMENTED:
+		push_warning("EvolutionManager: evolution '%s' for %s/%s is not implemented yet." % [evolution_id, target_type, target_id])
+		return false
+
+	match target_type:
+		EVOLUTION_TARGET_ACTIVE:
+			return _apply_active_evolution_effect(evolution_id)
+		EVOLUTION_TARGET_ATTACK:
+			return _apply_attack_evolution_effect(evolution_id, target_id)
+		EVOLUTION_TARGET_PASSIVE:
+			return _apply_passive_evolution_effect(evolution_id, target_id)
+		_:
+			push_warning("EvolutionManager: unknown target_type '%s' for evolution '%s'." % [target_type, evolution_id])
+			return false
 
 func _compute_triple_state(triple: Dictionary) -> Dictionary:
 	var attack_id := str(triple.get("attack_line_id", ""))
@@ -710,6 +956,9 @@ func _compute_triple_state(triple: Dictionary) -> Dictionary:
 		"triple_id": triple.get("triple_id", ""),
 		"evolution_id": evolution_id,
 		"title": triple.get("title", ""),
+		"target_type": get_evolution_target_type(triple),
+		"target_id": get_evolution_target_id(triple),
+		"effect_status": triple.get("effect_status", EFFECT_STATUS_PLACEHOLDER),
 		"state": state,
 		"selected_lines_count": selected_count,
 		"maxed_lines_count": maxed_count,

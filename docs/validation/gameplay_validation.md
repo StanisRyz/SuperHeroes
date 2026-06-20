@@ -529,9 +529,9 @@ This resets only `user://superheroes_user_preferences.json`. It does not reset `
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Build projectile archetype points and meet a projectile prerequisite | Projectile Storm appears as an available evolution |
-| 2 | Kill miniboss with an available evolution | EvolutionRewardScreen opens after the miniboss defeated announcement |
-| 3 | Select **Projectile Storm** | HUD updates to show the applied evolution; projectile stats increase moderately |
+| 1 | Complete and max an implemented active evolution triple | OverdriveScreen can offer that implemented active evolution |
+| 2 | Complete and max a placeholder attack/passive evolution triple | No no-op placeholder evolution is offered |
+| 3 | Select an implemented active evolution | HUD/debug state updates and the active skill behavior changes immediately |
 | 4 | Continue the run after selecting evolution | Game resumes; no extra pause remains |
 | 5 | Reach Victory/GameOver after evolution | Summary lists applied evolutions |
 | 6 | Kill another miniboss after applying the same evolution | Already applied evolution does not appear again |
@@ -1034,142 +1034,77 @@ DEBUG_PLAYER: invulnerable=true
 
 ---
 
-## Evolution Triple Grid Foundation
+## Evolution 3/3/3 Schema Rework
 
-### Triple grid uniqueness (offline / code inspection)
+### Triple grid uniqueness and target counts (offline / code inspection)
 
 | # | Check | Expected |
 |---|-------|----------|
-| 1 | Count Guardian triples in EvolutionManager | Exactly 9 (grid_index 1–9, no gaps or duplicates) |
-| 2 | Count Blaster triples in EvolutionManager | Exactly 9 (grid_index 1–9, no gaps or duplicates) |
-| 3 | Count Vanguard triples in EvolutionManager | Exactly 9 (grid_index 1–9, no gaps or duplicates) |
-| 4 | Each Guardian attack line used once | solar_ray_damage/range/width/pierce_burn/tick_rate/empowered_bonus/lingering_heat/focus/execution each appear in exactly 1 Guardian triple |
-| 5 | Each Guardian active line used once | solar_beam_damage_up/range_up/overheat, frost_breath_power/cone_up/freeze, death_dash_power/distance/cooldown_down each in exactly 1 Guardian triple |
-| 6 | Each shared passive used once per Guardian | orbit_shields/storm_relay/chain_lightning/time_dilator/static_field/recovery_field/guardian_drone/magnet_core/battle_focus each in exactly 1 Guardian triple |
-| 7 | Each Blaster attack line used once | rocket_damage/count/explosion_radius/reload/marked_target_payload/seek_range/split/cluster_payload/priority_targeting each in exactly 1 Blaster triple |
-| 8 | Each Blaster active line used once | smoke_screen_radius/duration/slow, trap_damage/radius/chain_detonation, hook_damage/range/cooldown_down each in exactly 1 Blaster triple |
-| 9 | Each shared passive used once per Blaster | All 9 shared passives used exactly once in Blaster triples |
-| 10 | Each Vanguard attack line used once | splash_melee_damage/radius/speed/impact/frenzy/shockwave/lifesteal/combo/execute each in exactly 1 Vanguard triple |
-| 11 | Each Vanguard active line used once | rage_wave_power/radius/deep_slow, mighty_clap_power/range/shockwave, rage_leap_power/radius/cooldown each in exactly 1 Vanguard triple |
-| 12 | Each shared passive used once per Vanguard | All 9 shared passives used exactly once in Vanguard triples |
-| 13 | No duplicate evolution_id across all triples | All 27 evolution_id values are unique |
-| 14 | All triples have target_active_skill_id | None are empty |
+| 1 | Count Guardian triples in EvolutionManager | Exactly 9 (grid_index 1-9, no gaps or duplicates) |
+| 2 | Count Blaster triples in EvolutionManager | Exactly 9 (grid_index 1-9, no gaps or duplicates) |
+| 3 | Count Vanguard triples in EvolutionManager | Exactly 9 (grid_index 1-9, no gaps or duplicates) |
+| 4 | Guardian target distribution | Exactly 3 attack / 3 active / 3 passive targets |
+| 5 | Blaster target distribution | Exactly 3 attack / 3 active / 3 passive targets |
+| 6 | Vanguard target distribution | Exactly 3 attack / 3 active / 3 passive targets |
+| 7 | Every triple has schema target fields | `target_type` is attack/active/passive and `target_id` is non-empty |
+| 8 | Active backward compatibility | Active triples may still include `target_active_skill_id`; old active target data maps to `target_type: "active"` |
+| 9 | Each hero attack line used once | All 9 hero attack upgrade lines appear exactly once per hero triple grid |
+| 10 | Each hero active line used once | All 9 hero active upgrade lines appear exactly once per hero triple grid |
+| 11 | Each shared passive used once per hero | All 9 shared passives appear exactly once per hero triple grid |
+| 12 | No duplicate evolution_id across all triples | All 27 evolution_id values are unique |
 
 ### EvolutionManager.validate_evolution_grid() (manual console check)
 
 | # | Check | Expected |
 |---|-------|----------|
-| 1 | Call `validate_evolution_grid("guardian")` | `ok: true`, `error_count: 0`, `triple_count: 9` |
-| 2 | Call `validate_evolution_grid("blaster")` | `ok: true`, `error_count: 0`, `triple_count: 9` |
-| 3 | Call `validate_evolution_grid("vanguard")` | `ok: true`, `error_count: 0`, `triple_count: 9` |
+| 1 | Call `validate_evolution_grid("guardian", true)` | `ok: true`, `error_count: 0`, `triple_count: 9`, `target_counts.attack: 3`, `target_counts.active: 3`, `target_counts.passive: 3` |
+| 2 | Call `validate_evolution_grid("blaster", true)` | `ok: true`, `error_count: 0`, `triple_count: 9`, `target_counts.attack: 3`, `target_counts.active: 3`, `target_counts.passive: 3` |
+| 3 | Call `validate_evolution_grid("vanguard", true)` | `ok: true`, `error_count: 0`, `triple_count: 9`, `target_counts.attack: 3`, `target_counts.active: 3`, `target_counts.passive: 3` |
+| 4 | Temporarily blank a target_id in a local test | Validation reports `missing_target_id` |
+| 5 | Temporarily duplicate a target type count in a local test | Validation reports `wrong_target_type_count` |
 
 ### Runtime triple state progression (in-game)
 
 | # | Test | Expected |
-|---|-------|----------|
-| 1 | Start a Guardian run; enable Debug Mode (F12) | DebugStatsOverlay shows `-- Evolutions --` section with `Ready: 0  Selected: 0` |
+|---|------|----------|
+| 1 | Start a Guardian run; enable Debug Mode (F12) | DebugStatsOverlay shows `-- Evolutions --`, `Ready: 0  Selected: 0`, `Targets: A 3/3  Act 3/3  P 3/3`, and selected type counts at 0 |
 | 2 | Take solar_ray_damage upgrade | Triple 1 (guardian_solar_cataclysm) moves from locked to partial |
 | 3 | Also take orbit_shields upgrade | Triple 1 moves to partial (2/3 lines) |
 | 4 | Also take solar_beam_damage_up upgrade | Triple 1 moves to collected (3/3 lines, not all maxed) |
-| 5 | Max all 3 lines (solar_ray_damage to L5, orbit_shields to L3, solar_beam_damage_up to L4) | Triple 1 state becomes ready; `Ready: 1` appears in DebugStatsOverlay |
-| 6 | Check DebugStatsOverlay closest triple | Shows title "Solar Cataclysm" with state and sel/max counts |
-| 7 | Start a Blaster run; take rocket_damage + orbit_shields + smoke_screen_radius | Triple 1 (blaster_blackout) moves to collected |
-| 8 | Start a Vanguard run; take splash_melee_damage + orbit_shields + rage_wave_power | Triple 1 (vanguard_worldbreaker) moves to collected |
-
-### Slot limits and Build Slots Window unchanged
-
-| # | Test | Expected |
-|---|-------|----------|
-| 1 | Fill 4 attack + 4 passive + 4 active lines in any hero run | Level-up screen stops offering new lines in the full category; existing upgrade levels still appear |
-| 2 | Open Build Slots Window mid-run | Shows 4 attack / 4 passive / 4 active rows correctly; no evolution-related entries added |
-| 3 | Check that taking upgrades for a triple does not bypass slot limits | Triple completion follows normal slot rules; no extra slots granted |
-
----
-
-## Overdrive Trigger & First Game-Breaking Evolutions
+| 5 | Max all 3 lines | Triple 1 state becomes ready; implemented active Overdrive option can appear |
+| 6 | Complete a placeholder attack/passive triple | It may become ready internally, but it is not offered in Overdrive because `effect_status` is placeholder |
 
 ### Overdrive Screen Flow
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Use debug console to max all 3 lines of any triple (`solar_ray_damage`, `shield_focus`, `solar_beam_damage_up` for Solar Guardian triple 1), then pick any upgrade | After LevelUpScreen closes, OverdriveScreen appears — dark overlay, gold "⚡ OVERDRIVE READY" title, evolution card button |
-| 2 | Press Escape or pause while OverdriveScreen is open | No effect — game stays paused, OverdriveScreen stays visible; Escape does nothing |
-| 3 | Click an evolution card button | OverdriveScreen hides; game resumes; ability immediately has evolved behavior |
-| 4 | If 2+ triples are READY at the same time (edge case, requires 2 different triples maxed) | All READY triples appear as separate buttons (up to 3); player must pick exactly one |
-| 5 | Trigger a second triple READY after the first is already SELECTED | Overdrive fires again for the second triple; previous selection is unaffected |
-| 6 | Win or die while OverdriveScreen is open | OverdriveScreen hides cleanly; VictoryScreen/GameOverScreen shows normally |
-| 7 | Restart from GameOverScreen mid-Overdrive | OverdriveScreen hidden; new run starts fresh with no evolutions applied |
+| 1 | Complete an implemented active triple, then pick any upgrade | OverdriveScreen appears and card header shows `ACTIVE EVOLUTION -> <TARGET>` |
+| 2 | Complete a placeholder attack or passive target triple | No no-op attack/passive evolution card is offered |
+| 3 | Click an implemented evolution card button | OverdriveScreen hides; game resumes; ability immediately has evolved behavior |
+| 4 | Press Escape or pause while OverdriveScreen is open | No effect; game stays paused and OverdriveScreen stays visible |
+| 5 | Win or die while OverdriveScreen is open | OverdriveScreen hides cleanly; VictoryScreen/GameOverScreen shows normally |
+| 6 | Restart from GameOverScreen after selecting evolution | New run starts fresh with no evolutions applied |
 
-### DebugStatsOverlay Overdrive Info
-
-| # | Test | Expected |
-|---|------|----------|
-| 1 | Enable F12 debug overlay; complete a triple | `Ready: 1  Selected: 0` shown in Evolutions section |
-| 2 | Select an evolution via Overdrive | `Ready: 0  Selected: 1` and `Overdrive: <Title>` appear in Evolutions section |
-| 3 | Select two evolutions over two triples | `Selected: 2` and `Overdrive: Title1, Title2` |
-
-### Solar Beam Cataclysm (Solar Guardian, Triple 1)
+### Implemented active evolution regression
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Select solar_beam_cataclysm via Overdrive, then cast Solar Beam | Status shows "CATACLYSM"; beam is visibly wider/longer (1.8×) |
-| 2 | Count enemy hits vs base Solar Beam | Cataclysm deals ~3× more damage per hit |
-| 3 | Wait 0.18 s after Cataclysm cast | A red burn pulse fires along the same beam path (delayed laser) |
-| 4 | Solar Beam without Cataclysm (other heroes / fresh run) | Normal beam behavior; no delayed pulse, no CATACLYSM status |
+| 1 | Select `solar_beam_cataclysm`, then cast Solar Beam | Cataclysm behavior still applies |
+| 2 | Select `frost_breath_absolute_zero`, then cast Frost Breath | Absolute Zero behavior still applies |
+| 3 | Select `trap_chain_detonation_evolution`, then trigger Explosive Trap | Chain Detonation behavior still applies |
+| 4 | Select `hook_execution_pull`, then cast Grappling Hook | Execution Pull behavior still applies |
+| 5 | Select `rage_wave_worldbreaker`, then cast Rage Wave | Worldbreaker behavior still applies |
+| 6 | Select `rage_leap_meteor_crash`, then cast Rage Leap | Meteor Crash behavior still applies |
 
-### Frost Breath Absolute Zero (Solar Guardian, Triple 2)
-
-| # | Test | Expected |
-|---|------|----------|
-| 1 | Select frost_breath_absolute_zero via Overdrive, then cast Frost Breath | Status shows "ABSOLUTE ZERO"; cone is visibly much wider (1.8× half-angle) |
-| 2 | Observe enemies in cone | Two slow stages applied: speed drops to 0.08× (strong slow), then to 0.02× (near-freeze) for 0.7 s |
-| 3 | Check damage | ~2× base Frost Breath damage per hit |
-| 4 | Blue icy ring visual spawns at cast origin | Ring fades out after ~0.4 s |
-
-### Trap Chain Detonation (Night Tactician, Triple 4)
-
-| # | Test | Expected |
-|---|------|----------|
-| 1 | Select trap_chain_detonation_evolution via Overdrive, then trigger an Explosive Trap | Status shows "CHAIN DETONATION"; explosion radius visibly larger (2×) |
-| 2 | Place 2 traps close together; trigger one | Both detonate; chain triggers normally if within new chain radius |
-| 3 | Two aftershock rings | A second and third ring pulse at 0.20 s and 0.42 s after the initial blast |
-| 4 | Enemies in chain radius | All hit enemies receive Tactical Mark |
-
-### Hook Execution Pull (Night Tactician, Triple 5)
-
-| # | Test | Expected |
-|---|------|----------|
-| 1 | Select hook_execution_pull via Overdrive, hook an unmarked enemy | Status shows "EXECUTION"; damage is 3× base; no AoE explosion (enemy was not marked) |
-| 2 | Mark an enemy (Smoke Screen or prior Hook), then hook the same enemy | AoE explosion fires at enemy position, hitting and marking all nearby enemies; ring visual spawns |
-| 3 | AoE slow applied | Enemies in explosion radius slowed to 0.35× speed for 1.5 s |
-
-### Rage Wave Worldbreaker (Fury Vanguard, Triple 7)
-
-| # | Test | Expected |
-|---|------|----------|
-| 1 | Select rage_wave_worldbreaker via Overdrive, then cast Rage Wave | Status shows "WORLDBREAKER"; screen shake is noticeably heavier (12.0 intensity) |
-| 2 | Count damage pulses | 3 expanding shockwave rings appear at ~0, 0.22, 0.44 s; each deals ~2× base damage |
-| 3 | Enemy slow | Enemies in a 2.1× base radius are slowed to 0.22× speed |
-| 4 | Normal Rage Wave on non-Vanguard hero | Unchanged; no shockwaves |
-
-### Rage Leap Meteor Crash (Fury Vanguard, Triple 9)
-
-| # | Test | Expected |
-|---|------|----------|
-| 1 | Select rage_leap_meteor_crash via Overdrive, then leap | Status shows "METEOR CRASH"; ring visual at landing; 1.5× crater radius, 2× damage |
-| 2 | Wait 0.45 s after landing | Second impact fires at same position: additional damage, 0.2× speed slow, second ring visual |
-| 3 | Screen shake | First impact: 14.0 intensity, 0.34 s; second impact: 10.0 intensity, 0.26 s |
-| 4 | Normal Rage Leap | Unchanged: one impact, no delayed second crater |
-
-### Regression — Unchanged Systems
+### Regression - unchanged systems
 
 | # | Test | Expected |
 |---|------|----------|
 | 1 | 4/4/4 upgrade slot limits | Unchanged; Overdrive does not consume or grant upgrade slots |
-| 2 | Hero base kits on non-Overdrive runs (reach triple but don't have Overdrive yet) | All 3 heroes' base cast behaviors unchanged before any evolution selected |
-| 3 | Miniboss EvolutionRewardScreen | Still fires on miniboss defeat as before; separate from Overdrive |
-| 4 | Stage objectives, enemies, boss flow, rewards, saves, meta economy | All unchanged |
-| 5 | Fresh run after restart | All 6 evolution flags reset to false; OverdriveScreen starts hidden |
+| 2 | Open Build Slots Window mid-run | Shows 4 attack / 4 passive / 4 active rows correctly |
+| 3 | Use LevelUpScreen normally | Upgrade options and selection still work |
+| 4 | Restart run | Evolution runtime state clears naturally |
+| 5 | Inspect diff/save behavior | No save/meta/reward changes, no stage objective changes, no enemy changes, no boss-flow changes, no full attack/passive evolution packs |
 
 ---
 

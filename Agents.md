@@ -367,123 +367,82 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 
 ## Evolution System Architecture
 
-### Triple Grid Foundation (current patch)
+### 3/3/3 Triple Grid Schema
 
-- `EvolutionManager` owns the triple definitions (27 total: 9 per hero), triple state computation, selection tracking, validation, and debug output.
-- A **triple** binds exactly 1 attack upgrade line + 1 passive upgrade line + 1 active upgrade line into an evolution candidate for one active skill.
-- Each hero has exactly 9 triples with grid_index 1–9. Each hero attack line, each shared passive line, and each hero active line is used exactly once in that hero's triple grid.
-- `EvolutionManager.setup(player, auto_attack, ability_manager, upgrade_manager)` wires all node refs. Hero data is read from `upgrade_manager.hero_data` (populated before EvolutionManager.setup is called in Arena._ready).
-- `EvolutionManager.reset_run_state()` clears `_selected_evolutions`; the arena node being freed and recreated on restart/victory/defeat/quit also resets state naturally.
-- `EvolutionManager.get_triple_state(hero_id)` returns a dictionary of `{triple_id → state_dict}` where each state_dict contains: `state` (locked/partial/collected/ready/selected), `selected_lines_count` (0–3), `maxed_lines_count` (0–3), `required_lines` (array of 3 line dicts with id/category/current_level/max_level/selected/maxed).
-- `EvolutionManager.get_ready_evolutions(hero_id)` returns triples whose state is `ready` or `selected`.
-- `EvolutionManager.mark_evolution_selected(evolution_id)` tracks selection. Evolution effects are **not applied** in this patch.
-- `EvolutionManager.validate_evolution_grid(hero_id)` checks uniqueness of attack/passive/active/evolution lines per hero, grid_index range/uniqueness, presence of target_active_skill_id, and correct triple count.
-- `EvolutionManager.debug_get_evolution_grid_state()` exposes full state for DebugStatsOverlay (ready count, closest triple, triple states dict, validation result).
-- `EvolutionManager.debug_get_evolution_state()` provides the legacy-compatible dict (available_count, applied_ids, applied_titles) for overlay backward compat.
+- `EvolutionManager` owns the triple definitions (27 total: 9 per hero), triple state computation, selection tracking, validation, debug output, and runtime-only application routing.
+- Each hero has exactly 9 triples with `grid_index` 1-9 and a target distribution of exactly 3 `attack`, 3 `active`, and 3 `passive` evolutions.
+- A triple still binds exactly 1 attack upgrade line + 1 passive upgrade line + 1 active upgrade line. All 3 required lines must be selected and maxed before the triple can become ready.
+- Each hero attack line, each shared passive line, and each hero active line is used exactly once in that hero's triple grid.
+- Triple definitions use `target_type` (`"attack"`, `"active"`, `"passive"`) and `target_id` (primary weapon id, active skill id, or passive id). Legacy `target_active_skill_id` is treated as `target_type: "active"` plus `target_id` for backward compatibility.
+- `effect_status: "placeholder"` marks schema-only entries. Placeholder or otherwise unimplemented evolutions must not be offered in Overdrive or EvolutionRewardScreen.
 
 ### Triple Definition Schema
 
 Each triple definition contains:
-- `triple_id`: unique string slug (e.g. "guardian_solar_cataclysm")
-- `hero_id`: "guardian" | "blaster" | "vanguard"
-- `grid_index`: int 1–9 (unique per hero)
-- `attack_line_id`: hero-specific attack upgrade_line_id
-- `passive_line_id`: shared passive upgrade_line_id
-- `active_line_id`: hero-specific active upgrade_line_id
-- `target_active_skill_id`: source_skill_id of the active skill being evolved
-- `evolution_id`: unique string slug for the evolved ability
-- `title`: display name
-- `description`: placeholder description
-- `required_levels`: {} (empty = use each upgrade's own max_level automatically)
+- `triple_id`: unique string slug.
+- `hero_id`: `guardian`, `blaster`, or `vanguard`.
+- `grid_index`: int 1-9, unique per hero.
+- `attack_line_id`: hero-specific attack `upgrade_line_id`.
+- `passive_line_id`: shared passive `upgrade_line_id`.
+- `active_line_id`: hero-specific active `upgrade_line_id`.
+- `target_type`: `attack`, `active`, or `passive`.
+- `target_id`: evolved attack / active skill / passive skill id.
+- `target_active_skill_id`: optional legacy active target field; kept only for compatibility on active targets.
+- `evolution_id`: unique string slug for the evolved path.
+- `title`, `description`, `effect_status`, and `required_levels`.
 
-### Triple State Rules
+### Validation Rules
 
-| State | Condition |
-|-------|-----------|
-| locked | 0 lines selected |
-| partial | 1–2 lines selected |
-| collected | 3 selected, not all maxed |
-| ready | 3 selected AND all 3 at max level |
-| selected | evolution marked as selected (no game effect yet) |
+`EvolutionManager.validate_evolution_grid(hero_id, strict)` must check:
+- exactly 9 triples per hero.
+- exactly 3 attack, 3 active, and 3 passive targets per hero.
+- no duplicate `grid_index`, `evolution_id`, `attack_line_id`, `passive_line_id`, or `active_line_id` per hero.
+- valid `target_type` and non-empty `target_id`.
+- active targets match real active source ids, attack targets match real attack source ids, and passive targets match real passive ids from `UpgradeManager.get_upgrade_definition_summary()`.
 
-### UpgradeManager Integration
+### Runtime State Rules
 
-- `UpgradeManager.has_selected_line(upgrade_line_id)` — public wrapper for `_is_selected_upgrade_line`; EvolutionManager calls this to check line selection.
-- `UpgradeManager.get_upgrade_max_level(upgrade_id)` — returns the max_level for any upgrade definition.
-- Existing: `get_upgrade_level(upgrade_id)`, `get_slot_state()`, `get_upgrade_definition_summary(upgrade_id)`.
-- EvolutionManager never duplicates upgrade state. It only reads from UpgradeManager.
-
-### Overdrive Trigger & OverdriveScreen (current patch)
-
-- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) — runtime-instantiated CanvasLayer (layer=22, PROCESS_MODE_WHEN_PAUSED). Arena adds it as a child in `_ready()` via `_setup_overdrive_screen()`. Emits `evolution_chosen(evolution_id: String)`.
-- `show_evolutions(options: Array)` — accepts up to 3 triple dicts (merged triple definition + computed state), shows one Button per option, no close-without-selection.
-- `_format_card(triple)` — formats `"★ OVERDRIVE → TARGET_SKILL\nTitle\nDescription\n[ATK] line_id N/N  |  [PAS] line_id N/N  |  [ACT] line_id N/N"`.
-- **Trigger flow** (Arena): after `_on_upgrade_selected()` hides LevelUpScreen → `_check_overdrive_after_upgrade()` → if `get_overdrive_options()` returns ≥1 result, `_open_overdrive_screen(options)` pauses and shows screen; else `_resume_game_if_safe()`.
-- **No skip** — `_is_blocking_run_screen_open()` and `_handle_pause_back_requested()` both include `_is_overdrive_visible()`, preventing escape/pause while Overdrive is open.
-- **Cleanup** — `_close_overdrive_screen()` is called from `_on_victory_reached()`, `_on_player_died()`, `_on_restart_requested()`, `_on_quit_to_menu_requested()`, and both action branches of `_on_confirm_dialog_confirmed()`.
+- `EvolutionManager.setup(player, auto_attack, ability_manager, upgrade_manager, passive_ability_manager = null)` wires run-only node refs. Hero data is read from `upgrade_manager.hero_data`.
+- `EvolutionManager.reset_run_state()` clears `_selected_evolutions`; Arena scene reload also resets state naturally.
+- `get_triple_state(hero_id)` returns `{triple_id -> state_dict}` with `state`, `selected_lines_count`, `maxed_lines_count`, `target_type`, `target_id`, `effect_status`, and `required_lines`.
+- `get_evolution_type_counts(hero_id)` and `get_selected_evolution_type_counts(hero_id)` expose attack/active/passive counts for debug UI.
+- Evolution state is runtime-only. Do not save selected evolutions, target counts, or placeholder state to meta, preferences, rewards, or any persistent file.
 
 ### apply_evolution() Routing
 
-- `EvolutionManager.apply_evolution(evolution_id)` now calls `_apply_evolution_effect(evolution_id)` first, then marks triple SELECTED, adds `announcement` key, emits `evolution_applied`.
-- `_apply_evolution_effect()` matches on `evolution_id` and calls `ability_manager.set("flag_name", true)` for each implemented evolution.
-- `EvolutionManager.get_overdrive_options()` — iterates hero triples, skips SELECTED ones, calls `_compute_triple_state()`, returns only READY triples as merged dicts (triple definition + computed state).
-- `EvolutionManager.debug_get_evolution_grid_state()` now includes `"applied_titles": get_applied_evolution_titles()`.
+- `EvolutionManager.apply_evolution(evolution_id)` finds the triple, routes by `target_type`, and marks SELECTED only if the effect handler succeeds.
+- `active` routes to `AbilityManager` and currently preserves the six implemented active effects through existing boolean flags.
+- `attack` routes to `PlayerAutoAttack` if a future `apply_attack_evolution(evolution_id, target_id)` handler exists; otherwise it warns and returns false.
+- `passive` routes to `PassiveAbilityManager` if a future `apply_passive_evolution(evolution_id, target_id)` handler exists; otherwise it warns and returns false.
+- Unknown `target_type`, missing handler, or placeholder effect must return false and must not silently apply a no-op.
 
-### AbilityManager Evolution Flags
+### Overdrive and UI
 
-Six `@export var bool = false` flags added to AbilityManager. All reset to `false` in `set_hero_kit()`.
+- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) is runtime-instantiated by Arena. It shows the evolution type label (ATTACK / ACTIVE / PASSIVE), target id, title, description, and required-line progress.
+- `EvolutionManager.get_overdrive_options()` returns READY, not-yet-selected triples for the active hero, filtered to `effect_status: "implemented"` only.
+- DebugStatsOverlay shows ready/selected totals plus Attack / Active / Passive target and selected counts.
+- BuildSlotsWindow remains read-only slot display. It must not mutate evolution state or slot rules.
+- OverdriveScreen is blocking: no skip/close-without-selection while visible.
 
-| Flag | Evolution |
-|---|---|
-| `solar_beam_cataclysm_enabled` | solar_beam_cataclysm |
-| `frost_breath_absolute_zero_enabled` | frost_breath_absolute_zero |
-| `explosive_trap_chain_evolution_enabled` | trap_chain_detonation_evolution |
-| `grappling_hook_execution_enabled` | hook_execution_pull |
-| `rage_wave_worldbreaker_enabled` | rage_wave_worldbreaker |
-| `rage_leap_meteor_crash_enabled` | rage_leap_meteor_crash |
+### Implemented Active Evolution IDs
 
-Each evolved cast function checks its flag at the top and returns early. Base behavior is unchanged when flag is false.
+Do not add the full Attack Evolutions Pack or Passive Evolutions Pack unless explicitly requested. Current implemented active evolutions are:
 
-### Visual Helper Methods (AbilityManager)
+| evolution_id | hero_id | target_type | target_id |
+|---|---|---|---|
+| `solar_beam_cataclysm` | guardian | active | `solar_beam` |
+| `frost_breath_absolute_zero` | guardian | active | `frost_breath` |
+| `trap_chain_detonation_evolution` | blaster | active | `explosive_trap` |
+| `hook_execution_pull` | blaster | active | `grappling_hook` |
+| `rage_wave_worldbreaker` | vanguard | active | `rage_wave` |
+| `rage_leap_meteor_crash` | vanguard | active | `rage_leap` |
 
-All procedural, no custom assets:
-- `_spawn_ring_visual(pos, radius, color, duration)` — Line2D circle with fade tween.
-- `_spawn_colored_beam_visual(origin, dir, range, width, color, duration)` — Line2D beam with fade tween.
-- `_schedule_delayed_laser(origin, dir, damage, range, width, delay)` — timer-delayed laser damage + beam visual. Used by Cataclysm.
-- `_schedule_trap_pulse(pos, radius, damage, delay)` — timer-delayed ring damage. Used by Chain Detonation.
-- `_schedule_shockwave(pos, radius, damage, delay)` — timer-delayed ring + slam feedback + shake. Used by Worldbreaker.
-- `_schedule_meteor_second_impact(pos, damage, radius)` — 0.45 s delayed second crater + slow + ring. Used by Meteor Crash.
+### Other Rules
 
-### Evolution IDs (Implemented)
-
-Do not add new evolutions until explicitly requested. Do not modify triple definitions for unimplemented evolutions. The remaining 21 triple ids exist as grid data only and have no gameplay effect.
-
-| evolution_id | hero_id | target_active_skill_id |
-|---|---|---|
-| solar_beam_cataclysm | guardian | solar_beam |
-| frost_breath_absolute_zero | guardian | frost_breath |
-| trap_chain_detonation_evolution | blaster | explosive_trap |
-| hook_execution_pull | blaster | grappling_hook |
-| rage_wave_worldbreaker | vanguard | rage_wave |
-| rage_leap_meteor_crash | vanguard | rage_leap |
-
-### Legacy Compatibility
-
-- `EvolutionManager.setup(player, auto_attack, ability_manager, upgrade_manager)` — same 4-arg signature that Arena already calls.
-- `EvolutionManager.get_available_evolutions()` — maps to `get_ready_evolutions(hero_id)`.
-- `EvolutionManager.has_evolution(evolution_id)` — alias for `is_evolution_selected`.
-- Signals `evolution_available`, `evolution_applied`, `evolution_state_changed` are preserved.
-- `elite_reward_chance` export var is preserved.
-
-### Other rules
-
-- EvolutionRewardScreen is display-only for legacy evolution rewards (miniboss); OverdriveScreen is the new path for triple-grid evolutions.
-- Arena coordinates opening the reward screen / overdrive screen, pausing/resuming, applying selected evolutions, and announcements.
-- Evolutions are runtime-only and reset naturally with every new Arena.
-- Miniboss defeat is the main evolution reward path for legacy evolutions; elite rewards are optional through `elite_reward_chance` and default to off.
-- Overdrive fires after any upgrade that completes a triple — not tied to miniboss.
-- No evolution state is saved to meta progression.
-- Do not add persistence, meta-progression, evolution unlock storage, or evolution art assets unless explicitly requested.
+- EvolutionRewardScreen is display-only for legacy evolution reward flow; OverdriveScreen is the triple-grid path.
+- Arena coordinates opening screens, pausing/resuming, applying selected evolutions, and announcements.
+- Miniboss defeat remains the main evolution reward path for legacy evolutions; elite rewards are optional through `elite_reward_chance` and default to off.
+- Do not add persistence, meta-progression, evolution unlock storage, evolution art assets, attack/passive effect packs, slot-rule changes, rewards changes, stage changes, enemy changes, boss-flow changes, or Build Evolution unless explicitly requested.
 
 ## Meta Progression Architecture
 

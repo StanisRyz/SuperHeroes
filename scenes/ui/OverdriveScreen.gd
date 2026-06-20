@@ -28,7 +28,10 @@ func show_evolutions(options: Array) -> void:
 
 func _format_card(triple: Dictionary) -> String:
 	var title := str(triple.get("title", "Evolution"))
-	var target := str(triple.get("target_active_skill_id", "")).replace("_", " ").to_upper()
+	var target_type := str(triple.get("target_type", "active"))
+	var target_id := str(triple.get("target_id", triple.get("target_active_skill_id", "")))
+	var type_label := "%s EVOLUTION" % target_type.to_upper()
+	var target := target_id.replace("_", " ").to_upper()
 	var description := str(triple.get("description", ""))
 	var lines: Array = triple.get("required_lines", [])
 
@@ -44,7 +47,7 @@ func _format_card(triple: Dictionary) -> String:
 	if not line_parts.is_empty():
 		lines_str = "\n" + "  |  ".join(line_parts)
 
-	return "★ OVERDRIVE  →  %s\n%s\n%s%s" % [target, title, description, lines_str]
+	return "%s  ->  %s\n%s\n%s%s" % [type_label, target, title, description, lines_str]
 
 
 func _build_ui() -> void:
@@ -79,7 +82,7 @@ func _build_ui() -> void:
 	box.add_child(title_label)
 
 	var subtitle := Label.new()
-	subtitle.text = "Choose an evolution to permanently transform one of your active skills this run."
+	subtitle.text = "Choose an evolution to permanently transform one part of your build this run."
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(subtitle)

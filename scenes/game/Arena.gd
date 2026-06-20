@@ -286,7 +286,7 @@ func _setup_evolution_flow(auto_attack: Node, ability_manager: Node) -> void:
 	if evolution_manager == null:
 		push_warning("Arena could not find EvolutionManager node.")
 	elif evolution_manager.has_method("setup"):
-		evolution_manager.setup(player, auto_attack, ability_manager, upgrade_manager)
+		evolution_manager.setup(player, auto_attack, ability_manager, upgrade_manager, _passive_ability_manager)
 		if evolution_manager.has_signal("evolution_applied") and not evolution_manager.evolution_applied.is_connected(_on_evolution_applied):
 			evolution_manager.evolution_applied.connect(_on_evolution_applied)
 	else:
@@ -1637,7 +1637,14 @@ func _print_compact_stats() -> void:
 		])
 	if evolution_manager != null and is_instance_valid(evolution_manager) and evolution_manager.has_method("debug_get_evolution_state"):
 		var evo: Dictionary = evolution_manager.debug_get_evolution_state()
-		print("Evolutions: available=%d applied=%s" % [evo.get("available_count", 0), str(evo.get("applied_titles", []))])
+		var evo_counts: Dictionary = evo.get("selected_type_counts", {})
+		print("Evolutions: available=%d applied=%s selected A/Act/P=%d/%d/%d" % [
+			evo.get("available_count", 0),
+			str(evo.get("applied_titles", [])),
+			int(evo_counts.get("attack", 0)),
+			int(evo_counts.get("active", 0)),
+			int(evo_counts.get("passive", 0))
+		])
 	print("==================")
 
 

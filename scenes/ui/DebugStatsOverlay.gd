@@ -271,6 +271,24 @@ func _build_stats_text() -> String:
 		if _evolution_manager.has_method("debug_get_evolution_grid_state"):
 			var evo: Dictionary = _evolution_manager.debug_get_evolution_grid_state()
 			lines.append("Ready: %d  Selected: %d" % [int(evo.get("ready_count", 0)), int(evo.get("selected_count", 0))])
+			var type_counts: Dictionary = evo.get("type_counts", {})
+			var ready_type_counts: Dictionary = evo.get("ready_type_counts", {})
+			var selected_type_counts: Dictionary = evo.get("selected_type_counts", {})
+			lines.append("Targets: A %d/3  Act %d/3  P %d/3" % [
+				int(type_counts.get("attack", 0)),
+				int(type_counts.get("active", 0)),
+				int(type_counts.get("passive", 0))
+			])
+			lines.append("Ready types: A %d  Act %d  P %d" % [
+				int(ready_type_counts.get("attack", 0)),
+				int(ready_type_counts.get("active", 0)),
+				int(ready_type_counts.get("passive", 0))
+			])
+			lines.append("Selected types: A %d  Act %d  P %d" % [
+				int(selected_type_counts.get("attack", 0)),
+				int(selected_type_counts.get("active", 0)),
+				int(selected_type_counts.get("passive", 0))
+			])
 			var applied_titles: Array = evo.get("applied_titles", [])
 			if not applied_titles.is_empty():
 				lines.append("Overdrive: %s" % ", ".join(applied_titles))
