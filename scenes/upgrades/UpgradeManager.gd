@@ -24,37 +24,31 @@ const HERO_UPGRADE_FLAVOR := {
 		"titles": {
 			"attack_damage_up": "Radiant Strike",
 			"attack_speed_up": "Solar Tempo",
-			"attack_range_up": "Skyline Reach",
+			"attack_range_up": "Sunray Reach",
 			"move_speed_up": "Aerial Momentum",
 			"max_health_up": "Solar Fortitude",
-			"projectile_speed_up": "Sunshot Velocity",
-			"nova_damage_up": "Solar Burst Surge",
-			"nova_cooldown_down": "Radiant Rhythm",
-			"laser_damage_up": "Solar Beam Focus",
-			"laser_cooldown_down": "Solar Beam Charge",
-			"laser_width_up": "Wide Sunray",
-			"slam_damage_up": "Aerial Impact Force",
-			"slam_radius_up": "Impact Halo",
-			"slam_cooldown_down": "Skyfall Ready",
 			"shielded_dash": "Dawn Guard Dash",
 			"heroic_endurance": "Solar Endurance",
 			"power_collector": "Sunlit Collector",
-			"nova_aftershock": "Radiant Aftershock",
-			"laser_overcharge": "Solar Overcharge",
-			"slam_quake": "Aerial Quake",
-			"nova_aftershock_zone": "Radiant Aftershock Zone",
-			"laser_double_pulse": "Twin Sunray",
-			"slam_second_wave": "Second Impact",
 			"dash_damage_trail": "Comet Guard",
-			"bouncing_bolts": "Ricochet Rays",
+			"solar_ray_damage": "Sunray Power",
+			"solar_ray_range": "Skyline Reach",
+			"solar_ray_width": "Wide Sunray",
+			"solar_ray_pierce_burn": "Scorching Ray",
+			"solar_beam_damage_up": "Solar Beam Focus",
+			"solar_beam_range_up": "Extended Sunray",
+			"frost_breath_power": "Deep Freeze",
+			"frost_breath_cone_up": "Arctic Spread",
+			"death_dash_power": "Death Drive",
+			"death_dash_cooldown_down": "Reaper's Stride",
+			"solar_empower_boost": "Radiant Surge",
 		},
 		"descriptions": {
-			"attack_damage_up": "Increase radiant autoattack damage by %s.",
-			"attack_speed_up": "Reduce radiant autoattack interval by %ss.",
-			"attack_range_up": "Increase skyward autoattack targeting range by %s.",
+			"attack_damage_up": "Increase Solar Ray beam damage by %s.",
+			"attack_speed_up": "Reduce Solar Ray attack interval by %ss.",
+			"attack_range_up": "Increase Solar Ray beam targeting range by %s.",
 			"move_speed_up": "Increase aerial movement speed by %s.",
 			"max_health_up": "Increase solar durability and heal by %s.",
-			"projectile_speed_up": "Increase speed of newly fired sunshots by %s.",
 			"shielded_dash": "Extend guarded dash invulnerability and trim dash cooldown.",
 			"heroic_endurance": "Increase solar max health by %s and restore HP.",
 			"power_collector": "Increase movement speed for better radiant pickup reach.",
@@ -222,7 +216,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase speed of newly fired projectiles by %s.",
 		"effect_value": 80.0,
 		"archetype": "projectile",
-		"tags": ["weapon", "speed"]
+		"tags": ["weapon", "speed"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "orbit_shields",
@@ -285,7 +280,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Nova Pulse damage by %s.",
 		"effect_value": 5,
 		"archetype": "nova",
-		"tags": ["ability", "damage", "aoe"]
+		"tags": ["ability", "damage", "aoe"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "nova_cooldown_down",
@@ -296,7 +292,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Reduce Nova Pulse cooldown by %ss.",
 		"effect_value": 0.5,
 		"archetype": "nova",
-		"tags": ["ability", "cooldown"]
+		"tags": ["ability", "cooldown"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "dash_cooldown_down",
@@ -329,7 +326,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase projectile pierce by %s.",
 		"effect_value": 1,
 		"archetype": "projectile",
-		"tags": ["weapon", "pierce"]
+		"tags": ["weapon", "pierce"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "multishot_up",
@@ -340,7 +338,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Fire +%s projectile per attack.",
 		"effect_value": 1,
 		"archetype": "projectile",
-		"tags": ["weapon", "projectile_count"]
+		"tags": ["weapon", "projectile_count"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "spread_up",
@@ -351,7 +350,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase projectile spread angle by %s degrees.",
 		"effect_value": 8.0,
 		"archetype": "projectile",
-		"tags": ["weapon", "spread"]
+		"tags": ["weapon", "spread"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "projectile_size_up",
@@ -362,7 +362,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase projectile size by %s.",
 		"effect_value": 0.15,
 		"archetype": "projectile",
-		"tags": ["weapon", "size"]
+		"tags": ["weapon", "size"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "explosive_projectiles",
@@ -373,7 +374,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase projectile explosion radius by %s.",
 		"effect_value": 45.0,
 		"archetype": "projectile",
-		"tags": ["weapon", "explosion"]
+		"tags": ["weapon", "explosion"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "laser_damage_up",
@@ -384,7 +386,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Laser Beam damage by %s.",
 		"effect_value": 8,
 		"archetype": "laser",
-		"tags": ["ability", "damage"]
+		"tags": ["ability", "damage"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "laser_cooldown_down",
@@ -395,7 +398,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Reduce Laser Beam cooldown by %ss.",
 		"effect_value": 0.5,
 		"archetype": "laser",
-		"tags": ["ability", "cooldown"]
+		"tags": ["ability", "cooldown"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "laser_width_up",
@@ -406,7 +410,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Laser Beam width by %s.",
 		"effect_value": 20.0,
 		"archetype": "laser",
-		"tags": ["ability", "area"]
+		"tags": ["ability", "area"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "slam_damage_up",
@@ -417,7 +422,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Hero Slam damage by %s.",
 		"effect_value": 10,
 		"archetype": "slam",
-		"tags": ["ability", "damage"]
+		"tags": ["ability", "damage"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "slam_radius_up",
@@ -428,7 +434,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Increase Hero Slam radius by %s.",
 		"effect_value": 25.0,
 		"archetype": "slam",
-		"tags": ["ability", "aoe"]
+		"tags": ["ability", "aoe"],
+		"hero_exclude": ["guardian"]
 	},
 	{
 		"id": "slam_cooldown_down",
@@ -439,7 +446,8 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"description_template": "Reduce Hero Slam cooldown by %ss.",
 		"effect_value": 0.6,
 		"archetype": "slam",
-		"tags": ["ability", "cooldown"]
+		"tags": ["ability", "cooldown"],
+		"hero_exclude": ["guardian"]
 	},
 	# ── PROJECTILE SYNERGY UPGRADES ─────────────────────────────────────────────
 	{
@@ -452,6 +460,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "projectile",
 		"tags": ["weapon", "synergy", "multishot"],
+		"hero_exclude": ["guardian"],
 		"prerequisites": {
 			"upgrade_levels": {"multishot_up": 1},
 			"archetype_points": {"projectile": 2}
@@ -471,6 +480,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "projectile",
 		"tags": ["weapon", "synergy", "explosion"],
+		"hero_exclude": ["guardian"],
 		"prerequisites": {
 			"upgrade_levels": {"explosive_projectiles": 1},
 			"archetype_points": {"projectile": 2}
@@ -490,6 +500,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "projectile",
 		"tags": ["weapon", "synergy", "pierce"],
+		"hero_exclude": ["guardian"],
 		"prerequisites": {
 			"upgrade_levels": {"projectile_pierce_up": 1}
 		},
@@ -509,6 +520,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "nova",
 		"tags": ["ability", "synergy", "aoe"],
+		"hero_exclude": ["guardian"],
 		"prerequisites": {
 			"archetype_points": {"nova": 2}
 		},
@@ -527,6 +539,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "laser",
 		"tags": ["ability", "synergy", "beam"],
+		"hero_exclude": ["guardian"],
 		"prerequisites": {
 			"archetype_points": {"laser": 2}
 		},
@@ -545,6 +558,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 0,
 		"archetype": "slam",
 		"tags": ["ability", "synergy", "aoe"],
+		"hero_exclude": ["guardian"],
 		"prerequisites": {
 			"archetype_points": {"slam": 2}
 		},
@@ -615,6 +629,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "nova",
 		"tags": ["ability", "synergy", "aoe", "build_defining"],
 		"is_build_defining": true,
+		"hero_exclude": ["guardian"],
 		"prerequisites": {
 			"any_of": [
 				{"upgrade_levels": {"nova_aftershock": 1}},
@@ -638,6 +653,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "laser",
 		"tags": ["ability", "synergy", "beam", "build_defining"],
 		"is_build_defining": true,
+		"hero_exclude": ["guardian"],
 		"prerequisites": {"archetype_points": {"laser": 3}},
 		"effects": [
 			{"target": "ability_manager", "property": "laser_double_pulse_enabled", "operation": "set", "value": true},
@@ -655,6 +671,7 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "slam",
 		"tags": ["ability", "synergy", "aoe", "build_defining"],
 		"is_build_defining": true,
+		"hero_exclude": ["guardian"],
 		"prerequisites": {"archetype_points": {"slam": 3}},
 		"effects": [
 			{"target": "ability_manager", "property": "slam_second_wave_enabled", "operation": "set", "value": true},
@@ -691,12 +708,170 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"archetype": "projectile",
 		"tags": ["weapon", "bounce", "synergy", "build_defining"],
 		"is_build_defining": true,
+		"hero_exclude": ["guardian"],
 		"prerequisites": {
 			"archetype_points": {"projectile": 3},
 			"any_upgrade_levels": {"projectile_pierce_up": 1, "multishot_up": 1}
 		},
 		"effects": [
 			{"target": "auto_attack", "property": "projectile_bounce", "operation": "add", "value": 1, "max_value": 5}
+		]
+	},
+	# ── SOLAR GUARDIAN: ATTACK UPGRADES (solar_ray beam) ─────────────────────────
+	{
+		"id": "solar_ray_damage",
+		"title": "Sunray Power",
+		"rarity": "common",
+		"weight": 0.9,
+		"max_level": 5,
+		"description_template": "Increase Solar Ray beam damage by %s.",
+		"effect_value": 2,
+		"archetype": "solar_ray",
+		"tags": ["weapon", "damage"],
+		"hero_only": ["guardian"]
+	},
+	{
+		"id": "solar_ray_range",
+		"title": "Skyline Reach",
+		"rarity": "rare",
+		"weight": 0.75,
+		"max_level": 4,
+		"description_template": "Increase Solar Ray beam targeting range by %s.",
+		"effect_value": 50.0,
+		"archetype": "solar_ray",
+		"tags": ["weapon", "range"],
+		"hero_only": ["guardian"]
+	},
+	{
+		"id": "solar_ray_width",
+		"title": "Wide Sunray",
+		"rarity": "rare",
+		"weight": 0.7,
+		"max_level": 4,
+		"description_template": "Increase Solar Ray beam hit corridor by %s.",
+		"effect_value": 8.0,
+		"archetype": "solar_ray",
+		"tags": ["weapon", "area"],
+		"hero_only": ["guardian"]
+	},
+	{
+		"id": "solar_ray_pierce_burn",
+		"title": "Scorching Ray",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 3,
+		"description_template": "Increase Solar Ray burn intensity, adding %s bonus damage.",
+		"effect_value": 3,
+		"archetype": "solar_ray",
+		"tags": ["weapon", "damage"],
+		"hero_only": ["guardian"]
+	},
+	# ── SOLAR GUARDIAN: ACTIVE UPGRADES ─────────────────────────────────────────
+	{
+		"id": "solar_beam_damage_up",
+		"title": "Solar Beam Focus",
+		"rarity": "epic",
+		"weight": 0.5,
+		"max_level": 4,
+		"description_template": "Increase Solar Beam ability damage by %s.",
+		"effect_value": 7,
+		"archetype": "solar_beam",
+		"tags": ["ability", "damage"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "solar_beam_damage", "operation": "add", "value": 7}
+		]
+	},
+	{
+		"id": "solar_beam_range_up",
+		"title": "Extended Sunray",
+		"rarity": "rare",
+		"weight": 0.65,
+		"max_level": 4,
+		"description_template": "Increase Solar Beam ability range by %s.",
+		"effect_value": 55.0,
+		"archetype": "solar_beam",
+		"tags": ["ability", "area"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "solar_beam_range", "operation": "add", "value": 55.0},
+			{"target": "ability_manager", "property": "solar_beam_width", "operation": "add", "value": 10.0}
+		]
+	},
+	{
+		"id": "frost_breath_power",
+		"title": "Deep Freeze",
+		"rarity": "epic",
+		"weight": 0.5,
+		"max_level": 4,
+		"description_template": "Increase Frost Breath damage by %s and extend slow duration.",
+		"effect_value": 6,
+		"archetype": "frost_breath",
+		"tags": ["ability", "damage"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "frost_breath_damage", "operation": "add", "value": 6},
+			{"target": "ability_manager", "property": "frost_breath_slow_duration", "operation": "add", "value": 0.4}
+		]
+	},
+	{
+		"id": "frost_breath_cone_up",
+		"title": "Arctic Spread",
+		"rarity": "rare",
+		"weight": 0.6,
+		"max_level": 3,
+		"description_template": "Widen Frost Breath cone and increase its range by %s.",
+		"effect_value": 30.0,
+		"archetype": "frost_breath",
+		"tags": ["ability", "area"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "frost_breath_cone_degrees", "operation": "add", "value": 14.0},
+			{"target": "ability_manager", "property": "frost_breath_range", "operation": "add", "value": 30.0}
+		]
+	},
+	{
+		"id": "death_dash_power",
+		"title": "Death Drive",
+		"rarity": "epic",
+		"weight": 0.5,
+		"max_level": 4,
+		"description_template": "Increase Death Dash path damage by %s and extend dash distance.",
+		"effect_value": 8,
+		"archetype": "death_dash",
+		"tags": ["ability", "damage"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "death_dash_damage", "operation": "add", "value": 8},
+			{"target": "ability_manager", "property": "death_dash_distance", "operation": "add", "value": 30.0}
+		]
+	},
+	{
+		"id": "death_dash_cooldown_down",
+		"title": "Reaper's Stride",
+		"rarity": "epic",
+		"weight": 0.45,
+		"max_level": 3,
+		"description_template": "Reduce Death Dash cooldown by %ss.",
+		"effect_value": 0.8,
+		"archetype": "death_dash",
+		"tags": ["ability", "cooldown"],
+		"hero_only": ["guardian"]
+	},
+	{
+		"id": "solar_empower_boost",
+		"title": "Radiant Surge",
+		"rarity": "epic",
+		"weight": 0.4,
+		"max_level": 3,
+		"description_template": "Increase Solar Empowered damage multiplier and extend duration.",
+		"effect_value": 0,
+		"archetype": "solar_ray",
+		"tags": ["ability", "damage", "synergy"],
+		"hero_only": ["guardian"],
+		"effects": [
+			{"target": "ability_manager", "property": "solar_empowered_damage_multiplier", "operation": "add", "value": 0.25},
+			{"target": "ability_manager", "property": "solar_empowered_duration", "operation": "add", "value": 3.0}
 		]
 	}
 ]
@@ -817,6 +992,18 @@ func apply_upgrade(upgrade_id: String) -> void:
 				applied = _apply_slam_cooldown_upgrade(effect_value)
 			"heroic_endurance":
 				applied = _apply_max_health_upgrade(effect_value)
+			"solar_ray_damage":
+				applied = _apply_auto_attack_number("attack_damage", effect_value)
+			"solar_ray_range":
+				applied = _apply_auto_attack_number("attack_range", effect_value)
+				if applied and auto_attack != null and auto_attack.has_method("refresh_attack_range"):
+					auto_attack.refresh_attack_range()
+			"solar_ray_width":
+				applied = _apply_auto_attack_number("solar_ray_width", effect_value)
+			"solar_ray_pierce_burn":
+				applied = _apply_auto_attack_number("attack_damage", effect_value)
+			"death_dash_cooldown_down":
+				applied = _apply_ability_number("death_dash_cooldown", -float(effect_value))
 			_:
 				push_warning("Unknown upgrade id: %s" % upgrade_id)
 
@@ -846,6 +1033,13 @@ func is_upgrade_available(upgrade_id: String) -> bool:
 	if get_upgrade_level(upgrade_id) >= int(definition.get("max_level", 1)):
 		return false
 	if not _meets_prerequisites(definition):
+		return false
+	var hero_id := str(hero_data.get("id", ""))
+	var hero_only: Array = definition.get("hero_only", [])
+	if not hero_only.is_empty() and not hero_only.has(hero_id):
+		return false
+	var hero_exclude: Array = definition.get("hero_exclude", [])
+	if hero_exclude.has(hero_id):
 		return false
 	if _is_selected_upgrade_line(upgrade_id):
 		return true

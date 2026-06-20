@@ -334,19 +334,20 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - CharacterSelect must never mutate Training/meta data, buy upgrades, write saves, change hero stats, or change balance values.
 - HeroDataProvider owns hardcoded hero dictionaries for now; do not migrate to Resources until explicitly requested.
 - HeroDataProvider supplies stable hero ids plus kit ids: `guardian` -> `solar_guardian`, `blaster` -> `night_tactician`, `vanguard` -> `fury_vanguard`.
-- Guardian is an original solar/flying powerhouse fantasy with strength, beam, durability, and aerial-impact presentation.
+- Guardian is an original solar/flying powerhouse fantasy: durable beam attacker with Solar Energy passive, a focused beam ability, frost cone with slow, and a damage dash with invulnerability.
 - Guardian may override ability display names through hero data, but global input slots and ability ids must stay stable.
 - Blaster keeps the `blaster` id and is an original dark gadget tactician fantasy with precision tools, tactical mobility, controlled burst damage, and close control presentation.
 - Blaster may override ability display names through hero data as Smoke Charge, Grapnel Shot, and Shock Trap, but global input slots and ability ids must stay stable.
 - Vanguard keeps the `vanguard` id and is an original rage bruiser fantasy with durability, heavy impact, leap-like presentation, close-range fury, and ground-smash presentation.
 - Vanguard may override ability display names through hero data as Rage Burst, Crushing Leap, and Titan Slam, but global input slots and ability ids must stay stable.
 - Final hero roster ids and display names: `guardian` = Solar Guardian, `blaster` = Night Tactician, `vanguard` = Fury Vanguard.
-- Final hero ability display names: Solar Guardian = Solar Burst / Solar Beam / Aerial Impact; Night Tactician = Smoke Charge / Grapnel Shot / Shock Trap; Fury Vanguard = Rage Burst / Crushing Leap / Titan Slam.
+- Final hero ability display names: Solar Guardian = Solar Beam / Frost Breath / Death Dash; Night Tactician = Smoke Charge / Grapnel Shot / Shock Trap; Fury Vanguard = Rage Burst / Crushing Leap / Titan Slam.
 - Hero-specific ability display names must come from hero data and flow through HeroApplier/AbilityManager or direct hero data reads in display-only roster UI.
 - HeroApplier must pass selected hero kit info into AbilityManager. AbilityManager owns all hero-specific active ability behavior and passive combat resources.
 - Global input slots and public methods remain stable: `ability_1`/`cast_ability_1`, `ability_2`/`cast_ability_2`, `ability_3`/`cast_ability_3`.
-- AbilityManager must keep `nova_*`, `laser_*`, and `slam_*` properties as shared slot 1/2/3 tuning hooks so UpgradeManager effects remain compatible.
-- Solar Guardian uses Solar Charge from ability hits; high charge empowers and is consumed by the next active ability. Empowered casts may add a small heal or brief defensive window through existing Player APIs.
+- AbilityManager must keep `nova_*`, `laser_*`, and `slam_*` properties as shared slot 1/2/3 tuning hooks so UpgradeManager effects remain compatible for Night Tactician and Fury Vanguard. Solar Guardian uses its own `solar_beam_*`, `frost_breath_*`, and `death_dash_*` properties instead — these are not shared.
+- Solar Guardian uses Solar Energy passive (+2/sec automatic, not from hits). At 100 energy, a 15-second empowered state activates (x2 damage on all abilities and autoattack); energy resets to 0 and resumes charging. `get_solar_damage_multiplier()` returns the active multiplier. Solar Guardian autoattack weapon id is `solar_ray` (direct beam, no projectile).
+- Solar Guardian must NOT receive projectile-count/multishot upgrades (`multishot_up`, `spread_up`, `bouncing_bolts`, `split_barrage`), nor nova/laser/slam ability upgrade lines. Use `hero_exclude: ["guardian"]` on those definitions. Guardian-only upgrades use `hero_only: ["guardian"]` and the `solar_ray`, `solar_beam`, `frost_breath`, `death_dash` archetypes.
 - Night Tactician uses Tactical Mark, refreshed on tactician ability casts. Mark selection should prefer miniboss/elite/boss-like threats when detectable, otherwise the nearest valid enemy in range.
 - Fury Vanguard uses Rage from ability damage dealt and real player damage taken. Rage decays slowly; high Rage increases damage/radius; Titan Slam can spend Rage for a stronger slam.
 - These runtime passive resources reset naturally with each Arena.
@@ -798,7 +799,7 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Slot 1 uses `ability_1` (J) with hero-specific area behavior routed by kit id.
 - Slot 2 uses `ability_2` (K) with hero-specific forward behavior routed by kit id.
 - Slot 3 uses `ability_3` (L) with hero-specific impact/control behavior routed by kit id.
-- Solar Guardian: Solar Burst is a radial charge builder/spender, Solar Beam is a focused forward impulse, and Aerial Impact uses a short aim-direction shift plus landing impact and invulnerability.
+- Solar Guardian: Solar Beam (slot 1) is a long-range red beam in aim direction, Frost Breath (slot 2) is a cone that damages and slows enemies, and Death Dash (slot 3) moves the player forward dealing path damage with brief invulnerability. All three abilities apply `get_solar_damage_multiplier()` for the empowered x2 bonus.
 - Night Tactician: Smoke Charge is control/escape with slow and safety feedback, Grapnel Shot is a narrow precision line with marked-target payoff, and Shock Trap persists briefly before triggering or discharging.
 - Fury Vanguard: Rage Burst scales close pressure with Rage, Crushing Leap moves forward with path/landing impact, and Titan Slam spends Rage for a heavy slam plus delayed shockwave when supported.
 - All abilities are available from run start; no unlock system.

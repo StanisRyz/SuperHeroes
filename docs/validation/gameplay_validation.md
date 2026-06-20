@@ -985,3 +985,108 @@ DEBUG_PLAYER: invulnerable=true
 | 1 | Complete all 3 stages back-to-back (City / Neon / Wasteland) | Each stage resets cleanly with no leftover objective nodes from the previous stage |
 | 2 | Check DebugStatsOverlay during any objective run | No new objective state is shown in the debug overlay (objectives are not wired to DebugStatsOverlay) |
 | 3 | Inspect diff | No hero kits, upgrade effects, reward formulas, enemy stats, XP values, save format, meta economy, or Build Evolution added
+
+---
+
+## Solar Guardian Full Kit Rework
+
+### Solar Energy Passive
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a run as Solar Guardian | DebugStatsOverlay shows `Solar Energy: 0 / 100` |
+| 2 | Wait in combat without casting abilities | Energy climbs at ~2/sec; reaches 100 in ~50 seconds |
+| 3 | Energy reaches 100 | "SOLAR EMPOWERED" status floats above player; energy resets to 0; DebugStatsOverlay shows `EMPOWERED 15.0s` |
+| 4 | During empowered state | Timer counts down; energy begins charging again from 0 |
+| 5 | Empowered state expires after 15s | `EMPOWERED` line disappears from debug overlay; energy continues building |
+| 6 | Energy hits 100 again while already empowered | Does NOT trigger a second activation; stays capped at 100 until empowered expires, then activates |
+| 7 | Inspect diff | Night Tactician and Fury Vanguard Solar Energy values are not shown; their overlays are unchanged |
+
+---
+
+### Solar Ray Autoattack (solar_ray weapon)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start run as Solar Guardian, wait for an enemy to enter range | A short red beam fires from player toward nearest enemy; no projectile node spawned |
+| 2 | Beam fires | All enemies along the beam corridor (not just the nearest) take damage |
+| 3 | Enemy outside beam corridor but within attack range | Enemy does NOT take damage from the beam |
+| 4 | No enemies in attack range | Beam does not fire; cooldown does not reset |
+| 5 | During Solar Empowered state | Beam damage is doubled compared to base attack_damage |
+| 6 | Take `solar_ray_damage` upgrade | `attack_damage` increases; beam deals more damage per tick |
+| 7 | Take `solar_ray_range` upgrade | `attack_range` increases; beam reaches further; `refresh_attack_range()` called correctly |
+| 8 | Take `solar_ray_width` upgrade | `solar_ray_width` increases; beam corridor is wider; more enemies hit in a line |
+| 9 | Multishot / spread / projectile upgrades (multishot_up, spread_up etc.) | Not offered to Solar Guardian in upgrade pool |
+| 10 | Upgrade pool contains solar_ray_damage, solar_ray_range, solar_ray_width, solar_ray_pierce_burn | All 4 appear as attack slot options for guardian |
+
+---
+
+### Ability 1: Solar Beam
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press J to cast Solar Beam | Long red beam fires from player in aim direction; hits all enemies in beam line |
+| 2 | Cast Solar Beam without enemies in path | "BEAM MISS" status appears; ability still enters cooldown (~7s) |
+| 3 | Cast during Solar Empowered state | Beam damage is doubled; "SOLAR BEAM" status still shown |
+| 4 | Cast while cooldown is active | No cast; cooldown does not reset |
+| 5 | Take `solar_beam_damage_up` upgrade | `solar_beam_damage` increases; ability deals more damage |
+| 6 | Take `solar_beam_range_up` upgrade | `solar_beam_range` and `solar_beam_width` increase; ability reaches further and hits wider |
+| 7 | nova_damage_up / nova_cooldown_down offered to guardian | NOT offered — hero_exclude blocks these |
+
+---
+
+### Ability 2: Frost Breath
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press K to cast Frost Breath | A cone of frost fires in aim direction; all enemies in the cone take damage |
+| 2 | Enemies in cone take damage | Damage matches `frost_breath_damage` (or x2 when empowered) |
+| 3 | Enemies in cone are slowed | Enemies move at reduced speed (`frost_breath_slow_multiplier`) for `frost_breath_slow_duration` seconds |
+| 4 | Enemy outside cone angle but within range | Enemy does NOT take damage and is NOT slowed |
+| 5 | Cast Frost Breath with no enemies in cone | "FROST MISS" status; ability enters cooldown (~8s) |
+| 6 | Slow restores after duration | Enemy returns to normal movement speed after `frost_breath_slow_duration` |
+| 7 | Take `frost_breath_power` upgrade | `frost_breath_damage` and `frost_breath_slow_duration` increase |
+| 8 | Take `frost_breath_cone_up` upgrade | `frost_breath_cone_degrees` and `frost_breath_range` increase; wider cone hits more enemies |
+| 9 | laser_damage_up / laser_width_up offered to guardian | NOT offered — hero_exclude blocks these |
+
+---
+
+### Ability 3: Death Dash
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Press L to cast Death Dash | Player moves forward in aim direction by ~220px; a brief trail visual appears along the path |
+| 2 | Enemies along dash path take damage | Path damage matches `death_dash_damage` (or x2 when empowered) |
+| 3 | Player is briefly invulnerable during dash | Player cannot take damage for `death_dash_invulnerability` seconds |
+| 4 | Cast at arena edge | Player is clamped to playable rect; no out-of-bounds movement |
+| 5 | Cast Frost Breath without enemies in path | "DASH" status; ability enters cooldown (~9s) |
+| 6 | Dash does NOT feel like old Aerial Impact | No landing radial AOE; damage is path-only during movement |
+| 7 | Take `death_dash_power` upgrade | `death_dash_damage` and `death_dash_distance` increase |
+| 8 | Take `death_dash_cooldown_down` upgrade | `death_dash_cooldown` decreases |
+| 9 | slam_damage_up / slam_cooldown_down offered to guardian | NOT offered — hero_exclude blocks these |
+
+---
+
+### Solar Guardian Build Slot Limits
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Guardian attack slot pool | Contains: solar_ray_damage, solar_ray_range, solar_ray_width, solar_ray_pierce_burn (plus generic attack_damage_up, attack_speed_up, attack_range_up) |
+| 2 | Guardian active slot pool | Contains: solar_beam_damage_up, solar_beam_range_up, frost_breath_power, frost_breath_cone_up, death_dash_power, death_dash_cooldown_down, solar_empower_boost |
+| 3 | Open Build Slots Window mid-run as guardian | Attack section shows up to 4 solar_ray lines; Active section shows chosen ability upgrades |
+| 4 | solar_empower_boost upgrade taken | `solar_empowered_damage_multiplier` and `solar_empowered_duration` increase; effects visible in empowered state |
+| 5 | Inspect diff | Night Tactician and Fury Vanguard build pools are unchanged |
+
+---
+
+### Solar Guardian Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a Night Tactician run | No solar_energy shown in debug; gadget_darts fires projectiles normally; multishot_up offered |
+| 2 | Start a Fury Vanguard run | shockwave_strike still fires; slam upgrades appear; rage builds normally |
+| 3 | Nova/laser/slam upgrades work for Night Tactician | Offered and applied correctly |
+| 4 | RunBriefingScreen for Solar Guardian | Shows Solar Beam / Frost Breath / Death Dash ability names |
+| 5 | Character Select for Solar Guardian | Shows Solar Beam / Frost Breath / Death Dash; passive shows "Solar Energy" |
+| 6 | HUD ability cooldown bars for guardian | Slot 1 ~7s, Slot 2 ~8s, Slot 3 ~9s base cooldowns |
+| 7 | Inspect diff | No enemy values, boss flow, rewards, saves, meta economy, Build Evolution, stage objectives, or shared passive skills changed |

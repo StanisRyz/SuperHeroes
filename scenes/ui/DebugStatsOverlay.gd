@@ -199,7 +199,9 @@ func _build_stats_text() -> String:
 			lines.append("Kit: %s (%s)" % [kit.get("kit_id", "generic"), kit.get("passive_name", "None")])
 			match str(kit.get("kit_id", "")):
 				"solar_guardian":
-					lines.append("Solar Charge: %.0f / %.0f" % [float(kit.get("solar_charge", 0.0)), float(kit.get("solar_charge_max", 0.0))])
+					lines.append("Solar Energy: %.0f / %.0f" % [float(kit.get("solar_energy", 0.0)), float(kit.get("solar_energy_max", 0.0))])
+					if bool(kit.get("solar_empowered", false)):
+						lines.append("EMPOWERED %.1fs" % float(kit.get("solar_empowered_time_left", 0.0)))
 				"night_tactician":
 					lines.append("Tactical Mark: %s" % str(kit.get("tactical_mark_target", "none")))
 				"fury_vanguard":

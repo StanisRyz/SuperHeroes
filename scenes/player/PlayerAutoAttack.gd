@@ -17,6 +17,7 @@ extends Node
 @export var max_projectile_count: int = 7
 @export var max_projectile_bounce: int = 5
 @export var max_projectile_explosion_radius: float = 180.0
+@export var solar_ray_width: float = 40.0
 
 var projectile_container: Node
 var audio_manager: Node
@@ -66,6 +67,8 @@ func _physics_process(delta: float) -> void:
 			attacked = _tick_shockwave_strike()
 		"gadget_darts":
 			attacked = _tick_gadget_darts()
+		"solar_ray":
+			attacked = _tick_solar_ray()
 		_:
 			# "solar_bolt" and generic/fallback path
 			var enemy := _find_nearest_enemy()
@@ -124,6 +127,76 @@ func get_primary_weapon_display_name() -> String:
 # the slower speed + larger size set by weapon data. Pierce upgrades apply.
 func _tick_solar_bolt(enemy: Node2D) -> bool:
 	return _spawn_projectiles(enemy)
+
+
+# Solar Guardian (solar_ray weapon): beam autoattack. Finds the nearest enemy
+# to establish aim direction, then damages all enemies within a narrow corridor
+# along that direction. No projectile spawned — direct line hit detection.
+# attack_damage, attack_interval, attack_range, and solar_ray_width all apply.
+# Empowered x2 multiplier is read from the ability manager if available.
+func _tick_solar_ray() -> bool:
+	_cleanup_invalid_enemies()
+	if _enemies_in_range.is_empty():
+		return false
+	var nearest := _find_nearest_enemy()
+	if nearest == null:
+		return false
+
+	var origin := owner_body.global_position
+	var direction := (nearest.global_position - origin).normalized()
+	if direction.is_zero_approx():
+		direction = Vector2.RIGHT
+
+	var ray_damage := _get_solar_ray_damage()
+	var half_width := solar_ray_width * 0.5
+	var perp_axis := direction.orthogonal()
+	var hit_any := false
+
+	for target in _enemies_in_range:
+		if not _is_valid_enemy(target):
+			continue
+		var to_target: Vector2 = (target as Node2D).global_position - origin
+		var proj: float = to_target.dot(direction)
+		if proj < 0.0 or proj > attack_range:
+			continue
+		if absf(to_target.dot(perp_axis)) <= half_width:
+			target.take_damage(ray_damage)
+			hit_any = true
+
+	_spawn_solar_ray_visual(origin, direction)
+	return hit_any
+
+
+func _get_solar_ray_damage() -> int:
+	var multiplier := 1.0
+	if _ability_manager_ref != null and is_instance_valid(_ability_manager_ref):
+		if _ability_manager_ref.has_method("get_solar_damage_multiplier"):
+			multiplier = float(_ability_manager_ref.get_solar_damage_multiplier())
+	return maxi(roundi(float(attack_damage) * multiplier), 1)
+
+
+func _spawn_solar_ray_visual(origin: Vector2, direction: Vector2) -> void:
+	if owner_body == null:
+		return
+	var parent: Node = null
+	if projectile_container != null and is_instance_valid(projectile_container):
+		parent = projectile_container
+	elif owner_body.get_parent() != null:
+		parent = owner_body.get_parent()
+	if parent == null:
+		return
+
+	var line := Line2D.new()
+	line.width = maxf(solar_ray_width * 0.28, 4.0)
+	line.default_color = Color(1.0, 0.18, 0.0, 0.88)
+	line.add_point(origin)
+	line.add_point(origin + direction * attack_range)
+	parent.add_child(line)
+	var timer := line.get_tree().create_timer(0.10)
+	timer.timeout.connect(func() -> void:
+		if is_instance_valid(line):
+			line.queue_free()
+	)
 
 
 # Night Tactician: fast light darts with default bounce. Prefers the

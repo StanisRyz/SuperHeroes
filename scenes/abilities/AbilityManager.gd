@@ -39,15 +39,29 @@ const KIT_GENERIC := "generic"
 @export var slam_second_wave_damage_multiplier: float = 0.55
 @export var slam_second_wave_radius_multiplier: float = 1.25
 
-@export var solar_charge_max: float = 100.0
-@export var solar_charge_per_hit: float = 14.0
-@export var solar_empower_threshold: float = 60.0
-@export var solar_empower_cost: float = 55.0
-@export var solar_empower_damage_multiplier: float = 1.35
-@export var solar_empower_radius_multiplier: float = 1.18
-@export var aerial_impact_invulnerability: float = 0.35
-@export var solar_empowered_heal: int = 8
-@export var aerial_impact_distance: float = 130.0
+# Solar Guardian tuning — Solar Energy passive + 3 abilities
+@export var solar_energy_per_second: float = 2.0
+@export var solar_energy_max: float = 100.0
+@export var solar_empowered_duration: float = 15.0
+@export var solar_empowered_damage_multiplier: float = 2.0
+
+@export var solar_beam_damage: int = 30
+@export var solar_beam_range: float = 520.0
+@export var solar_beam_width: float = 80.0
+@export var solar_beam_cooldown: float = 7.0
+
+@export var frost_breath_damage: int = 18
+@export var frost_breath_range: float = 280.0
+@export var frost_breath_cone_degrees: float = 55.0
+@export var frost_breath_cooldown: float = 8.0
+@export var frost_breath_slow_multiplier: float = 0.55
+@export var frost_breath_slow_duration: float = 2.5
+
+@export var death_dash_damage: int = 28
+@export var death_dash_distance: float = 220.0
+@export var death_dash_path_width: float = 60.0
+@export var death_dash_cooldown: float = 9.0
+@export var death_dash_invulnerability: float = 0.30
 
 @export var tactical_mark_damage_multiplier: float = 1.45
 @export var tactical_mark_refresh_radius: float = 760.0
@@ -74,7 +88,9 @@ var _feedback_manager: Node = null
 var current_hero_id: String = ""
 var current_kit_id: String = KIT_GENERIC
 var _kit_data: Dictionary = {}
-var solar_charge: float = 0.0
+var solar_energy: float = 0.0
+var _solar_empowered: bool = false
+var _solar_empowered_time_left: float = 0.0
 var rage: float = 0.0
 var tactical_mark_target: Node2D = null
 var _active_shock_traps: Array[Dictionary] = []
@@ -109,7 +125,9 @@ func set_hero_kit(hero_id: String, kit_id: String, kit_data: Dictionary = {}) ->
 	current_hero_id = hero_id
 	current_kit_id = kit_id if not kit_id.is_empty() else KIT_GENERIC
 	_kit_data = kit_data.duplicate(true)
-	solar_charge = 0.0
+	solar_energy = 0.0
+	_solar_empowered = false
+	_solar_empowered_time_left = 0.0
 	rage = 0.0
 	tactical_mark_target = null
 
@@ -119,6 +137,8 @@ func _process(delta: float) -> void:
 		if _cooldowns[slot] > 0.0:
 			_cooldowns[slot] = maxf(_cooldowns[slot] - delta, 0.0)
 			_emit_cooldown_changed(slot, false)
+	if current_kit_id == KIT_SOLAR:
+		_tick_solar_energy(delta)
 	if current_kit_id == KIT_VANGUARD and rage > 0.0:
 		rage = maxf(rage - rage_decay_per_second * delta, 0.0)
 	_tick_shock_traps(delta)
@@ -139,7 +159,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func cast_ability_1() -> void:
 	match current_kit_id:
 		KIT_SOLAR:
-			_try_cast_solar_burst()
+			_try_cast_solar_beam_ability()
 		KIT_TACTICIAN:
 			_try_cast_smoke_charge()
 		KIT_VANGUARD:
@@ -151,7 +171,7 @@ func cast_ability_1() -> void:
 func cast_ability_2() -> void:
 	match current_kit_id:
 		KIT_SOLAR:
-			_try_cast_solar_beam()
+			_try_cast_frost_breath()
 		KIT_TACTICIAN:
 			_try_cast_grapnel_shot()
 		KIT_VANGUARD:
@@ -163,7 +183,7 @@ func cast_ability_2() -> void:
 func cast_ability_3() -> void:
 	match current_kit_id:
 		KIT_SOLAR:
-			_try_cast_aerial_impact()
+			_try_cast_death_dash()
 		KIT_TACTICIAN:
 			_try_cast_shock_trap()
 		KIT_VANGUARD:
@@ -182,7 +202,7 @@ func get_ability_state(slot: int) -> Dictionary:
 				"short_name": _get_ability_short_name(1, "A1"),
 				"input_action": "ability_1",
 				"cooldown_remaining": _cooldowns[1],
-				"cooldown_total": nova_cooldown
+				"cooldown_total": _get_cooldown_total(1)
 			}
 		2:
 			return {
@@ -191,7 +211,7 @@ func get_ability_state(slot: int) -> Dictionary:
 				"short_name": _get_ability_short_name(2, "A2"),
 				"input_action": "ability_2",
 				"cooldown_remaining": _cooldowns[2],
-				"cooldown_total": laser_cooldown
+				"cooldown_total": _get_cooldown_total(2)
 			}
 		3:
 			return {
@@ -200,7 +220,7 @@ func get_ability_state(slot: int) -> Dictionary:
 				"short_name": _get_ability_short_name(3, "A3"),
 				"input_action": "ability_3",
 				"cooldown_remaining": _cooldowns[3],
-				"cooldown_total": slam_cooldown
+				"cooldown_total": _get_cooldown_total(3)
 			}
 	return {}
 
@@ -226,8 +246,10 @@ func get_hero_kit_state() -> Dictionary:
 		"hero_id": current_hero_id,
 		"kit_id": current_kit_id,
 		"passive_name": str(_kit_data.get("passive_name", _get_default_passive_name())),
-		"solar_charge": solar_charge,
-		"solar_charge_max": solar_charge_max,
+		"solar_energy": solar_energy,
+		"solar_energy_max": solar_energy_max,
+		"solar_empowered": _solar_empowered,
+		"solar_empowered_time_left": _solar_empowered_time_left,
 		"rage": rage,
 		"rage_max": rage_max,
 		"tactical_mark_target": mark_name,
@@ -296,66 +318,48 @@ func _try_cast_hero_slam() -> void:
 	_finish_cast(3, "hero_slam", slam_cooldown)
 
 
-func _try_cast_solar_burst() -> void:
+func _try_cast_solar_beam_ability() -> void:
 	if not _guard_cast(1):
 		return
-	var empowered := _consume_solar_empower()
-	var damage := _scale_int(nova_damage, solar_empower_damage_multiplier if empowered else 1.0)
-	var radius := nova_radius * (solar_empower_radius_multiplier if empowered else 1.0)
-	var hits := _damage_enemies_in_radius_at(player.global_position, damage, radius)
-	if hits > 0 and not empowered:
-		_add_solar_charge(hits * solar_charge_per_hit)
-	if empowered:
-		_apply_solar_defense()
-	_spawn_pulse_feedback_at(player.global_position, radius)
-	_status("SOLAR CHARGED" if empowered else ("SOLAR +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "SOLAR MISS"), player.global_position + Vector2.UP * 42.0)
-	if nova_aftershock_enabled:
-		_schedule_nova_aftershock(player.global_position)
-	_shake(5.5, 0.14)
-	_finish_cast(1, "solar_burst", nova_cooldown)
-
-
-func _try_cast_solar_beam() -> void:
-	if not _guard_cast(2):
-		return
-	var empowered := _consume_solar_empower()
+	var damage := _scale_int(solar_beam_damage, get_solar_damage_multiplier())
 	var direction := _get_player_aim_direction()
 	var origin := player.global_position
-	var damage := _scale_int(laser_damage, solar_empower_damage_multiplier if empowered else 1.0)
-	var beam_width := laser_width * (1.18 if empowered else 0.55)
-	var beam_range := laser_range * (1.18 if empowered else 1.05)
-	var hits := _damage_enemies_in_laser(origin, direction, damage, beam_range, beam_width)
-	if hits > 0 and not empowered:
-		_add_solar_charge(hits * solar_charge_per_hit)
-	_spawn_laser_feedback_at(origin, direction, beam_range, beam_width)
-	_status("SOLAR CHARGED" if empowered else ("FOCUSED BEAM +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "FOCUSED BEAM"), origin + Vector2.UP * 42.0)
-	if laser_double_pulse_enabled:
-		_schedule_laser_second_pulse(origin, direction)
-	_finish_cast(2, "solar_beam", laser_cooldown)
+	var hits := _damage_enemies_in_laser(origin, direction, damage, solar_beam_range, solar_beam_width)
+	_spawn_laser_feedback_at(origin, direction, solar_beam_range, solar_beam_width)
+	_status("SOLAR BEAM" if hits > 0 else "BEAM MISS", origin + Vector2.UP * 42.0)
+	_shake(5.0, 0.14)
+	_finish_cast(1, "solar_beam", solar_beam_cooldown)
 
 
-func _try_cast_aerial_impact() -> void:
+func _try_cast_frost_breath() -> void:
+	if not _guard_cast(2):
+		return
+	var damage := _scale_int(frost_breath_damage, get_solar_damage_multiplier())
+	var direction := _get_player_aim_direction()
+	var origin := player.global_position
+	var half_angle := frost_breath_cone_degrees * 0.5
+	var hits := _damage_enemies_in_cone(origin, direction, damage, frost_breath_range, half_angle)
+	_apply_slow_in_cone(origin, direction, frost_breath_range, half_angle, frost_breath_slow_multiplier, frost_breath_slow_duration)
+	var approx_width := minf(frost_breath_range * sin(deg_to_rad(half_angle)) * 1.4, 220.0)
+	_spawn_laser_feedback_at(origin, direction, frost_breath_range, approx_width)
+	_status("FROST BREATH" if hits > 0 else "FROST MISS", origin + Vector2.UP * 42.0)
+	_finish_cast(2, "frost_breath", frost_breath_cooldown)
+
+
+func _try_cast_death_dash() -> void:
 	if not _guard_cast(3):
 		return
-	var empowered := _consume_solar_empower()
 	var direction := _get_player_aim_direction()
 	var start_position := player.global_position
-	var leap_distance := aerial_impact_distance * (1.35 if empowered else 1.0)
-	_move_player_safely(direction, leap_distance)
-	var impact_position := player.global_position
-	var damage := _scale_int(slam_damage, 1.25 if empowered else 0.95)
-	var radius := slam_radius * (1.25 if empowered else 0.85)
-	var hits := _damage_enemies_in_radius_at(impact_position, damage, radius)
-	if hits > 0 and not empowered:
-		_add_solar_charge(hits * solar_charge_per_hit)
-	_grant_brief_invulnerability(aerial_impact_invulnerability)
-	_spawn_slam_feedback_at(impact_position, radius)
-	_spawn_laser_feedback_at(start_position, direction, start_position.distance_to(impact_position), maxf(laser_width * 0.45, 24.0))
-	if slam_second_wave_enabled:
-		_schedule_slam_second_wave(impact_position)
-	_status("AERIAL GUARD" if empowered else ("AERIAL +%d" % int(hits * solar_charge_per_hit) if hits > 0 else "AERIAL SHIFT"), player.global_position + Vector2.UP * 42.0)
-	_shake(7.5, 0.18)
-	_finish_cast(3, "aerial_impact", slam_cooldown)
+	var damage := _scale_int(death_dash_damage, get_solar_damage_multiplier())
+	var path_hits := _damage_enemies_in_laser(start_position, direction, damage, death_dash_distance, death_dash_path_width)
+	_grant_brief_invulnerability(death_dash_invulnerability)
+	_move_player_safely(direction, death_dash_distance)
+	var trail_length := start_position.distance_to(player.global_position)
+	_spawn_laser_feedback_at(start_position, direction, trail_length, death_dash_path_width)
+	_status("DEATH DASH" if path_hits > 0 else "DASH", start_position + Vector2.UP * 42.0)
+	_shake(6.0, 0.16)
+	_finish_cast(3, "death_dash", death_dash_cooldown)
 
 
 func _try_cast_smoke_charge() -> void:
@@ -749,28 +753,71 @@ func _find_priority_enemy() -> Node2D:
 	return best_enemy
 
 
-func _add_solar_charge(amount: float) -> void:
-	var was_charged := solar_charge >= solar_empower_threshold
-	solar_charge = clampf(solar_charge + amount, 0.0, solar_charge_max)
-	if not was_charged and solar_charge >= solar_empower_threshold and player != null:
-		_status("SOLAR CHARGED", player.global_position + Vector2.UP * 48.0)
+func _tick_solar_energy(delta: float) -> void:
+	if _solar_empowered:
+		_solar_empowered_time_left = maxf(_solar_empowered_time_left - delta, 0.0)
+		if _solar_empowered_time_left <= 0.0:
+			_solar_empowered = false
+	solar_energy = minf(solar_energy + solar_energy_per_second * delta, solar_energy_max)
+	if solar_energy >= solar_energy_max and not _solar_empowered:
+		_activate_solar_empower()
 
 
-func _apply_solar_defense() -> void:
-	if player == null:
+func _activate_solar_empower() -> void:
+	solar_energy = 0.0
+	_solar_empowered = true
+	_solar_empowered_time_left = solar_empowered_duration
+	if player != null:
+		_status("SOLAR EMPOWERED", player.global_position + Vector2.UP * 48.0)
+	_shake(5.0, 0.14)
+
+
+func get_solar_damage_multiplier() -> float:
+	if current_kit_id == KIT_SOLAR and _solar_empowered:
+		return solar_empowered_damage_multiplier
+	return 1.0
+
+
+func _damage_enemies_in_cone(origin: Vector2, direction: Vector2, damage: int, range: float, half_angle_deg: float) -> int:
+	if enemy_container == null or not is_instance_valid(enemy_container):
+		push_warning("AbilityManager is missing EnemyContainer reference.")
+		return 0
+	var half_angle_rad := deg_to_rad(half_angle_deg)
+	var hit_count := 0
+	for enemy in enemy_container.get_children():
+		if not _is_valid_enemy(enemy):
+			continue
+		var to_enemy: Vector2 = (enemy as Node2D).global_position - origin
+		var dist := to_enemy.length()
+		if dist > range:
+			continue
+		var angle := 0.0
+		if not to_enemy.is_zero_approx():
+			angle = absf(direction.angle_to(to_enemy.normalized()))
+		if angle <= half_angle_rad:
+			enemy.take_damage(damage)
+			hit_count += 1
+	return hit_count
+
+
+func _apply_slow_in_cone(origin: Vector2, direction: Vector2, range: float, half_angle_deg: float, slow_multiplier: float, slow_duration: float) -> void:
+	if enemy_container == null or not is_instance_valid(enemy_container):
 		return
-	if player.has_method("heal"):
-		player.heal(solar_empowered_heal)
-		if _feedback_manager != null and _feedback_manager.has_method("show_heal"):
-			_feedback_manager.show_heal(solar_empowered_heal, player.global_position + Vector2.UP * 36.0)
-	_grant_brief_invulnerability(aerial_impact_invulnerability)
-
-
-func _consume_solar_empower() -> bool:
-	if solar_charge < solar_empower_threshold:
-		return false
-	solar_charge = maxf(solar_charge - solar_empower_cost, 0.0)
-	return true
+	var half_angle_rad := deg_to_rad(half_angle_deg)
+	for enemy in enemy_container.get_children():
+		if not _is_valid_enemy(enemy):
+			continue
+		if not enemy.has_method("apply_temporary_modifier"):
+			continue
+		var to_enemy: Vector2 = (enemy as Node2D).global_position - origin
+		var dist := to_enemy.length()
+		if dist > range:
+			continue
+		var angle := 0.0
+		if not to_enemy.is_zero_approx():
+			angle = absf(direction.angle_to(to_enemy.normalized()))
+		if angle <= half_angle_rad:
+			enemy.apply_temporary_modifier("frost_slow", {"speed_multiplier": slow_multiplier}, slow_duration)
 
 
 func _add_rage(amount: float) -> void:
@@ -850,6 +897,11 @@ func _emit_cooldown_changed(slot: int, force: bool) -> void:
 
 
 func _get_cooldown_total(slot: int) -> float:
+	if current_kit_id == KIT_SOLAR:
+		match slot:
+			1: return solar_beam_cooldown
+			2: return frost_breath_cooldown
+			3: return death_dash_cooldown
 	match slot:
 		1: return nova_cooldown
 		2: return laser_cooldown
@@ -870,7 +922,7 @@ func _get_ability_short_name(slot: int, fallback: String) -> String:
 func _get_ability_ids() -> Dictionary:
 	match current_kit_id:
 		KIT_SOLAR:
-			return {1: "solar_burst", 2: "solar_beam", 3: "aerial_impact"}
+			return {1: "solar_beam", 2: "frost_breath", 3: "death_dash"}
 		KIT_TACTICIAN:
 			return {1: "smoke_charge", 2: "grapnel_shot", 3: "shock_trap"}
 		KIT_VANGUARD:
@@ -881,7 +933,7 @@ func _get_ability_ids() -> Dictionary:
 func _get_default_passive_name() -> String:
 	match current_kit_id:
 		KIT_SOLAR:
-			return "Solar Charge"
+			return "Solar Energy"
 		KIT_TACTICIAN:
 			return "Tactical Mark"
 		KIT_VANGUARD:
