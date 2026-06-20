@@ -90,9 +90,11 @@ func _update_target_player() -> void:
 			continue
 
 		var player_node := node as Node2D
-		if player_node != null and global_position.distance_to(player_node.global_position) <= magnet_radius:
-			target_player = player_node
-			return
+		if player_node != null:
+			var effective_radius := magnet_radius + float(player_node.get("pickup_radius_bonus") or 0.0)
+			if global_position.distance_to(player_node.global_position) <= effective_radius:
+				target_player = player_node
+				return
 
 
 func _is_valid_magnet_target(node: Node) -> bool:

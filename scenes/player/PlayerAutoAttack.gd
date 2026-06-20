@@ -89,7 +89,7 @@ func setup_audio_manager(new_audio_manager: Node) -> void:
 # Upgrade hooks (attack_damage, attack_interval, attack_range, projectile_count,
 # projectile_pierce, projectile_size_multiplier, projectile_explosion_radius,
 # projectile_bounce, projectile_speed) remain fully effective on top of these.
-func set_primary_weapon(hero_id: String, weapon_id: String, weapon_data: Dictionary) -> void:
+func set_primary_weapon(_hero_id: String, weapon_id: String, weapon_data: Dictionary) -> void:
 	_primary_weapon_id = weapon_id
 	_primary_weapon_data = weapon_data
 

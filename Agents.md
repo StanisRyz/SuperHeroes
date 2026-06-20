@@ -57,7 +57,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/projectiles/EnemyProjectile.tscn` - enemy projectile scene.
 - `scenes/projectiles/EnemyProjectile.gd` - non-homing enemy projectile damage and lifetime logic.
 - `scenes/upgrades/UpgradeManager.tscn` - runtime upgrade manager scene.
-- `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade definitions, option weighting, upgrade levels, and application logic.
+- `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade definitions, option weighting, upgrade levels, passive upgrade definitions, and application logic.
 - `scenes/ui/GameHUD.tscn` - player HP, XP, time, and kill counter HUD scene.
 - `scenes/ui/GameHUD.gd` - player and run HUD binding. `setup_objective_manager(obj_manager, objective_type)` wires objective state; `update_objective_state(state)` renders defense HP or portal count; `_update_objective()` skips the survival timer when objective_type is non-survival.
 - `scenes/ui/MobileControls.tscn` - mobile virtual joystick and 3 ability buttons scene.
@@ -96,6 +96,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/enemies/EnemySpawner.gd` - spawn loop, spawn distance checks, max alive enemy limit, XP drops, powerup drop rolls.
 - `scenes/player/PlayerBuffManager.tscn` - player buff manager scene.
 - `scenes/player/PlayerBuffManager.gd` - timed buffs (move speed, attack speed) and shield charges.
+- `scenes/passives/PassiveAbilityManager.gd` - runtime-only shared passive skill manager. Owns selected passive ids/levels, shield regeneration, periodic passive attacks, magnet reach bonus, debug state, and cleanup. Never saves passive state.
 - `scenes/powerups/PowerupManager.tscn` - powerup manager scene.
 - `scenes/powerups/PowerupManager.gd` - applies powerup effects (heal, shield, bomb, magnet burst, speed boosts).
 - `scenes/pickups/PowerupPickup.tscn` - generic in-run powerup pickup scene.
@@ -113,7 +114,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/effects/AttackTelegraph.tscn` - short-lived visual warning zone scene (Node2D root).
 - `scenes/effects/AttackTelegraph.gd` - plays circle or line danger zone using dynamically created Line2D; fades/pulses and queue_frees; never applies damage.
 - `scenes/ui/DebugStatsOverlay.tscn` - minimal CanvasLayer root scene for the debug stats panel; all UI built programmatically in _ready().
-- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, buff/shield state, spawner wiring. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
+- `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, passive ids/levels/timers, buff/shield state, spawner wiring. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
 - `scenes/ui/VictoryScreen.tscn` - pause-time victory UI scene.
 - `scenes/ui/VictoryScreen.gd` - displays run summary on victory and emits restart_requested / quit_to_menu_requested.
 - `scenes/meta/MetaProgressionManager.tscn` - persistent meta manager node scene (instantiated at runtime by Main).
@@ -696,6 +697,19 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Arena calls `hud.setup_upgrade_manager(upgrade_manager)` inside `_setup_level_up_flow` after `upgrade_manager.setup(...)`.
 - UpgradeManager remains the owner of the upgrade pool and all run build state.
 - Arena coordinates the level-up flow; LevelUpScreen and GameHUD are display-only.
+
+## Passive Ability System Foundation
+
+- `PassiveAbilityManager` is instantiated at runtime by `Arena._setup_passive_ability_manager()` using `load("res://scenes/passives/PassiveAbilityManager.gd").new()`. It is not part of Arena.tscn.
+- `PassiveAbilityManager.setup(player, enemy_container, projectile_container, pickup_container, feedback_manager)` wires run references only. It owns `add_or_upgrade_passive(passive_id)`, `get_passive_level(passive_id)`, `has_passive(passive_id)`, `get_passive_state()`, and `cleanup()`.
+- Passive state is runtime-only. Selected passive ids/levels, timers, shield regeneration state, and pickup radius bonuses must reset every run and must never be written to meta saves, settings, rewards, user preferences, or stage data.
+- Current shared passive lines are `orbit_shields`, `storm_relay`, `guardian_drone`, and `magnet_core`. They are shared by all heroes and must not depend on hero kit identity.
+- Passive upgrade definitions live in `UpgradeManager.gd` with `type`/`category` set to `"passive"`, `tags` containing `"passive"`, conservative `max_level`, a display `description_template`, and normal weighting/archetype fields.
+- `UpgradeManager` now supports passive upgrades by passing passive ids to `PassiveAbilityManager.add_or_upgrade_passive()`. Existing attack upgrades, active ability upgrades, hero-flavored text, synergy upgrades, and build-defining upgrades must keep their ids and behavior.
+- `LevelUpScreen` may display passive options with a compact `PASSIVE` marker, but it remains display-only.
+- `DebugStatsOverlay` may read `PassiveAbilityManager.get_passive_state()` for ids/levels/timers. It must never mutate passive or gameplay state.
+- Slot limits such as 4/4/4 are not implemented yet. Hero-specific attack/active upgrade rewrites are not included yet.
+- No Build Evolution in this patch.
 
 ## Run Lifecycle
 

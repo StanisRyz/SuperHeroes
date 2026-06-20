@@ -52,6 +52,7 @@ var _run_result_emitted := false
 
 var _debug_stats_overlay: Node = null
 var _feedback_manager: Node = null
+var _passive_ability_manager: Node = null
 var _debug_powerup_cycle_index: int = 0
 var _help_overlay_paused_game: bool = false
 var _pause_requested_by_menu: bool = false
@@ -136,6 +137,7 @@ func _ready() -> void:
 		push_warning("PlayerBuffManager does not implement setup(player, auto_attack).")
 
 	_setup_mobile_controls(ability_manager)
+	_setup_feedback_manager()
 
 	if hud == null:
 		push_warning("Arena could not find GameHUD node.")
@@ -159,8 +161,8 @@ func _ready() -> void:
 	else:
 		push_warning("PowerupManager does not implement setup(...).")
 
-	_setup_feedback_manager()
 	_setup_spawn_director()
+	_setup_passive_ability_manager()
 	_setup_level_up_flow(auto_attack, ability_manager)
 	_setup_evolution_flow(auto_attack, ability_manager)
 	_setup_run_lifecycle()
@@ -214,6 +216,18 @@ func _setup_feedback_manager() -> void:
 		ability_manager.setup_feedback_manager(_feedback_manager)
 
 
+func _setup_passive_ability_manager() -> void:
+	var passive_script: Script = load("res://scenes/passives/PassiveAbilityManager.gd")
+	if passive_script == null:
+		push_warning("Arena: PassiveAbilityManager.gd not found.")
+		return
+	_passive_ability_manager = passive_script.new()
+	_passive_ability_manager.name = "PassiveAbilityManager"
+	add_child(_passive_ability_manager)
+	if _passive_ability_manager.has_method("setup"):
+		_passive_ability_manager.setup(player, enemy_container, projectile_container, pickup_container, _feedback_manager)
+
+
 func get_playable_rect() -> Rect2:
 	return Rect2(-arena_size * 0.5, arena_size)
 
@@ -245,7 +259,7 @@ func _setup_level_up_flow(auto_attack: Node, ability_manager: Node) -> void:
 	if upgrade_manager == null:
 		push_warning("Arena could not find UpgradeManager node.")
 	elif upgrade_manager.has_method("setup"):
-		upgrade_manager.setup(player, auto_attack, ability_manager, hero_data)
+		upgrade_manager.setup(player, auto_attack, ability_manager, hero_data, _passive_ability_manager)
 	else:
 		push_warning("UpgradeManager does not implement setup(player, auto_attack, ability_manager).")
 
@@ -742,6 +756,7 @@ func _on_victory_reached(stats: Dictionary) -> void:
 
 	if level_up_screen != null:
 		level_up_screen.hide()
+	_cleanup_passive_ability_manager()
 	if pause_menu != null and pause_menu.has_method("close"):
 		pause_menu.close()
 	if game_over_screen != null:
@@ -881,7 +896,7 @@ func _setup_debug_stats_overlay() -> void:
 	var ability_manager := player.get_node_or_null("AbilityManager") if player != null else null
 
 	if _debug_stats_overlay.has_method("setup"):
-		_debug_stats_overlay.setup(player, auto_attack, ability_manager, upgrade_manager, powerup_manager, enemy_spawner, run_manager, enemy_container, projectile_container, pickup_container)
+		_debug_stats_overlay.setup(player, auto_attack, ability_manager, upgrade_manager, powerup_manager, enemy_spawner, run_manager, enemy_container, projectile_container, pickup_container, _passive_ability_manager)
 		if _debug_stats_overlay.has_method("setup_evolution_manager"):
 			_debug_stats_overlay.setup_evolution_manager(evolution_manager)
 		if _debug_stats_overlay.has_method("setup_meta_manager"):
@@ -984,6 +999,7 @@ func _trigger_objective_defeat() -> void:
 
 	if level_up_screen != null:
 		level_up_screen.hide()
+	_cleanup_passive_ability_manager()
 
 	get_tree().paused = true
 	_reset_mobile_controls()
@@ -1002,6 +1018,14 @@ func _cleanup_stage_objective_manager() -> void:
 		if _stage_objective_manager.has_method("cleanup"):
 			_stage_objective_manager.cleanup()
 	_stage_objective_manager = null
+
+
+func _cleanup_passive_ability_manager() -> void:
+	if _passive_ability_manager != null and is_instance_valid(_passive_ability_manager):
+		if _passive_ability_manager.has_method("cleanup"):
+			_passive_ability_manager.cleanup()
+		_passive_ability_manager.queue_free()
+	_passive_ability_manager = null
 
 
 func _run_project_health_check() -> void:
@@ -1124,6 +1148,7 @@ func _on_player_died() -> void:
 
 	if level_up_screen != null:
 		level_up_screen.hide()
+	_cleanup_passive_ability_manager()
 
 	get_tree().paused = true
 	_reset_mobile_controls()
@@ -1143,6 +1168,7 @@ func _on_restart_requested() -> void:
 	_transition_in_progress = true
 	_clear_boss_arena_boundary()
 	_cleanup_stage_objective_manager()
+	_cleanup_passive_ability_manager()
 	get_tree().paused = false
 	restart_run_requested.emit()
 
@@ -1153,6 +1179,7 @@ func _on_quit_to_menu_requested() -> void:
 	_transition_in_progress = true
 	_clear_boss_arena_boundary()
 	_cleanup_stage_objective_manager()
+	_cleanup_passive_ability_manager()
 	get_tree().paused = false
 	quit_to_menu_requested.emit()
 
@@ -1302,11 +1329,13 @@ func _on_confirm_dialog_confirmed(action_id: String) -> void:
 		"restart_run":
 			_clear_boss_arena_boundary()
 			_cleanup_stage_objective_manager()
+			_cleanup_passive_ability_manager()
 			get_tree().paused = false
 			restart_run_requested.emit()
 		"quit_to_menu":
 			_clear_boss_arena_boundary()
 			_cleanup_stage_objective_manager()
+			_cleanup_passive_ability_manager()
 			get_tree().paused = false
 			quit_to_menu_requested.emit()
 		_:

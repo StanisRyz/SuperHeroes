@@ -139,6 +139,7 @@ const HERO_UPGRADE_FLAVOR := {
 var player: Node
 var auto_attack: Node
 var ability_manager: Node
+var passive_ability_manager: Node
 var hero_data: Dictionary = {}
 var upgrade_levels: Dictionary = {}
 var archetype_points: Dictionary = {}
@@ -213,6 +214,58 @@ var _upgrade_definitions: Array[Dictionary] = [
 		"effect_value": 80.0,
 		"archetype": "projectile",
 		"tags": ["weapon", "speed"]
+	},
+	{
+		"id": "orbit_shields",
+		"title": "Orbit Shields",
+		"rarity": "rare",
+		"weight": 0.55,
+		"max_level": 3,
+		"description_template": "Regenerate blocking shield charges over time.",
+		"effect_value": 0,
+		"archetype": "tank",
+		"type": "passive",
+		"category": "passive",
+		"tags": ["passive", "defense", "shield"]
+	},
+	{
+		"id": "storm_relay",
+		"title": "Storm Relay",
+		"rarity": "rare",
+		"weight": 0.55,
+		"max_level": 3,
+		"description_template": "Automatically strike the nearest enemy with lightning.",
+		"effect_value": 0,
+		"archetype": "utility",
+		"type": "passive",
+		"category": "passive",
+		"tags": ["passive", "damage", "lightning"]
+	},
+	{
+		"id": "guardian_drone",
+		"title": "Guardian Drone",
+		"rarity": "common",
+		"weight": 0.65,
+		"max_level": 3,
+		"description_template": "A support drone periodically attacks nearby enemies.",
+		"effect_value": 0,
+		"archetype": "projectile",
+		"type": "passive",
+		"category": "passive",
+		"tags": ["passive", "damage", "drone"]
+	},
+	{
+		"id": "magnet_core",
+		"title": "Magnet Core",
+		"rarity": "common",
+		"weight": 0.65,
+		"max_level": 3,
+		"description_template": "Increase XP gem and pickup magnet reach.",
+		"effect_value": 0,
+		"archetype": "utility",
+		"type": "passive",
+		"category": "passive",
+		"tags": ["passive", "pickup", "magnet"]
 	},
 	{
 		"id": "nova_damage_up",
@@ -640,11 +693,12 @@ var _upgrade_definitions: Array[Dictionary] = [
 ]
 
 
-func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node = null, new_hero_data: Dictionary = {}) -> void:
+func setup(new_player: Node, new_auto_attack: Node, new_ability_manager: Node = null, new_hero_data: Dictionary = {}, new_passive_ability_manager: Node = null) -> void:
 	player = new_player
 	auto_attack = new_auto_attack
 	ability_manager = new_ability_manager
 	hero_data = new_hero_data.duplicate(true)
+	passive_ability_manager = new_passive_ability_manager
 
 
 func get_upgrade_options(count: int = 3) -> Array[Dictionary]:
@@ -697,11 +751,14 @@ func apply_upgrade(upgrade_id: String) -> void:
 
 	var applied := false
 
+	if _is_passive_definition(definition):
+		applied = _apply_passive_upgrade(upgrade_id)
+
 	# Synergy upgrades with an effects array use the generic applicator
 	var effects_array: Array = definition.get("effects", [])
-	if not effects_array.is_empty():
+	if not applied and not effects_array.is_empty():
 		applied = _apply_effects_array(effects_array)
-	else:
+	elif not applied and not _is_passive_definition(definition):
 		# Legacy per-upgrade application for base upgrades
 		var effect_value = definition.get("effect_value", 0.0)
 		match upgrade_id:
@@ -971,11 +1028,12 @@ func _build_option(definition: Dictionary) -> Dictionary:
 	var max_level := int(definition.get("max_level", 1))
 	var tags: Array = definition.get("tags", [])
 	var is_synergy := tags.has("synergy")
+	var is_passive := _is_passive_definition(definition)
 
 	var description: String
 	var effect_text := ""
 	var effects_array: Array = definition.get("effects", [])
-	if not effects_array.is_empty():
+	if is_passive or not effects_array.is_empty():
 		description = str(definition.get("description_template", "Upgrade."))
 	else:
 		effect_text = _format_effect_value(definition.get("effect_value", 0.0))
@@ -990,12 +1048,30 @@ func _build_option(definition: Dictionary) -> Dictionary:
 		"rarity": definition.get("rarity", "common"),
 		"archetype": definition.get("archetype", ""),
 		"tags": tags,
+		"type": definition.get("type", definition.get("category", "")),
 		"level": current_level,
 		"max_level": max_level,
 		"description": description,
+		"is_passive": is_passive,
 		"is_synergy": is_synergy,
 		"is_build_defining": bool(definition.get("is_build_defining", false))
 	}
+
+
+func _is_passive_definition(definition: Dictionary) -> bool:
+	var tags: Array = definition.get("tags", [])
+	return str(definition.get("type", definition.get("category", ""))) == "passive" or tags.has("passive")
+
+
+func _apply_passive_upgrade(upgrade_id: String) -> bool:
+	if passive_ability_manager == null:
+		push_warning("UpgradeManager is missing PassiveAbilityManager reference.")
+		return false
+	if not passive_ability_manager.has_method("add_or_upgrade_passive"):
+		push_warning("PassiveAbilityManager does not implement add_or_upgrade_passive(passive_id).")
+		return false
+	passive_ability_manager.add_or_upgrade_passive(upgrade_id)
+	return true
 
 
 func _apply_ability_display_names_to_text(text: String) -> String:

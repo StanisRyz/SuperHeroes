@@ -223,6 +223,24 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Passive Ability System
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Trigger several level-ups with F1/F2 while Debug Mode is ON | Passive options can appear in the normal LevelUpScreen pool with a `PASSIVE` marker |
+| 2 | Pick `Orbit Shields` | Shield charges appear through PlayerBuffManager/HUD; a shield blocks one incoming hit |
+| 3 | Wait after a shield is consumed | Orbit Shields regenerates charges over time up to its current passive cap |
+| 4 | Pick `Storm Relay`, then stand near enemies | Nearby valid enemies take automatic periodic lightning damage |
+| 5 | Pick `Guardian Drone`, then stand near enemies | Nearby valid enemies take automatic periodic drone damage |
+| 6 | Pick `Magnet Core` | XP gems and powerup pickups start magneting from farther away via runtime pickup radius bonus |
+| 7 | Pick the same passive again | Passive level increases and DebugStatsOverlay shows the higher level |
+| 8 | Pick old weapon and active ability upgrades | Existing autoattack, active ability, synergy, and hero-flavored upgrade effects still apply |
+| 9 | Open LevelUpScreen and choose any passive | The tree pauses for selection and resumes after the choice as before |
+| 10 | Restart or quit after selecting passives | Fresh run has no selected passive ids/levels/timers or stale pickup radius bonus |
+| 11 | Inspect diff/save behavior | No meta save, settings, rewards, stage objectives, boss flow, enemy roles, hero kits, primary weapon identity, slot limits, or Build Evolution changes |
+
+---
+
 ## Ability & Build Synergy v4
 
 | # | Test | Expected |

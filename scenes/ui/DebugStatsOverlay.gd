@@ -12,6 +12,7 @@ var _run_manager: Node = null
 var _enemy_container: Node = null
 var _projectile_container: Node = null
 var _pickup_container: Node = null
+var _passive_ability_manager: Node = null
 var _evolution_manager: Node = null
 var _meta_manager: Node = null
 var _settings_manager: Node = null
@@ -45,7 +46,7 @@ func _build_ui() -> void:
 	add_child(_stats_label)
 
 
-func setup(p_player: Node, p_auto_attack: Node, p_ability_manager: Node, p_upgrade_manager: Node, p_powerup_manager: Node, p_enemy_spawner: Node, p_run_manager: Node = null, p_enemy_container: Node = null, p_projectile_container: Node = null, p_pickup_container: Node = null) -> void:
+func setup(p_player: Node, p_auto_attack: Node, p_ability_manager: Node, p_upgrade_manager: Node, p_powerup_manager: Node, p_enemy_spawner: Node, p_run_manager: Node = null, p_enemy_container: Node = null, p_projectile_container: Node = null, p_pickup_container: Node = null, p_passive_ability_manager: Node = null) -> void:
 	_player = p_player
 	_auto_attack = p_auto_attack
 	_ability_manager = p_ability_manager
@@ -56,6 +57,7 @@ func setup(p_player: Node, p_auto_attack: Node, p_ability_manager: Node, p_upgra
 	_enemy_container = p_enemy_container
 	_projectile_container = p_projectile_container
 	_pickup_container = p_pickup_container
+	_passive_ability_manager = p_passive_ability_manager
 
 
 func setup_evolution_manager(evolution_manager: Node) -> void:
@@ -236,6 +238,31 @@ func _build_stats_text() -> String:
 			lines.append("Available: %d" % int(evo.get("available_count", 0)))
 			var titles: Array = evo.get("applied_titles", [])
 			lines.append("Applied: %s" % (", ".join(titles) if not titles.is_empty() else "None"))
+
+	if _passive_ability_manager != null and is_instance_valid(_passive_ability_manager):
+		lines.append("-- Passives --")
+		if _passive_ability_manager.has_method("get_passive_state"):
+			var passive_state: Dictionary = _passive_ability_manager.get_passive_state()
+			var levels: Dictionary = passive_state.get("levels", {})
+			if levels.is_empty():
+				lines.append("Selected: none")
+			else:
+				var passive_lines: PackedStringArray = []
+				for passive_id in levels:
+					passive_lines.append("%s:%d" % [str(passive_id), int(levels[passive_id])])
+				lines.append("Selected: %s" % ", ".join(passive_lines))
+			var timers: Dictionary = passive_state.get("timers", {})
+			var timer_lines: PackedStringArray = []
+			for timer_id in timers:
+				if levels.has(timer_id):
+					timer_lines.append("%s %.1fs" % [str(timer_id).left(6), float(timers[timer_id])])
+			if not timer_lines.is_empty():
+				lines.append("Timers: %s" % ", ".join(timer_lines))
+			lines.append("Pickup bonus: %.0f  Shield: %d/%d" % [
+				float(passive_state.get("pickup_radius_bonus", 0.0)),
+				int(passive_state.get("shield_charges", 0)),
+				int(passive_state.get("shield_max_charges", 0)),
+			])
 
 	# Shield / buffs from PlayerBuffManager
 	if _player != null and is_instance_valid(_player):

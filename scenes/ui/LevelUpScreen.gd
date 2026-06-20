@@ -46,6 +46,7 @@ func _format_option_text(option: Dictionary) -> String:
 	var archetype := str(option.get("archetype", ""))
 	var is_synergy := bool(option.get("is_synergy", false))
 	var is_build_defining := bool(option.get("is_build_defining", false))
+	var is_passive := bool(option.get("is_passive", false))
 	var title := str(option.get("title", "Upgrade"))
 	var level := int(option.get("level", 0))
 	var max_level := int(option.get("max_level", 1))
@@ -56,6 +57,8 @@ func _format_option_text(option: Dictionary) -> String:
 		rarity_line = "[%s]  [%s]" % [rarity, archetype.to_upper()]
 
 	var markers := ""
+	if is_passive:
+		markers = "  PASSIVE"
 	if is_synergy:
 		markers = "  ★ SYNERGY"
 	if is_build_defining:
