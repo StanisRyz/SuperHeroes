@@ -1007,7 +1007,7 @@ func get_solar_damage_multiplier() -> float:
 	return 1.0
 
 
-func _damage_enemies_in_cone(origin: Vector2, direction: Vector2, damage: int, range: float, half_angle_deg: float) -> int:
+func _damage_enemies_in_cone(origin: Vector2, direction: Vector2, damage: int, cone_range: float, half_angle_deg: float) -> int:
 	if enemy_container == null or not is_instance_valid(enemy_container):
 		push_warning("AbilityManager is missing EnemyContainer reference.")
 		return 0
@@ -1018,7 +1018,7 @@ func _damage_enemies_in_cone(origin: Vector2, direction: Vector2, damage: int, r
 			continue
 		var to_enemy: Vector2 = (enemy as Node2D).global_position - origin
 		var dist := to_enemy.length()
-		if dist > range:
+		if dist > cone_range:
 			continue
 		var angle := 0.0
 		if not to_enemy.is_zero_approx():
@@ -1029,7 +1029,7 @@ func _damage_enemies_in_cone(origin: Vector2, direction: Vector2, damage: int, r
 	return hit_count
 
 
-func _apply_slow_in_cone(origin: Vector2, direction: Vector2, range: float, half_angle_deg: float, slow_multiplier: float, slow_duration: float) -> void:
+func _apply_slow_in_cone(origin: Vector2, direction: Vector2, cone_range: float, half_angle_deg: float, slow_multiplier: float, slow_duration: float) -> void:
 	if enemy_container == null or not is_instance_valid(enemy_container):
 		return
 	var half_angle_rad := deg_to_rad(half_angle_deg)
@@ -1040,7 +1040,7 @@ func _apply_slow_in_cone(origin: Vector2, direction: Vector2, range: float, half
 			continue
 		var to_enemy: Vector2 = (enemy as Node2D).global_position - origin
 		var dist := to_enemy.length()
-		if dist > range:
+		if dist > cone_range:
 			continue
 		var angle := 0.0
 		if not to_enemy.is_zero_approx():

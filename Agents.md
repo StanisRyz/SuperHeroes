@@ -98,7 +98,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/enemies/EnemySpawner.gd` - spawn loop, spawn distance checks, max alive enemy limit, XP drops, powerup drop rolls.
 - `scenes/player/PlayerBuffManager.tscn` - player buff manager scene.
 - `scenes/player/PlayerBuffManager.gd` - timed buffs (move speed, attack speed) and shield charges.
-- `scenes/passives/PassiveAbilityManager.gd` - runtime-only shared passive skill manager. Owns selected passive ids/levels, shield regeneration, shield/drone visuals, periodic visible passive attacks, magnet reach bonus, debug state, and cleanup. Never saves passive state.
+- `scenes/passives/PassiveAbilityManager.gd` - runtime-only shared passive skill manager. Owns selected passive ids/levels, shield regeneration, shield/drone visuals, shared passive timers, visible arcs/pulses, magnet reach bonus, debug state, and cleanup. Never saves passive state.
 - `scenes/powerups/PowerupManager.tscn` - powerup manager scene.
 - `scenes/powerups/PowerupManager.gd` - applies powerup effects (heal, shield, bomb, magnet burst, speed boosts).
 - `scenes/pickups/PowerupPickup.tscn` - generic in-run powerup pickup scene.
@@ -723,18 +723,18 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - `PassiveAbilityManager` is instantiated at runtime by `Arena._setup_passive_ability_manager()` using `load("res://scenes/passives/PassiveAbilityManager.gd").new()`. It is not part of Arena.tscn.
 - `PassiveAbilityManager.setup(player, enemy_container, projectile_container, pickup_container, feedback_manager)` wires run references only. It owns `add_or_upgrade_passive(passive_id)`, `get_passive_level(passive_id)`, `has_passive(passive_id)`, `get_passive_state()`, and `cleanup()`.
 - Passive state is runtime-only. Selected passive ids/levels, timers, shield regeneration state, and pickup radius bonuses must reset every run and must never be written to meta saves, settings, rewards, user preferences, or stage data.
-- Current shared passive lines are `orbit_shields`, `storm_relay`, `guardian_drone`, and `magnet_core`. They are shared by all heroes and must not depend on hero kit identity.
+- Current shared passive lines are exactly `orbit_shields`, `storm_relay`, `guardian_drone`, `magnet_core`, `chain_lightning`, `recovery_field`, `battle_focus`, `static_field`, and `time_dilator`. They are shared by all heroes and must not depend on hero kit identity.
 - Passive abilities must provide visible gameplay feedback, not only hidden numeric state.
 - Orbit Shields visuals must track `PlayerBuffManager.shield_changed` / `get_shield_charges()` so consumed and regenerated charges are visible around the player.
-- Storm Relay and Guardian Drone must show clear hit feedback when they deal damage, such as Line2D arcs plus status/damage text.
+- Storm Relay, Guardian Drone, Chain Lightning, Battle Focus, Static Field, and Time Dilator must show clear hit or pulse feedback when they affect enemies, such as Line2D arcs, pulse rings, status text, and damage/heal text.
 - Magnet Core must either rely on pickup scripts reading `player.pickup_radius_bonus` or provide an explicit runtime pull fallback; upgrades should show clear selection feedback.
-- Passive upgrade definitions live in `UpgradeManager.gd` with `type`/`category` set to `"passive"`, `tags` containing `"passive"`, conservative `max_level`, a display `description_template`, and normal weighting/archetype fields.
+- Passive upgrade definitions live in `UpgradeManager.gd` with the Shared Passive Skills 9-Line Pack schema fields, `tags` containing `"passive"`, conservative `max_level`, a display `description_template`, and normal weighting/archetype fields.
 - `UpgradeManager` now supports passive upgrades by passing passive ids to `PassiveAbilityManager.add_or_upgrade_passive()`. Existing attack upgrades, active ability upgrades, hero-flavored text, synergy upgrades, and build-defining upgrades must keep their ids and behavior.
 - `LevelUpScreen` may display passive options with a compact `PASSIVE` marker, but it remains display-only.
 - `DebugStatsOverlay` may read `PassiveAbilityManager.get_passive_state()` for ids/levels/timers. It must never mutate passive or gameplay state.
 - Slot limits are implemented in `UpgradeManager`; passive visibility hotfixes should preserve those limits rather than reimplementing them elsewhere.
-- Hero-specific attack/active upgrade rewrites are not included yet.
-- No Build Evolution in this patch.
+- Hero-specific attack/active grid rewrites are not included in the shared passive pack.
+- No new EvolutionManager behavior or Overdrive screen in this patch.
 
 ## Run Lifecycle
 
@@ -837,7 +837,18 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Non-strict validation treats incomplete future 9/9/9 targets as warnings. Strict validation may promote target-count gaps to errors for future release gates.
 - Future target counts are 9 Attack lines per hero, 9 Active lines per hero, and 9 shared Passive lines. Passive upgrade lines should remain shared, not hero-specific, unless a future task explicitly changes that rule.
 - Future Evolution triples link one attack line, one passive line, one active line, and one evolved active skill. Each upgrade line may be used only once per hero triple grid.
-- Do not implement EvolutionManager changes, Overdrive screens, evolved active skills, the 9-passive pack, or Solar/Night/Fury grid normalization in this schema-only patch.
+- The shared passive target is now implemented as the Shared Passive Skills 9-Line Pack below; do not add Solar/Night/Fury attack or active grid normalization unless explicitly requested.
+
+## Shared Passive Skills 9-Line Pack
+
+- Shared passive ids are exactly: `orbit_shields`, `storm_relay`, `guardian_drone`, `magnet_core`, `chain_lightning`, `recovery_field`, `battle_focus`, `static_field`, and `time_dilator`.
+- Passive upgrade definitions must include `id`, `title`, `rarity`, `weight`, `max_level`, `description_template`, `type: "passive"`, `category: "passive"`, `slot_category: "passive"`, `upgrade_line_id`, `source_type: "passive"`, `source_skill_id`, `grid_index`, `evolution_role: "passive"`, and `tags` containing `passive`.
+- Passive `grid_index` values must be unique and cover 1 through 9. Passive `upgrade_line_id` values must also be unique.
+- Passive lines are shared by Solar Guardian, Night Tactician, and Fury Vanguard. Do not add `hero_id`, `hero_ids`, `hero_only`, or hero-specific filtering to shared passive lines unless a future task explicitly changes that rule.
+- Passive state is runtime-only and must reset on restart, victory, defeat, quit, or Arena reload. Do not save passive levels, timers, buffs, or visuals.
+- Every shared passive must be visible in gameplay through shield markers, arcs, pulse rings, floating damage/heal/status text, or equivalent built-in feedback.
+- The 4 passive slot limit still applies: a new passive line consumes a Passive slot, while already selected passive lines can continue leveling after Passive slots are full.
+- This pack does not add Solar/Night/Fury 9 attack grids, Solar/Night/Fury 9 active grids, new EvolutionManager behavior, Overdrive UI, evolved active skills, rewards, saves, meta economy, enemies, stages, boss flow, hero kits, primary weapons, or 4/4/4 slot-limit changes.
 
 ## Input Flow
 
@@ -918,7 +929,6 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Pickup object pooling.
 - Advanced particle effects for powerups.
 - Upgrade icons or Resource-backed data.
-- Chain lightning.
 - Critical hits.
 - Elemental/status effects.
 - Projectile pooling.

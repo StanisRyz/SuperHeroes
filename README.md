@@ -186,16 +186,19 @@ Implemented foundation:
   - `UpgradeManager.validate_upgrade_grid(false)` reports incomplete target counts as warnings, while strict mode can promote target-count gaps for future content gates.
   - `debug_get_upgrade_grid_state()` exposes warning/error counts and current hero line counts; DebugStatsOverlay displays a compact grid audit summary.
 
-- Passive Ability System Foundation + visibility hotfix:
+- Shared Passive Skills 9-Line Pack:
   - Passive skills are shared by all heroes, selected through the normal level-up upgrade pool, and reset every run.
   - `PassiveAbilityManager` is instantiated by Arena at run startup and is never saved to meta/progression data.
-  - First shared passive lines: Orbit Shields (regenerating shield charges with orbiting shield indicators), Storm Relay (periodic nearest-enemy lightning with a visible arc), Guardian Drone (orbiting drone indicator with visible attack arc), and Magnet Core (increases XP/powerup magnet reach and pulses when upgraded).
-  - Passive effects now have visible runtime feedback: shield indicators track charges, shield blocks show `SHIELD BLOCK`, Storm/Drone hits draw short Line2D arcs, and damage/status text appears at the target.
-  - Passive upgrade definitions use `type/category: "passive"` plus `tags: ["passive", ...]`; LevelUpScreen marks them with `PASSIVE`.
-  - The 4/4/4 upgrade slot limits now apply to new upgrade lines, while repeated levels stay within the already owned line. Hero-specific attack/active upgrade rewrites and Build Evolution are not included yet.
+  - The shared passive grid now contains exactly 9 passive lines: Orbit Shields, Storm Relay, Guardian Drone, Magnet Core, Chain Lightning, Recovery Field, Battle Focus, Static Field, and Time Dilator.
+  - The original four passive ids and behavior are preserved: `orbit_shields`, `storm_relay`, `guardian_drone`, and `magnet_core`.
+  - New shared passive ids: `chain_lightning` (periodic bouncing lightning arcs), `recovery_field` (small periodic heal pulse), `battle_focus` (periodic focus strike plus short attack-speed buff), `static_field` (nearby electric damage pulse), and `time_dilator` (nearby enemy slow pulse through temporary enemy modifiers).
+  - Passive effects have visible runtime feedback: shield indicators track charges, shield blocks show `SHIELD BLOCK`, Storm/Drone/Chain/Focus hits draw Line2D arcs, field effects draw pulse rings, and damage/heal/status text appears in-world.
+  - Passive upgrade definitions use `type/category/slot_category: "passive"`, `source_type: "passive"`, `source_skill_id`, `upgrade_line_id`, `grid_index` 1-9, `evolution_role: "passive"`, and `tags: ["passive", ...]`; LevelUpScreen marks them with `PASSIVE`.
+  - The 4/4/4 upgrade slot limits now apply to new upgrade lines, while repeated levels stay within the already owned line. Solar/Night/Fury 9-line attack/active grid normalization, Overdrive, and Build Evolution are not included in this pack.
   - Build Slots Overview Window: an in-run `Build` button under Pause opens a compact read-only window showing Attack, Passive, and Active slot usage plus the filled/empty rows for all 12 build slots.
   - The Build Slots window reads runtime slot state from `UpgradeManager`; it does not change slot rules, upgrade weights, upgrade effects, saves, rewards, or meta progression.
   - DebugStatsOverlay shows selected passive ids/levels, timers, shield count/max, pickup radius bonus, and the last passive event while Debug Mode is enabled.
+  - This patch does not add Solar/Night/Fury attack or active 9-line grids, Overdrive UI, or new Evolution/Overdrive behavior.
 
 - PowerupPickup foundation (generic in-run pickup that delegates to PowerupManager).
 - PowerupManager (applies powerup effects to player and world).
@@ -678,7 +681,6 @@ Not implemented yet:
 - Powerup upgrade scaling.
 - Pickup object pooling.
 - Advanced particle effects for powerups.
-- Chain lightning.
 - Critical hits.
 - Elemental/status effects.
 - Projectile pooling.

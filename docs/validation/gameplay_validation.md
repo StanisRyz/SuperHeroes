@@ -228,7 +228,7 @@ Run these before adding new gameplay systems.
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Call `UpgradeManager.validate_upgrade_grid(false)` from a live run or remote console | Returns a Dictionary with `errors`, `warnings`, `error_count`, `warning_count`, `line_counts`, and `target_counts` |
-| 2 | Inspect non-strict audit result | Current incomplete 9/9/9 target counts are warnings only and do not block gameplay |
+| 2 | Inspect non-strict audit result | Shared Passive count is exactly 9/9; incomplete Attack/Active target counts remain warnings only and do not block gameplay |
 | 3 | Call `UpgradeManager.validate_upgrade_grid(true)` | Future target-count gaps may report as errors for strict validation |
 | 4 | Call `UpgradeManager.validate_upgrade_grid_for_hero("guardian", false)` | Returns Guardian attack/passive/active line counts without mutating upgrades |
 | 5 | Call `UpgradeManager.debug_get_upgrade_grid_state()` | Returns schema warning/error counts plus current hero line counts |
@@ -236,9 +236,9 @@ Run these before adding new gameplay systems.
 | 7 | Trigger level-up options after schema changes | LevelUpScreen still displays valid options and slot markers |
 | 8 | Fill Attack / Passive / Active slots | Existing 4/4/4 slot limits still work; already selected lines can still level up |
 | 9 | Open Build Slots Window after selecting upgrades | Window still reads selected line ids and displays filled rows correctly |
-| 10 | Pick shared passive skills | PassiveAbilityManager still applies passives; no passive state is saved |
+| 10 | Pick shared passive skills | PassiveAbilityManager applies all nine shared passive ids; no passive state is saved |
 | 11 | Start runs as Solar Guardian, Night Tactician, and Fury Vanguard | Existing hero-specific upgrade filtering and kit behavior still work |
-| 12 | Inspect diff/save behavior | No EvolutionManager changes, Overdrive UI, new passive pack, upgrade effects, balance, rewards, saves, stages, enemies, boss flow, or meta economy changes |
+| 12 | Inspect diff/save behavior | No new EvolutionManager behavior, Overdrive UI, attack/active 9-line grids, rewards, saves, stages, enemies, boss flow, or meta economy changes |
 
 ---
 
@@ -282,28 +282,34 @@ Run these before adding new gameplay systems.
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Trigger several level-ups with F1/F2 while Debug Mode is ON | Passive options can appear in the normal LevelUpScreen pool with a `PASSIVE` marker |
+| 1 | Trigger several level-ups with F1/F2 while Debug Mode is ON | All nine shared passive lines can appear in the normal LevelUpScreen pool with a `PASSIVE` marker |
 | 2 | Pick `Orbit Shields` | Shield charges appear through PlayerBuffManager/HUD and visible orbiting shield indicators appear around the player |
 | 3 | Take enemy contact damage with a shield active | HP does not drop, `SHIELD BLOCK` appears, and the orbiting shield indicator count decreases |
 | 4 | Wait after a shield is consumed | Orbit Shields regenerates charges over time up to its current passive cap and the visual indicator returns |
 | 5 | Pick `Storm Relay`, then stand near enemies | Nearby valid enemies take automatic periodic lightning damage with a visible arc, `STORM` status, and damage text |
 | 6 | Pick `Guardian Drone`, then stand near enemies | A drone indicator orbits the player and periodically hits enemies with a visible arc, `DRONE` status, and damage text |
 | 7 | Pick `Magnet Core` | XP gems and powerup pickups start magneting from farther away via runtime pickup radius bonus; a magnet pulse/status appears on upgrade |
-| 8 | Pick the same passive again | Passive level increases and DebugStatsOverlay shows the higher level |
-| 9 | Pick old weapon and active ability upgrades | Existing autoattack, active ability, synergy, and hero-flavored upgrade effects still apply |
-| 10 | Open LevelUpScreen and choose any passive | The tree pauses for selection and resumes after the choice as before |
-| 11 | Restart or quit after selecting passives | Fresh run has no selected passive ids/levels/timers, shield/drone visuals, or stale pickup radius bonus |
-| 12 | Inspect diff/save behavior | No meta save, settings, rewards, stage objectives, boss flow, enemy roles, hero kits, primary weapon identity, slot limits, or Build Evolution changes |
+| 8 | Pick `Chain Lightning`, then stand near multiple enemies | One target is struck, lightning bounces to nearby enemies, yellow arcs connect targets, and damage/status text appears |
+| 9 | Pick `Recovery Field` after taking HP damage | A green recovery pulse appears around the player and HP restores by a small capped amount |
+| 10 | Pick `Battle Focus`, then stand near enemies | A focus strike hits periodically, `battle_focus` attack-speed buff appears in DebugStatsOverlay/Buffs, and `FOCUS` status appears |
+| 11 | Pick `Static Field`, then stand near enemies | Nearby enemies take periodic electric pulse damage with a visible cyan pulse ring and damage text |
+| 12 | Pick `Time Dilator`, then stand near enemies | Nearby enemies receive a temporary slow modifier, a blue pulse ring appears, and `SLOW N` status appears |
+| 13 | Pick the same passive again | Passive level increases and DebugStatsOverlay shows the higher level |
+| 14 | Pick old weapon and active ability upgrades | Existing autoattack, active ability, synergy, and hero-flavored upgrade effects still apply |
+| 15 | Open LevelUpScreen and choose any passive | The tree pauses for selection and resumes after the choice as before |
+| 16 | Restart or quit after selecting passives | Fresh run has no selected passive ids/levels/timers, shield/drone visuals, focus buff, or stale pickup radius bonus |
+| 17 | Inspect diff/save behavior | No meta save, settings, rewards, stage objectives, boss flow, enemy roles, hero kits, primary weapon identity, slot limits, Evolution/Overdrive, or Build Evolution changes |
 
 ## Passive Ability Runtime Verification
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Enable Debug Mode after selecting passives | DebugStatsOverlay shows selected passive ids/levels, Storm Relay timer, Guardian Drone timer, Orbit Shield charges/max, Magnet Core bonus, and last passive event |
+| 1 | Enable Debug Mode after selecting passives | DebugStatsOverlay shows selected passive ids/levels, timers for selected timed passives, Orbit Shield charges/max, Magnet Core bonus, active Battle Focus buff if present, and last passive event |
 | 2 | Select/upgrade any passive | Passive state appears in `get_passive_state()` via DebugStatsOverlay without enabling verbose console logs |
 | 3 | Let Storm Relay tick with no enemies nearby | It retries soon; no crash, no stuck timer, and the next nearby enemy is struck |
 | 4 | Let Guardian Drone tick with no enemies nearby | It retries soon; no crash, no stuck timer, and the next nearby enemy is struck |
-| 5 | End the run by victory, defeat, restart, or quit | Passive visuals and runtime state are cleaned with the Arena transition |
+| 5 | Let Chain Lightning, Battle Focus, Static Field, or Time Dilator tick with no enemies nearby | Each retries soon; no crash, no stuck timer, and the next nearby enemy is affected |
+| 6 | End the run by victory, defeat, restart, or quit | Passive visuals and runtime state are cleaned with the Arena transition |
 
 ---
 
