@@ -34,12 +34,21 @@ signal died(enemy: Node)
 @export var support_speed_multiplier: float = 1.18
 @export var support_buff_duration: float = 5.0
 @export var max_shield_value: int = 0
+@export var split_on_death: bool = false
+@export var split_variant_id: String = ""
+@export var split_count: int = 2
+@export var is_split_child: bool = false
+@export var disrupt_radius: float = 180.0
+@export var disrupt_interval: float = 3.0
+@export var disrupt_damage: int = 12
+@export var disrupt_standoff: float = 150.0
 
 var current_health: int
 var shield_value: int = 0
 var experience_value: int = 1
 var variant_id: String = ""
 var display_name: String = ""
+var role: String = ""
 var is_elite: bool = false
 var is_miniboss: bool = false
 var guaranteed_powerup: bool = false
@@ -58,6 +67,8 @@ var _velocity_override: Vector2 = Vector2.ZERO
 var _explode_state := "ready"
 var _explode_timer := 0.0
 var _support_cooldown_remaining := 0.0
+var _disrupt_cooldown_remaining: float = 0.0
+var _disrupt_pulse_tween: Tween = null
 var _temporary_modifiers: Dictionary = {}
 var _base_speed: float = 120.0
 var _base_contact_damage: int = 10
@@ -88,6 +99,8 @@ func apply_variant(variant: Dictionary) -> void:
 		variant_id = str(variant["id"])
 	if variant.has("display_name"):
 		display_name = str(variant["display_name"])
+	if variant.has("role"):
+		role = str(variant["role"])
 	if variant.has("behavior_id"):
 		behavior_id = str(variant["behavior_id"])
 	if variant.has("speed"):
@@ -147,6 +160,22 @@ func apply_variant(variant: Dictionary) -> void:
 	if variant.has("shield_value"):
 		max_shield_value = int(variant["shield_value"])
 		shield_value = max_shield_value
+	if variant.has("split_on_death"):
+		split_on_death = bool(variant["split_on_death"])
+	if variant.has("split_variant_id"):
+		split_variant_id = str(variant["split_variant_id"])
+	if variant.has("split_count"):
+		split_count = int(variant["split_count"])
+	if variant.has("is_split_child"):
+		is_split_child = bool(variant["is_split_child"])
+	if variant.has("disrupt_radius"):
+		disrupt_radius = float(variant["disrupt_radius"])
+	if variant.has("disrupt_interval"):
+		disrupt_interval = float(variant["disrupt_interval"])
+	if variant.has("disrupt_damage"):
+		disrupt_damage = int(variant["disrupt_damage"])
+	if variant.has("disrupt_standoff"):
+		disrupt_standoff = float(variant["disrupt_standoff"])
 	if variant.has("body_color") and body_visual != null:
 		body_visual.set("color", variant["body_color"])
 	if variant.has("core_color") and core_visual != null:
@@ -246,6 +275,8 @@ func _physics_process(delta: float) -> void:
 			_tick_swarm_behavior(delta)
 		"support":
 			_tick_support_behavior(delta)
+		"disruptor":
+			_tick_disruptor_behavior(delta)
 		_:
 			if not _unknown_behavior_warning_shown:
 				push_warning("Unknown enemy behavior_id: %s" % behavior_id)
@@ -446,6 +477,51 @@ func _apply_support_buff() -> void:
 				"speed_multiplier": support_speed_multiplier,
 				"contact_damage_multiplier": support_damage_multiplier,
 			}, support_buff_duration)
+	_show_support_pulse()
+
+
+func _show_support_pulse() -> void:
+	var t := create_tween()
+	for visual in _get_flash_visuals():
+		t.parallel().tween_property(visual, "modulate", Color(1.3, 1.15, 0.5, 1.0), 0.0)
+	t.tween_interval(0.3)
+	for visual in _get_flash_visuals():
+		t.parallel().tween_property(visual, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.35)
+
+
+func _tick_disruptor_behavior(delta: float) -> void:
+	if _disrupt_cooldown_remaining > 0.0:
+		_disrupt_cooldown_remaining = maxf(_disrupt_cooldown_remaining - delta, 0.0)
+
+	var offset := target.global_position - global_position
+	var distance := offset.length()
+	if offset.is_zero_approx():
+		velocity = Vector2.ZERO
+	elif distance > disrupt_standoff:
+		velocity = offset.normalized() * _get_effective_speed()
+	else:
+		velocity = Vector2.ZERO
+
+	if _disrupt_cooldown_remaining <= 0.0:
+		_fire_disrupt_pulse()
+		_disrupt_cooldown_remaining = disrupt_interval
+
+
+func _fire_disrupt_pulse() -> void:
+	if _disrupt_pulse_tween != null:
+		_disrupt_pulse_tween.kill()
+	_disrupt_pulse_tween = create_tween()
+	for visual in _get_flash_visuals():
+		_disrupt_pulse_tween.parallel().tween_property(visual, "modulate", Color(0.35, 1.0, 1.0, 1.0), 0.0)
+	_disrupt_pulse_tween.tween_interval(0.3)
+	for visual in _get_flash_visuals():
+		_disrupt_pulse_tween.parallel().tween_property(visual, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.2)
+
+	if not is_instance_valid(target):
+		return
+	var dist := global_position.distance_to(target.global_position)
+	if dist <= disrupt_radius and target.has_method("take_damage"):
+		target.take_damage(disrupt_damage)
 
 
 func apply_temporary_modifier(modifier_id: String, values: Dictionary, duration: float) -> void:

@@ -399,6 +399,12 @@ func _on_enemy_died(enemy: Node) -> void:
 	if enemy_node == null:
 		return
 
+	# Splitter: spawn children if flagged and not itself a split child (prevents recursion).
+	var should_split: bool = enemy.get("split_on_death") == true and enemy.get("is_split_child") != true
+	var split_vid: String = str(enemy.get("split_variant_id")) if should_split else ""
+	var split_cnt: int = int(enemy.get("split_count")) if should_split else 0
+	var split_pos: Vector2 = enemy_node.global_position
+
 	var guaranteed: bool = enemy.get("guaranteed_powerup") == true or enemy.get("is_elite") == true or enemy.get("is_miniboss") == true
 	var powerup_id := _roll_powerup_id(guaranteed)
 	if guaranteed and powerup_id == "":
@@ -406,6 +412,45 @@ func _on_enemy_died(enemy: Node) -> void:
 	if powerup_debug_logging:
 		print("POWERUP_ROLL: guaranteed=%s dropped=%s" % [guaranteed, powerup_id if powerup_id != "" else "(none)"])
 	call_deferred("_spawn_death_feedback_and_drop", enemy_node.global_position, dropped_experience, powerup_id)
+	if should_split and not split_vid.is_empty() and split_cnt > 0:
+		call_deferred("_spawn_split_children", split_pos, split_vid, split_cnt)
+
+
+func _spawn_split_children(world_position: Vector2, variant_id: String, count: int) -> void:
+	if not _can_spawn():
+		return
+	if spawn_director == null or not spawn_director.has_method("get_enemy_variant_by_id"):
+		return
+
+	var variant: Dictionary = spawn_director.get_enemy_variant_by_id(variant_id)
+	if variant.is_empty():
+		return
+
+	var max_alive := _get_current_max_alive_enemies()
+	if is_instance_valid(enemy_container) and enemy_container.get_child_count() >= max_alive:
+		return
+
+	var capped_count := mini(count, 3)
+	var spawned := 0
+	for i in range(capped_count):
+		if not is_instance_valid(enemy_container):
+			break
+		if enemy_container.get_child_count() >= max_alive:
+			break
+
+		var angle := (TAU / float(capped_count)) * float(i) + randf_range(-0.4, 0.4)
+		var offset := Vector2.RIGHT.rotated(angle) * randf_range(35.0, 70.0)
+		var spawn_pos := _clamp_point_to_playable_rect(world_position + offset)
+
+		var child_variant: Dictionary = variant.duplicate()
+		child_variant["is_split_child"] = true
+		child_variant["split_on_death"] = false
+
+		if _spawn_enemy_with_variant(child_variant, spawn_pos) != null:
+			spawned += 1
+
+	if spawn_debug_logging and spawned > 0:
+		print("SPLIT: spawned %d '%s' at %s" % [spawned, variant_id, world_position])
 
 
 func _spawn_death_feedback_and_drop(world_position: Vector2, dropped_experience: int, powerup_id: String = "") -> void:
@@ -513,6 +558,7 @@ func debug_get_spawn_state() -> Dictionary:
 		"stage_profile": "balanced",
 		"phase": "",
 		"wave_budget": 0.0,
+		"role_counts": {},
 	}
 	if spawn_director != null and spawn_director.has_method("debug_get_run_director_state"):
 		var ds: Dictionary = spawn_director.debug_get_run_director_state()
@@ -522,6 +568,15 @@ func debug_get_spawn_state() -> Dictionary:
 	elif spawn_director != null and spawn_director.has_method("debug_get_wave_state"):
 		var ws: Dictionary = spawn_director.debug_get_wave_state()
 		result["stage_profile"] = ws.get("stage_profile", "balanced")
+	if is_instance_valid(enemy_container):
+		var counts: Dictionary = {}
+		for child in enemy_container.get_children():
+			if is_instance_valid(child):
+				var r: String = str(child.get("role")) if child.get("role") != null else ""
+				if r.is_empty():
+					r = "?"
+				counts[r] = counts.get(r, 0) + 1
+		result["role_counts"] = counts
 	return result
 
 

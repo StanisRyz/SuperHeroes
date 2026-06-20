@@ -1471,4 +1471,92 @@ DEBUG_PLAYER: invulnerable=true
 | 2 | Inspect diff for upgrade/evolution/overdrive files | No changes |
 | 3 | Inspect diff for save/meta/rewards files | No changes |
 | 4 | Check miniboss and final boss flow | Triggered by EventDirector as before; wave packages never spawn a miniboss |
-| 5 | Inspect diff | No Enemy Roles Pack, Stage Objectives Pack, Boss Encounter 2.0, or arena hazards added |
+| 5 | Inspect diff | No Stage Objectives Pack, Boss Encounter 2.0, or arena hazards added |
+
+---
+
+## Enemy Roles + Counterplay Pack
+
+### Basic Spawning Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a run, let it reach 30 s | Grunt and Runner spawn; no crash |
+| 2 | Let run reach 60 s | Charger and Tank appear in the pool |
+| 3 | Let run reach 75–120 s | Shooter and Exploder appear |
+| 4 | Let run reach 150–210 s | Swarm, Shielded, Support appear |
+| 5 | Let run reach 240 s | Splitter appears; yellow-green body visible |
+| 6 | Let run reach 300 s | Disruptor appears; bright cyan body visible |
+| 7 | Entire run to completion | No crash; all behavior_id values function without unknown-behavior warning |
+
+### Splitter Behavior
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Kill a Splitter | Two Grunt enemies spawn near the death position; XP gems + death burst appear |
+| 2 | Kill one of the Grunt children from a Splitter | It drops XP gem normally and does NOT spawn more grunts |
+| 3 | Kill Splitter when enemy_container is at max_alive | Split children are skipped or capped; no cap overflow |
+| 4 | Enable spawn_debug_logging and kill Splitter | Console shows `SPLIT: spawned N 'grunt' at (x, y)` |
+| 5 | Trigger final boss encounter, then kill any Splitter | No split children spawn during final boss phase |
+
+### Disruptor Behavior
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Stand still near a Disruptor | It approaches to ~140 px then stops; does not ram the player like a Grunt |
+| 2 | Wait 3 s near a Disruptor | Cyan flash on enemy body; player takes ~10 damage if within 200 px |
+| 3 | Stand farther than 200 px from Disruptor | No damage when pulse fires; Disruptor pursues to close the gap |
+| 4 | Kill Disruptor mid-pulse | Pulse tween is interrupted cleanly; no leftover color state |
+| 5 | Check DebugStatsOverlay | Role column shows "disr:N" when Disruptors are alive |
+
+### Support Buff Pulse Visual
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Let a Support enemy pulse nearby | Yellow-gold burst visible on the Support body when it applies its buff |
+| 2 | Check buffed enemies | Body modulate shifts to warm yellow tint; returns to white when buff expires |
+
+### Charger Behavior
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Stand in range of Charger | Orange windup flash; brief pause; then rapid charge in a straight line |
+| 2 | Sidestep during charge | Charger continues in its locked direction; misses |
+| 3 | Kill Charger during windup | It dies cleanly; no lingering charge state |
+
+### Role Counts Debug
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable Debug Mode (F12) with multiple enemy types alive | Roles: line in Spawner section shows role abbreviations and counts |
+| 2 | Kill all Swarm enemies | swarm count drops to 0; line updates within one overlay refresh |
+| 3 | Let Splitter split | swarmer (or "swarm") count increases; total alive updates |
+
+### Wave Package Pacing
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable spawn_debug_logging; observe waves from 0–120 s | Only early_grunts and runner_pack fire |
+| 2 | Observe waves at 120–240 s (build phase) | charger_rush, bruiser_wall, shooter_screen appear |
+| 3 | Observe waves at 360–480 s (danger phase) | disruptor_squad, splitter_wave appear |
+| 4 | Observe waves at 480 s+ (pre_boss) | chaos_wave can fire; mix of charger, disruptor, splitter |
+| 5 | Check Max alive cap during chaos_wave | Combined children from Splitters + wave enemies stay within cap |
+
+### Counterplay Readability
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Encounter a Tank | Clearly slower than other enemies; player can circle it |
+| 2 | Encounter a Shielded enemy and hit it | Blue-white flash on shield hit; shield bar drains; after shield breaks, normal red hit flash |
+| 3 | Encounter a Support and kill it | Nearby enemies lose yellow tint; speed/damage modifier expires |
+| 4 | Encounter an Exploder at close range | Scale pulse + orange glow telegraph; explosion deals damage if not avoided |
+| 5 | Encounter a Splitter | Yellow-green color distinguishes it; players should recognize it needs priority |
+
+### Scope Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Inspect diff | No hero kit, upgrade, evolution, save, reward, meta, or 4/4/4 slot changes |
+| 2 | Check miniboss and final boss | Triggered by EventDirector/EnemySpawner as before; unaffected by role pack |
+| 3 | Check EnemyProjectile | No changes; still detects Player only |
+| 4 | Inspect diff | No arena hazards, Stage Objectives Pack, or Boss Encounter 2.0 added |

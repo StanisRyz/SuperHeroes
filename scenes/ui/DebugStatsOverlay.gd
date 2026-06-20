@@ -401,6 +401,12 @@ func _build_stats_text() -> String:
 			])
 			var last_pkg: String = str(spawn.get("last_wave_package", ""))
 			lines.append("Last pkg: %s" % (last_pkg if last_pkg != "" else "(none yet)"))
+			var role_counts: Dictionary = spawn.get("role_counts", {})
+			if not role_counts.is_empty():
+				var parts: PackedStringArray = []
+				for r in role_counts:
+					parts.append("%s:%d" % [str(r).left(4), int(role_counts[r])])
+				lines.append("Roles: %s" % "  ".join(parts))
 		if _enemy_spawner.has_method("debug_get_powerup_wiring_state"):
 			var wiring: Dictionary = _enemy_spawner.debug_get_powerup_wiring_state()
 			lines.append("Pickup scene: %s" % wiring.get("pickup_scene_assigned", false))

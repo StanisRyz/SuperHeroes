@@ -583,7 +583,56 @@ Stage event profiles bias package selection via per-profile weight bonuses on sp
 
 `EnemySpawner.spawn_debug_logging = true` prints `WAVE_PACKAGE: id=... role=... alive=N/M` each time a package fires.
 
-Not included in this patch: Boss Encounter 2.0, Enemy Roles Pack, Stage Objectives Pack, arena hazards.
+Not included in Wave Director 2.0 patch: Boss Encounter 2.0, Stage Objectives Pack, arena hazards.
+
+#### Enemy Roles + Counterplay Pack
+
+Every enemy variant carries role metadata (`role`, `role_display_name`, `threat_level`, `counterplay_hint`) and is designed with a distinct visual color, behavior, and readable counterplay.
+
+##### Enemy Roles and Counterplay
+
+| Variant | Role | Threat | Behavior | Counterplay |
+|---------|------|--------|----------|-------------|
+| Grunt | swarmer | 1 | Chase | Easy target; manageable in small groups. |
+| Runner | hunter | 2 | Fast chase | Keep moving; fragile but fast. |
+| Charger | hunter | 2 | Charge windup | Sidestep the charge; vulnerable during cooldown. |
+| Tank | bruiser | 3 | Slow chase | High HP, slow; kite around it. |
+| Shooter | shooter | 3 | Ranged + preferred distance | Break line of sight or close the gap fast. |
+| Exploder | disruptor | 4 | Chase + windup explode | Do not let it reach you; move away from the pulse. |
+| Swarm | swarmer | 2 | Orbit + approach | AoE or keep moving; dangerous in numbers. |
+| Shielded | bruiser | 3 | Chase with shield HP | Burst through shield or use AoE; shield doesn't last. |
+| Support | disruptor | 4 | Buff nearby enemies | Kill it before it buffs the wave. |
+| **Splitter** | swarmer | 3 | Chase + split on death | Kill before it splits; children swarm you. |
+| **Disruptor** | disruptor | 3 | Standoff + pulse damage | Stay out of its pulse radius or prioritize it. |
+
+##### Splitter
+
+The Splitter (yellow-green, unlocks at 240 s) chases the player with `behavior_id = "chase"` and **splits into 2 Grunts on death**. Split children have `is_split_child = true` so they cannot split again. Spawning respects `max_alive_enemies` and is capped at 3 children. Not spawned during the final boss encounter.
+
+##### Disruptor
+
+The Disruptor (bright cyan, unlocks at 300 s) uses `behavior_id = "disruptor"`. It maintains a standoff distance from the player (~140 px) and fires a **cyan pulse** every 3 s. If the player is within `disrupt_radius` (200 px) when the pulse fires, it deals 10 damage. The pulse is telegraphed by a bright color flash. Kill it or maintain distance to avoid damage.
+
+##### Visual Feedback
+
+- **Charger**: yellow windup flash before charge.
+- **Exploder**: scale pulse + orange windup glow during countdown.
+- **Support**: yellow burst when applying buff to nearby enemies.
+- **Shielded**: blue-white hit flash when shield absorbs damage.
+- **Splitter**: yellow-green body; death produces grunt children with standard death burst.
+- **Disruptor**: cyan body; pulses bright cyan before dealing area damage.
+
+##### Wave Package Pacing by Phase
+
+| Phase | Available packages |
+|-------|--------------------|
+| early | early_grunts, runner_pack |
+| build | + bruiser_wall, shooter_screen, charger_rush |
+| pressure | + exploder_pressure, swarm_rush, shielded_push, support_pair |
+| danger | + mixed_late_wave, splitter_wave, disruptor_squad |
+| pre_boss | + chaos_wave (charger + disruptor + splitter mixed) |
+
+Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena hazards.
 
 ### Balance / Cleanup / Production Readiness
 

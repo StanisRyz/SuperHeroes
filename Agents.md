@@ -874,7 +874,7 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - Enemy variants are currently hardcoded dictionaries, not Resources.
 - Enemy variant dictionaries include `behavior_id` and `role`.
 - Spawn interval and max alive enemy limits scale from run time.
-- Grunt is available from run start, Runner opens after about 30 seconds, Charger after about 45 seconds, Tank after about 60 seconds, Shooter after about 75 seconds, Exploder after about 120 seconds, Swarm after about 150 seconds, Shielded after about 180 seconds, and Support after about 210 seconds.
+- Grunt is available from run start, Runner opens after about 30 seconds, Charger after about 45 seconds, Tank after about 60 seconds, Shooter after about 75 seconds, Exploder after about 120 seconds, Swarm after about 150 seconds, Shielded after about 180 seconds, Support after about 210 seconds, Splitter after 240 seconds, and Disruptor after 300 seconds.
 - Variant XP values are copied onto the dropped `ExperienceGem`.
 - Enemies should spawn near the player using `EnemySpawner` ring spawn, but never directly on top of the player.
 
@@ -945,10 +945,74 @@ Phase API:
 
 ### Not Yet Implemented (do not add proactively)
 
-- Enemy Roles Pack (runtime role assignment + role-based AI steering)
 - Stage Objectives Pack (defense / portal objective types)
 - Boss Encounter 2.0
 - Arena hazards
+
+## Enemy Roles + Counterplay
+
+### Role Metadata Fields
+
+Every variant dict in `SpawnDirector._get_available_variants()` carries:
+- `role` — machine-readable role id (swarmer, hunter, bruiser, shooter, disruptor)
+- `role_display_name` — human-readable label
+- `threat_level` — integer 1–5
+- `counterplay_hint` — short hint string
+
+`Enemy.gd` stores `role: String` (set in `apply_variant` when key present). All other metadata keys are informational and stay in the dict only.
+
+### Supported behavior_id Values
+
+| behavior_id | Owner | Description |
+|-------------|-------|-------------|
+| chase | Enemy.gd | Straight-line chase toward player |
+| charger | Enemy.gd | Approach then charge at speed × multiplier with windup |
+| shooter | Enemy.gd | Approach to preferred_distance, stop, fire projectiles |
+| exploder | Enemy.gd | Chase, trigger on proximity, scale-pulse windup, explode |
+| swarm | Enemy.gd | Orbit + approach; alternates between closing and circling |
+| support | Enemy.gd | Stay near enemies; periodically buff speed + damage in radius |
+| disruptor | Enemy.gd | Approach to standoff; pulse cyan + deal area damage every disrupt_interval |
+
+### Splitter Safety Rules
+
+- `split_on_death: bool` and `split_variant_id: String` are @export vars on Enemy.gd read via `apply_variant`.
+- `is_split_child: bool` — when true, the enemy never spawns children on death (prevents recursion).
+- `split_count` is hard-capped at 3 inside `EnemySpawner._spawn_split_children()`.
+- `_spawn_split_children()` checks `_can_spawn()` and `max_alive` before each child — no cap overflow.
+- Split children inherit the full enemy scene with `is_split_child = true` and `split_on_death = false` injected into the variant dict before spawning.
+- Splitter uses `behavior_id = "chase"` — no new behavior needed.
+- Split children are NOT spawned during the final boss encounter (`_can_spawn()` returns false).
+
+### Disruptor Safety Rules
+
+- `behavior_id = "disruptor"` is implemented in `Enemy.gd._tick_disruptor_behavior()`.
+- Maintains `disrupt_standoff` distance from the player; approaches until within standoff, then stops.
+- Every `disrupt_interval` seconds: fires `_fire_disrupt_pulse()` — cyan color flash, then `target.take_damage(disrupt_damage)` if player is within `disrupt_radius`.
+- No slow, no arena hazard, no permanent modifier. Effect is instant and fully avoidable by distance.
+- `_disrupt_pulse_tween` is killed before creating a new one — no tween leak.
+
+### EnemySpawner Split Integration
+
+- `EnemySpawner._on_enemy_died()` reads `split_on_death`, `is_split_child`, `split_variant_id`, `split_count` from the enemy node **before** it is freed.
+- If split is needed, `call_deferred("_spawn_split_children", position, variant_id, count)` runs after the death feedback.
+- `_spawn_split_children()` calls `spawn_director.get_enemy_variant_by_id(variant_id)` — always succeeds for "grunt" since `get_enemy_variant_by_id` passes `9999.0` seconds.
+- Split children go through the normal `_spawn_enemy_with_variant()` path: they get XP gems, death bursts, and powerup rolls like any other enemy. Split children are not guaranteed powerup drops.
+
+### DebugStatsOverlay Role Counts
+
+`EnemySpawner.debug_get_spawn_state()` now includes `role_counts: Dictionary` — maps role string → alive count by iterating `enemy_container` children. `DebugStatsOverlay` shows this as `Roles: swarm:3  hunt:2  brus:1` (truncated to 4 chars). Safe if enemy_container is invalid.
+
+### SpawnDirector Wave Packages for Roles
+
+New packages added alongside the existing ones:
+- `charger_rush` — hunter; build+ phase; cooldown 16 s
+- `splitter_wave` — swarmer; danger+ phase; cooldown 22 s; budget 3.0
+- `disruptor_squad` — disruptor; danger+ phase; cooldown 20 s; budget 2.5
+- `chaos_wave` — mixed (charger+disruptor+splitter); pre_boss only; cooldown 28 s; budget 3.5
+
+### No Arena Hazards
+
+Do not add arena hazards in this project. Disruptor, Exploder, and Support create temporary in-game pressure via behavioral effects — they are not persistent world objects.
 
 ## Enemy Behavior Notes
 
