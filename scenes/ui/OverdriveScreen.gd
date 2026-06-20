@@ -51,7 +51,7 @@ func _format_card(triple: Dictionary) -> String:
 		var line_title := str(line_data.get("title", line_data.get("id", "")))
 		var cur := int(line_data.get("current_level", 0))
 		var max_lvl := int(line_data.get("max_level", 1))
-		var state := "MAXED" if bool(line_data.get("maxed", false)) else ("SELECTED" if bool(line_data.get("selected", false)) else "MISSING")
+		var state := _format_line_state(line_data)
 		line_parts.append("%s: %s  %d/%d  %s" % [category, line_title, cur, max_lvl, state])
 
 	var lines_str := ""
@@ -73,6 +73,14 @@ func _format_title(value: String) -> String:
 	for index in range(words.size()):
 		words[index] = str(words[index]).capitalize()
 	return " ".join(words)
+
+
+func _format_line_state(line_data: Dictionary) -> String:
+	if bool(line_data.get("maxed", false)):
+		return "MAXED"
+	if bool(line_data.get("selected", false)):
+		return "MAX REQUIRED"
+	return "MISSING"
 
 
 func _build_ui() -> void:

@@ -687,6 +687,73 @@ func get_overdrive_options() -> Array[Dictionary]:
 		result.append(merged)
 	return result
 
+
+func get_triples_for_upgrade_line(line_id: String) -> Array:
+	var hero_id := str(_hero_data.get("id", ""))
+	var result: Array = []
+	if line_id.is_empty():
+		return result
+	for triple in _triple_definitions:
+		if not hero_id.is_empty() and str(triple.get("hero_id", "")) != hero_id:
+			continue
+		if not _triple_contains_line(triple, line_id):
+			continue
+		var state := _compute_triple_state(triple)
+		var merged := _merge_triple_state(triple, state)
+		if not _is_evolution_offerable(merged):
+			continue
+		result.append(_build_progress_info_for_triple(merged, line_id))
+	return result
+
+
+func get_synergy_info_for_upgrade_line(line_id: String) -> Dictionary:
+	var triples := get_triples_for_upgrade_line(line_id)
+	if triples.is_empty():
+		return {}
+	var closest := _find_closest_progress(triples)
+	if closest.is_empty():
+		return triples[0] as Dictionary
+	return closest
+
+
+func get_evolution_progress_for_upgrade_line(line_id: String) -> Dictionary:
+	return get_synergy_info_for_upgrade_line(line_id)
+
+
+func get_evolution_grid_display_state(hero_id: String = "") -> Dictionary:
+	var resolved_hero_id := hero_id
+	if resolved_hero_id.is_empty():
+		resolved_hero_id = str(_hero_data.get("id", ""))
+	var triple_states := get_triple_state(resolved_hero_id)
+	var all_progress: Array[Dictionary] = []
+	var ready_entries: Array[Dictionary] = []
+	for triple_id in triple_states:
+		var raw: Dictionary = triple_states[triple_id]
+		var triple := _get_triple_by_evolution_id(str(raw.get("evolution_id", "")))
+		if triple.is_empty():
+			continue
+		var merged := _merge_triple_state(triple, raw)
+		if not _is_evolution_offerable(merged):
+			continue
+		var info := _build_progress_info_for_triple(merged, "")
+		all_progress.append(info)
+		if str(info.get("state", "")) == TRIPLE_STATE_READY:
+			ready_entries.append(info)
+	return {
+		"hero_id": resolved_hero_id,
+		"selected_titles": get_applied_evolution_titles(),
+		"selected_ids": get_applied_evolutions(),
+		"selected_count": _selected_evolutions.size(),
+		"ready_count": ready_entries.size(),
+		"ready": ready_entries,
+		"closest": _find_closest_progress(all_progress),
+		"progress": all_progress,
+		"type_counts": get_evolution_type_counts(resolved_hero_id),
+		"ready_type_counts": get_ready_evolution_type_counts(resolved_hero_id),
+		"selected_type_counts": get_selected_evolution_type_counts(resolved_hero_id),
+	}
+
+
 func get_applied_evolutions() -> Array[String]:
 	return _selected_evolutions.duplicate()
 
@@ -830,6 +897,77 @@ func _merge_triple_state(triple: Dictionary, state: Dictionary) -> Dictionary:
 	merged["target_id"] = get_evolution_target_id(merged)
 	merged["id"] = str(merged.get("evolution_id", ""))
 	return merged
+
+
+func _build_progress_info_for_triple(triple: Dictionary, focus_line_id: String) -> Dictionary:
+	var required_lines: Array = triple.get("required_lines", [])
+	var missing_titles: Array[String] = []
+	var synergy_titles: Array[String] = []
+	var selected_count := int(triple.get("selected_lines_count", 0))
+	var maxed_count := int(triple.get("maxed_lines_count", 0))
+	var helps := focus_line_id.is_empty()
+	for line_data: Dictionary in required_lines:
+		var title := str(line_data.get("title", line_data.get("id", "")))
+		var line_id := str(line_data.get("id", ""))
+		if line_id != focus_line_id:
+			synergy_titles.append(title)
+		else:
+			helps = true
+		if not bool(line_data.get("selected", false)) or not bool(line_data.get("maxed", false)):
+			missing_titles.append("%s Lv %d/%d" % [
+				title,
+				int(line_data.get("current_level", 0)),
+				int(line_data.get("max_level", 1)),
+			])
+	var state := str(triple.get("state", TRIPLE_STATE_LOCKED))
+	var ready_after_max := (
+		helps
+		and not focus_line_id.is_empty()
+		and selected_count >= 2
+		and maxed_count >= 2
+		and state != TRIPLE_STATE_SELECTED
+	)
+	return {
+		"triple_id": str(triple.get("triple_id", "")),
+		"evolution_id": str(triple.get("evolution_id", "")),
+		"evolution_title": str(triple.get("title", "")),
+		"target_type": get_evolution_target_type(triple),
+		"target_id": get_evolution_target_id(triple),
+		"state": state,
+		"selected_lines_count": selected_count,
+		"maxed_lines_count": maxed_count,
+		"required_lines": required_lines,
+		"missing_line_titles": missing_titles,
+		"synergy_line_titles": synergy_titles,
+		"helps_evolution": helps,
+		"synergy_evolution_title": str(triple.get("title", "")),
+		"synergy_target_type": get_evolution_target_type(triple).to_upper(),
+		"synergy_progress": "%d/3 lines, %d/3 max" % [selected_count, maxed_count],
+		"synergy_with": synergy_titles,
+		"synergy_missing": missing_titles,
+		"synergy_ready_after_max": ready_after_max,
+	}
+
+
+func _triple_contains_line(triple: Dictionary, line_id: String) -> bool:
+	return (
+		str(triple.get("attack_line_id", "")) == line_id
+		or str(triple.get("passive_line_id", "")) == line_id
+		or str(triple.get("active_line_id", "")) == line_id
+	)
+
+
+func _find_closest_progress(progress_entries: Array) -> Dictionary:
+	var best: Dictionary = {}
+	var best_score := -1
+	for entry in progress_entries:
+		if str(entry.get("state", "")) == TRIPLE_STATE_SELECTED:
+			continue
+		var score := int(entry.get("selected_lines_count", 0)) * 10 + int(entry.get("maxed_lines_count", 0))
+		if score > best_score:
+			best_score = score
+			best = entry
+	return best
 
 
 func _is_evolution_offerable(triple: Dictionary) -> bool:

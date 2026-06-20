@@ -21,6 +21,7 @@ var _slot_rows: Dictionary = {}
 var _evolution_label: Label = null
 var _evolution_ready_label: Label = null
 var _evolution_closest_label: Label = null
+var _evolution_progress_label: Label = null
 
 
 func _ready() -> void:
@@ -149,6 +150,12 @@ func _build_ui() -> void:
 	_evolution_closest_label.modulate = Color(0.78, 0.82, 0.92, 1.0)
 	main.add_child(_evolution_closest_label)
 
+	_evolution_progress_label = Label.new()
+	_evolution_progress_label.name = "EvolutionProgressLabel"
+	_evolution_progress_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_evolution_progress_label.modulate = Color(0.88, 0.9, 0.96, 1.0)
+	main.add_child(_evolution_progress_label)
+
 
 func _create_section(category: String) -> Control:
 	var section := VBoxContainer.new()
@@ -222,7 +229,25 @@ func _format_upgrade_line(upgrade_id: String) -> String:
 	var title := str(summary.get("title", upgrade_id))
 	var current_level := int(summary.get("current_level", 0))
 	var max_level := int(summary.get("max_level", 1))
-	return "%s  Lv %d/%d" % [title, current_level, max_level]
+	var hint := _format_line_evolution_hint(upgrade_id)
+	if hint.is_empty():
+		return "%s  Lv %d/%d" % [title, current_level, max_level]
+	return "%s  Lv %d/%d -> %s" % [title, current_level, max_level, hint]
+
+
+func _format_line_evolution_hint(upgrade_id: String) -> String:
+	if _evolution_manager == null or not _evolution_manager.has_method("get_synergy_info_for_upgrade_line"):
+		return ""
+	var info: Dictionary = _evolution_manager.get_synergy_info_for_upgrade_line(upgrade_id)
+	if info.is_empty():
+		return ""
+	var title := str(info.get("evolution_title", info.get("synergy_evolution_title", "")))
+	var state := str(info.get("state", ""))
+	if state == "ready":
+		return "READY: %s" % title
+	if state == "selected":
+		return "Selected: %s" % title
+	return "%s %d/3" % [title, int(info.get("selected_lines_count", 0))]
 
 
 func _on_build_changed(_dominant_archetype: String, _points: Dictionary) -> void:
@@ -236,29 +261,70 @@ func _on_evolution_state_changed() -> void:
 
 
 func _update_evolution_label() -> void:
-	if _evolution_label == null or _evolution_ready_label == null or _evolution_closest_label == null:
+	if _evolution_label == null or _evolution_ready_label == null or _evolution_closest_label == null or _evolution_progress_label == null:
 		return
 	if _evolution_manager == null:
 		_evolution_label.text = "Evolutions: None"
 		_evolution_ready_label.text = "Ready: 0"
 		_evolution_closest_label.text = "Closest: none"
+		_evolution_progress_label.text = ""
 		return
 	var titles: Array = []
 	if _evolution_manager.has_method("get_applied_evolution_titles"):
 		titles = _evolution_manager.get_applied_evolution_titles()
 	_evolution_label.text = "Evolutions: %s" % (", ".join(titles) if not titles.is_empty() else "None")
-	if _evolution_manager.has_method("debug_get_evolution_grid_state"):
-		var state: Dictionary = _evolution_manager.debug_get_evolution_grid_state()
+	if _evolution_manager.has_method("get_evolution_grid_display_state"):
+		var state: Dictionary = _evolution_manager.get_evolution_grid_display_state()
 		_evolution_ready_label.text = "Ready: %d   Selected: %d" % [int(state.get("ready_count", 0)), int(state.get("selected_count", 0))]
-		var closest: Dictionary = state.get("closest_triple", {})
+		var closest: Dictionary = state.get("closest", {})
 		if closest.is_empty():
 			_evolution_closest_label.text = "Closest: none"
 		else:
 			_evolution_closest_label.text = "Closest: %s  %d/3 lines  %d/3 max" % [
-				str(closest.get("title", "?")),
+				str(closest.get("evolution_title", "?")),
 				int(closest.get("selected_lines_count", 0)),
 				int(closest.get("maxed_lines_count", 0)),
 			]
+		_evolution_progress_label.text = _format_progress_block(state)
 	else:
 		_evolution_ready_label.text = "Ready: 0"
 		_evolution_closest_label.text = "Closest: unavailable"
+		_evolution_progress_label.text = ""
+
+
+func _format_progress_block(state: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	var ready_entries: Array = state.get("ready", [])
+	if not ready_entries.is_empty():
+		var ready_titles: PackedStringArray = []
+		for entry in ready_entries:
+			ready_titles.append("%s [%s]" % [str(entry.get("evolution_title", "?")), str(entry.get("target_type", "")).to_upper()])
+		lines.append("Ready: %s" % ", ".join(ready_titles))
+	var progress: Array = state.get("progress", [])
+	var shown := 0
+	for entry in progress:
+		if shown >= 4:
+			break
+		var entry_state := str(entry.get("state", ""))
+		if entry_state == "locked" or entry_state == "selected":
+			continue
+		lines.append("%s [%s] %d/3 lines, %d/3 max" % [
+			str(entry.get("evolution_title", "?")),
+			str(entry.get("target_type", "")).to_upper(),
+			int(entry.get("selected_lines_count", 0)),
+			int(entry.get("maxed_lines_count", 0)),
+		])
+		var missing: Array = entry.get("synergy_missing", [])
+		if not missing.is_empty():
+			lines.append("  Needs: %s" % _format_compact_list(missing, 3))
+		shown += 1
+	return "\n".join(lines)
+
+
+func _format_compact_list(values: Array, limit: int) -> String:
+	var parts: PackedStringArray = []
+	for index in range(mini(values.size(), limit)):
+		parts.append(str(values[index]))
+	if values.size() > limit:
+		parts.append("+%d" % (values.size() - limit))
+	return ", ".join(parts)

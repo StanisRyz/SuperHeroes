@@ -71,7 +71,40 @@ func _format_option_text(option: Dictionary) -> String:
 	var level_line := "Lv %d  →  %d / %d" % [level, mini(level + 1, max_level), max_level]
 
 	var slot_line := _format_slot_line(slot_category, category_slots_used, category_slots_max, is_new_line)
-	return "%s\n%s%s\n%s\n%s\n%s" % [title, rarity_line, markers, slot_line, level_line, description]
+	var synergy_line := _format_evolution_synergy(option)
+	if synergy_line.is_empty():
+		return "%s\n%s%s\n%s\n%s\n%s" % [title, rarity_line, markers, slot_line, level_line, description]
+	return "%s\n%s%s\n%s\n%s\n%s\n%s" % [title, rarity_line, markers, slot_line, level_line, description, synergy_line]
+
+
+func _format_evolution_synergy(option: Dictionary) -> String:
+	var synergy: Dictionary = option.get("evolution_synergy", {})
+	if synergy.is_empty():
+		return ""
+	var title := str(synergy.get("synergy_evolution_title", ""))
+	if title.is_empty():
+		return ""
+	var target_type := str(synergy.get("synergy_target_type", "")).to_upper()
+	var progress := str(synergy.get("synergy_progress", ""))
+	var with_lines: Array = synergy.get("synergy_with", [])
+	var missing_lines: Array = synergy.get("synergy_missing", [])
+	var status := str(synergy.get("state", ""))
+	if status == "ready":
+		return "Evolution: READY %s [%s]  %s" % [title, target_type, progress]
+	if status == "selected":
+		return "Evolution: Selected %s [%s]" % [title, target_type]
+	if not missing_lines.is_empty():
+		return "Evolution: %s [%s]  %s\nNeeds: %s" % [title, target_type, progress, _format_title_list(missing_lines, 2)]
+	return "Evolution: %s [%s]  %s\nSynergy: %s" % [title, target_type, progress, _format_title_list(with_lines, 2)]
+
+
+func _format_title_list(values: Array, limit: int) -> String:
+	var parts: PackedStringArray = []
+	for index in range(mini(values.size(), limit)):
+		parts.append(str(values[index]))
+	if values.size() > limit:
+		parts.append("+%d" % (values.size() - limit))
+	return " + ".join(parts)
 
 
 func _format_slot_line(slot_category: String, used: int, max_slots: int, is_new_line: bool) -> String:

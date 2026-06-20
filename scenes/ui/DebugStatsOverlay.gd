@@ -313,6 +313,14 @@ func _build_stats_text() -> String:
 				lines.append("Closest: %s [%s] %d/3 sel %d/3 max" % [
 					str(closest.get("title", "?")), state, sel, maxed
 				])
+			if _evolution_manager.has_method("get_evolution_grid_display_state"):
+				var display_state: Dictionary = _evolution_manager.get_evolution_grid_display_state()
+				var planning: Dictionary = display_state.get("closest", {})
+				if not planning.is_empty():
+					lines.append("Plan: %s %s" % [
+						str(planning.get("evolution_title", "?")),
+						str(planning.get("synergy_progress", "")),
+					])
 		elif _evolution_manager.has_method("debug_get_evolution_state"):
 			var evo: Dictionary = _evolution_manager.debug_get_evolution_state()
 			lines.append("Ready: %d  Selected: %d" % [int(evo.get("ready_count", 0)), int(evo.get("selected_count", 0))])

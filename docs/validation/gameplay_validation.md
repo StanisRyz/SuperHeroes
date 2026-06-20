@@ -1177,6 +1177,18 @@ DEBUG_PLAYER: invulnerable=true
 | 9 | Win, die, restart, or quit while Overdrive is visible | Overdrive closes safely and no evolution state is saved |
 | 10 | Inspect scope | No new evolution categories, hero kits, slot rules, saves, rewards, stage objectives, enemies, boss flow, or meta progression changes |
 
+### Evolution Progress UI / Synergy Hints
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Trigger LevelUpScreen with upgrades that contribute to an evolution triple | Cards keep the original title/rarity/slot/level/description layout and append a compact Evolution hint with target type and 3/3 progress |
+| 2 | Trigger LevelUpScreen with a line that would complete or ready a triple | Hint clearly shows READY or missing line/max requirements without changing the offered upgrade id |
+| 3 | Open Build Slots Window with selected attack/passive/active lines | Filled slot rows can show compact evolution path hints, and empty slots remain unchanged |
+| 4 | Open Build Slots Window with ready and partial triples | Evolution section shows selected titles, ready count, selected count, closest progress, and compact ready/progress lines |
+| 5 | Enable DebugStatsOverlay during a partial evolution build | Overlay continues to show evolution counts and adds a read-only planning line for closest progress |
+| 6 | Select upgrades normally after hints appear | UpgradeManager applies the same upgrade effects and slot rules as before; hints do not select evolutions or mutate build state |
+| 7 | Inspect scope and save behavior | No new evolutions, requirement changes, balance changes, 4/4/4 slot changes, saves, rewards, stages, enemies, boss flow, or meta progression changes |
+
 ---
 
 ## Solar Guardian Full Kit Rework

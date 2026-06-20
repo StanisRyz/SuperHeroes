@@ -396,7 +396,27 @@ func _on_player_level_up_available(_level: int) -> void:
 	_reset_mobile_controls()
 	if audio_manager != null and audio_manager.has_method("play_level_up"):
 		audio_manager.play_level_up()
-	level_up_screen.show_options(upgrade_manager.get_upgrade_options(3))
+	level_up_screen.show_options(_enrich_upgrade_options_with_evolution_hints(upgrade_manager.get_upgrade_options(3)))
+
+
+func _enrich_upgrade_options_with_evolution_hints(options: Array[Dictionary]) -> Array[Dictionary]:
+	if evolution_manager == null or not evolution_manager.has_method("get_synergy_info_for_upgrade_line"):
+		return options
+	var enriched: Array[Dictionary] = []
+	for option in options:
+		var copy := option.duplicate(true)
+		var line_id := str(copy.get("upgrade_line_id", copy.get("id", "")))
+		var info: Dictionary = evolution_manager.get_synergy_info_for_upgrade_line(line_id)
+		if not info.is_empty() and bool(info.get("helps_evolution", false)):
+			copy["evolution_synergy"] = info
+			copy["synergy_evolution_title"] = str(info.get("synergy_evolution_title", ""))
+			copy["synergy_target_type"] = str(info.get("synergy_target_type", ""))
+			copy["synergy_progress"] = str(info.get("synergy_progress", ""))
+			copy["synergy_with"] = info.get("synergy_with", [])
+			copy["synergy_missing"] = info.get("synergy_missing", [])
+			copy["synergy_ready_after_max"] = bool(info.get("synergy_ready_after_max", false))
+		enriched.append(copy)
+	return enriched
 
 
 func _on_upgrade_selected(upgrade_id: String) -> void:

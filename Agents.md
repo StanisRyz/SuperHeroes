@@ -14,7 +14,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/heroes/HeroDataProvider.gd` - dictionary-backed Guardian / Blaster / Vanguard definitions.
 - `scenes/heroes/HeroApplier.gd` - run-only helper for applying selected hero stats to Player, AutoAttack, and AbilityManager.
 - `scenes/evolution/EvolutionManager.tscn` - runtime evolution manager scene.
-- `scenes/evolution/EvolutionManager.gd` - evolution definitions, prerequisites, effects, and applied run state.
+- `scenes/evolution/EvolutionManager.gd` - evolution definitions, prerequisites, effects, applied run state, and read-only evolution progress/synergy hint data for UI.
 - `scenes/settings/SettingsManager.tscn` - local settings manager scene.
 - `scenes/settings/SettingsManager.gd` - `user://settings.cfg` load/save helper for settings only.
 - `scenes/preferences/UserPreferencesManager.tscn` - local non-gameplay user preferences manager scene.
@@ -63,7 +63,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MobileControls.tscn` - mobile virtual joystick and 3 ability buttons scene; Pause and Build buttons stay visible for desktop/mobile run UI.
 - `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source (ability_1/2/3_pressed), plus pause_pressed and build_slots_pressed intent signals.
 - `scenes/ui/BuildSlotsWindow.tscn` - in-run read-only Build Slots window CanvasLayer.
-- `scenes/ui/BuildSlotsWindow.gd` - display-only slot overview; reads UpgradeManager slot state and definition summaries, shows 4 Attack / 4 Passive / 4 Active rows, emits closed.
+- `scenes/ui/BuildSlotsWindow.gd` - display-only slot overview; reads UpgradeManager slot state, definition summaries, and read-only evolution progress hints; shows 4 Attack / 4 Passive / 4 Active rows, emits closed.
 - `scenes/ui/MainMenu.tscn` - frontend main menu scene.
 - `scenes/ui/MainMenu.gd` - main menu start, settings, training, help, and quit intent signals.
 - `scenes/ui/ControlsHelpOverlay.tscn` - reusable help and controls CanvasLayer scene.
@@ -84,7 +84,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/DebugOverlay.tscn` - simple DEBUG ON overlay scene.
 - `scenes/ui/DebugOverlay.gd` - debug overlay visibility binding.
 - `scenes/ui/LevelUpScreen.tscn` - pause-time upgrade selection UI.
-- `scenes/ui/LevelUpScreen.gd` - displays options and emits selected upgrade IDs.
+- `scenes/ui/LevelUpScreen.gd` - displays options, including read-only evolution synergy hints when Arena supplies them, and emits selected upgrade IDs.
 - `scenes/ui/GameOverScreen.tscn` - pause-time game over UI.
 - `scenes/ui/GameOverScreen.gd` - displays run stats and emits restart requests.
 - `scenes/player/Player.tscn` - player scene with camera.
@@ -422,8 +422,10 @@ Each triple definition contains:
 
 - **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) is runtime-instantiated by Arena. It shows the evolution type label (ATTACK / ACTIVE / PASSIVE EVOLUTION), target type/name, title, description, required-line titles, current/max levels, and selected/maxed state. Keep the screen scrollable and readable in mobile landscape.
 - `EvolutionManager.get_overdrive_options()` returns READY, not-yet-selected triples for the active hero, filtered to `effect_status: "implemented"` only.
+- `EvolutionManager.get_synergy_info_for_upgrade_line(line_id)` and `get_evolution_grid_display_state(hero_id = "")` are read-only UI planning APIs. They may expose matching triples, missing line titles, ready/selected counts, target type, and closest progress, but must not apply effects, select upgrades, alter slot state, save data, or change eligibility rules.
+- Arena may enrich LevelUpScreen option dictionaries with `evolution_synergy` hint data immediately before display. LevelUpScreen must treat those fields as display-only and still emit the original upgrade id.
 - DebugStatsOverlay shows ready/selected totals, Attack / Active / Passive target and selected counts, selected attack evolution ids from `PlayerAutoAttack.debug_get_attack_evolutions()`, and selected passive evolution ids/titles from `PassiveAbilityManager.get_passive_state()`.
-- BuildSlotsWindow remains read-only slot display. It may show applied evolution titles, ready count, selected count, and closest triple progress, but must not mutate evolution state or slot rules.
+- BuildSlotsWindow remains read-only slot display. It may show applied evolution titles, ready count, selected count, closest triple progress, per-slot evolution hints, and compact progress/ready blocks, but must not mutate evolution state or slot rules.
 - OverdriveScreen is blocking: no skip/close-without-selection while visible.
 - Arena must block BuildSlotsWindow/PauseMenu interaction while OverdriveScreen is visible and close OverdriveScreen on victory, defeat, restart, and quit-to-menu. Evolution state is never persisted.
 
@@ -823,8 +825,8 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `GameHUD` connects to `build_changed` via `setup_upgrade_manager(upgrade_manager)` and displays "Build: Archetype" or "Build: Mixed".
 - Arena calls `hud.setup_upgrade_manager(upgrade_manager)` inside `_setup_level_up_flow` after `upgrade_manager.setup(...)`.
 - UpgradeManager remains the owner of the upgrade pool and all run build state.
-- Arena coordinates the level-up flow; LevelUpScreen and GameHUD are display-only.
-- `BuildSlotsWindow` is display-only and reads `UpgradeManager.get_slot_state()` plus `get_upgrade_definition_summary(upgrade_id)`; it must not parse history manually or mutate upgrade state.
+- Arena coordinates the level-up flow; LevelUpScreen and GameHUD are display-only. Arena may attach read-only evolution hint dictionaries to upgrade options after `UpgradeManager.get_upgrade_options()` returns them, but this must not alter option selection, weights, prerequisites, slot usage, or upgrade ids.
+- `BuildSlotsWindow` is display-only and reads `UpgradeManager.get_slot_state()` plus `get_upgrade_definition_summary(upgrade_id)`; it may also read `EvolutionManager` progress hint APIs for labels, but it must not parse history manually or mutate upgrade/evolution state.
 - Arena owns BuildSlotsWindow setup/open/close, modal blocking, and pause/resume safety. Opening the window pauses active gameplay; closing resumes only when no other blocking modal is open.
 - MobileControls only emits `build_slots_pressed`; it must not inspect or mutate build state.
 - Pause/Build buttons stay visible on desktop and mobile. Joystick, dash, and ability buttons remain touch/forced-mobile controls.
