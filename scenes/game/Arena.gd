@@ -308,7 +308,7 @@ func _setup_spawn_director() -> void:
 	if spawn_director == null:
 		push_warning("Arena could not find SpawnDirector node.")
 	elif spawn_director.has_method("setup"):
-		spawn_director.setup(run_manager)
+		spawn_director.setup(run_manager, event_announcement)
 	else:
 		push_warning("SpawnDirector does not implement setup(run_manager).")
 

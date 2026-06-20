@@ -1385,3 +1385,90 @@ DEBUG_PLAYER: invulnerable=true
 | 3 | Player.damage_reduction for non-blaster heroes | Always 0; no smoke screen sets it; no damage reduction applied |
 | 4 | Shared passive skills (shield, speed, haste) | Unchanged; apply to all heroes including Night Tactician |
 | 5 | Inspect diff | 4/4/4 slot rules, Build Slots Window, stage objectives, enemies, boss flow, rewards, saves, meta economy, Build Evolution unchanged |
+
+---
+
+## Run Director / Wave Director 2.0
+
+### Phase Progression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a run with Debug Mode ON | DebugStatsOverlay Spawner section shows `Phase: early  Profile: <stage>` |
+| 2 | Let run reach 120 s | Phase changes to `build`; `Budget:` value resets and reflects build budget |
+| 3 | Let run reach 240 s, 360 s, 480 s | Phase changes to `pressure`, `danger`, `pre_boss` in sequence |
+| 4 | Observe spawn feel in early phase (0–120 s) | Enemies spawn slowly and readably; wave packages are only early_grunts and runner_pack |
+| 5 | Observe spawn feel at 360 s+ (danger/pre_boss) | Noticeably more enemies; waves include support_pair and mixed_late_wave; intensity is clearly higher than early |
+
+### Wave Budget
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable `spawn_debug_logging = true`, watch wave packages at 0–120 s | Only cheap packages (budget_cost ≤ 2.5) selected; no support_pair or mixed_late_wave |
+| 2 | Same logging at 360 s+ (danger phase, budget 6.0) | Expensive packages (support_pair, mixed_late_wave) can now appear |
+| 3 | Observe DebugStatsOverlay Budget counter during a run | Value decreases as waves fire; visible reset when phase changes |
+
+### Wave Interval
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Watch WaveEvery in DebugStatsOverlay at run start | Shows ~14 s (early phase) |
+| 2 | Watch WaveEvery at 480 s+ (pre_boss) | Shows ~8 s |
+| 3 | Verify no wave stacking | Each wave fires after the previous; no overlapping bursts |
+
+### Spawn Pressure
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Watch Interval in DebugStatsOverlay at run start | Shows ~2.0 s (early phase, slow) |
+| 2 | Watch Interval at 480 s+ | Interval shorter; approaches hard floor ~0.20 s under extreme pressure |
+| 3 | Activate an event modifier that boosts spawn_pressure | Interval decreases further; never drops below 0.20 s |
+
+### Stage Profile Compatibility
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Play City Rooftop (balanced) run | Package mix is spread; bruiser_wall and mixed_late_wave slightly more common |
+| 2 | Play Neon Lab (ranged_support) run | shooter_screen and support_pair appear more frequently |
+| 3 | Play Wasteland Gate (swarm_exploder) run | swarm_rush and exploder_pressure dominate wave packages |
+| 4 | Change stage and restart | Profile resets correctly; no stale bonuses from previous stage |
+
+### Package Cooldown
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable spawn_debug_logging and observe same package appearing | Same package id does not repeat back-to-back before its cooldown expires |
+| 2 | Watch over 3+ minutes | Package variety evident; no single package spam |
+
+### Max Alive Cap
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Let enemies accumulate near cap, then watch a wave fire | Wave package skips some enemies to stay within cap; no cap overflow visible |
+| 2 | MaxAlive value in DebugStatsOverlay scales over run time | Starts at lower value, grows toward cap over the first 5 minutes |
+
+### Wave Warnings
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Let a high-intensity package fire (swarm_rush, exploder_pressure) during pressure/danger phase | EventAnnouncement briefly shows warning text; no crash if text never appears |
+| 2 | Trigger rapid wave packages in danger/pre_boss | Warning appears at most once every 12 s; no warning spam |
+| 3 | Disconnect or null event_announcement reference (test only) | No crash; waves continue normally without warnings |
+
+### Debug Overlay Completeness
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Enable Debug Mode and check Spawner section | Shows Phase, Profile, MaxAlive, Budget, Interval, WaveEvery, Last pkg; all fields present |
+| 2 | Start run before SpawnDirector is wired | No crash; overlay shows Spawner: null or partial state |
+| 3 | Change phase mid-run | Phase and Budget update within one DebugStatsOverlay refresh cycle |
+
+### Scope Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Inspect diff for hero kit files | No changes to hero kits, autoattack, or ability logic |
+| 2 | Inspect diff for upgrade/evolution/overdrive files | No changes |
+| 3 | Inspect diff for save/meta/rewards files | No changes |
+| 4 | Check miniboss and final boss flow | Triggered by EventDirector as before; wave packages never spawn a miniboss |
+| 5 | Inspect diff | No Enemy Roles Pack, Stage Objectives Pack, Boss Encounter 2.0, or arena hazards added |

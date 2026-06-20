@@ -386,9 +386,14 @@ func _build_stats_text() -> String:
 		lines.append("-- Spawner --")
 		if _enemy_spawner.has_method("debug_get_spawn_state"):
 			var spawn: Dictionary = _enemy_spawner.debug_get_spawn_state()
-			lines.append("Profile: %s  MaxAlive: %d" % [
-				spawn.get("stage_profile", "?"),
+			var phase_str: String = str(spawn.get("phase", ""))
+			if phase_str != "":
+				lines.append("Phase: %-8s  Profile: %s" % [phase_str, spawn.get("stage_profile", "?")])
+			else:
+				lines.append("Profile: %s" % spawn.get("stage_profile", "?"))
+			lines.append("MaxAlive: %d  Budget: %.1f" % [
 				int(spawn.get("max_alive_enemies", 0)),
+				float(spawn.get("wave_budget", 0.0)),
 			])
 			lines.append("Interval: %.2f  WaveEvery: %.0fs" % [
 				float(spawn.get("spawn_interval", 0.0)),

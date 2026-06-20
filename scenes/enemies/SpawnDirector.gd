@@ -9,23 +9,96 @@ extends Node
 
 const BASE_SPAWN_INTERVAL := 1.5
 const MIN_SPAWN_INTERVAL := 0.45
+const MIN_SPAWN_INTERVAL_HARD := 0.20   # absolute floor when phase + event pressure compound
 const BASE_MAX_ALIVE_ENEMIES := 12
 const MAX_ALIVE_ENEMIES := 60
+const WAVE_WARNING_COOLDOWN := 12.0     # minimum seconds between wave warning announcements
+
+# --- Run Phases ---
+# Five named phases spanning the 10-minute run.
+# spawn_pressure_multiplier > 1 = faster spawning; < 1 = slower spawning.
+# wave_interval_multiplier  > 1 = longer between wave packages; < 1 = shorter.
+const RUN_PHASES: Array = [
+	{
+		"id": "early",
+		"start_time": 0.0,
+		"spawn_pressure_multiplier": 0.75,
+		"max_alive_multiplier": 1.0,
+		"wave_interval_multiplier": 1.3,
+		"preferred_roles": ["swarmer", "hunter"],
+		"warning_text": "",
+	},
+	{
+		"id": "build",
+		"start_time": 120.0,
+		"spawn_pressure_multiplier": 0.9,
+		"max_alive_multiplier": 1.0,
+		"wave_interval_multiplier": 1.1,
+		"preferred_roles": ["swarmer", "hunter", "bruiser"],
+		"warning_text": "",
+	},
+	{
+		"id": "pressure",
+		"start_time": 240.0,
+		"spawn_pressure_multiplier": 1.1,
+		"max_alive_multiplier": 1.0,
+		"wave_interval_multiplier": 0.95,
+		"preferred_roles": ["bruiser", "shooter", "disruptor"],
+		"warning_text": "",
+	},
+	{
+		"id": "danger",
+		"start_time": 360.0,
+		"spawn_pressure_multiplier": 1.3,
+		"max_alive_multiplier": 1.0,
+		"wave_interval_multiplier": 0.85,
+		"preferred_roles": ["shooter", "disruptor", "mixed"],
+		"warning_text": "",
+	},
+	{
+		"id": "pre_boss",
+		"start_time": 480.0,
+		"spawn_pressure_multiplier": 1.5,
+		"max_alive_multiplier": 1.0,
+		"wave_interval_multiplier": 0.75,
+		"preferred_roles": ["disruptor", "mixed", "bruiser"],
+		"warning_text": "",
+	},
+]
+
+# Maximum total budget cost per wave pick.  Higher phases allow more expensive packages.
+const PHASE_WAVE_BUDGETS: Dictionary = {
+	"early": 2.5,
+	"build": 3.5,
+	"pressure": 5.0,
+	"danger": 6.0,
+	"pre_boss": 6.0,
+}
 
 var run_manager: Node
 var active_event_modifiers: Dictionary = {}
 var _stage_profile: String = "balanced"
 var _last_wave_package_id: String = ""
+var _event_announcement: Node = null
+var _wave_budget_remaining: float = 6.0
+var _package_last_fired: Dictionary = {}   # package_id -> run_time when last selected
+var _last_warning_time: float = -999.0
 
 var _stage_profile_weight_bonuses: Dictionary = {
 	"ranged_support": {"shooter": 1.25, "support": 1.25},
-	"swarm_exploder": {"exploder": 1.3, "swarm": 1.3},
+	"swarm_exploder":  {"exploder": 1.3,  "swarm":   1.3},
+	"defense_pressure": {"tank": 1.15, "shielded": 1.2},
+	"portal_pressure":  {"runner": 1.2, "exploder": 1.15},
 }
 
 # Wave packages — each defines a role-themed burst of enemies.
-# variant_pool: ids to pick from; min/max_count: how many to spawn.
-# weight: selection probability; unlock_time: seconds before package is available.
-# profile_bonus: per stage-profile weight multiplier (stacks with base weight).
+# phase_weights : per-phase weight multiplier (stacks with base weight and profile_bonus).
+# budget_cost   : how much of the phase wave budget this package consumes.
+# min_phase     : earliest phase this package may appear ("" = any).
+# max_phase     : latest  phase this package may appear  ("" = any).
+# warning_level : 0 = silent; 1 = minor announcement; 2 = major announcement.
+# warning_text  : text shown when warning_level >= 1.
+# package_cooldown : minimum seconds before the same package fires again.
 const WAVE_PACKAGES: Array = [
 	{
 		"id": "early_grunts",
@@ -35,6 +108,13 @@ const WAVE_PACKAGES: Array = [
 		"weight": 1.2,
 		"unlock_time": 0.0,
 		"profile_bonus": {},
+		"phase_weights": {"early": 1.5, "build": 1.0, "pressure": 0.7, "danger": 0.4, "pre_boss": 0.2},
+		"budget_cost": 1.0,
+		"min_phase": "",
+		"max_phase": "danger",
+		"warning_level": 0,
+		"warning_text": "",
+		"package_cooldown": 8.0,
 	},
 	{
 		"id": "runner_pack",
@@ -44,6 +124,13 @@ const WAVE_PACKAGES: Array = [
 		"weight": 1.0,
 		"unlock_time": 30.0,
 		"profile_bonus": {},
+		"phase_weights": {"early": 1.2, "build": 1.1, "pressure": 0.9, "danger": 0.6, "pre_boss": 0.4},
+		"budget_cost": 1.5,
+		"min_phase": "",
+		"max_phase": "",
+		"warning_level": 0,
+		"warning_text": "",
+		"package_cooldown": 10.0,
 	},
 	{
 		"id": "bruiser_wall",
@@ -53,6 +140,13 @@ const WAVE_PACKAGES: Array = [
 		"weight": 0.7,
 		"unlock_time": 60.0,
 		"profile_bonus": {"balanced": 1.2},
+		"phase_weights": {"early": 0.3, "build": 1.2, "pressure": 1.3, "danger": 1.0, "pre_boss": 0.9},
+		"budget_cost": 2.0,
+		"min_phase": "",
+		"max_phase": "",
+		"warning_level": 1,
+		"warning_text": "Heavy front!",
+		"package_cooldown": 15.0,
 	},
 	{
 		"id": "shooter_screen",
@@ -62,6 +156,13 @@ const WAVE_PACKAGES: Array = [
 		"weight": 0.7,
 		"unlock_time": 75.0,
 		"profile_bonus": {"ranged_support": 1.5},
+		"phase_weights": {"early": 0.2, "build": 0.9, "pressure": 1.3, "danger": 1.2, "pre_boss": 1.0},
+		"budget_cost": 2.0,
+		"min_phase": "build",
+		"max_phase": "",
+		"warning_level": 1,
+		"warning_text": "Ranged support detected",
+		"package_cooldown": 15.0,
 	},
 	{
 		"id": "exploder_pressure",
@@ -71,6 +172,13 @@ const WAVE_PACKAGES: Array = [
 		"weight": 0.65,
 		"unlock_time": 120.0,
 		"profile_bonus": {"swarm_exploder": 1.5},
+		"phase_weights": {"early": 0.0, "build": 0.7, "pressure": 1.1, "danger": 1.3, "pre_boss": 1.2},
+		"budget_cost": 2.5,
+		"min_phase": "build",
+		"max_phase": "",
+		"warning_level": 1,
+		"warning_text": "Exploders incoming",
+		"package_cooldown": 20.0,
 	},
 	{
 		"id": "swarm_rush",
@@ -80,6 +188,13 @@ const WAVE_PACKAGES: Array = [
 		"weight": 0.85,
 		"unlock_time": 150.0,
 		"profile_bonus": {"swarm_exploder": 1.5},
+		"phase_weights": {"early": 0.0, "build": 0.6, "pressure": 1.2, "danger": 1.4, "pre_boss": 1.2},
+		"budget_cost": 2.0,
+		"min_phase": "build",
+		"max_phase": "",
+		"warning_level": 2,
+		"warning_text": "Swarm incoming!",
+		"package_cooldown": 18.0,
 	},
 	{
 		"id": "shielded_push",
@@ -89,6 +204,13 @@ const WAVE_PACKAGES: Array = [
 		"weight": 0.6,
 		"unlock_time": 180.0,
 		"profile_bonus": {},
+		"phase_weights": {"early": 0.0, "build": 0.4, "pressure": 1.0, "danger": 1.3, "pre_boss": 1.1},
+		"budget_cost": 2.5,
+		"min_phase": "pressure",
+		"max_phase": "",
+		"warning_level": 1,
+		"warning_text": "Shielded push!",
+		"package_cooldown": 20.0,
 	},
 	{
 		"id": "support_pair",
@@ -98,6 +220,13 @@ const WAVE_PACKAGES: Array = [
 		"weight": 0.55,
 		"unlock_time": 210.0,
 		"profile_bonus": {"ranged_support": 1.4},
+		"phase_weights": {"early": 0.0, "build": 0.3, "pressure": 0.9, "danger": 1.2, "pre_boss": 1.3},
+		"budget_cost": 2.5,
+		"min_phase": "pressure",
+		"max_phase": "",
+		"warning_level": 2,
+		"warning_text": "Support unit detected",
+		"package_cooldown": 22.0,
 	},
 	{
 		"id": "mixed_late_wave",
@@ -107,11 +236,22 @@ const WAVE_PACKAGES: Array = [
 		"weight": 0.65,
 		"unlock_time": 240.0,
 		"profile_bonus": {"balanced": 1.3},
+		"phase_weights": {"early": 0.0, "build": 0.0, "pressure": 0.8, "danger": 1.4, "pre_boss": 1.5},
+		"budget_cost": 3.0,
+		"min_phase": "pressure",
+		"max_phase": "",
+		"warning_level": 2,
+		"warning_text": "Danger wave!",
+		"package_cooldown": 25.0,
 	},
 ]
 
-func setup(new_run_manager: Node) -> void:
+func setup(new_run_manager: Node, new_event_announcement: Node = null) -> void:
 	run_manager = new_run_manager
+	_event_announcement = new_event_announcement
+	_package_last_fired.clear()
+	_wave_budget_remaining = 6.0
+	_last_warning_time = -999.0
 
 
 func set_stage_profile(profile: String) -> void:
@@ -126,18 +266,73 @@ func clear_event_modifier(event_id: String) -> void:
 	active_event_modifiers.erase(event_id)
 
 
+# --- Phase API ---
+
+func get_current_run_phase() -> String:
+	var seconds := _get_run_time()
+	var result := "early"
+	for phase in RUN_PHASES:
+		if seconds >= float(phase.get("start_time", 0.0)):
+			result = str(phase.get("id", "early"))
+	return result
+
+
+func get_current_phase_data() -> Dictionary:
+	var seconds := _get_run_time()
+	var result: Dictionary = RUN_PHASES[0]
+	for phase in RUN_PHASES:
+		if seconds >= float(phase.get("start_time", 0.0)):
+			result = phase
+	return result
+
+
+func get_phase_progress() -> float:
+	var seconds := _get_run_time()
+	var phase_data := get_current_phase_data()
+	var start := float(phase_data.get("start_time", 0.0))
+	var phase_id := str(phase_data.get("id", "early"))
+	var next_start := 600.0
+	for i in range(RUN_PHASES.size()):
+		if str(RUN_PHASES[i].get("id", "")) == phase_id and i + 1 < RUN_PHASES.size():
+			next_start = float(RUN_PHASES[i + 1].get("start_time", 600.0))
+			break
+	var duration := next_start - start
+	if duration <= 0.0:
+		return 1.0
+	return clampf((seconds - start) / duration, 0.0, 1.0)
+
+
+func debug_get_run_director_state() -> Dictionary:
+	return {
+		"run_time": _get_run_time(),
+		"phase": get_current_run_phase(),
+		"phase_progress": get_phase_progress(),
+		"spawn_interval": get_spawn_interval(),
+		"max_alive": get_max_alive_enemies(),
+		"wave_interval": get_wave_interval(),
+		"last_wave_package": _last_wave_package_id,
+		"stage_profile": _stage_profile,
+		"wave_budget_remaining": _wave_budget_remaining,
+	}
+
+
+# --- Spawn Interval ---
+
+# Interval between individual enemy spawns.
+# Phase pressure multiplier: > 1 = faster spawning (smaller interval).
+# Hard floor of MIN_SPAWN_INTERVAL_HARD prevents impossible spawning density.
 func get_spawn_interval() -> float:
 	var seconds := _get_run_time()
-	var progress := clampf(seconds / 240.0, 0.0, 1.0)
+	var phase_data := get_current_phase_data()
+	var progress := clampf(seconds / 600.0, 0.0, 1.0)
 	var base_interval := lerpf(BASE_SPAWN_INTERVAL, MIN_SPAWN_INTERVAL, progress)
-	var spawn_pressure := 1.0
+	var phase_pressure := float(phase_data.get("spawn_pressure_multiplier", 1.0))
+	base_interval = base_interval / phase_pressure
 	for mod_id in active_event_modifiers:
 		var mod: Dictionary = active_event_modifiers[mod_id]
 		if mod.has("spawn_pressure"):
-			spawn_pressure *= float(mod["spawn_pressure"])
-	if spawn_pressure != 1.0:
-		base_interval = maxf(base_interval / spawn_pressure, 0.05)
-	return base_interval
+			base_interval = base_interval / float(mod["spawn_pressure"])
+	return maxf(base_interval, MIN_SPAWN_INTERVAL_HARD)
 
 
 func get_max_alive_enemies() -> int:
@@ -149,7 +344,7 @@ func get_max_alive_enemies() -> int:
 		var mod: Dictionary = active_event_modifiers[mod_id]
 		if mod.has("max_alive_bonus"):
 			bonus += int(mod["max_alive_bonus"])
-	return base_max + bonus
+	return mini(base_max + bonus, MAX_ALIVE_ENEMIES)
 
 
 func get_enemy_variant() -> Dictionary:
@@ -179,75 +374,120 @@ func get_enemy_variant_by_id(variant_id: String) -> Dictionary:
 	for variant in _get_available_variants(9999.0):
 		if str(variant.get("id", "")) == variant_id:
 			return _strip_weight(variant)
-
 	return {}
 
 
 # --- Wave Director ---
 
-# Returns the interval (seconds) between wave package spawns.
+# Interval between wave package spawns; phase-driven.
+# Base 11 s × wave_interval_multiplier → early ~14.3 s, pre_boss ~8.25 s.
 func get_wave_interval() -> float:
-	var seconds := _get_run_time()
-	if seconds < 60.0:
-		return 14.0
-	elif seconds < 180.0:
-		return 12.0
-	elif seconds < 300.0:
-		return 10.0
-	else:
-		return 8.0
+	var phase_data := get_current_phase_data()
+	var mult := float(phase_data.get("wave_interval_multiplier", 1.0))
+	return maxf(11.0 * mult, 5.0)
 
 
-# Selects and builds a wave package for the current run time and stage profile.
-# Returns a dict with id, role, variant_ids (the actual list of ids to spawn).
+# Selects and builds a wave package for the current run phase and stage profile.
+# Returns a dict with id, role, variant_ids, warning_level.
 # Returns {} if no package is available yet.
 func get_wave_package() -> Dictionary:
 	var seconds := _get_run_time()
+	var phase_id := get_current_run_phase()
+	_wave_budget_remaining = float(PHASE_WAVE_BUDGETS.get(phase_id, 5.0))
+
 	var available := _get_available_packages(seconds)
 	if available.is_empty():
 		return {}
 
-	var total := 0.0
+	# Filter to packages the current wave budget can afford.
+	var affordable: Array = []
 	for pkg in available:
+		if float(pkg.get("budget_cost", 1.0)) <= _wave_budget_remaining:
+			affordable.append(pkg)
+	if affordable.is_empty():
+		affordable = available  # safety fallback: ignore budget if nothing fits
+
+	var total := 0.0
+	for pkg in affordable:
 		total += _get_package_weight(pkg)
 
-	if total <= 0.0:
-		_last_wave_package_id = str(available[0].get("id", ""))
-		return _build_package_spawn(available[0], seconds)
+	var selected_pkg: Dictionary = affordable[0]
+	if total > 0.0:
+		var roll := randf() * total
+		var cursor := 0.0
+		for pkg in affordable:
+			cursor += _get_package_weight(pkg)
+			if roll <= cursor:
+				selected_pkg = pkg
+				break
 
-	var roll := randf() * total
-	var cursor := 0.0
-	for pkg in available:
-		cursor += _get_package_weight(pkg)
-		if roll <= cursor:
-			_last_wave_package_id = str(pkg.get("id", ""))
-			return _build_package_spawn(pkg, seconds)
-
-	_last_wave_package_id = str(available[0].get("id", ""))
-	return _build_package_spawn(available[0], seconds)
+	_last_wave_package_id = str(selected_pkg.get("id", ""))
+	_package_last_fired[_last_wave_package_id] = seconds
+	_wave_budget_remaining -= float(selected_pkg.get("budget_cost", 1.0))
+	_maybe_fire_wave_warning(selected_pkg)
+	return _build_package_spawn(selected_pkg, seconds)
 
 
+# Backward-compatible alias so existing callers still work.
 func debug_get_wave_state() -> Dictionary:
-	return {
-		"stage_profile": _stage_profile,
-		"last_wave_package": _last_wave_package_id,
-		"wave_interval": get_wave_interval(),
-	}
+	return debug_get_run_director_state()
 
 
 # --- Internal helpers ---
 
+func _maybe_fire_wave_warning(pkg: Dictionary) -> void:
+	var level := int(pkg.get("warning_level", 0))
+	if level <= 0:
+		return
+	var seconds := _get_run_time()
+	if seconds - _last_warning_time < WAVE_WARNING_COOLDOWN:
+		return
+	var text := str(pkg.get("warning_text", ""))
+	if text.is_empty():
+		return
+	_last_warning_time = seconds
+	if _event_announcement != null and _event_announcement.has_method("show_announcement"):
+		var duration := 2.0 if level == 1 else 2.5
+		_event_announcement.show_announcement(text, duration)
+
+
 func _get_available_packages(seconds: float) -> Array:
-	# Build a fast lookup of which variant ids are available at this time.
 	var available_variants := _get_available_variants(seconds)
 	var available_ids: Dictionary = {}
 	for v in available_variants:
 		available_ids[str(v.get("id", ""))] = true
 
+	var phase_order: Array = ["early", "build", "pressure", "danger", "pre_boss"]
+	var current_phase_id := get_current_run_phase()
+	var current_phase_idx: int = phase_order.find(current_phase_id)
+
 	var result: Array = []
 	for pkg in WAVE_PACKAGES:
 		if seconds < float(pkg.get("unlock_time", 0.0)):
 			continue
+
+		# Package cooldown: must wait before the same package fires again.
+		var pkg_id := str(pkg.get("id", ""))
+		var cooldown := float(pkg.get("package_cooldown", 0.0))
+		if cooldown > 0.0 and _package_last_fired.has(pkg_id):
+			if seconds - float(_package_last_fired[pkg_id]) < cooldown:
+				continue
+
+		# Min-phase gate: package not allowed before its minimum phase.
+		var min_phase_id := str(pkg.get("min_phase", ""))
+		if not min_phase_id.is_empty():
+			var min_idx: int = phase_order.find(min_phase_id)
+			if min_idx >= 0 and current_phase_idx >= 0 and current_phase_idx < min_idx:
+				continue
+
+		# Max-phase gate: package not allowed after its maximum phase.
+		var max_phase_id := str(pkg.get("max_phase", ""))
+		if not max_phase_id.is_empty():
+			var max_idx: int = phase_order.find(max_phase_id)
+			if max_idx >= 0 and current_phase_idx >= 0 and current_phase_idx > max_idx:
+				continue
+
+		# All variants in the pool must be available at this run time.
 		var pool: Array = pkg.get("variant_pool", [])
 		var all_ok := true
 		for vid in pool:
@@ -261,9 +501,18 @@ func _get_available_packages(seconds: float) -> Array:
 
 func _get_package_weight(pkg: Dictionary) -> float:
 	var weight := float(pkg.get("weight", 1.0))
+	var phase_id := get_current_run_phase()
+
+	# Phase-specific multiplier.
+	var phase_weights: Dictionary = pkg.get("phase_weights", {})
+	if phase_weights.has(phase_id):
+		weight *= float(phase_weights[phase_id])
+
+	# Stage-profile bonus.
 	var bonus: Dictionary = pkg.get("profile_bonus", {})
 	if bonus.has(_stage_profile):
 		weight *= float(bonus[_stage_profile])
+
 	return maxf(weight, 0.0)
 
 
@@ -286,13 +535,13 @@ func _build_package_spawn(pkg: Dictionary, seconds: float) -> Dictionary:
 		"id": str(pkg.get("id", "")),
 		"role": str(pkg.get("role", "")),
 		"variant_ids": ids,
+		"warning_level": int(pkg.get("warning_level", 0)),
 	}
 
 
 func _get_run_time() -> float:
 	if run_manager == null:
 		return 0.0
-
 	var value = run_manager.get("run_time")
 	return float(value) if value != null else 0.0
 
@@ -479,7 +728,6 @@ func _get_modified_weight(variant: Dictionary) -> float:
 		var boosted: Dictionary = mod.get("boost_variant_weights", {})
 		if boosted.has(variant_id):
 			weight *= float(boosted[variant_id])
-
 	return maxf(weight, 0.0)
 
 

@@ -498,61 +498,92 @@ Each enemy variant now carries a `role` field used by the Wave Director for pack
 
 All existing `behavior_id` values remain unchanged.
 
-#### Wave Director
+#### Run Director / Wave Director 2.0
 
-A Wave Director layer inside `SpawnDirector` selects and builds **wave packages** on a separate timer (every 8–14 s depending on run time). `EnemySpawner` spawns each package sequentially while respecting `max_alive_enemies` and `max_alive_enemies_cap`.
+`SpawnDirector` is the single source of truth for all enemy spawning. It has been reworked into a full **Run Director** with a 5-phase model, wave budget system, package phase-weighting, and wave warnings. `EnemySpawner` calls its APIs and drives the timers; `SpawnDirector` never spawns enemies directly.
 
-Available packages:
+##### Run Phases
 
-| Package | Role | Variants | Count | Unlock |
-|---------|------|----------|-------|--------|
-| early_grunts | swarmer | grunt | 2–3 | 0 s |
-| runner_pack | hunter | runner | 2–3 | 30 s |
-| bruiser_wall | bruiser | tank | 1–2 | 60 s |
-| shooter_screen | shooter | shooter | 1–2 | 75 s |
-| exploder_pressure | disruptor | exploder | 1–2 | 120 s |
-| swarm_rush | swarmer | swarm | 2–4 | 150 s |
-| shielded_push | bruiser | shielded | 1–2 | 180 s |
-| support_pair | disruptor | support | 1–2 | 210 s |
-| mixed_late_wave | mixed | runner/tank/shooter | 2–3 | 240 s |
+The 10-minute run is divided into 5 named phases. Each phase controls spawn pressure, max-alive scaling, wave interval, and preferred enemy roles.
 
-Count scales up by +1 after 300 s (late game).
+| Phase | Time | Spawn Pressure | Wave Interval | Character |
+|-------|------|---------------|---------------|-----------|
+| early | 0–120 s | ×0.75 (slower) | ~14.3 s | Readable — grunts/runners only |
+| build | 120–240 s | ×0.9 | ~12.1 s | Ramps up — mixed roles |
+| pressure | 240–360 s | ×1.1 | ~10.5 s | Noticeable — bruiser/shooter/disruptor |
+| danger | 360–480 s | ×1.3 | ~9.4 s | Intense — stronger mixed waves |
+| pre_boss | 480–600 s | ×1.5 | ~8.3 s | Peak tension — disruptor/mixed/bruiser |
 
-#### Stage Wave Identity
+Phase API:
+- `get_current_run_phase() -> String` — current phase id
+- `get_current_phase_data() -> Dictionary` — full phase dict
+- `get_phase_progress() -> float` — 0.0–1.0 progress within current phase
+- `debug_get_run_director_state() -> Dictionary` — run_time, phase, phase_progress, spawn_interval, max_alive, wave_interval, last_wave_package, stage_profile, wave_budget_remaining
 
-Stage event profiles bias package selection via `profile_bonus` weights:
+##### Wave Packages
+
+Wave packages are role-themed enemy bursts fired on a separate timer. Each package has `phase_weights` (per-phase weight multipliers), `budget_cost`, `min_phase` / `max_phase` gating, `warning_level`, and `package_cooldown`.
+
+| Package | Role | Count | Min Phase | Budget Cost |
+|---------|------|-------|-----------|-------------|
+| early_grunts | swarmer | 2–3 | early | 0.5 |
+| runner_pack | hunter | 2–3 | early | 0.5 |
+| bruiser_wall | bruiser | 1–2 | build | 1.0 |
+| shooter_screen | shooter | 1–2 | build | 1.0 |
+| exploder_pressure | disruptor | 1–2 | pressure | 1.5 |
+| swarm_rush | swarmer | 2–4 | pressure | 1.5 |
+| shielded_push | bruiser | 1–2 | pressure | 1.5 |
+| support_pair | disruptor | 1–2 | danger | 2.0 |
+| mixed_late_wave | mixed | 2–3 | danger | 2.5 |
+
+##### Wave Budget
+
+Each phase has a maximum wave budget. Packages are filtered to those whose `budget_cost` fits the remaining budget. If no package fits, all available packages are used as a safety fallback. Budget resets each time a new phase begins.
+
+| Phase | Budget |
+|-------|--------|
+| early | 2.5 |
+| build | 3.5 |
+| pressure | 5.0 |
+| danger | 6.0 |
+| pre_boss | 6.0 |
+
+##### Wave Warnings
+
+High-intensity packages (warning_level ≥ 1) trigger a brief `EventAnnouncement` before spawning. A 12 s cooldown prevents warning spam. Warnings are silently skipped if `EventAnnouncement` is unavailable.
+
+##### Stage Wave Identity
+
+Stage event profiles bias package selection via per-profile weight bonuses on specific packages:
 
 | Stage | Profile | Favoured packages |
 |-------|---------|------------------|
-| City Rooftop | balanced | Mixed — no extreme bias; bruiser_wall and mixed_late_wave get a small bonus |
-| Neon Lab | ranged_support | shooter_screen ×1.5, support_pair ×1.4, individual shooter/support variants ×1.25 |
-| Wasteland Gate | swarm_exploder | swarm_rush ×1.5, exploder_pressure ×1.5, individual swarm/exploder variants ×1.3 |
+| City Rooftop | balanced | Mixed — bruiser_wall and mixed_late_wave get small bonus |
+| Neon Lab | ranged_support | shooter_screen ×1.5, support_pair ×1.4, shooter/support variants ×1.25 |
+| Wasteland Gate | swarm_exploder | swarm_rush ×1.5, exploder_pressure ×1.5, swarm/exploder variants ×1.3 |
+| (future) | defense_pressure | stub |
+| (future) | portal_pressure | stub |
 
-#### Pressure Pacing
-
-- **Early (0–120 s)**: early_grunts, runner_pack only. Wave interval: 14 s.
-- **Mid (120–300 s)**: bruiser_wall, shooter_screen, exploder_pressure, swarm_rush, shielded_push. Wave interval: 10–12 s.
-- **Late (300 s+)**: all packages including support_pair and mixed_late_wave. Wave interval: 8 s.
-
-#### Spawn Safety
+##### Spawn Safety
 
 - Every package spawn checks `enemy_container.get_child_count() >= _get_current_max_alive_enemies()` before each enemy.
-- If the cap is reached mid-package the remaining enemies are skipped (no burst overflow).
+- If the cap is reached mid-package, remaining enemies are skipped (no burst overflow).
 - Package size is capped at `max_count + 2` even at maximum time scaling.
-- Individual per-enemy timer continues alongside wave packages; together they respect the cap.
+- Individual per-enemy timer runs alongside wave packages; together they respect the cap.
+- Spawn interval has a hard floor of 0.20 s regardless of phase or event modifiers.
 
-#### Debug
+##### Debug
 
-`DebugStatsOverlay` (F12) now shows in the Spawner section:
-- `Profile: <stage_profile>`
-- `MaxAlive: <current cap>`
-- `Interval: <single spawn interval>`
-- `WaveEvery: <package interval in seconds>`
+`DebugStatsOverlay` (F12) Spawner section shows:
+- `Phase: <id>  Profile: <stage_profile>`
+- `MaxAlive: <cap>  Budget: <remaining>`
+- `Interval: <spawn interval>`
+- `WaveEvery: <wave interval in seconds>`
 - `Last pkg: <last wave package id>`
 
 `EnemySpawner.spawn_debug_logging = true` prints `WAVE_PACKAGE: id=... role=... alive=N/M` each time a package fires.
 
-Not included in this patch: Boss Rework, Primary Weapon Rework, Build Evolution, arena hazards.
+Not included in this patch: Boss Encounter 2.0, Enemy Roles Pack, Stage Objectives Pack, arena hazards.
 
 ### Balance / Cleanup / Production Readiness
 

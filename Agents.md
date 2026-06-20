@@ -878,23 +878,77 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - Variant XP values are copied onto the dropped `ExperienceGem`.
 - Enemies should spawn near the player using `EnemySpawner` ring spawn, but never directly on top of the player.
 
-## Wave Director / Enemy Roles Architecture
+## Run Director / Wave Director Architecture
 
-- Enemy roles are metadata added to each variant dict: `swarmer` (grunt, swarm), `hunter` (runner, charger), `bruiser` (tank, shielded), `shooter` (shooter), `disruptor` (exploder, support). Role is informational and used for package selection weight; it does not change behavior_id or stats.
-- `SpawnDirector.WAVE_PACKAGES` is a constant array of package definitions. Each package defines `id`, `role`, `variant_pool`, `min_count`, `max_count`, `weight`, `unlock_time`, and `profile_bonus` (per-profile weight multiplier).
-- `SpawnDirector.get_wave_package()` selects a package weighted by time + stage profile, builds the final `variant_ids` list (already sized), and returns `{id, role, variant_ids}`. Returns `{}` if no package is available yet.
-- `SpawnDirector.get_wave_interval()` returns the seconds between wave package spawns: 14 s early → 8 s late.
-- `SpawnDirector.debug_get_wave_state()` returns `{stage_profile, last_wave_package, wave_interval}` for the debug overlay.
-- `EnemySpawner._wave_timer` is a `Timer` created programmatically in `_ready()` and started in `setup()`. It fires `_on_wave_timer_timeout()` independently of the regular `SpawnTimer`.
-- `EnemySpawner._on_wave_timer_timeout()` updates `_wave_timer.wait_time`, calls `spawn_director.get_wave_package()`, then calls `_spawn_from_package(package)`.
-- `EnemySpawner._spawn_from_package(package)` iterates `package.variant_ids`, checks `enemy_container.get_child_count() >= _get_current_max_alive_enemies()` before each enemy, and calls `_spawn_enemy_with_variant`. Stops early if cap is reached or no spawn position is found.
-- **Max alive cap is always respected**: both the regular `SpawnTimer` path and the wave package path independently check the cap before each enemy spawn. No burst can overflow the cap.
-- Stage profiles affect package weight via `profile_bonus` on each package. Neon Lab (ranged_support) boosts shooter_screen and support_pair. Wasteland Gate (swarm_exploder) boosts swarm_rush and exploder_pressure. Balanced (City Rooftop) gives a small bonus to bruiser_wall and mixed_late_wave.
-- Stage profiles also continue to affect individual per-enemy variant weights via `_stage_profile_weight_bonuses` in SpawnDirector (unchanged from before).
-- `EnemySpawner.debug_get_spawn_state()` now includes `stage_profile`, `last_wave_package`, and `wave_interval` fields sourced from `SpawnDirector.debug_get_wave_state()`.
-- `DebugStatsOverlay` Spawner section now shows: `Profile: <profile>  MaxAlive: N`, `Interval: X.XX  WaveEvery: Xs`, `Last pkg: <package_id>`.
-- Do not add arena hazards unless explicitly requested.
-- Miniboss and final boss spawning remain unchanged: they are triggered by EventDirector and EnemySpawner dedicated methods, not by wave packages.
+`SpawnDirector` is the single source of truth for all enemy spawning difficulty. `EnemySpawner` calls its APIs and drives timers; `SpawnDirector` never spawns enemies directly. Future systems (Enemy Roles Pack, Stage Objectives Pack) must integrate through `SpawnDirector`, not alongside it. Do not add arena hazards unless explicitly requested.
+
+### Phase Model
+
+The 10-minute run is split into 5 named phases. Each phase definition contains `id`, `start_time`, `spawn_pressure_multiplier`, `max_alive_multiplier`, `wave_interval_multiplier`, and `preferred_roles`. Phases are stored in `SpawnDirector.RUN_PHASES` (constant array).
+
+| Phase | Start | Spawn pressure | Wave interval mult |
+|-------|-------|---------------|-------------------|
+| early | 0 s | ×0.75 | ×1.3 |
+| build | 120 s | ×0.9 | ×1.1 |
+| pressure | 240 s | ×1.1 | ×0.95 |
+| danger | 360 s | ×1.3 | ×0.85 |
+| pre_boss | 480 s | ×1.5 | ×0.75 |
+
+Phase API:
+- `get_current_run_phase() -> String` — current phase id
+- `get_current_phase_data() -> Dictionary` — full phase dict
+- `get_phase_progress() -> float` — 0.0–1.0 within current phase
+- `debug_get_run_director_state() -> Dictionary` — run_time, phase, phase_progress, spawn_interval, max_alive, wave_interval, last_wave_package, stage_profile, wave_budget_remaining
+- `debug_get_wave_state()` is kept as an alias for backward compat.
+
+### Spawn Pressure
+
+`get_spawn_interval()` lerps base interval over 600 s (not 240 s), divides by `spawn_pressure_multiplier`, and applies event modifiers. Hard floor: 0.20 s. Result: early ~2.0 s between spawns, pre_boss approaches the hard floor.
+
+### Wave Packages
+
+`SpawnDirector.WAVE_PACKAGES` defines each package with: `id`, `role`, `variant_pool`, `min_count`, `max_count`, `weight`, `profile_bonus`, **plus** `phase_weights` (per-phase multiplier dict), `budget_cost`, `min_phase`, `max_phase`, `warning_level`, `warning_text`, `package_cooldown`.
+
+`get_wave_package()` pipeline:
+1. Filter by `min_phase` / `max_phase` (using phase_order index comparison).
+2. Filter by `package_cooldown` (`_package_last_fired` tracks last selection time per id).
+3. Filter by `budget_cost ≤ _wave_budget_remaining`.
+4. Weight by `phase_weights[current_phase]` × `profile_bonus[stage_profile]`.
+5. Weighted-random select; deduct budget; update cooldown tracker; fire wave warning if applicable.
+6. Fallback to all available packages (no budget filter) if nothing fits — never returns empty if any package is unlocked.
+
+`get_wave_interval()` returns `maxf(11.0 × wave_interval_multiplier, 5.0)`.
+
+### Wave Budget
+
+`PHASE_WAVE_BUDGETS` dict maps phase id → max budget float. Budget resets when setup() is called (run start). Packages deduct their `budget_cost` on selection. Budget prevents unbounded heavy-package spam per phase.
+
+### Wave Warnings
+
+`_maybe_fire_wave_warning(package)` fires a brief `EventAnnouncement.show_announcement()` for packages with `warning_level ≥ 1`. Enforces 12 s cooldown between warnings via `_last_warning_time`. No-ops if `_event_announcement` is null or lacks `show_announcement` — safe to call always.
+
+### Stage Profiles
+
+`_stage_profile_weight_bonuses` maps stage profile id → per-variant weight dict. `set_stage_profile(profile)` stores the profile; `_get_modified_weight()` applies variant-level bonuses for individual spawns; `profile_bonus` in each package applies package-level bonuses. Stubs exist for "defense_pressure" and "portal_pressure" (no bonuses yet).
+
+### EnemySpawner Integration
+
+- `EnemySpawner._wave_timer` fires `_on_wave_timer_timeout()` which calls `get_wave_package()` then `_spawn_from_package(package)`.
+- Max alive cap is checked before each enemy in both the SpawnTimer path and the wave package path — no burst can overflow the cap.
+- `EnemySpawner.debug_get_spawn_state()` calls `debug_get_run_director_state()` to populate `stage_profile`, `phase`, and `wave_budget` fields.
+- `setup()` signature: `spawn_director.setup(run_manager, event_announcement)` — Arena passes its `event_announcement` node.
+- Miniboss and final boss spawning remain unchanged: triggered by EventDirector and EnemySpawner dedicated methods, not by wave packages.
+
+### Debug Overlay
+
+`DebugStatsOverlay` Spawner section shows: `Phase: <id>  Profile: <profile>`, `MaxAlive: N  Budget: X.X`, `Interval: X.XX  WaveEvery: Xs`, `Last pkg: <id>`. All fields degrade gracefully if SpawnDirector is missing.
+
+### Not Yet Implemented (do not add proactively)
+
+- Enemy Roles Pack (runtime role assignment + role-based AI steering)
+- Stage Objectives Pack (defense / portal objective types)
+- Boss Encounter 2.0
+- Arena hazards
 
 ## Enemy Behavior Notes
 

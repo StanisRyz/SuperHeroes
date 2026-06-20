@@ -511,8 +511,15 @@ func debug_get_spawn_state() -> Dictionary:
 		"last_wave_package": _last_wave_package_id,
 		"wave_interval": _get_current_wave_interval(),
 		"stage_profile": "balanced",
+		"phase": "",
+		"wave_budget": 0.0,
 	}
-	if spawn_director != null and spawn_director.has_method("debug_get_wave_state"):
+	if spawn_director != null and spawn_director.has_method("debug_get_run_director_state"):
+		var ds: Dictionary = spawn_director.debug_get_run_director_state()
+		result["stage_profile"] = ds.get("stage_profile", "balanced")
+		result["phase"] = ds.get("phase", "")
+		result["wave_budget"] = ds.get("wave_budget_remaining", 0.0)
+	elif spawn_director != null and spawn_director.has_method("debug_get_wave_state"):
 		var ws: Dictionary = spawn_director.debug_get_wave_state()
 		result["stage_profile"] = ws.get("stage_profile", "balanced")
 	return result
