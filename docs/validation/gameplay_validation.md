@@ -674,6 +674,17 @@ Remember to uncheck `use_debug_run_duration` before building for release.
 | 21 | Enable Debug Mode (F12) | DebugStatsOverlay shows -- Meta -- section with currency and run counts |
 | 22 | Buy upgrade then check F7 / overlay | Overlay reflects updated meta upgrade levels |
 | 23 | Reset progress via MetaProgressionManager.reset_progress() in remote console | Currency resets to 0; save file updated |
+| 24 | Finish a defeated run | Existing defeat currency still applies; hero mastery runs/kills increase only for selected hero; stage attempts increase only for selected stage |
+| 25 | Finish a victory run after final boss defeat | Victory, final boss reward, boss result, run grade, hero victory, stage victory, and final boss mastery counters update |
+| 26 | Complete Neon Lab with Reactor alive | Stage objective completion increments for Neon Lab and `defend_lab_reactor` goal completes once |
+| 27 | Destroy all Wasteland Gate portals | Portals destroyed/total appear in summary and `close_wasteland_portals` goal completes once |
+| 28 | Select evolutions during a run | PostRunRewardsScreen lists selected evolution titles and Attack/Active/Passive evolution counts |
+| 29 | Complete any unlock goal | Goal reward is auto-claimed, added to total reward once, and listed under completed goals this run |
+| 30 | Finish another run after the same goal is complete | Completed goal does not pay currency a second time |
+| 31 | Open Training from MainMenu | Compact Goals line shows completed count and next incomplete progress; buying Training still works |
+| 32 | Restart game after mastery/goals update | Hero mastery, stage mastery, completed/claimed goals, currency, Training, and unlocked heroes persist |
+| 33 | Load an older save without mastery/goals | Save migrates with default `hero_mastery`, `stage_mastery`, and `goals` while preserving currency/Training/unlocked heroes |
+| 34 | Inspect diff | No hero kit, evolution requirement, upgrade balance, stage objective, enemy, boss-flow, save-destructive, or 4/4/4 slot-rule changes |
 
 ---
 

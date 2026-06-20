@@ -60,6 +60,7 @@ func show_stats(stats: Dictionary) -> void:
 		level_label.text = "Level:  %d" % level
 	if hero_label != null:
 		hero_label.text = "Hero:  %s" % hero_name
+	_update_extra_label("GradeLabel", "Grade:  %s" % str(stats.get("run_grade", "C")), hero_label)
 
 	var stage_display := str(stats.get("stage_display_name", ""))
 	if not stage_display.is_empty():
@@ -73,14 +74,31 @@ func show_stats(stats: Dictionary) -> void:
 				vbox.add_child(slabel)
 				vbox.move_child(slabel, hero_label.get_index() + 1)
 			slabel.text = "Stage:  %s" % stage_display
+			_update_extra_label("ObjectiveLabel", _format_objective_line(stats), slabel)
+
+	var final_boss_id := str(stats.get("final_boss_id", ""))
+	if not final_boss_id.is_empty():
+		var boss_text := "Final Boss:  Defeated" if bool(stats.get("final_boss_defeated", false)) else ("Final Boss:  Spawned" if bool(stats.get("final_boss_spawned", false)) else "Final Boss:  Not reached")
+		_update_extra_label("FinalBossLabel", boss_text, get_node_or_null("Root/Panel/VBoxContainer/ObjectiveLabel"))
 
 	if build_label != null:
-		build_label.text = "Build:  %s" % (dominant.capitalize() if not dominant.is_empty() else "Mixed")
+		build_label.text = "Build:  %s  A%d / P%d / Act%d" % [
+			dominant.capitalize() if not dominant.is_empty() else "Mixed",
+			int(stats.get("selected_attack_line_count", 0)),
+			int(stats.get("selected_passive_line_count", 0)),
+			int(stats.get("selected_active_line_count", 0)),
+		]
 	if upgrades_label != null:
 		upgrades_label.text = "Upgrades:  %d" % upgrade_count
 	if evolutions_label != null:
 		var titles: Array = stats.get("applied_evolution_titles", [])
-		evolutions_label.text = "Evolutions:  %s" % UIFormat.format_list(titles)
+		evolutions_label.text = "Evolutions:  %d (A%d / Act%d / P%d)  %s" % [
+			int(stats.get("applied_evolution_count", titles.size())),
+			int(stats.get("attack_evolution_count", 0)),
+			int(stats.get("active_evolution_count", 0)),
+			int(stats.get("passive_evolution_count", 0)),
+			UIFormat.format_list(titles),
+		]
 
 	show()
 	if restart_button != null:
@@ -89,6 +107,33 @@ func show_stats(stats: Dictionary) -> void:
 
 func setup_audio_manager(new_audio_manager: Node) -> void:
 	audio_manager = new_audio_manager
+
+
+func _format_objective_line(stats: Dictionary) -> String:
+	var objective_type := str(stats.get("objective_type", "survival"))
+	match objective_type:
+		"defense":
+			return "Objective:  Reactor %d / %d HP" % [int(stats.get("defense_hp_remaining", 0)), int(stats.get("defense_max_hp", 0))]
+		"destroy_structures":
+			return "Objective:  Portals %d / %d" % [int(stats.get("portals_destroyed", 0)), int(stats.get("portals_total", 0))]
+		_:
+			return "Objective:  Survival %s" % ("complete" if bool(stats.get("objective_completed", false)) else "failed")
+
+
+func _update_extra_label(label_name: String, text: String, after_node: Node) -> Label:
+	var vbox := get_node_or_null("Root/Panel/VBoxContainer")
+	if vbox == null:
+		return null
+	var label := vbox.get_node_or_null(label_name) as Label
+	if label == null:
+		label = Label.new()
+		label.name = label_name
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(label)
+		if after_node != null:
+			vbox.move_child(label, after_node.get_index() + 1)
+	label.text = text
+	return label
 
 
 func _on_restart_button_pressed() -> void:

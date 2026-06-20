@@ -609,7 +609,16 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `MainMenu` emits `meta_shop_requested` → `Main._open_meta_shop()` hides MainMenu and opens MetaUpgradeShop. Shop back → `Main._close_meta_shop()` closes shop and re-shows MainMenu.
 - `CharacterSelect.setup(hero_data_provider, meta_progression_manager)` accepts optional MetaProgressionManager. If provided and `is_hero_unlocked()` returns false, the hero button shows "[LOCKED — N currency]" and the start button is disabled. Currently all heroes are `unlocked_by_default: true` so no locking occurs in practice.
 - `Player.pickup_radius_bonus` is a `@export float = 0.0`. `ExperienceGem._update_target_player()` reads it safely via `player_node.get("pickup_radius_bonus") or 0.0` to extend the magnet radius without hard coupling.
-- `MetaProgressionManager` save format: JSON, versioned (`save_version: 1`). Keys: `currency`, `meta_upgrades` (dict of id→level), `unlocked_heroes` (array), `total_runs`, `total_victories`, `best_kill_count`, `total_kills`, `total_currency_earned`. Corrupt or missing saves start fresh.
+- Current `MetaProgressionManager` save format is JSON version 3. Keys include `currency`, `meta_upgrades`, `training_by_hero`, `unlocked_heroes`, lifetime totals, `hero_mastery`, `stage_mastery`, and `goals`.
+- Save migration must preserve existing currency, per-hero Training, unlocked heroes, and lifetime totals. Version 3 adds default `hero_mastery`, `stage_mastery`, and `goals` dictionaries when old saves are loaded.
+- `Arena._build_run_summary()` adds objective result, final boss result, applied evolution count/titles/type counts, selected Attack/Passive/Active line counts, dominant archetype, and `run_grade`. Arena still never writes meta state directly.
+- `MetaProgressionManager.apply_run_result(summary)` is the only owner for persistent hero mastery, stage mastery, goal evaluation, and post-run currency reward application.
+- Hero mastery fields per hero: `runs_played`, `victories`, `kills`, `elite_kills`, `miniboss_kills`, `final_boss_kills`, `evolutions_selected`, `attack_evolutions_selected`, `active_evolutions_selected`, `passive_evolutions_selected`, and `highest_mastery_level`.
+- Stage mastery fields per stage: `attempts`, `victories`, `objective_completions`, `final_boss_kills`, `best_grade`, and `best_time`.
+- Goal definition schema: `id`, `title`, `description`, `category` (`hero`, `stage`, `evolution`, `boss`, or `general`), `reward_currency`, and `progress_target`. Goal progress API returns those fields plus `completed`, `claimed`, and `progress_current`.
+- Goal rewards are auto-claimed inside `apply_run_result()` on the run that completes them. They are added to the post-run `total_reward` once, returned in `newly_completed_goals`, and persisted as `completed=true`, `claimed=true`.
+- `MetaUpgradeShop` may show compact read-only goal progress from `get_goal_progress()`, but must not claim rewards, mutate goals, or change Training purchase rules.
+- Post-run progression patches must not change combat balance, hero kits, evolution requirements, upgrade effects, stage objectives, enemies, boss flow, save data carelessly, or 4/4/4 slot rules.
 - `reset_progress()` is available for remote console use only. No key binding.
 - `DebugStatsOverlay.setup_meta_manager(meta_manager)` wires the overlay to show currency, run/win counts, and non-zero upgrade levels in a "-- Meta --" section (visible while F12 debug mode is active).
 

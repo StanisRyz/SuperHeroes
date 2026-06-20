@@ -14,8 +14,11 @@ var _final_boss_label: Label
 var _victory_label: Label
 var _evo_label: Label
 var _bonus_label: Label
+var _goal_reward_label: Label
 var _total_label: Label
 var _currency_label: Label
+var _progress_label: Label
+var _goals_label: Label
 var _continue_button: Button
 
 
@@ -35,11 +38,11 @@ func _build_ui() -> void:
 
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.custom_minimum_size = Vector2(440, 500)
-	panel.offset_left = -220.0
-	panel.offset_top = -250.0
-	panel.offset_right = 220.0
-	panel.offset_bottom = 250.0
+	panel.custom_minimum_size = Vector2(520, 620)
+	panel.offset_left = -260.0
+	panel.offset_top = -310.0
+	panel.offset_right = 260.0
+	panel.offset_bottom = 310.0
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -54,36 +57,52 @@ func _build_ui() -> void:
 
 	vbox.add_child(HSeparator.new())
 
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 7)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
+
 	_result_label = Label.new()
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_result_label.add_theme_font_size_override("font_size", 15)
-	vbox.add_child(_result_label)
+	content.add_child(_result_label)
 
-	vbox.add_child(HSeparator.new())
+	content.add_child(HSeparator.new())
 
-	_base_label = _add_row(vbox, "Participation")
-	_time_label = _add_row(vbox, "Time bonus")
-	_kill_label = _add_row(vbox, "Kill bonus")
-	_elite_label = _add_row(vbox, "Elite kills")
-	_miniboss_label = _add_row(vbox, "Miniboss kills")
-	_final_boss_label = _add_row(vbox, "Final boss")
-	_victory_label = _add_row(vbox, "Victory bonus")
-	_evo_label = _add_row(vbox, "Evolutions")
-	_bonus_label = _add_row(vbox, "Reward bonus")
+	_base_label = _add_row(content, "Participation")
+	_time_label = _add_row(content, "Time bonus")
+	_kill_label = _add_row(content, "Kill bonus")
+	_elite_label = _add_row(content, "Elite kills")
+	_miniboss_label = _add_row(content, "Miniboss kills")
+	_final_boss_label = _add_row(content, "Final boss")
+	_victory_label = _add_row(content, "Victory bonus")
+	_evo_label = _add_row(content, "Evolutions")
+	_bonus_label = _add_row(content, "Reward bonus")
+	_goal_reward_label = _add_row(content, "Goal rewards")
 
-	vbox.add_child(HSeparator.new())
+	content.add_child(HSeparator.new())
 
 	_total_label = Label.new()
 	_total_label.add_theme_font_size_override("font_size", 15)
-	vbox.add_child(_total_label)
+	content.add_child(_total_label)
 
 	_currency_label = Label.new()
 	_currency_label.add_theme_font_size_override("font_size", 14)
-	vbox.add_child(_currency_label)
+	content.add_child(_currency_label)
 
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(spacer)
+	_progress_label = Label.new()
+	_progress_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_progress_label.add_theme_font_size_override("font_size", 12)
+	content.add_child(_progress_label)
+
+	_goals_label = Label.new()
+	_goals_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_goals_label.add_theme_font_size_override("font_size", 12)
+	content.add_child(_goals_label)
 
 	_continue_button = Button.new()
 	_continue_button.text = "Continue"
@@ -124,6 +143,7 @@ func show_rewards(reward_data: Dictionary, progress_summary: Dictionary) -> void
 	_set_row(_victory_label, int(reward_data.get("victory_bonus", 0)))
 	_set_row(_evo_label, int(reward_data.get("evolution_bonus", 0)))
 	_set_row(_bonus_label, int(reward_data.get("starting_bonus", 0)))
+	_set_row(_goal_reward_label, int(reward_data.get("goal_reward", 0)))
 
 	var total := int(reward_data.get("total_reward", 0))
 	var currency := int(progress_summary.get("currency", 0))
@@ -131,6 +151,8 @@ func show_rewards(reward_data: Dictionary, progress_summary: Dictionary) -> void
 	_total_label.modulate = UIStateColors.positive_color() if total > 0 else UIStateColors.muted_color()
 	_currency_label.text = "  Total currency:    %d" % currency
 	_currency_label.modulate = UIStateColors.positive_color() if currency > 0 else Color.WHITE
+	_update_progress_text(reward_data)
+	_update_goals_text(reward_data)
 
 	show()
 	if _continue_button != null:
@@ -148,6 +170,67 @@ func _set_row(lbl: Label, value: int) -> void:
 	if lbl != null:
 		lbl.text = "+%d" % value
 		lbl.modulate = UIStateColors.positive_color() if value > 0 else UIStateColors.muted_color()
+
+
+func _update_progress_text(reward_data: Dictionary) -> void:
+	if _progress_label == null:
+		return
+	var run_summary: Dictionary = reward_data.get("run_summary", {})
+	var mastery: Dictionary = reward_data.get("mastery_changes", {})
+	var stage_mastery: Dictionary = reward_data.get("stage_mastery_changes", {})
+	var hero_after: Dictionary = mastery.get("after", {})
+	var stage_after: Dictionary = stage_mastery.get("after", {})
+	var lines: PackedStringArray = []
+	lines.append("Grade: %s   Build: %s" % [
+		str(run_summary.get("run_grade", "C")),
+		str(run_summary.get("dominant_archetype", "")).capitalize() if not str(run_summary.get("dominant_archetype", "")).is_empty() else "Mixed",
+	])
+	lines.append("Slots: A%d / P%d / Act%d   Evolutions: %d (A%d / Act%d / P%d)" % [
+		int(run_summary.get("selected_attack_line_count", 0)),
+		int(run_summary.get("selected_passive_line_count", 0)),
+		int(run_summary.get("selected_active_line_count", 0)),
+		int(run_summary.get("applied_evolution_count", 0)),
+		int(run_summary.get("attack_evolution_count", 0)),
+		int(run_summary.get("active_evolution_count", 0)),
+		int(run_summary.get("passive_evolution_count", 0)),
+	])
+	var titles: Array = run_summary.get("applied_evolution_titles", [])
+	if not titles.is_empty():
+		lines.append("Selected evolutions: %s" % _format_list(titles))
+	lines.append("Hero mastery: Lv %d -> %d, runs %d, victories %d" % [
+		int(mastery.get("level_before", 1)),
+		int(mastery.get("level_after", 1)),
+		int(hero_after.get("runs_played", 0)),
+		int(hero_after.get("victories", 0)),
+	])
+	lines.append("Stage mastery: attempts %d, victories %d, best grade %s" % [
+		int(stage_after.get("attempts", 0)),
+		int(stage_after.get("victories", 0)),
+		str(stage_after.get("best_grade", "-")),
+	])
+	_progress_label.text = "\n".join(lines)
+
+
+func _update_goals_text(reward_data: Dictionary) -> void:
+	if _goals_label == null:
+		return
+	var goals: Array = reward_data.get("newly_completed_goals", [])
+	if goals.is_empty():
+		_goals_label.text = "Goals completed: none this run"
+		_goals_label.modulate = UIStateColors.muted_color()
+		return
+	var lines: PackedStringArray = ["Goals completed:"]
+	for goal in goals:
+		lines.append("+%d  %s" % [int(goal.get("reward_currency", 0)), str(goal.get("title", goal.get("id", "")))])
+	_goals_label.text = "\n".join(lines)
+	_goals_label.modulate = UIStateColors.positive_color()
+
+
+func _format_list(values: Array) -> String:
+	var parts: PackedStringArray = []
+	for value in values:
+		parts.append(str(value))
+	return ", ".join(parts)
 
 
 func _on_continue_pressed() -> void:

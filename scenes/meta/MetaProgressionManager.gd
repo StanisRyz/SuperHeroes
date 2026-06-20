@@ -7,11 +7,13 @@ signal progress_loaded
 signal progress_saved
 
 const SAVE_PATH := "user://superheroes_meta_progress.json"
-const SAVE_VERSION := 2
+const SAVE_VERSION := 3
 const DEFAULT_HERO_ID := "guardian"
 const DEFAULT_HERO_IDS: Array[String] = ["guardian", "blaster", "vanguard"]
+const DEFAULT_STAGE_IDS: Array[String] = ["city_rooftop", "neon_lab", "wasteland_gate"]
 
 var _data: Dictionary = {}
+var _newly_completed_goals: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -249,6 +251,7 @@ func calculate_run_rewards(summary: Dictionary) -> Dictionary:
 		"victory_bonus": victory_bonus,
 		"evolution_bonus": evolution_bonus,
 		"starting_bonus": starting_bonus,
+		"goal_reward": 0,
 		"total_reward": total_reward,
 	}
 
@@ -262,6 +265,20 @@ func apply_run_result(summary: Dictionary) -> Dictionary:
 	_data["total_kills"] = int(_data.get("total_kills", 0)) + int(summary.get("kill_count", 0))
 	_data["total_elite_kills"] = int(_data.get("total_elite_kills", 0)) + int(summary.get("elite_kill_count", 0))
 	_data["total_miniboss_kills"] = int(_data.get("total_miniboss_kills", 0)) + int(summary.get("miniboss_kill_count", 0))
+
+	var mastery_changes := _apply_mastery_from_run(summary)
+	var stage_changes := _apply_stage_mastery_from_run(summary)
+	var completed_goals := evaluate_goals_from_run(summary)
+	var goal_reward := 0
+	for goal in completed_goals:
+		goal_reward += int(goal.get("reward_currency", 0))
+	rewards["run_reward_total"] = int(rewards.get("total_reward", 0))
+	rewards["goal_reward"] = goal_reward
+	rewards["total_reward"] = int(rewards.get("total_reward", 0)) + goal_reward
+	rewards["mastery_changes"] = mastery_changes
+	rewards["stage_mastery_changes"] = stage_changes
+	rewards["newly_completed_goals"] = completed_goals
+	rewards["goal_rewards_auto_claimed"] = true
 
 	add_currency(int(rewards.get("total_reward", 0)))
 	save_progress()
@@ -280,6 +297,9 @@ func get_progress_summary() -> Dictionary:
 		"training_by_hero": _data.get("training_by_hero", {}).duplicate(true),
 		"meta_upgrades": get_training_levels_for_hero(DEFAULT_HERO_ID),
 		"unlocked_heroes": _data.get("unlocked_heroes", []).duplicate(),
+		"hero_mastery": get_hero_mastery_summary(),
+		"stage_mastery": get_stage_mastery_summary(),
+		"goals": get_goal_progress(),
 	}
 
 
@@ -335,6 +355,188 @@ func get_meta_upgrade_definition(upgrade_id: String) -> Dictionary:
 	return {}
 
 
+func get_hero_mastery_summary() -> Dictionary:
+	_ensure_mastery_defaults()
+	var result := {}
+	var mastery_by_hero: Dictionary = _data.get("hero_mastery", {})
+	for hero_id in mastery_by_hero:
+		var entry: Dictionary = mastery_by_hero.get(hero_id, {})
+		var copy := entry.duplicate(true)
+		copy["current_mastery_level"] = _calculate_hero_mastery_level(copy)
+		result[str(hero_id)] = copy
+	return result
+
+
+func get_stage_mastery_summary() -> Dictionary:
+	_ensure_mastery_defaults()
+	return _data.get("stage_mastery", {}).duplicate(true)
+
+
+func get_goal_definitions() -> Array[Dictionary]:
+	return [
+		{
+			"id": "win_city_rooftop",
+			"title": "Rooftop Victor",
+			"description": "Win City Rooftop once.",
+			"category": "stage",
+			"reward_currency": 30,
+			"progress_target": 1,
+		},
+		{
+			"id": "defend_lab_reactor",
+			"title": "Reactor Defender",
+			"description": "Win Neon Lab with the Reactor alive.",
+			"category": "stage",
+			"reward_currency": 45,
+			"progress_target": 1,
+		},
+		{
+			"id": "close_wasteland_portals",
+			"title": "Gate Closer",
+			"description": "Destroy all Wasteland Gate portals.",
+			"category": "stage",
+			"reward_currency": 45,
+			"progress_target": 1,
+		},
+		{
+			"id": "guardian_attack_evolution",
+			"title": "Solar Arsenal",
+			"description": "Select 1 attack evolution as Solar Guardian.",
+			"category": "hero",
+			"reward_currency": 35,
+			"progress_target": 1,
+		},
+		{
+			"id": "blaster_mark_build",
+			"title": "Tactical Evolution",
+			"description": "Select 2 Night Tactician evolutions in one run.",
+			"category": "evolution",
+			"reward_currency": 45,
+			"progress_target": 2,
+		},
+		{
+			"id": "vanguard_rage_boss",
+			"title": "Ragebreaker",
+			"description": "Defeat a final boss as Fury Vanguard.",
+			"category": "boss",
+			"reward_currency": 45,
+			"progress_target": 1,
+		},
+		{
+			"id": "first_3_evolutions",
+			"title": "Triple Overdrive",
+			"description": "Select 3 evolutions in one run.",
+			"category": "evolution",
+			"reward_currency": 60,
+			"progress_target": 3,
+		},
+		{
+			"id": "boss_slayer",
+			"title": "Boss Slayer",
+			"description": "Defeat any final boss.",
+			"category": "boss",
+			"reward_currency": 40,
+			"progress_target": 1,
+		},
+		{
+			"id": "elite_hunter",
+			"title": "Elite Hunter",
+			"description": "Defeat 10 elites total.",
+			"category": "general",
+			"reward_currency": 35,
+			"progress_target": 10,
+		},
+		{
+			"id": "mastery_beginner",
+			"title": "Mastery Beginner",
+			"description": "Reach mastery level 2 with any hero.",
+			"category": "general",
+			"reward_currency": 35,
+			"progress_target": 2,
+		},
+	]
+
+
+func get_goal_progress() -> Array[Dictionary]:
+	_ensure_goal_defaults()
+	var result: Array[Dictionary] = []
+	var goals: Dictionary = _data.get("goals", {})
+	for def in get_goal_definitions():
+		var goal_id := str(def.get("id", ""))
+		var state: Dictionary = goals.get(goal_id, {})
+		var current := maxi(int(state.get("progress_current", 0)), _calculate_goal_progress(def))
+		var target := int(def.get("progress_target", 1))
+		result.append({
+			"id": goal_id,
+			"title": str(def.get("title", goal_id)),
+			"description": str(def.get("description", "")),
+			"category": str(def.get("category", "general")),
+			"reward_currency": int(def.get("reward_currency", 0)),
+			"completed": bool(state.get("completed", false)) or current >= target,
+			"claimed": bool(state.get("claimed", false)),
+			"progress_current": mini(current, target),
+			"progress_target": target,
+		})
+	return result
+
+
+func evaluate_goals_from_run(summary: Dictionary) -> Array[Dictionary]:
+	_ensure_goal_defaults()
+	_newly_completed_goals.clear()
+	var goals: Dictionary = _data.get("goals", {})
+	for def in get_goal_definitions():
+		var goal_id := str(def.get("id", ""))
+		var state: Dictionary = goals.get(goal_id, _get_default_goal_state())
+		var target := int(def.get("progress_target", 1))
+		var current := maxi(maxi(int(state.get("progress_current", 0)), _calculate_goal_progress(def)), _calculate_goal_run_progress(def, summary))
+		state["progress_current"] = mini(current, target)
+		if not bool(state.get("completed", false)) and current >= target:
+			state["completed"] = true
+			state["claimed"] = true
+			var completed := def.duplicate(true)
+			completed["completed"] = true
+			completed["claimed"] = true
+			completed["progress_current"] = target
+			_newly_completed_goals.append(completed)
+		goals[goal_id] = state
+	_data["goals"] = goals
+	return _newly_completed_goals.duplicate(true)
+
+
+func claim_goal_reward(goal_id: String) -> bool:
+	_ensure_goal_defaults()
+	var goals: Dictionary = _data.get("goals", {})
+	if not goals.has(goal_id):
+		return false
+	var state: Dictionary = goals.get(goal_id, {})
+	if not bool(state.get("completed", false)) or bool(state.get("claimed", false)):
+		return false
+	var def := _get_goal_definition(goal_id)
+	if def.is_empty():
+		return false
+	state["claimed"] = true
+	goals[goal_id] = state
+	_data["goals"] = goals
+	add_currency(int(def.get("reward_currency", 0)))
+	save_progress()
+	return true
+
+
+func get_newly_completed_goals() -> Array[Dictionary]:
+	return _newly_completed_goals.duplicate(true)
+
+
+func debug_get_mastery_summary() -> Dictionary:
+	return {
+		"heroes": get_hero_mastery_summary(),
+		"stages": get_stage_mastery_summary(),
+	}
+
+
+func debug_get_goal_summary() -> Array[Dictionary]:
+	return get_goal_progress()
+
+
 func _get_defaults() -> Dictionary:
 	return {
 		"version": SAVE_VERSION,
@@ -347,6 +549,9 @@ func _get_defaults() -> Dictionary:
 		"total_kills": 0,
 		"total_elite_kills": 0,
 		"total_miniboss_kills": 0,
+		"hero_mastery": _get_default_hero_mastery(),
+		"stage_mastery": _get_default_stage_mastery(),
+		"goals": _get_default_goals(),
 	}
 
 
@@ -367,6 +572,8 @@ func _merge_with_defaults(parsed: Dictionary) -> void:
 	var unlocked: Array = _data["unlocked_heroes"]
 	if "guardian" not in unlocked:
 		unlocked.append("guardian")
+	_ensure_mastery_defaults()
+	_ensure_goal_defaults()
 
 
 func _get_default_training_by_hero() -> Dictionary:
@@ -374,6 +581,98 @@ func _get_default_training_by_hero() -> Dictionary:
 	for hero_id in DEFAULT_HERO_IDS:
 		result[hero_id] = {}
 	return result
+
+
+func _get_default_hero_mastery() -> Dictionary:
+	var result := {}
+	for hero_id in DEFAULT_HERO_IDS:
+		result[hero_id] = _get_default_hero_mastery_entry()
+	return result
+
+
+func _get_default_hero_mastery_entry() -> Dictionary:
+	return {
+		"runs_played": 0,
+		"victories": 0,
+		"kills": 0,
+		"elite_kills": 0,
+		"miniboss_kills": 0,
+		"final_boss_kills": 0,
+		"evolutions_selected": 0,
+		"attack_evolutions_selected": 0,
+		"active_evolutions_selected": 0,
+		"passive_evolutions_selected": 0,
+		"highest_mastery_level": 1,
+	}
+
+
+func _get_default_stage_mastery() -> Dictionary:
+	var result := {}
+	for stage_id in DEFAULT_STAGE_IDS:
+		result[stage_id] = _get_default_stage_mastery_entry()
+	return result
+
+
+func _get_default_stage_mastery_entry() -> Dictionary:
+	return {
+		"attempts": 0,
+		"victories": 0,
+		"objective_completions": 0,
+		"final_boss_kills": 0,
+		"best_grade": "",
+		"best_time": 0.0,
+	}
+
+
+func _get_default_goals() -> Dictionary:
+	var result := {}
+	for goal in get_goal_definitions():
+		result[str(goal.get("id", ""))] = _get_default_goal_state()
+	return result
+
+
+func _get_default_goal_state() -> Dictionary:
+	return {
+		"completed": false,
+		"claimed": false,
+		"progress_current": 0,
+	}
+
+
+func _ensure_mastery_defaults() -> void:
+	if not _data.get("hero_mastery") is Dictionary:
+		_data["hero_mastery"] = {}
+	var hero_mastery: Dictionary = _data.get("hero_mastery", {})
+	for hero_id in DEFAULT_HERO_IDS:
+		var entry: Dictionary = hero_mastery.get(hero_id, {}) if hero_mastery.get(hero_id, {}) is Dictionary else {}
+		hero_mastery[hero_id] = _merge_entry_defaults(entry, _get_default_hero_mastery_entry())
+	_data["hero_mastery"] = hero_mastery
+
+	if not _data.get("stage_mastery") is Dictionary:
+		_data["stage_mastery"] = {}
+	var stage_mastery: Dictionary = _data.get("stage_mastery", {})
+	for stage_id in DEFAULT_STAGE_IDS:
+		var entry: Dictionary = stage_mastery.get(stage_id, {}) if stage_mastery.get(stage_id, {}) is Dictionary else {}
+		stage_mastery[stage_id] = _merge_entry_defaults(entry, _get_default_stage_mastery_entry())
+	_data["stage_mastery"] = stage_mastery
+
+
+func _ensure_goal_defaults() -> void:
+	if not _data.get("goals") is Dictionary:
+		_data["goals"] = {}
+	var goals: Dictionary = _data.get("goals", {})
+	for goal in get_goal_definitions():
+		var goal_id := str(goal.get("id", ""))
+		var state: Dictionary = goals.get(goal_id, {}) if goals.get(goal_id, {}) is Dictionary else {}
+		goals[goal_id] = _merge_entry_defaults(state, _get_default_goal_state())
+	_data["goals"] = goals
+
+
+func _merge_entry_defaults(entry: Dictionary, defaults: Dictionary) -> Dictionary:
+	var merged := defaults.duplicate(true)
+	for key in entry:
+		merged[key] = entry[key]
+	return merged
 
 
 func _migrate_global_training_if_needed(parsed: Dictionary) -> void:
@@ -387,6 +686,191 @@ func _migrate_global_training_if_needed(parsed: Dictionary) -> void:
 	for hero_id in DEFAULT_HERO_IDS:
 		training_by_hero[hero_id] = old_global.duplicate()
 	_data["training_by_hero"] = training_by_hero
+
+
+func _apply_mastery_from_run(summary: Dictionary) -> Dictionary:
+	_ensure_mastery_defaults()
+	var hero_id := _resolve_hero_id(str(summary.get("hero_id", DEFAULT_HERO_ID)))
+	var hero_mastery: Dictionary = _data.get("hero_mastery", {})
+	var before: Dictionary = hero_mastery.get(hero_id, _get_default_hero_mastery_entry()).duplicate(true)
+	var entry: Dictionary = hero_mastery.get(hero_id, _get_default_hero_mastery_entry())
+	var evolution_counts: Dictionary = summary.get("applied_evolution_type_counts", {})
+	entry["runs_played"] = int(entry.get("runs_played", 0)) + 1
+	if str(summary.get("result", "")) == "victory":
+		entry["victories"] = int(entry.get("victories", 0)) + 1
+	entry["kills"] = int(entry.get("kills", 0)) + int(summary.get("kill_count", 0))
+	entry["elite_kills"] = int(entry.get("elite_kills", 0)) + int(summary.get("elite_kill_count", 0))
+	entry["miniboss_kills"] = int(entry.get("miniboss_kills", 0)) + int(summary.get("miniboss_kill_count", 0))
+	if bool(summary.get("final_boss_defeated", false)):
+		entry["final_boss_kills"] = int(entry.get("final_boss_kills", 0)) + 1
+	entry["evolutions_selected"] = int(entry.get("evolutions_selected", 0)) + int(summary.get("applied_evolution_count", 0))
+	entry["attack_evolutions_selected"] = int(entry.get("attack_evolutions_selected", 0)) + int(evolution_counts.get("attack", 0))
+	entry["active_evolutions_selected"] = int(entry.get("active_evolutions_selected", 0)) + int(evolution_counts.get("active", 0))
+	entry["passive_evolutions_selected"] = int(entry.get("passive_evolutions_selected", 0)) + int(evolution_counts.get("passive", 0))
+	var new_level := _calculate_hero_mastery_level(entry)
+	entry["highest_mastery_level"] = maxi(int(entry.get("highest_mastery_level", 1)), new_level)
+	hero_mastery[hero_id] = entry
+	_data["hero_mastery"] = hero_mastery
+	return {
+		"hero_id": hero_id,
+		"before": before,
+		"after": entry.duplicate(true),
+		"level_before": int(before.get("highest_mastery_level", 1)),
+		"level_after": int(entry.get("highest_mastery_level", 1)),
+	}
+
+
+func _apply_stage_mastery_from_run(summary: Dictionary) -> Dictionary:
+	_ensure_mastery_defaults()
+	var stage_id := str(summary.get("stage_id", "city_rooftop"))
+	if stage_id.is_empty():
+		stage_id = "city_rooftop"
+	var stage_mastery: Dictionary = _data.get("stage_mastery", {})
+	var before: Dictionary = stage_mastery.get(stage_id, _get_default_stage_mastery_entry()).duplicate(true)
+	var entry: Dictionary = stage_mastery.get(stage_id, _get_default_stage_mastery_entry())
+	entry["attempts"] = int(entry.get("attempts", 0)) + 1
+	if str(summary.get("result", "")) == "victory":
+		entry["victories"] = int(entry.get("victories", 0)) + 1
+	if bool(summary.get("objective_completed", false)):
+		entry["objective_completions"] = int(entry.get("objective_completions", 0)) + 1
+	if bool(summary.get("final_boss_defeated", false)):
+		entry["final_boss_kills"] = int(entry.get("final_boss_kills", 0)) + 1
+	var grade := str(summary.get("run_grade", "C"))
+	if _is_better_grade(grade, str(entry.get("best_grade", ""))):
+		entry["best_grade"] = grade
+	var run_time := float(summary.get("run_time", 0.0))
+	if str(summary.get("result", "")) == "victory" and run_time > 0.0:
+		var best_time := float(entry.get("best_time", 0.0))
+		if best_time <= 0.0 or run_time < best_time:
+			entry["best_time"] = run_time
+	stage_mastery[stage_id] = entry
+	_data["stage_mastery"] = stage_mastery
+	return {
+		"stage_id": stage_id,
+		"before": before,
+		"after": entry.duplicate(true),
+	}
+
+
+func _calculate_hero_mastery_level(entry: Dictionary) -> int:
+	var score := 0
+	score += int(entry.get("runs_played", 0))
+	score += int(entry.get("victories", 0)) * 3
+	score += int(entry.get("final_boss_kills", 0)) * 3
+	score += int(floor(float(entry.get("kills", 0)) / 75.0))
+	score += int(floor(float(entry.get("elite_kills", 0)) / 4.0))
+	score += int(floor(float(entry.get("miniboss_kills", 0)) / 2.0))
+	score += int(entry.get("evolutions_selected", 0)) * 2
+	if score >= 100:
+		return 5
+	if score >= 60:
+		return 4
+	if score >= 30:
+		return 3
+	if score >= 12:
+		return 2
+	return 1
+
+
+func _calculate_goal_progress(goal: Dictionary) -> int:
+	var goal_id := str(goal.get("id", ""))
+	match goal_id:
+		"win_city_rooftop":
+			return 1 if _get_stage_stat("city_rooftop", "victories") > 0 else 0
+		"defend_lab_reactor":
+			return 1 if _get_stage_stat("neon_lab", "objective_completions") > 0 else 0
+		"close_wasteland_portals":
+			return 1 if _get_stage_stat("wasteland_gate", "objective_completions") > 0 else 0
+		"guardian_attack_evolution":
+			return mini(_get_hero_stat("guardian", "attack_evolutions_selected"), 1)
+		"vanguard_rage_boss":
+			return mini(_get_hero_stat("vanguard", "final_boss_kills"), 1)
+		"boss_slayer":
+			return 1 if _get_total_final_boss_kills() > 0 else 0
+		"elite_hunter":
+			return mini(int(_data.get("total_elite_kills", 0)), int(goal.get("progress_target", 10)))
+		"mastery_beginner":
+			return mini(_get_highest_any_hero_mastery_level(), int(goal.get("progress_target", 2)))
+		_:
+			var goals: Dictionary = _data.get("goals", {})
+			var state: Dictionary = goals.get(goal_id, {})
+			return int(state.get("progress_current", 0))
+
+
+func _calculate_goal_run_progress(goal: Dictionary, summary: Dictionary) -> int:
+	var goal_id := str(goal.get("id", ""))
+	var hero_id := str(summary.get("hero_id", ""))
+	var stage_id := str(summary.get("stage_id", ""))
+	match goal_id:
+		"blaster_mark_build":
+			if hero_id == "blaster":
+				return int(summary.get("applied_evolution_count", 0))
+		"first_3_evolutions":
+			return int(summary.get("applied_evolution_count", 0))
+		"defend_lab_reactor":
+			if stage_id == "neon_lab" and str(summary.get("result", "")) == "victory" and not bool(summary.get("objective_failed", false)):
+				return 1
+		"close_wasteland_portals":
+			if stage_id == "wasteland_gate" and bool(summary.get("objective_completed", false)):
+				return int(goal.get("progress_target", 1))
+		_:
+			return 0
+	return 0
+
+
+func _get_goal_definition(goal_id: String) -> Dictionary:
+	for goal in get_goal_definitions():
+		if str(goal.get("id", "")) == goal_id:
+			return goal
+	return {}
+
+
+func _get_hero_stat(hero_id: String, key: String) -> int:
+	var mastery: Dictionary = _data.get("hero_mastery", {})
+	var entry: Dictionary = mastery.get(hero_id, {})
+	return int(entry.get(key, 0))
+
+
+func _get_stage_stat(stage_id: String, key: String) -> int:
+	var mastery: Dictionary = _data.get("stage_mastery", {})
+	var entry: Dictionary = mastery.get(stage_id, {})
+	return int(entry.get(key, 0))
+
+
+func _get_total_final_boss_kills() -> int:
+	var total := 0
+	var mastery: Dictionary = _data.get("hero_mastery", {})
+	for hero_id in mastery:
+		var entry: Dictionary = mastery.get(hero_id, {})
+		total += int(entry.get("final_boss_kills", 0))
+	return total
+
+
+func _get_highest_any_hero_mastery_level() -> int:
+	var highest := 1
+	var mastery: Dictionary = _data.get("hero_mastery", {})
+	for hero_id in mastery:
+		var entry: Dictionary = mastery.get(hero_id, {})
+		highest = maxi(highest, int(entry.get("highest_mastery_level", _calculate_hero_mastery_level(entry))))
+	return highest
+
+
+func _is_better_grade(new_grade: String, old_grade: String) -> bool:
+	return _grade_value(new_grade) > _grade_value(old_grade)
+
+
+func _grade_value(grade: String) -> int:
+	match grade:
+		"S":
+			return 4
+		"A":
+			return 3
+		"B":
+			return 2
+		"C":
+			return 1
+		_:
+			return 0
 
 
 func _calculate_upgrade_cost(def: Dictionary, level: int) -> int:

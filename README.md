@@ -692,6 +692,16 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - Existing old global Training saves are migrated by copying global levels to each existing hero.
 - The reward-training bonus is read from the selected run hero's Training.
 
+#### Post-Run Progression & Unlock Goals
+
+- **Run summary enrichment** - Arena adds objective result, final boss result, applied evolution counts/titles, Attack/Passive/Active slot counts, dominant archetype, and a conservative run grade (`S/A/B/C`) before emitting `run_result_ready`.
+- **Hero Mastery** - `MetaProgressionManager` tracks per-hero runs, victories, kills, elite/miniboss/final-boss kills, total selected evolutions, selected Attack/Active/Passive evolution counts, and highest mastery level. Mastery is derived from conservative run milestones and updates only for the selected run hero.
+- **Stage Mastery** - City Rooftop, Neon Lab, and Wasteland Gate track attempts, victories, objective completions, final boss kills, best grade, and best victory time separately.
+- **Unlock Goals / Challenges** - goals expose id/title/description/category/reward/progress/completed/claimed fields through `get_goal_progress()`. Current goals cover stage wins/objectives, hero-specific evolution milestones, final boss kills, elite kills, and beginner mastery.
+- **Goal rewards** - goal rewards are auto-claimed on the run that completes them and are added to the post-run currency total once. `claim_goal_reward(goal_id)` remains available as a safe manual API for future non-auto-claim UI.
+- **Save migration** - save version 3 adds `hero_mastery`, `stage_mastery`, and `goals` with defaults while preserving existing currency, per-hero Training, unlocked heroes, and lifetime totals.
+- **Training Goals snapshot** - MetaUpgradeShop shows a compact read-only goals progress line above Training rows. It does not claim rewards or mutate goals.
+
 Not implemented yet (meta):
 - Advanced hero unlock purchase UI.
 - Per-hero favorite presets.

@@ -838,6 +838,7 @@ func _on_victory_reached(stats: Dictionary) -> void:
 
 	var summary := _build_run_summary(stats)
 	summary["result"] = "victory"
+	summary["run_grade"] = _calculate_run_grade(summary)
 
 	if not _run_result_emitted:
 		_run_result_emitted = true
@@ -874,6 +875,9 @@ func _build_run_summary(base_stats: Dictionary) -> Dictionary:
 	summary["stage_id"] = stage_id
 	summary["stage_display_name"] = stage_display_name
 	summary["final_boss_id"] = final_boss_id
+	var objective_summary := _build_objective_summary(base_stats)
+	for key in objective_summary:
+		summary[key] = objective_summary[key]
 
 	if player != null and is_instance_valid(player):
 		summary["player_level"] = int(player.get("level") or 1)
@@ -895,22 +899,79 @@ func _build_run_summary(base_stats: Dictionary) -> Dictionary:
 			var history = upgrade_manager.get_selected_upgrade_history()
 			summary["selected_upgrade_history"] = history
 			summary["selected_upgrade_count"] = history.size()
+		if upgrade_manager.has_method("get_slot_state"):
+			var slot_state: Dictionary = upgrade_manager.get_slot_state()
+			var attack_slots: Dictionary = slot_state.get("attack", {})
+			var passive_slots: Dictionary = slot_state.get("passive", {})
+			var active_slots: Dictionary = slot_state.get("active", {})
+			summary["selected_attack_line_count"] = int(attack_slots.get("used", 0))
+			summary["selected_passive_line_count"] = int(passive_slots.get("used", 0))
+			summary["selected_active_line_count"] = int(active_slots.get("used", 0))
 	else:
 		summary["dominant_archetype"] = ""
 		summary["archetype_points"] = {}
 		summary["selected_upgrade_history"] = []
 		summary["selected_upgrade_count"] = 0
+		summary["selected_attack_line_count"] = 0
+		summary["selected_passive_line_count"] = 0
+		summary["selected_active_line_count"] = 0
 
 	if evolution_manager != null and is_instance_valid(evolution_manager):
 		if evolution_manager.has_method("get_applied_evolutions"):
 			summary["applied_evolutions"] = evolution_manager.get_applied_evolutions()
 		if evolution_manager.has_method("get_applied_evolution_titles"):
 			summary["applied_evolution_titles"] = evolution_manager.get_applied_evolution_titles()
+		if evolution_manager.has_method("get_selected_evolution_type_counts"):
+			summary["applied_evolution_type_counts"] = evolution_manager.get_selected_evolution_type_counts(hero_id)
 	else:
 		summary["applied_evolutions"] = []
 		summary["applied_evolution_titles"] = []
+		summary["applied_evolution_type_counts"] = {"attack": 0, "active": 0, "passive": 0}
+	var applied_evolutions: Array = summary.get("applied_evolutions", [])
+	summary["applied_evolution_count"] = applied_evolutions.size()
+	var type_counts: Dictionary = summary.get("applied_evolution_type_counts", {})
+	summary["attack_evolution_count"] = int(type_counts.get("attack", 0))
+	summary["active_evolution_count"] = int(type_counts.get("active", 0))
+	summary["passive_evolution_count"] = int(type_counts.get("passive", 0))
 
 	return summary
+
+
+func _build_objective_summary(base_stats: Dictionary) -> Dictionary:
+	var objective_type := str(stage_data.get("objective_type", "survival"))
+	var state: Dictionary = {}
+	if _stage_objective_manager != null and is_instance_valid(_stage_objective_manager) and _stage_objective_manager.has_method("get_objective_state"):
+		state = _stage_objective_manager.get_objective_state()
+	var completed := bool(state.get("objective_done", false))
+	var failed := bool(state.get("failed", false))
+	if objective_type == "survival":
+		completed = bool(base_stats.get("has_victory", false))
+		failed = false
+	elif objective_type == "defense":
+		completed = bool(base_stats.get("has_victory", false)) and not failed
+	return {
+		"objective_type": objective_type,
+		"objective_completed": completed,
+		"objective_failed": failed,
+		"defense_hp_remaining": int(state.get("defense_hp", 0)),
+		"defense_max_hp": int(state.get("defense_max_hp", 0)),
+		"portals_destroyed": int(state.get("portals_destroyed", 0)),
+		"portals_total": int(state.get("portals_total", 0)),
+	}
+
+
+func _calculate_run_grade(summary: Dictionary) -> String:
+	var victory := str(summary.get("result", "")) == "victory"
+	var boss_defeated := bool(summary.get("final_boss_defeated", false))
+	var objective_ok := bool(summary.get("objective_completed", false)) and not bool(summary.get("objective_failed", false))
+	var evolution_count := int(summary.get("applied_evolution_count", 0))
+	if victory and boss_defeated and objective_ok and evolution_count >= 3:
+		return "S"
+	if victory and boss_defeated and objective_ok:
+		return "A"
+	if victory or objective_ok or boss_defeated:
+		return "B"
+	return "C"
 
 
 # Debug systems
@@ -1132,6 +1193,7 @@ func _trigger_objective_defeat() -> void:
 
 	var summary := _build_run_summary(stats)
 	summary["result"] = "defeat"
+	summary["run_grade"] = _calculate_run_grade(summary)
 
 	if not _run_result_emitted:
 		_run_result_emitted = true
@@ -1282,6 +1344,7 @@ func _on_player_died() -> void:
 
 	var summary := _build_run_summary(stats)
 	summary["result"] = "defeat"
+	summary["run_grade"] = _calculate_run_grade(summary)
 
 	if not _run_result_emitted:
 		_run_result_emitted = true

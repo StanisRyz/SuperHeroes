@@ -326,6 +326,7 @@ func _on_run_result_ready(summary: Dictionary) -> void:
 		return
 	var rewards: Dictionary = meta_progression_manager.apply_run_result(summary)
 	rewards["result"] = str(summary.get("result", "defeat"))
+	rewards["run_summary"] = summary.duplicate(true)
 	_last_reward_data = rewards
 	_rewards_shown = false
 

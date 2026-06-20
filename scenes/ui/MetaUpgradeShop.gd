@@ -12,6 +12,7 @@ var _heroes: Array[Dictionary] = []
 var _title_label: Label
 var _hero_selector: HBoxContainer
 var _currency_label: Label
+var _goals_label: Label
 var _back_button: Button
 var _list_vbox: VBoxContainer
 
@@ -61,6 +62,7 @@ func refresh() -> void:
 		_title_label.text = "Training: %s" % _get_selected_hero_display_name()
 	if _currency_label != null:
 		_currency_label.text = "Currency: %d" % _meta_manager.get_currency()
+	_update_goals_label()
 	_update_hero_buttons()
 	_rebuild_rows_if_needed()
 	_update_rows()
@@ -111,6 +113,13 @@ func _build_ui() -> void:
 	_hero_selector.add_theme_constant_override("separation", 8)
 	_hero_selector.alignment = BoxContainer.ALIGNMENT_CENTER
 	main_vbox.add_child(_hero_selector)
+
+	_goals_label = Label.new()
+	_goals_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_goals_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_goals_label.add_theme_font_size_override("font_size", 12)
+	_goals_label.modulate = Color(0.82, 0.86, 0.92, 1.0)
+	main_vbox.add_child(_goals_label)
 
 	main_vbox.add_child(HSeparator.new())
 
@@ -221,6 +230,30 @@ func _update_rows() -> void:
 				buy_btn.text = "Buy  %d" % cost
 				buy_btn.disabled = true
 				buy_btn.modulate = UIStateColors.muted_color()
+
+
+func _update_goals_label() -> void:
+	if _goals_label == null:
+		return
+	if _meta_manager == null or not _meta_manager.has_method("get_goal_progress"):
+		_goals_label.text = ""
+		return
+	var goals: Array = _meta_manager.get_goal_progress()
+	var completed := 0
+	var next_lines: PackedStringArray = []
+	for goal in goals:
+		if bool(goal.get("completed", false)):
+			completed += 1
+		elif next_lines.size() < 3:
+			next_lines.append("%s %d/%d" % [
+				str(goal.get("title", goal.get("id", ""))),
+				int(goal.get("progress_current", 0)),
+				int(goal.get("progress_target", 1)),
+			])
+	var text := "Goals: %d / %d complete" % [completed, goals.size()]
+	if not next_lines.is_empty():
+		text += "   Next: %s" % " | ".join(next_lines)
+	_goals_label.text = text
 
 
 func _on_buy_pressed(upgrade_id: String) -> void:
