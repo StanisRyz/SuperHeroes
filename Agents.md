@@ -399,6 +399,8 @@ Each triple definition contains:
 - no duplicate `grid_index`, `evolution_id`, `attack_line_id`, `passive_line_id`, or `active_line_id` per hero.
 - valid `target_type` and non-empty `target_id`.
 - active targets match real active source ids, attack targets match real attack source ids, and passive targets match real passive ids from `UpgradeManager.get_upgrade_definition_summary()`.
+- implemented evolutions have target-matching handlers; no offerable implemented evolution may be a no-op.
+- selected evolutions still match a real triple and a handler for their target type.
 
 ### Runtime State Rules
 
@@ -418,11 +420,12 @@ Each triple definition contains:
 
 ### Overdrive and UI
 
-- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) is runtime-instantiated by Arena. It shows the evolution type label (ATTACK / ACTIVE / PASSIVE), target id, title, description, and required-line progress.
+- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) is runtime-instantiated by Arena. It shows the evolution type label (ATTACK / ACTIVE / PASSIVE EVOLUTION), target type/name, title, description, required-line titles, current/max levels, and selected/maxed state. Keep the screen scrollable and readable in mobile landscape.
 - `EvolutionManager.get_overdrive_options()` returns READY, not-yet-selected triples for the active hero, filtered to `effect_status: "implemented"` only.
 - DebugStatsOverlay shows ready/selected totals, Attack / Active / Passive target and selected counts, selected attack evolution ids from `PlayerAutoAttack.debug_get_attack_evolutions()`, and selected passive evolution ids/titles from `PassiveAbilityManager.get_passive_state()`.
-- BuildSlotsWindow remains read-only slot display. It may show applied evolution titles, but must not mutate evolution state or slot rules.
+- BuildSlotsWindow remains read-only slot display. It may show applied evolution titles, ready count, selected count, and closest triple progress, but must not mutate evolution state or slot rules.
 - OverdriveScreen is blocking: no skip/close-without-selection while visible.
+- Arena must block BuildSlotsWindow/PauseMenu interaction while OverdriveScreen is visible and close OverdriveScreen on victory, defeat, restart, and quit-to-menu. Evolution state is never persisted.
 
 ### Implemented Attack Evolution IDs
 

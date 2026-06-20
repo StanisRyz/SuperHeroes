@@ -294,7 +294,7 @@ func _build_stats_text() -> String:
 				int(ready_type_counts.get("active", 0)),
 				int(ready_type_counts.get("passive", 0))
 			])
-			lines.append("Selected types: A %d  Act %d  P %d" % [
+			lines.append("Selected types: A %d/3  Act %d/3  P %d/3" % [
 				int(selected_type_counts.get("attack", 0)),
 				int(selected_type_counts.get("active", 0)),
 				int(selected_type_counts.get("passive", 0))

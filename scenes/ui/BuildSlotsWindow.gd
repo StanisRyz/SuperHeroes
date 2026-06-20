@@ -19,6 +19,8 @@ var _evolution_manager: Node = null
 var _section_labels: Dictionary = {}
 var _slot_rows: Dictionary = {}
 var _evolution_label: Label = null
+var _evolution_ready_label: Label = null
+var _evolution_closest_label: Label = null
 
 
 func _ready() -> void:
@@ -94,7 +96,12 @@ func _build_ui() -> void:
 	var main := VBoxContainer.new()
 	main.name = "Main"
 	main.add_theme_constant_override("separation", 12)
-	margin.add_child(main)
+	main.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.add_child(scroll)
+	scroll.add_child(main)
 
 	var header := HBoxContainer.new()
 	header.name = "Header"
@@ -125,6 +132,22 @@ func _build_ui() -> void:
 	_evolution_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_evolution_label.modulate = Color(1.0, 0.85, 0.32, 1.0)
 	main.add_child(_evolution_label)
+
+	_evolution_ready_label = Label.new()
+	_evolution_ready_label.name = "EvolutionReadyLabel"
+	_evolution_ready_label.custom_minimum_size = Vector2(0.0, 24.0)
+	_evolution_ready_label.clip_text = true
+	_evolution_ready_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_evolution_ready_label.modulate = Color(0.86, 0.9, 1.0, 1.0)
+	main.add_child(_evolution_ready_label)
+
+	_evolution_closest_label = Label.new()
+	_evolution_closest_label.name = "EvolutionClosestLabel"
+	_evolution_closest_label.custom_minimum_size = Vector2(0.0, 24.0)
+	_evolution_closest_label.clip_text = true
+	_evolution_closest_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_evolution_closest_label.modulate = Color(0.78, 0.82, 0.92, 1.0)
+	main.add_child(_evolution_closest_label)
 
 
 func _create_section(category: String) -> Control:
@@ -213,10 +236,29 @@ func _on_evolution_state_changed() -> void:
 
 
 func _update_evolution_label() -> void:
-	if _evolution_label == null:
+	if _evolution_label == null or _evolution_ready_label == null or _evolution_closest_label == null:
 		return
-	if _evolution_manager == null or not _evolution_manager.has_method("get_applied_evolution_titles"):
+	if _evolution_manager == null:
 		_evolution_label.text = "Evolutions: None"
+		_evolution_ready_label.text = "Ready: 0"
+		_evolution_closest_label.text = "Closest: none"
 		return
-	var titles: Array = _evolution_manager.get_applied_evolution_titles()
+	var titles: Array = []
+	if _evolution_manager.has_method("get_applied_evolution_titles"):
+		titles = _evolution_manager.get_applied_evolution_titles()
 	_evolution_label.text = "Evolutions: %s" % (", ".join(titles) if not titles.is_empty() else "None")
+	if _evolution_manager.has_method("debug_get_evolution_grid_state"):
+		var state: Dictionary = _evolution_manager.debug_get_evolution_grid_state()
+		_evolution_ready_label.text = "Ready: %d   Selected: %d" % [int(state.get("ready_count", 0)), int(state.get("selected_count", 0))]
+		var closest: Dictionary = state.get("closest_triple", {})
+		if closest.is_empty():
+			_evolution_closest_label.text = "Closest: none"
+		else:
+			_evolution_closest_label.text = "Closest: %s  %d/3 lines  %d/3 max" % [
+				str(closest.get("title", "?")),
+				int(closest.get("selected_lines_count", 0)),
+				int(closest.get("maxed_lines_count", 0)),
+			]
+	else:
+		_evolution_ready_label.text = "Ready: 0"
+		_evolution_closest_label.text = "Closest: unavailable"

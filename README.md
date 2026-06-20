@@ -706,13 +706,14 @@ The Evolution Triple Grid (27 triples, 9 per hero) now fires an **Overdrive** ch
 
 #### Architecture
 
-- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) builds UI procedurally, displays ATTACK / ACTIVE / PASSIVE evolution type, target id, description, and required-line progress, then emits `evolution_chosen(evolution_id)`.
+- **OverdriveScreen** (`scenes/ui/OverdriveScreen.gd/.tscn`) builds UI procedurally. Cards show ATTACK / ACTIVE / PASSIVE EVOLUTION, title, target type/name, game-changing description, and all required attack/passive/active lines with current/max level and selected/maxed state. It uses a scroll area so the three-card choice fits mobile landscape.
 - **EvolutionManager.get_overdrive_options()** returns merged dicts: triple definition + computed state (including `required_lines` for card display), filtered to implemented effects only.
 - **EvolutionManager.apply_evolution()** calls `_apply_evolution_effect(evolution_id, triple)`, routes by `target_type`, then marks triple SELECTED only on success and emits `evolution_applied`.
 - **AbilityManager evolution flags** are the current active-effect implementation surface. All flags reset in `set_hero_kit()`. The full active pack flags are `solar_beam_cataclysm_enabled`, `frost_breath_absolute_zero_enabled`, `death_dash_final_flash_enabled`, `smoke_screen_blackout_enabled`, `explosive_trap_chain_evolution_enabled`, `grappling_hook_execution_enabled`, `rage_wave_worldbreaker_enabled`, `mighty_clap_rampage_impact_enabled`, and `rage_leap_meteor_crash_enabled`.
 - **PlayerAutoAttack.apply_attack_evolution(evolution_id, target_id)** is the attack-effect implementation surface. Attack evolutions are runtime-only, reset with the primary weapon on each fresh run, and expose `debug_get_attack_evolutions()` for debug UI.
 - **PassiveAbilityManager.apply_passive_evolution(evolution_id, target_id)** is the passive-effect implementation surface. Passive evolutions are runtime-only, reset by `cleanup()`/fresh Arena setup, and expose `debug_get_passive_evolutions()` plus passive evolution ids/titles in `get_passive_state()`.
-- **DebugStatsOverlay** (F12) shows total and selected Attack / Active / Passive evolution counts plus `Overdrive: <title>, <title>`, attack evolution ids, and passive evolution ids/titles when evolutions are applied. BuildSlotsWindow remains read-only and shows selected evolution titles.
+- **BuildSlotsWindow** remains read-only and shows selected evolution titles, ready evolution count, selected count, and closest triple progress. Evolutions do not consume build slots.
+- **DebugStatsOverlay** (F12) shows total and selected Attack / Active / Passive evolution counts (`x/3`), ready count, closest triple progress, selected evolution titles, attack evolution ids, and passive evolution ids/titles when evolutions are applied.
 - OverdriveScreen is closed (hidden) on victory, defeat, restart, and quit-to-menu. No evolution state is saved to meta.
 
 ### Run Progression & Victory

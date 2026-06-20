@@ -120,6 +120,12 @@ const SHIELD_VISUAL_SIZE := 8.0
 const DRONE_VISUAL_RADIUS := 58.0
 const ARC_DURATION := 0.16
 const ARC_WIDTH := 4.0
+const EVOLVED_PASSIVE_MIN_INTERVAL := 0.85
+const GRAVITY_RAGE_MIN_INTERVAL := 2.4
+const SOLAR_STORM_MAX_TARGETS := 5
+const DRONE_SWARM_MAX_TARGETS := 4
+const SHOCK_NET_MAX_BOUNCES := 8
+const BERSERKER_FOCUS_MAX_TARGETS := 4
 
 var player: Node2D = null
 var enemy_container: Node = null
@@ -536,7 +542,7 @@ func _tick_solar_storm(level: int) -> void:
 	if _is_solar_empowered():
 		damage = int(float(damage) * 1.75)
 	var targets := _find_enemies_in_radius(player.global_position, range_)
-	var max_targets := mini(targets.size(), 5)
+	var max_targets := mini(targets.size(), SOLAR_STORM_MAX_TARGETS)
 	if max_targets <= 0:
 		_timers["storm_relay"] = 0.28
 		return
@@ -549,7 +555,7 @@ func _tick_solar_storm(level: int) -> void:
 			enemy.apply_temporary_modifier("solar_storm_stagger", {"speed_multiplier": 0.65}, 0.8)
 	_show_status("SOLAR STORM x%d" % max_targets)
 	_show_pulse_ring(player.global_position, range_ * 0.35, Color(1.0, 0.72, 0.16, 0.72), 0.25, 4.5)
-	_timers["storm_relay"] = _get_scaled_value("storm_relay", "interval", level) * 0.52
+	_timers["storm_relay"] = maxf(_get_scaled_value("storm_relay", "interval", level) * 0.52, EVOLVED_PASSIVE_MIN_INTERVAL)
 	_last_event = "solar_storm hit %d enemies" % max_targets
 
 
@@ -557,7 +563,7 @@ func _tick_tactical_drone_swarm(level: int) -> void:
 	var range_ := _get_scaled_value("guardian_drone", "range", level) * 1.35
 	var damage := int(_get_scaled_value("guardian_drone", "damage", level) * 2.0)
 	var targets := _find_enemies_in_radius(player.global_position, range_)
-	var max_targets := mini(targets.size(), 4)
+	var max_targets := mini(targets.size(), DRONE_SWARM_MAX_TARGETS)
 	if max_targets <= 0:
 		_timers["guardian_drone"] = 0.25
 		return
@@ -569,7 +575,7 @@ func _tick_tactical_drone_swarm(level: int) -> void:
 		_spawn_arc(player.global_position + orbit_offset, enemy.global_position, Color(0.55, 0.9, 1.0, 1.0), 3.5)
 		_show_damage(damage, enemy.global_position)
 	_show_status("DRONE SWARM x%d" % max_targets)
-	_timers["guardian_drone"] = _get_scaled_value("guardian_drone", "interval", level) * 0.55
+	_timers["guardian_drone"] = maxf(_get_scaled_value("guardian_drone", "interval", level) * 0.55, EVOLVED_PASSIVE_MIN_INTERVAL)
 	_last_event = "drone_swarm hit %d enemies" % max_targets
 
 
@@ -583,7 +589,7 @@ func _tick_shock_net(level: int) -> void:
 		return
 	var damage := int(_get_scaled_value("chain_lightning", "damage", level) * 2.0)
 	var bounce_range := _get_scaled_value("chain_lightning", "bounce_range", level) * 1.35
-	var max_bounces := int(_get_scaled_value("chain_lightning", "bounces", level)) + 4
+	var max_bounces := mini(int(_get_scaled_value("chain_lightning", "bounces", level)) + 4, SHOCK_NET_MAX_BOUNCES)
 	var hit_targets: Array[Node2D] = []
 	var origin := player.global_position
 	var current := target
@@ -599,13 +605,13 @@ func _tick_shock_net(level: int) -> void:
 		origin = current.global_position
 		current = _find_marked_or_nearest_enemy_from(origin, bounce_range, hit_targets)
 	_show_status("SHOCK NET x%d" % hit_targets.size())
-	_timers["chain_lightning"] = _get_scaled_value("chain_lightning", "interval", level) * 0.58
+	_timers["chain_lightning"] = maxf(_get_scaled_value("chain_lightning", "interval", level) * 0.58, EVOLVED_PASSIVE_MIN_INTERVAL)
 	_last_event = "shock_net bounced %d times" % hit_targets.size()
 
 
 func _tick_radiant_renewal(level: int) -> void:
 	_trigger_radiant_renewal(level)
-	_timers["recovery_field"] = _get_scaled_value("recovery_field", "interval", level) * 0.68
+	_timers["recovery_field"] = maxf(_get_scaled_value("recovery_field", "interval", level) * 0.68, EVOLVED_PASSIVE_MIN_INTERVAL)
 
 
 func _tick_berserker_focus(level: int) -> void:
@@ -613,7 +619,7 @@ func _tick_berserker_focus(level: int) -> void:
 	var range_ := _get_scaled_value("battle_focus", "range", level) * (1.3 + rage_ratio * 0.35)
 	var damage := int(_get_scaled_value("battle_focus", "damage", level) * (2.8 + rage_ratio * 2.0))
 	var targets := _find_enemies_in_radius(player.global_position, range_)
-	var max_targets := mini(targets.size(), 1 + int(roundi(rage_ratio * 3.0)))
+	var max_targets := mini(targets.size(), mini(1 + int(roundi(rage_ratio * 3.0)), BERSERKER_FOCUS_MAX_TARGETS))
 	if max_targets <= 0:
 		_timers["battle_focus"] = 0.28
 		return
@@ -628,7 +634,7 @@ func _tick_berserker_focus(level: int) -> void:
 	if buff_manager != null and buff_manager.has_method("apply_named_attack_speed_boost"):
 		buff_manager.apply_named_attack_speed_boost("battle_focus", speed_multiplier, duration)
 	_show_status("BERSERKER FOCUS")
-	_timers["battle_focus"] = _get_scaled_value("battle_focus", "interval", level) * 0.62
+	_timers["battle_focus"] = maxf(_get_scaled_value("battle_focus", "interval", level) * 0.62, EVOLVED_PASSIVE_MIN_INTERVAL)
 	_last_event = "berserker_focus hit %d enemies" % max_targets
 
 
@@ -644,7 +650,7 @@ func _tick_rage_field(level: int) -> void:
 		_show_damage(damage, enemy.global_position)
 	_show_rage_field_pulse(radius)
 	_show_status("RAGE FIELD %d" % targets.size())
-	_timers["static_field"] = _get_scaled_value("static_field", "interval", level) * (0.62 - rage_ratio * 0.22)
+	_timers["static_field"] = maxf(_get_scaled_value("static_field", "interval", level) * (0.62 - rage_ratio * 0.22), EVOLVED_PASSIVE_MIN_INTERVAL)
 	_last_event = "rage_field hit %d enemies" % targets.size()
 
 
@@ -659,7 +665,7 @@ func _tick_stasis_field(level: int) -> void:
 		_apply_tactical_mark(enemy)
 	_show_stasis_field_pulse(radius)
 	_show_status("STASIS FIELD %d" % targets.size())
-	_timers["time_dilator"] = _get_scaled_value("time_dilator", "interval", level) * 0.52
+	_timers["time_dilator"] = maxf(_get_scaled_value("time_dilator", "interval", level) * 0.52, EVOLVED_PASSIVE_MIN_INTERVAL)
 	_last_event = "stasis_field slowed %d enemies" % targets.size()
 
 
@@ -677,7 +683,7 @@ func _tick_gravity_rage(delta: float) -> void:
 			enemy.apply_temporary_modifier("gravity_rage_pull", {"speed_multiplier": 0.55}, 0.8)
 	_show_gravity_rage_pulse(radius)
 	_show_status("GRAVITY RAGE" if not targets.is_empty() else "GRAVITY")
-	_timers["magnet_core"] = 3.2
+	_timers["magnet_core"] = maxf(3.2, GRAVITY_RAGE_MIN_INTERVAL)
 	_last_event = "gravity_rage pulled %d enemies" % targets.size()
 
 

@@ -592,10 +592,31 @@ func validate_evolution_grid(hero_id: String, strict: bool = false) -> Dictionar
 		elif not _is_valid_target_id(hero_id, target_type, target_id):
 			_record_issue(errors, warnings, true, "invalid_target_id", "Triple '%s' target %s/%s does not match upgrade source ids." % [triple_id, target_type, target_id])
 
+		if str(triple.get("effect_status", EFFECT_STATUS_PLACEHOLDER)) == EFFECT_STATUS_IMPLEMENTED:
+			if not _is_implemented_evolution_id(evo_id):
+				_record_issue(errors, warnings, true, "implemented_id_missing", "Evolution '%s' is marked implemented but is absent from the implemented id registry." % evo_id)
+			if not _has_implemented_handler(evo_id, target_type, target_id):
+				_record_issue(errors, warnings, true, "implemented_missing_handler", "Evolution '%s' is offerable but has no %s handler for target '%s'." % [evo_id, target_type, target_id])
+		elif _is_implemented_evolution_id(evo_id):
+			_record_issue(errors, warnings, true, "implemented_id_hidden", "Evolution '%s' has a handler but is marked placeholder." % evo_id)
+
 	for target_type in VALID_EVOLUTION_TARGET_TYPES:
 		var count := int(target_counts.get(target_type, 0))
 		if count != 3:
 			_record_issue(errors, warnings, true, "wrong_target_type_count", "Hero '%s' has %d %s evolution targets, expected 3." % [hero_id, count, target_type])
+
+	for selected_id in _selected_evolutions:
+		var raw_selected_triple := _get_triple_by_evolution_id(selected_id)
+		if raw_selected_triple.is_empty():
+			_record_issue(errors, warnings, true, "selected_unknown_evolution", "Selected evolution '%s' has no triple definition." % selected_id)
+			continue
+		var selected_triple := _normalize_triple(raw_selected_triple)
+		if str(selected_triple.get("hero_id", "")) != hero_id:
+			continue
+		var selected_type := get_evolution_target_type(selected_triple)
+		var selected_target := get_evolution_target_id(selected_triple)
+		if not _has_implemented_handler(selected_id, selected_type, selected_target):
+			_record_issue(errors, warnings, true, "selected_missing_handler", "Selected evolution '%s' no longer matches a %s handler for '%s'." % [selected_id, selected_type, selected_target])
 
 	return {
 		"ok": errors.is_empty(),
@@ -812,7 +833,13 @@ func _merge_triple_state(triple: Dictionary, state: Dictionary) -> Dictionary:
 
 
 func _is_evolution_offerable(triple: Dictionary) -> bool:
-	return str(triple.get("effect_status", EFFECT_STATUS_PLACEHOLDER)) == EFFECT_STATUS_IMPLEMENTED
+	var evolution_id := str(triple.get("evolution_id", ""))
+	var target_type := get_evolution_target_type(triple)
+	var target_id := get_evolution_target_id(triple)
+	return (
+		str(triple.get("effect_status", EFFECT_STATUS_PLACEHOLDER)) == EFFECT_STATUS_IMPLEMENTED
+		and _has_implemented_handler(evolution_id, target_type, target_id)
+	)
 
 
 func _is_implemented_evolution_id(evolution_id: String) -> bool:
@@ -845,6 +872,47 @@ func _is_implemented_evolution_id(evolution_id: String) -> bool:
 		"rage_leap_blood_crater",
 		"rage_leap_final_impact",
 	].has(evolution_id)
+
+
+func _has_implemented_handler(evolution_id: String, target_type: String, target_id: String) -> bool:
+	match target_type:
+		EVOLUTION_TARGET_ATTACK:
+			return {
+				"solar_beam_sky_lance": "solar_ray",
+				"solar_beam_burning_judgment": "solar_ray",
+				"frost_breath_glacier_front": "solar_ray",
+				"smoke_screen_tactical_cover": "homing_rockets",
+				"smoke_screen_choking_zone": "homing_rockets",
+				"trap_cluster_minefield": "homing_rockets",
+				"rage_wave_earthsplitter": "splash_melee",
+				"rage_wave_crushing_storm": "splash_melee",
+				"mighty_clap_seismic_fan": "splash_melee",
+			}.get(evolution_id, "") == target_id
+		EVOLUTION_TARGET_ACTIVE:
+			return {
+				"solar_beam_cataclysm": "solar_beam",
+				"frost_breath_absolute_zero": "frost_breath",
+				"death_dash_solar_execution": "death_dash",
+				"smoke_screen_blackout": "smoke_screen",
+				"trap_chain_detonation_evolution": "explosive_trap",
+				"hook_execution_pull": "grappling_hook",
+				"rage_wave_worldbreaker": "rage_wave",
+				"mighty_clap_thunderclap": "mighty_clap",
+				"rage_leap_meteor_crash": "rage_leap",
+			}.get(evolution_id, "") == target_id
+		EVOLUTION_TARGET_PASSIVE:
+			return {
+				"frost_breath_permafrost": "orbit_shields",
+				"death_dash_comet_path": "storm_relay",
+				"death_dash_final_flash": "recovery_field",
+				"trap_marked_blast": "guardian_drone",
+				"hook_shadow_line": "chain_lightning",
+				"hook_rapid_abduction": "time_dilator",
+				"mighty_clap_rampage_impact": "static_field",
+				"rage_leap_blood_crater": "battle_focus",
+				"rage_leap_final_impact": "magnet_core",
+			}.get(evolution_id, "") == target_id
+	return false
 
 
 func _apply_active_evolution_effect(evolution_id: String) -> bool:
@@ -995,6 +1063,7 @@ func _compute_triple_state(triple: Dictionary) -> Dictionary:
 		"required_lines": [
 			{
 				"id": attack_id,
+				"title": _get_upgrade_title(attack_id),
 				"category": "attack",
 				"current_level": attack_level,
 				"max_level": attack_max,
@@ -1003,6 +1072,7 @@ func _compute_triple_state(triple: Dictionary) -> Dictionary:
 			},
 			{
 				"id": passive_id,
+				"title": _get_upgrade_title(passive_id),
 				"category": "passive",
 				"current_level": passive_level,
 				"max_level": passive_max,
@@ -1011,6 +1081,7 @@ func _compute_triple_state(triple: Dictionary) -> Dictionary:
 			},
 			{
 				"id": active_id,
+				"title": _get_upgrade_title(active_id),
 				"category": "active",
 				"current_level": active_level,
 				"max_level": active_max,
@@ -1048,6 +1119,13 @@ func _get_upgrade_max_level(upgrade_id: String) -> int:
 	if upgrade_manager.has_method("get_upgrade_definition_summary"):
 		summary = upgrade_manager.get_upgrade_definition_summary(upgrade_id)
 	return int(summary.get("max_level", 1)) if not summary.is_empty() else 1
+
+
+func _get_upgrade_title(upgrade_id: String) -> String:
+	if upgrade_manager == null or upgrade_id.is_empty() or not upgrade_manager.has_method("get_upgrade_definition_summary"):
+		return upgrade_id
+	var summary: Dictionary = upgrade_manager.get_upgrade_definition_summary(upgrade_id)
+	return str(summary.get("title", upgrade_id)) if not summary.is_empty() else upgrade_id
 
 
 func _get_required_level(triple: Dictionary, line_id: String) -> int:

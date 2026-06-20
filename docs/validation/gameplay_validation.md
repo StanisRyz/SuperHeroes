@@ -1162,6 +1162,21 @@ DEBUG_PLAYER: invulnerable=true
 | 4 | Restart run | Evolution runtime state clears naturally |
 | 5 | Inspect diff/save behavior | No save/meta/reward changes, no stage objective changes, no enemy changes, no boss-flow changes, and no slot-rule changes |
 
+### Evolution UI / Balance / Validation Polish
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Overdrive with attack, active, and passive options ready | Each card clearly shows ATTACK / ACTIVE / PASSIVE EVOLUTION, title, target type/name, description, and required attack/passive/active line progress |
+| 2 | View Overdrive on mobile landscape | Cards remain readable; content scrolls instead of overlapping pause/build/level-up UI |
+| 3 | Select any Overdrive card | Screen hides, game resumes safely, and the selected evolution is not offered again |
+| 4 | Open Build Slots Window after selecting evolutions | Window shows selected evolution titles, ready count, selected count, and closest triple progress without mutating slots |
+| 5 | Enable DebugStatsOverlay | Overlay shows selected attack/active/passive evolution counts as x/3, ready count, closest progress, and selected evolution titles |
+| 6 | Run `validate_evolution_grid(hero, true)` for each hero | Reports wrong triple count, wrong type counts, duplicate ids/lines, missing targets, invalid targets, implemented ids without handlers, hidden implemented ids, and selected ids without matching handlers |
+| 7 | Audit evolved passive timing | Shock Net bounces, Drone Swarm targets, Solar Storm targets, Berserker Focus targets, and evolved passive tick intervals are capped |
+| 8 | Press Pause/Build while Overdrive is open | Overdrive remains the blocking modal; BuildSlotsWindow does not open over it |
+| 9 | Win, die, restart, or quit while Overdrive is visible | Overdrive closes safely and no evolution state is saved |
+| 10 | Inspect scope | No new evolution categories, hero kits, slot rules, saves, rewards, stage objectives, enemies, boss flow, or meta progression changes |
+
 ---
 
 ## Solar Guardian Full Kit Rework
