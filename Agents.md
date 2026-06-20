@@ -60,8 +60,10 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/upgrades/UpgradeManager.gd` - hardcoded upgrade definitions, option weighting, upgrade levels, passive upgrade definitions, and application logic.
 - `scenes/ui/GameHUD.tscn` - player HP, XP, time, and kill counter HUD scene.
 - `scenes/ui/GameHUD.gd` - player and run HUD binding. `setup_objective_manager(obj_manager, objective_type)` wires objective state; `update_objective_state(state)` renders defense HP or portal count; `_update_objective()` skips the survival timer when objective_type is non-survival.
-- `scenes/ui/MobileControls.tscn` - mobile virtual joystick and 3 ability buttons scene.
-- `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source (ability_1/2/3_pressed).
+- `scenes/ui/MobileControls.tscn` - mobile virtual joystick and 3 ability buttons scene; Pause and Build buttons stay visible for desktop/mobile run UI.
+- `scenes/ui/MobileControls.gd` - mobile movement and ability button signal source (ability_1/2/3_pressed), plus pause_pressed and build_slots_pressed intent signals.
+- `scenes/ui/BuildSlotsWindow.tscn` - in-run read-only Build Slots window CanvasLayer.
+- `scenes/ui/BuildSlotsWindow.gd` - display-only slot overview; reads UpgradeManager slot state and definition summaries, shows 4 Attack / 4 Passive / 4 Active rows, emits closed.
 - `scenes/ui/MainMenu.tscn` - frontend main menu scene.
 - `scenes/ui/MainMenu.gd` - main menu start, settings, training, help, and quit intent signals.
 - `scenes/ui/ControlsHelpOverlay.tscn` - reusable help and controls CanvasLayer scene.
@@ -462,7 +464,8 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Resume from pause.
 - Restart Run through Main.
 - Quit to Menu.
-- Mobile pause button.
+- Desktop/mobile Pause button.
+- Desktop/mobile Build button under Pause.
 - Settings menu.
 - Persistent local settings through `user://settings.cfg`.
 - Volume settings.
@@ -702,7 +705,13 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Arena calls `hud.setup_upgrade_manager(upgrade_manager)` inside `_setup_level_up_flow` after `upgrade_manager.setup(...)`.
 - UpgradeManager remains the owner of the upgrade pool and all run build state.
 - Arena coordinates the level-up flow; LevelUpScreen and GameHUD are display-only.
+- `BuildSlotsWindow` is display-only and reads `UpgradeManager.get_slot_state()` plus `get_upgrade_definition_summary(upgrade_id)`; it must not parse history manually or mutate upgrade state.
+- Arena owns BuildSlotsWindow setup/open/close, modal blocking, and pause/resume safety. Opening the window pauses active gameplay; closing resumes only when no other blocking modal is open.
+- MobileControls only emits `build_slots_pressed`; it must not inspect or mutate build state.
+- Pause/Build buttons stay visible on desktop and mobile. Joystick, dash, and ability buttons remain touch/forced-mobile controls.
 - DebugStatsOverlay may read `UpgradeManager.debug_get_slot_state()` and display selected upgrade ids by category, but must never mutate slot state.
+- Slot state remains runtime-only and resets with each fresh Arena/UpgradeManager run.
+- Hero-specific upgrade rewrites are not included in this patch.
 - No Build Evolution in this patch.
 
 ## Passive Ability System Foundation
@@ -824,6 +833,7 @@ Build Evolution is not included in any stage objectives patch. The `objective_ty
 - Arena wires `ability_2_pressed` → `AbilityManager.cast_ability_2`.
 - Arena wires `ability_3_pressed` → `AbilityManager.cast_ability_3`.
 - Arena wires the mobile pause button to the same pause-open handler as keyboard pause.
+- Arena wires the Build button to BuildSlotsWindow through `build_slots_pressed`; the window is blocked during PauseMenu, Settings, Help, ConfirmDialog, LevelUp, EvolutionReward, Victory, and GameOver screens.
 - `MobileControls` listens to `ability_cooldown_changed` and updates all 3 button texts.
 - Help overlay blocks mouse/touch input behind it while visible.
 

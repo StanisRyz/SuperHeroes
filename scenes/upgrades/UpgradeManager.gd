@@ -994,6 +994,10 @@ func debug_get_build_state() -> Dictionary:
 
 
 func debug_get_slot_state() -> Dictionary:
+	return get_slot_state()
+
+
+func get_slot_state() -> Dictionary:
 	return {
 		SLOT_CATEGORY_ATTACK: {
 			"selected": selected_attack_lines.duplicate(),

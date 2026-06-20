@@ -240,6 +240,25 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Build Slots Overview Window
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a run on desktop | Pause and Build buttons are visible at top-right; Build sits under Pause and does not overlap HUD/objective text |
+| 2 | Start a run with touch or forced mobile controls | Build remains under Pause and does not overlap joystick, dash, or ability buttons |
+| 3 | Press Build at run start | Build Slots window opens, gameplay pauses, and Attack / Passive / Active each show 0 / 4 with 4 Empty rows |
+| 4 | Close the Build Slots window | Window hides and gameplay resumes when no other modal is open |
+| 5 | Take an Attack upgrade, then open Build | Attack shows 1 / 4 and the selected upgrade title with current/max level |
+| 6 | Take a Passive upgrade, then open Build | Passive shows 1 / 4 and the selected passive title with current/max level |
+| 7 | Take an Active upgrade, then open Build | Active shows 1 / 4 and the selected active title with current/max level |
+| 8 | Level an already selected upgrade line | The same row level updates; no extra row is added |
+| 9 | Fill a category | That category shows 4 / 4 with four filled rows |
+| 10 | Try Build while PauseMenu, Settings, Help, ConfirmDialog, LevelUpScreen, EvolutionRewardScreen, VictoryScreen, or GameOverScreen is open | Build window does not open over the blocking modal |
+| 11 | Restart after selecting upgrades | Fresh run Build Slots window resets to 0 / 4 for Attack, Passive, and Active |
+| 12 | Inspect diff/save behavior | No slot rule, upgrade balance, passive behavior, hero kit, primary weapon, stage, enemy, reward, save, meta economy, boss flow, objective flow, or Build Evolution changes |
+
+---
+
 ## Passive Ability System
 
 | # | Test | Expected |

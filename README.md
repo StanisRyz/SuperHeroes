@@ -114,7 +114,8 @@ Implemented foundation:
 - Resume from pause.
 - Restart Run through Main.
 - Quit to Menu.
-- Mobile pause button.
+- Desktop/mobile Pause button.
+- Desktop/mobile Build button under Pause.
 - Settings menu.
 - Persistent local settings through `user://settings.cfg`.
 - Master, music, and SFX volume settings.
@@ -183,6 +184,8 @@ Implemented foundation:
   - Passive effects now have visible runtime feedback: shield indicators track charges, shield blocks show `SHIELD BLOCK`, Storm/Drone hits draw short Line2D arcs, and damage/status text appears at the target.
   - Passive upgrade definitions use `type/category: "passive"` plus `tags: ["passive", ...]`; LevelUpScreen marks them with `PASSIVE`.
   - The 4/4/4 upgrade slot limits now apply to new upgrade lines, while repeated levels stay within the already owned line. Hero-specific attack/active upgrade rewrites and Build Evolution are not included yet.
+  - Build Slots Overview Window: an in-run `Build` button under Pause opens a compact read-only window showing Attack, Passive, and Active slot usage plus the filled/empty rows for all 12 build slots.
+  - The Build Slots window reads runtime slot state from `UpgradeManager`; it does not change slot rules, upgrade weights, upgrade effects, saves, rewards, or meta progression.
   - DebugStatsOverlay shows selected passive ids/levels, timers, shield count/max, pickup radius bonus, and the last passive event while Debug Mode is enabled.
 
 - PowerupPickup foundation (generic in-run pickup that delegates to PowerupManager).

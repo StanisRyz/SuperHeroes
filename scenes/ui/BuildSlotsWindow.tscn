@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://build_slots_window_superheroes"]
+
+[ext_resource type="Script" path="res://scenes/ui/BuildSlotsWindow.gd" id="1_build_slots_window_script"]
+
+[node name="BuildSlotsWindow" type="CanvasLayer"]
+process_mode = 3
+layer = 35
+visible = false
+script = ExtResource("1_build_slots_window_script")

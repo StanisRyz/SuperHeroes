@@ -49,6 +49,7 @@ var _run_result_emitted := false
 @onready var victory_screen: Node = get_node_or_null("VictoryScreen")
 @onready var controls_help_overlay: Node = get_node_or_null("ControlsHelpOverlay")
 @onready var confirm_dialog: Node = get_node_or_null("ConfirmDialog")
+@onready var build_slots_window: Node = get_node_or_null("BuildSlotsWindow")
 
 var _debug_stats_overlay: Node = null
 var _feedback_manager: Node = null
@@ -59,6 +60,7 @@ var _pause_requested_by_menu: bool = false
 var _help_opened_from_pause: bool = false
 var _settings_opened_from_pause: bool = false
 var _confirm_opened_from_pause: bool = false
+var _build_slots_paused_game: bool = false
 var _run_ended: bool = false
 var _transition_in_progress: bool = false
 var _final_boss_arena_active: bool = false
@@ -164,6 +166,7 @@ func _ready() -> void:
 	_setup_spawn_director()
 	_setup_passive_ability_manager()
 	_setup_level_up_flow(auto_attack, ability_manager)
+	_setup_build_slots_window()
 	_setup_evolution_flow(auto_attack, ability_manager)
 	_setup_run_lifecycle()
 	_setup_pause_menu()
@@ -354,9 +357,22 @@ func _setup_mobile_controls(ability_manager: Node) -> void:
 	if mobile_controls.has_signal("pause_pressed"):
 		if not mobile_controls.pause_pressed.is_connected(_request_pause_menu):
 			mobile_controls.pause_pressed.connect(_request_pause_menu)
+	if mobile_controls.has_signal("build_slots_pressed"):
+		if not mobile_controls.build_slots_pressed.is_connected(_open_build_slots_window):
+			mobile_controls.build_slots_pressed.connect(_open_build_slots_window)
 	if mobile_controls.has_signal("dash_pressed") and player.has_method("try_dash"):
 		if not mobile_controls.dash_pressed.is_connected(player.try_dash):
 			mobile_controls.dash_pressed.connect(player.try_dash)
+
+
+func _setup_build_slots_window() -> void:
+	if build_slots_window == null:
+		push_warning("Arena could not find BuildSlotsWindow node.")
+		return
+	if build_slots_window.has_method("setup"):
+		build_slots_window.setup(upgrade_manager)
+	if build_slots_window.has_signal("closed") and not build_slots_window.closed.is_connected(_on_build_slots_window_closed):
+		build_slots_window.closed.connect(_on_build_slots_window_closed)
 
 
 func _on_player_level_up_available(_level: int) -> void:
@@ -757,6 +773,7 @@ func _on_victory_reached(stats: Dictionary) -> void:
 	if level_up_screen != null:
 		level_up_screen.hide()
 	_cleanup_passive_ability_manager()
+	_close_build_slots_window()
 	if pause_menu != null and pause_menu.has_method("close"):
 		pause_menu.close()
 	if game_over_screen != null:
@@ -1000,6 +1017,7 @@ func _trigger_objective_defeat() -> void:
 	if level_up_screen != null:
 		level_up_screen.hide()
 	_cleanup_passive_ability_manager()
+	_close_build_slots_window()
 
 	get_tree().paused = true
 	_reset_mobile_controls()
@@ -1166,6 +1184,7 @@ func _on_restart_requested() -> void:
 	if _transition_in_progress:
 		return
 	_transition_in_progress = true
+	_close_build_slots_window()
 	_clear_boss_arena_boundary()
 	_cleanup_stage_objective_manager()
 	_cleanup_passive_ability_manager()
@@ -1177,6 +1196,7 @@ func _on_quit_to_menu_requested() -> void:
 	if _transition_in_progress:
 		return
 	_transition_in_progress = true
+	_close_build_slots_window()
 	_clear_boss_arena_boundary()
 	_cleanup_stage_objective_manager()
 	_cleanup_passive_ability_manager()
@@ -1200,6 +1220,9 @@ func _handle_pause_back_requested() -> void:
 	if _is_settings_open():
 		if settings_menu != null and settings_menu.has_method("close"):
 			settings_menu.close()
+		return
+	if _is_build_slots_open():
+		_close_build_slots_window()
 		return
 	if _is_level_up_visible() or _is_evolution_reward_visible() or _is_game_over_visible() or _is_victory_visible():
 		return
@@ -1263,6 +1286,32 @@ func _on_pause_help_requested() -> void:
 	_open_controls_help(true)
 
 
+func _open_build_slots_window() -> void:
+	if _run_ended or _transition_in_progress or _is_player_dead():
+		return
+	if build_slots_window == null or not build_slots_window.has_method("open"):
+		return
+	if _is_build_slots_open() or _is_blocking_run_screen_open() or _is_settings_open() or _is_help_open() or _is_confirm_open() or _is_pause_menu_open():
+		return
+
+	_build_slots_paused_game = not get_tree().paused
+	if _build_slots_paused_game:
+		get_tree().paused = true
+		_reset_mobile_controls()
+	build_slots_window.open()
+
+
+func _close_build_slots_window() -> void:
+	if build_slots_window != null and build_slots_window.has_method("close") and _is_build_slots_open():
+		build_slots_window.close()
+
+
+func _on_build_slots_window_closed() -> void:
+	if _build_slots_paused_game:
+		_resume_game_if_safe()
+	_build_slots_paused_game = false
+
+
 func _toggle_controls_help_from_input() -> void:
 	if _is_help_open():
 		if controls_help_overlay != null and controls_help_overlay.has_method("close"):
@@ -1324,6 +1373,7 @@ func _on_confirm_dialog_confirmed(action_id: String) -> void:
 	if pause_menu != null and pause_menu.has_method("close"):
 		pause_menu.close()
 	_pause_requested_by_menu = false
+	_close_build_slots_window()
 
 	match action_id:
 		"restart_run":
@@ -1361,7 +1411,7 @@ func _restore_pause_after_confirm_cancelled() -> void:
 func _resume_game_if_safe() -> void:
 	if _run_ended or _transition_in_progress:
 		return
-	if _is_blocking_run_screen_open() or _is_settings_open() or _is_help_open() or _is_confirm_open() or _is_pause_menu_open():
+	if _is_blocking_run_screen_open() or _is_settings_open() or _is_help_open() or _is_confirm_open() or _is_pause_menu_open() or _is_build_slots_open():
 		return
 	if _pause_requested_by_menu:
 		return
@@ -1608,7 +1658,7 @@ func _is_controls_help_open() -> bool:
 
 
 func _is_controls_help_blocked() -> bool:
-	return _is_player_dead() or _is_blocking_run_screen_open() or _is_settings_open() or _is_confirm_open()
+	return _is_player_dead() or _is_blocking_run_screen_open() or _is_settings_open() or _is_confirm_open() or _is_build_slots_open()
 
 
 func _is_settings_visible() -> bool:
@@ -1620,7 +1670,7 @@ func _is_evolution_reward_visible() -> bool:
 
 
 func _is_modal_open() -> bool:
-	return _is_blocking_run_screen_open() or _is_settings_open() or _is_help_open() or _is_confirm_open() or _is_pause_menu_open()
+	return _is_blocking_run_screen_open() or _is_settings_open() or _is_help_open() or _is_confirm_open() or _is_pause_menu_open() or _is_build_slots_open()
 
 
 func _is_blocking_run_screen_open() -> bool:
@@ -1657,6 +1707,14 @@ func _is_pause_menu_open() -> bool:
 	if pause_menu.has_method("is_open"):
 		return pause_menu.is_open()
 	return pause_menu.visible
+
+
+func _is_build_slots_open() -> bool:
+	if build_slots_window == null:
+		return false
+	if build_slots_window.has_method("is_open"):
+		return build_slots_window.is_open()
+	return build_slots_window.visible
 
 
 func _should_ignore_gameplay_pause_input() -> bool:

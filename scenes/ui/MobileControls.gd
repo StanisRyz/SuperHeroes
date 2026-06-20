@@ -5,6 +5,7 @@ signal ability_1_pressed
 signal ability_2_pressed
 signal ability_3_pressed
 signal pause_pressed
+signal build_slots_pressed
 signal dash_pressed
 
 @export var force_visible: bool = false
@@ -29,11 +30,13 @@ var _ability_button_labels: Dictionary = {
 @onready var slam_button: Button = get_node_or_null("Root/SlamButton")
 @onready var dash_button: Button = get_node_or_null("Root/DashButton")
 @onready var pause_button: Button = get_node_or_null("Root/PauseButton")
+@onready var build_slots_button: Button = get_node_or_null("Root/BuildSlotsButton")
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	visible = force_visible or DisplayServer.is_touchscreen_available()
+	visible = true
+	_set_mobile_control_buttons_visible(force_visible or DisplayServer.is_touchscreen_available())
 
 	if joystick_touch_area == null:
 		push_warning("MobileControls could not find JoystickArea.")
@@ -64,6 +67,11 @@ func _ready() -> void:
 		push_warning("MobileControls could not find PauseButton.")
 	elif not pause_button.pressed.is_connected(_on_pause_button_pressed):
 		pause_button.pressed.connect(_on_pause_button_pressed)
+
+	if build_slots_button == null:
+		push_warning("MobileControls could not find BuildSlotsButton.")
+	elif not build_slots_button.pressed.is_connected(_on_build_slots_button_pressed):
+		build_slots_button.pressed.connect(_on_build_slots_button_pressed)
 
 	_update_joystick_visual(Vector2.ZERO)
 	_update_ability_button(0.0)
@@ -239,6 +247,10 @@ func _on_pause_button_pressed() -> void:
 	pause_pressed.emit()
 
 
+func _on_build_slots_button_pressed() -> void:
+	build_slots_pressed.emit()
+
+
 func _on_dash_button_pressed() -> void:
 	if _is_action_blocked():
 		return
@@ -293,7 +305,18 @@ func _update_visibility_from_settings() -> void:
 	if _settings_manager != null:
 		forced = forced or bool(_settings_manager.get_setting("force_mobile_controls", false))
 
-	visible = forced or DisplayServer.is_touchscreen_available()
+	visible = true
+	_set_mobile_control_buttons_visible(forced or DisplayServer.is_touchscreen_available())
+
+
+func _set_mobile_control_buttons_visible(controls_visible: bool) -> void:
+	for control in [joystick_touch_area, ability_button, beam_button, slam_button, dash_button]:
+		if control != null:
+			control.visible = controls_visible
+	if pause_button != null:
+		pause_button.visible = true
+	if build_slots_button != null:
+		build_slots_button.visible = true
 
 
 func _read_ability_button_labels(ability_manager: Node) -> void:
