@@ -66,8 +66,8 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/BuildSlotsWindow.gd` - display-only slot overview; reads UpgradeManager slot state, definition summaries, and read-only evolution progress hints; shows 4 Attack / 4 Passive / 4 Active rows, emits closed.
 - `scenes/ui/MainMenu.tscn` - frontend main menu scene.
 - `scenes/ui/MainMenu.gd` - main menu start, settings, training, collection, help, and quit intent signals. Emits `collection_requested` when the Collection button is pressed.
-- `scenes/ui/HeroCollectionScreen.tscn` - placeholder hero collection screen CanvasLayer scene (instantiated at runtime by Main).
-- `scenes/ui/HeroCollectionScreen.gd` - display-only placeholder screen; shows title/subtitle/body text and a Back button; emits `back_requested`; has `open()` and `close()`. No hero card grid, gacha UI, or equipment UI. Pre-game only — must not affect gameplay, combat, saves, rewards, or meta balance.
+- `scenes/ui/HeroCollectionScreen.tscn` - hero collection screen CanvasLayer scene (instantiated at runtime by Main).
+- `scenes/ui/HeroCollectionScreen.gd` - display-only hero collection screen. `setup(meta_progression_manager, hero_data_provider)` stores refs; `open()` calls `_refresh()` then shows; `close()` hides. Left panel: scrollable card list (one Button card per hero from `HeroDataProvider.get_all_heroes()` + 3 locked placeholder cards). Right panel: scrollable detail view for the selected hero (color swatch, name, owned/locked status, playstyle, passive, weapon, ability names, mastery stats, description). Emits `back_requested` and `hero_selected(hero_id)`. Must not connect to CharacterSelect, mutate meta/saves, or affect gameplay. No gacha, shards, equipment, or inventory.
 - `scenes/ui/ControlsHelpOverlay.tscn` - reusable help and controls CanvasLayer scene.
 - `scenes/ui/ControlsHelpOverlay.gd` - display-only help overlay API (`open`, `close`, `toggle`, `is_open`) and close handling.
 - `scenes/ui/ControlsHelpContent.gd` - centralized help content sections.
@@ -900,12 +900,25 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 
 - `MainMenu` emits `collection_requested` when the Collection button is pressed (after `_play_ui_click()`).
 - `Main._show_main_menu()` connects `collection_requested` → `_open_hero_collection()` each time a new MainMenu is instantiated.
-- `Main._init_hero_collection_screen()` loads and instantiates `HeroCollectionScreen.tscn` once at startup, connects `back_requested` → `_close_hero_collection()`.
+- `Main._init_hero_collection_screen()` loads and instantiates `HeroCollectionScreen.tscn` once at startup, calls `setup(meta_progression_manager, hero_data_provider)`, then connects `back_requested` → `_close_hero_collection()`.
 - `Main._open_hero_collection()` guards against opening over Settings, Help, Training/MetaUpgradeShop, CharacterSelect, StageSelect, or RunBriefingScreen. If the guard passes it hides MainMenu and calls `hero_collection_screen.open()`.
 - `Main._close_hero_collection()` calls `hero_collection_screen.close()` and shows MainMenu again.
 - `Main._handle_menu_back_requested()` checks `_is_hero_collection_open()` after `_is_meta_shop_open()` so ESC / ui_cancel closes the Collection screen and returns to MainMenu.
 - `HeroCollectionScreen` must remain pre-game only. It must not pause gameplay, affect in-run state, mutate saves, apply rewards, or open during a live run.
-- This patch must not add hero card grids, gacha pulls, equipment slots, inventory, or monetization. Those are future work.
+- This patch must not add gacha pulls, shards, equipment slots, inventory, or monetization.
+
+## Hero Collection Screen Architecture
+
+- `HeroCollectionScreen.setup(meta_progression_manager, hero_data_provider)` stores both refs. Call it once after instantiating the screen (in `Main._init_hero_collection_screen()`). Setup is safe to call before `_ready()` fires because it only stores refs.
+- `open()` calls `_refresh()` (rebuilds card list, updates summary, restores selection), then `show()` and grabs focus on the Back button. This ensures the card list reflects the current meta/unlock state each time the screen opens.
+- Hero cards are built in `_rebuild_card_list()` by iterating `HeroDataProvider.get_all_heroes()`. Each owned hero becomes a clickable `Button`; after the hero list, 3 disabled locked placeholder buttons are appended for future gacha heroes.
+- Owned/locked state: `_check_owned(hero)` prefers `MetaProgressionManager.is_hero_unlocked(hero_id)` and falls back to `hero.unlocked_by_default`. Never mutates unlock state.
+- Card selection via `_select_hero(hero_id)` updates `_selected_hero_id`, refreshes highlight colours on all card buttons, updates the detail panel, and emits `hero_selected(hero_id)`.
+- Detail panel (`_update_detail_panel`) reads directly from the hero dictionary (color, name, subtitle, playstyle, description, ability_kit, primary_weapon, ability_names) and from `MetaProgressionManager.get_hero_mastery_summary()` for mastery stats (level, runs, victories). It never writes to any manager.
+- Summary label (top-right) shows "Owned: N / Total  |  Currency: C" derived from the same read-only API calls.
+- Placeholder locked cards: 3 disabled Buttons with fixed text "??? Locked Hero / Future hero  |  LOCKED". They must not be selectable, must not populate the detail panel, and must have no hero_id.
+- `hero_selected(hero_id)` is emitted on card click but is NOT connected to CharacterSelect or any run-start flow. It is available for future in-Collection detail expansion only.
+- Do not add gacha banner, shard cost, pull button, equipment grid, inventory, or hero unlock purchase UI in this screen. Those are future patches.
 
 ## Settings And Audio Flow
 

@@ -349,7 +349,8 @@ Build Evolution is not included in this patch. No arena hazards were added.
 - **Help overlay section titles** — Section titles are uppercase amber with horizontal separators between sections.
 - **Pause / Restart / Exit Safety QoL** — active-run Restart and Main Menu actions now use a reusable confirmation dialog, Escape / Back behavior is centralized across pause/settings/help overlays, and duplicate transition guards prevent repeated restarts, exits, reward screens, or Arena creation from rapid clicks.
 - **Main Menu Rework** — Settings now sits top-left, Help / Controls top-right, and Select Hero plus Training are grouped as a bottom horizontal interface. Existing menu, training, settings, help, hero/stage select, and run flows are preserved.
-- **Main Menu Collection Entry** — A third bottom-bar button "Collection" sits alongside Select Hero and Training. It opens a placeholder `HeroCollectionScreen` (title, subtitle, body text, Back button). Back or ESC returns to the main menu. The screen is pre-game only and does not affect gameplay, saves, rewards, or meta balance. Hero cards, gacha, and equipment are not yet implemented.
+- **Main Menu Collection Entry** — A third bottom-bar button "Collection" sits alongside Select Hero and Training. Opens `HeroCollectionScreen`. Back or ESC returns to the main menu. The screen is pre-game only and does not affect gameplay, saves, rewards, or meta balance.
+- **Hero Collection Screen Foundation** — `HeroCollectionScreen` shows a two-panel layout: left is a scrollable card list, right is a detail panel for the selected hero. The three current heroes (Solar Guardian, Night Tactician, Fury Vanguard) each appear as an owned hero card showing display name, playstyle, passive name, and owned status. Three locked placeholder cards are present for future gacha heroes. Selecting a card shows the hero's color, name, status, playstyle, passive, weapon, ability names, mastery stats (runs / victories / mastery level from MetaProgressionManager), and description. Emits `hero_selected(hero_id)` but does not connect to CharacterSelect. Gacha pulls, shards, equipment, and inventory are future work.
 
 Not implemented yet (UI):
 - Custom art UI theme.
@@ -704,7 +705,7 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - **Training Goals snapshot** - MetaUpgradeShop shows a compact read-only goals progress line above Training rows. It does not claim rewards or mutate goals.
 
 Not implemented yet (meta):
-- Hero collection UI (placeholder shell exists; hero cards, gacha, and equipment are future work).
+- Gacha pulls, shards, and banner system (collection screen foundation exists).
 - Advanced hero unlock purchase UI.
 - Per-hero favorite presets.
 - Build loadouts.

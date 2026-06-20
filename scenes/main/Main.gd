@@ -141,6 +141,8 @@ func _init_hero_collection_screen() -> void:
 		return
 	hero_collection_screen = scene.instantiate()
 	add_child(hero_collection_screen)
+	if hero_collection_screen.has_method("setup"):
+		hero_collection_screen.setup(meta_progression_manager, hero_data_provider)
 	if hero_collection_screen.has_signal("back_requested") and not hero_collection_screen.back_requested.is_connected(_close_hero_collection):
 		hero_collection_screen.back_requested.connect(_close_hero_collection)
 

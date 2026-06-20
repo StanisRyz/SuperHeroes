@@ -1801,7 +1801,7 @@ DEBUG_PLAYER: invulnerable=true
 
 ---
 
-## Main Menu Collection Entry Validation
+## Main Menu Collection Entry & Hero Collection Screen Foundation Validation
 
 ### Setup
 
@@ -1821,24 +1821,37 @@ git diff --stat
 | 4 | Help / Controls top-right | Unchanged |
 | 5 | Last Choice hint | Visible / hidden as before |
 
-### Collection Screen Open / Close
+### Collection Screen — Hero Cards
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Click Collection button | Main menu hides; HeroCollectionScreen appears with title "Collection", subtitle, and placeholder body text |
-| 2 | Click Back | HeroCollectionScreen closes; main menu reappears |
-| 3 | Press ESC / ui_cancel from Collection | HeroCollectionScreen closes; main menu reappears |
-| 4 | Open Collection, then press ESC | Same result as Back |
+| 1 | Click Collection | HeroCollectionScreen opens; left panel lists Solar Guardian, Night Tactician, Fury Vanguard cards |
+| 2 | Card content | Each owned card shows display name, playstyle line, passive name, and OWNED status |
+| 3 | Locked placeholders | Three "??? Locked Hero" / "Future hero  \|  LOCKED" cards appear below the owned cards |
+| 4 | Locked placeholder interaction | Placeholder cards are disabled / not clickable |
+| 5 | Summary label (top-right) | Shows "Owned: 3 / 3  \|  Currency: N" |
 
-### Modal Safety
+### Collection Screen — Detail Panel
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Open Settings, then click Collection | Collection does not open over Settings |
-| 2 | Open Help, then click Collection | Collection does not open over Help |
-| 3 | Open Training, then click Collection | Collection does not open over Training |
-| 4 | Press ESC while Collection is open | Collection closes, not Settings or Help |
-| 5 | Close Collection, then open Settings | Settings opens normally |
+| 1 | Default selection | First owned hero (Solar Guardian) is highlighted; right panel shows Solar Guardian details |
+| 2 | Select Night Tactician card | Right panel updates: name, subtitle, playstyle, passive Tactical Mark, weapon Homing Rockets, abilities, mastery, description |
+| 3 | Select Fury Vanguard card | Right panel updates with Fury Vanguard info |
+| 4 | Detail panel — owned status | OWNED label in green |
+| 5 | Detail panel — mastery | Mastery Lv.N  \|  Runs: N  \|  Victories: N (reads MetaProgressionManager live) |
+| 6 | Detail panel — color swatch | Colored strip matches hero color |
+
+### Collection Screen — Open / Close / ESC
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click Back | Collection closes; main menu reappears |
+| 2 | Press ESC / ui_cancel | Collection closes; main menu reappears |
+| 3 | Open Settings, then click Collection | Collection does not open over Settings |
+| 4 | Open Training, then click Collection | Collection does not open over Training |
+| 5 | Open Help, then click Collection | Collection does not open over Help |
+| 6 | Press ESC while Collection is open | Collection closes, not Settings or Help |
 
 ### Existing Flow Regression
 
@@ -1847,10 +1860,10 @@ git diff --stat
 | 1 | Select Hero | CharacterSelect opens as before |
 | 2 | Training | MetaUpgradeShop opens as before |
 | 3 | Back from CharacterSelect | Main menu returns as before |
-| 4 | Start a run | Full run starts; Collection screen is not visible |
-| 5 | Quit to menu after run | Main menu returns; Collection screen is hidden |
-| 6 | Gameplay, combat, saves, rewards | Entirely unchanged |
-| 7 | Hero cards | Not present (future work) |
-| 8 | Gacha | Not present (future work) |
-| 9 | Equipment | Not present (future work) |
+| 4 | Start a run, play, quit | Full run unaffected; Collection not visible during run |
+| 5 | Quit to menu after run | Main menu returns; Collection hidden |
+| 6 | Gameplay, combat, saves, rewards, meta Training | Entirely unchanged |
+| 7 | Gacha pulls | Not present (future work) |
+| 8 | Equipment | Not present (future work) |
+| 9 | hero_selected signal connected to CharacterSelect | Not connected (future work) |
 | 8 | Inspect diff | No hero kits, evolutions, 4/4/4 slots, stage objectives, rewards, saves, meta progression, or arena hazards changed |
