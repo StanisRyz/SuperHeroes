@@ -343,7 +343,7 @@ func _build_equipment_panel() -> Control:
 
 	var inventory_panel := _build_inventory_panel()
 	inventory_panel.custom_minimum_size = Vector2(410, 0)
-	inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inventory_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	content_row.add_child(inventory_panel)
 
 	return scroll
@@ -537,7 +537,7 @@ func _build_inventory_grid() -> Control:
 	_inventory_grid.columns = 5
 	_inventory_grid.add_theme_constant_override("h_separation", 6)
 	_inventory_grid.add_theme_constant_override("v_separation", 6)
-	_inventory_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_inventory_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	scroll.add_child(_inventory_grid)
 	return scroll
 
@@ -979,7 +979,7 @@ func _update_equipment_slots() -> void:
 		var display_name := "Equipment"
 		var level_text := "Level 0 / 0"
 		var bonus_text := "No equipment data"
-		var equipment_id := ""
+		var _equipment_id := ""
 		var level := 0
 		var max_level := 0
 		var cost := 0
@@ -994,38 +994,32 @@ func _update_equipment_slots() -> void:
 		if not equipped_item.is_empty():
 			var template_id := str(equipped_item.get("template_id", ""))
 			var item_def := _resolve_item_template(template_id)
-			display_name = str(equipped_item.get("display_name", str(item_def.get("display_name", display_name)))) if equipped_item.has("display_name") else str(item_def.get("display_name", display_name))
-			display_name = str(item_def.get("display_name", display_name)) if not item_def.is_empty() else display_name
+			display_name = str(item_def.get("display_name", template_id)) if not item_def.is_empty() else template_id
 			level = int(equipped_item.get("level", 0))
 			max_level = int(item_def.get("max_level", 10)) if not item_def.is_empty() else 10
-			# For upgrade cost/availability, still use the primary def with matching equipment_id
-			if not def.is_empty():
-				equipment_id = str(def.get("equipment_id", ""))
-				slot_name = str(def.get("slot_name", slot_name))
-				cost = _get_equipment_cost(equipment_id)
-				can_buy = _can_buy_equipment(equipment_id)
+			_equipment_id = template_id
+			cost = 0
+			can_buy = false
+			if _meta_manager != null and _meta_manager.has_method("get_inventory_item_upgrade_cost"):
+				var inst_id := str(equipped_instances.get(slot_id, ""))
+				if not inst_id.is_empty():
+					cost = _meta_manager.get_inventory_item_upgrade_cost(_selected_hero_id, inst_id)
+					can_buy = _meta_manager.get_currency() >= cost and level < max_level
 			level_text = "Level %d / %d" % [level, max_level]
-			var bonus_def := item_def if not item_def.is_empty() else def
-			if not bonus_def.is_empty():
+			if not item_def.is_empty():
 				bonus_text = "%s\nCurrent: %s\nNext: %s" % [
-					_format_equipment_bonus(bonus_def),
-					_format_equipment_total_bonus(bonus_def, level),
-					_format_equipment_total_bonus(bonus_def, level + 1) if level < max_level else "MAX",
+					_format_equipment_bonus(item_def),
+					_format_equipment_total_bonus(item_def, level),
+					_format_equipment_total_bonus(item_def, level + 1) if level < max_level else "MAX",
 				]
-		elif not def.is_empty():
-			slot_name = str(def.get("slot_name", slot_name))
-			display_name = str(def.get("display_name", display_name))
-			equipment_id = str(def.get("equipment_id", ""))
-			level = _get_equipment_level(equipment_id)
-			max_level = int(def.get("max_level", 0))
-			cost = _get_equipment_cost(equipment_id)
-			can_buy = _can_buy_equipment(equipment_id)
-			level_text = "Level %d / %d" % [level, max_level]
-			bonus_text = "%s\nCurrent: %s\nNext: %s" % [
-				_format_equipment_bonus(def),
-				_format_equipment_total_bonus(def, level),
-				_format_equipment_total_bonus(def, level + 1) if level < max_level else "MAX",
-			]
+			else:
+				bonus_text = ""
+		else:
+			# No item equipped — show empty state; do NOT fall back to equipment definitions
+			display_name = "Empty"
+			level_text = ""
+			bonus_text = "No item equipped"
+			can_buy = false
 
 		if slot_name_lbl != null:
 			slot_name_lbl.text = slot_name
