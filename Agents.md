@@ -612,7 +612,7 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `MainMenu` emits `meta_shop_requested` → `Main._open_meta_shop()` hides MainMenu and opens MetaUpgradeShop. Shop back → `Main._close_meta_shop()` closes shop and re-shows MainMenu.
 - `CharacterSelect.setup(hero_data_provider, meta_progression_manager)` accepts optional MetaProgressionManager. If provided and `is_hero_unlocked()` returns false, the hero button shows "[LOCKED — N currency]" and the start button is disabled. Currently all heroes are `unlocked_by_default: true` so no locking occurs in practice.
 - `Player.pickup_radius_bonus` is a `@export float = 0.0`. `ExperienceGem._update_target_player()` reads it safely via `player_node.get("pickup_radius_bonus") or 0.0` to extend the magnet radius without hard coupling.
-- Current `MetaProgressionManager` save format is JSON version 4. Keys include `currency`, `meta_upgrades`, `training_by_hero`, `equipment_by_hero`, `unlocked_heroes`, lifetime totals, `hero_mastery`, `stage_mastery`, and `goals`.
+- Current `MetaProgressionManager` save format is JSON version 5. Keys include `currency`, `meta_upgrades`, `training_by_hero`, `equipment_by_hero`, `inventory_by_hero`, `equipped_by_hero`, `unlocked_heroes`, lifetime totals, `hero_mastery`, `stage_mastery`, and `goals`.
 - Save migration must preserve existing currency, per-hero Training, unlocked heroes, lifetime totals, hero mastery, stage mastery, and goals. Version 4 adds default `equipment_by_hero` dictionaries when old saves are loaded.
 - `Arena._build_run_summary()` adds objective result, final boss result, applied evolution count/titles/type counts, selected Attack/Passive/Active line counts, dominant archetype, and `run_grade`. Arena still never writes meta state directly.
 - `MetaProgressionManager.apply_run_result(summary)` is the only owner for persistent hero mastery, stage mastery, goal evaluation, and post-run currency reward application.
@@ -652,7 +652,99 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `get_equipment_stat_modifiers_for_hero(hero_id)` aggregates `stat_bonus_per_level * level` by `stat_bonus_type`. Debug summaries include all aggregated stat ids.
 - `MetaApplier` applies supported equipment stats at run start for the selected hero only: `max_health`, `move_speed`, `xp_gain` (`Player.experience_gain_multiplier`), `attack_damage`, `ability_damage`, `ability_cooldown`, `shield_capacity`, `mark_damage`, and `rage_gain`.
 - Unsupported future-facing stats such as `support_damage`, `impact_damage`, `knockback_resist`, and `low_health_damage` remain in aggregated/debug summaries but do not mutate gameplay until an explicit safe system exists.
-- Equipment upgrades do not change Training costs, rewards, hero unlocks, gacha, inventory, item drops, swapping, stage objectives, boss flow, evolutions, or 4/4/4 in-run slot rules.
+- Equipment upgrades do not change Training costs, rewards, hero unlocks, gacha, inventory, item drops, stage objectives, boss flow, evolutions, or 4/4/4 in-run slot rules.
+
+## Inventory & Equipment Swapping Architecture
+
+### Item Instance Schema
+
+Each item in `inventory_by_hero[hero_id]` (an Array) has this shape:
+
+```gdscript
+{
+  "instance_id": String,   # unique e.g. "guardian_solar_core_001"
+  "template_id": String,   # references equipment_id in definitions or alt templates
+  "hero_id": String,
+  "slot_id": String,       # "core" / "suit" / "emblem" / "gauntlets" / "boots" / "artifact"
+  "level": int,
+  "locked": bool,
+}
+```
+
+### equipped_by_hero Schema
+
+`equipped_by_hero[hero_id]` is a Dictionary mapping slot_id → instance_id:
+
+```gdscript
+{
+  "core":      "guardian_solar_core_001",
+  "suit":      "guardian_radiant_suit_001",
+  "emblem":    "guardian_sun_emblem_001",
+  "gauntlets": "guardian_power_gauntlets_001",
+  "boots":     "guardian_flight_boots_001",
+  "artifact":  "guardian_aegis_artifact_001",
+}
+```
+
+All items (equipped and alternatives) live in `inventory_by_hero`. `equipped_by_hero` is a pointer layer only.
+
+### Alternative Item Templates
+
+Six alternative items exist (two per hero), defined in `_get_alt_item_templates()` in `MetaProgressionManager`:
+
+| template_id | hero_id | slot_id | stat |
+|---|---|---|---|
+| `radiant_reactor_core` | guardian | core | ability_damage 0.015/lv |
+| `sunbreaker_gauntlets` | guardian | gauntlets | attack_damage 1/lv |
+| `signal_processor` | blaster | core | ability_cooldown 0.008/lv |
+| `precision_bracers` | blaster | gauntlets | mark_damage 0.015/lv |
+| `berserker_core` | vanguard | core | rage_gain 0.015/lv |
+| `quake_gauntlets` | vanguard | gauntlets | impact_damage 0.015/lv |
+
+Use `get_alt_item_template(template_id)` to look them up. `_resolve_item_template(template_id)` in MetaUpgradeShop checks primary definitions first, then alt templates.
+
+### equip_inventory_item Flow
+
+1. Validate item exists in `inventory_by_hero[hero_id]` and `item.slot_id == slot_id`.
+2. Update `equipped_by_hero[hero_id][slot_id] = instance_id`.
+3. Emit `inventory_changed(hero_id)` and `equipment_changed(hero_id, slot_id, instance_id)`.
+4. Call `save_progress()`.
+5. Return `true`.
+
+The previously equipped item stays in inventory — only the pointer changes.
+
+### Gameplay Modifiers Rule
+
+`get_equipment_stat_modifiers_for_hero(hero_id)` reads only from equipped instances (via `equipped_by_hero`). Unequipped alternatives contribute zero stat to gameplay. This is the single source of truth for `MetaApplier`.
+
+### Save Migration Rules
+
+- Save version bumped from 4 → 5.
+- `_merge_with_defaults` calls `_migrate_inventory_if_needed()` after equipment data is ensured.
+- `_migrate_inventory_if_needed()` checks each hero in `DEFAULT_HERO_IDS`; if `inventory_by_hero[hero_id]` is missing or not an Array, calls `_initialize_starter_inventory(hero_id)`.
+- `_initialize_starter_inventory(hero_id)` copies existing `equipment_by_hero[hero_id][template_id]` levels into the equipped item instances; alternative items start at level 0.
+- Old saves without inventory data are silently upgraded; no data is lost.
+
+### New MetaProgressionManager APIs
+
+- `get_inventory_items_for_hero(hero_id) -> Array` — all items for hero (equipped + alternatives).
+- `get_equipped_items_for_hero(hero_id) -> Dictionary` — slot_id → instance_id map.
+- `get_inventory_item(hero_id, instance_id) -> Dictionary` — single item lookup.
+- `get_equipped_item_for_slot(hero_id, slot_id) -> Dictionary` — item dict for the currently equipped instance in a slot.
+- `can_equip_inventory_item(hero_id, instance_id, slot_id) -> bool` — validates item exists and slot matches.
+- `equip_inventory_item(hero_id, instance_id, slot_id) -> bool` — performs the swap.
+- `debug_get_inventory_summary() -> Dictionary` — full inventory + equipped state per hero.
+- `get_alt_item_template(template_id) -> Dictionary` — looks up alternative item definition.
+
+### MetaUpgradeShop Inventory UI Rules
+
+- `_get_inventory_cell_data()` uses `get_inventory_items_for_hero` when available; falls back to primary definitions as preview cells.
+- Inventory cells show `[E]` tag and green tint when the item is currently equipped.
+- Selected cell stores `_selected_inventory_instance_id`; selection is restored by instance_id after grid refresh.
+- Equip button shows "Equipped" (disabled) for already-equipped items, "Equip" (enabled, green) for unequipped items.
+- `_on_inventory_equip_pressed()` reads the selected item's `slot_id` and calls `equip_inventory_item`.
+- `_on_inventory_changed(hero_id)` and `_on_equipment_slot_changed(hero_id, slot_id, instance_id)` connect to `MetaProgressionManager` signals and refresh the equipped gear panel and inventory grid.
+- `_update_equipment_slots()` reads `get_equipped_items_for_hero` and resolves the equipped item's display name and level from inventory instance data, falling back to primary definition if no inventory data exists.
 
 ## Training Screen Tabbed Progression Architecture
 
@@ -660,7 +752,7 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - Top navigation is compact and persistent: Equipment tab button, Training tab button, small currency label, and a Main Menu button that emits `back_requested`. Main's existing `_close_meta_shop()` flow re-shows MainMenu, and `ui_cancel` / Escape still routes through `Main._handle_menu_back_requested()`.
 - The old large Training title, standalone Currency block, Goals Next block, and visible hero selector row are not part of the current UI. Selected hero state remains internal and is resolved by `Main._resolve_training_hero_id()` when opening the screen.
 - Equipment tab layout rule: content is a horizontal row. Left child is the Equipped Gear panel with selected hero preview, six fixed equipment slots, existing upgrade buttons/costs/levels, and `equipment_buy_requested` behavior. Right child is the Inventory panel.
-- Inventory grid responsibilities: use `GridContainer` square cells (minimum 20 cells) with occupied and empty states. Occupied cells can preview current fixed/equipped items; empty cells are muted placeholders. Clicking a cell updates the details label. The disabled action text is `Swap coming next`; no save/data ownership, gear swapping, gacha, item drops, or random item generation is implemented here.
+- Inventory grid responsibilities: use `GridContainer` square cells (minimum 20 cells) with occupied and empty states. Occupied cells show real inventory item instances; `[E]` tag marks equipped items. Clicking a cell updates the detail label and the Equip button state. `equip_inventory_item` is called on Equip press; no gacha, item drops, or random item generation.
 - Training tab responsibilities: show the existing Training Upgrades scroll list and preserve `buy_requested(hero_id, upgrade_id)`, currency spending, max states, per-hero levels, and post-purchase refresh behavior.
 - This UI patch must not change combat, evolutions, rewards, stages, enemies, boss flow, equipment stat balance, or in-run 4/4/4 upgrade rules.
 

@@ -706,12 +706,24 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - **Character Equipment Foundation** - save version 4 adds `equipment_by_hero`, a per-hero dictionary of fixed equipment levels. Existing currency, per-hero Training, hero mastery, stage mastery, goals, unlocked heroes, rewards, and lifetime totals are preserved during migration.
 - **Equipment Upgrade Integration** - fixed hero equipment can now be upgraded with shared currency. Equipment levels are per-hero, emit `equipment_upgrade_changed`, and save after each successful purchase.
 
+### Inventory Data & Equipment Swapping Foundation
+
+- Each hero has a persistent inventory (`inventory_by_hero`) and equipped item tracking (`equipped_by_hero`) added in save version 5.
+- Items are instances with unique `instance_id`, referencing a `template_id` from equipment definitions or alternative item templates.
+- Starter inventory: 6 equipped items + 2 alternative items per hero (one alternative in the Core slot, one in the Gauntlets slot).
+- Players can select any inventory item and equip it into its matching slot using the Equip button.
+- Equipping is free — no currency cost.
+- Gameplay modifiers (`get_equipment_stat_modifiers_for_hero`) come only from currently equipped items.
+- The Equipped Gear panel shows the name and level of whichever item instance is currently equipped in each slot.
+- Save migration: existing saves without `inventory_by_hero` are automatically populated with starter inventory data, copying existing equipment upgrade levels into the equipped item instances.
+- No gacha, random loot, or item drops in this patch.
+
 ### Training UI Tabs + Inventory Shell
 
 The screen now has these tabs:
 
-- **Equipment tab**: Uses a horizontal layout. The left panel is Equipped Gear with selected hero preview, Core, Suit, Emblem, Gauntlets, Boots, Artifact, levels, stat bonuses, and existing upgrade buttons. The right panel is Inventory.
-- **Inventory grid**: Shows at least 20 square cells. Current fixed/equipped items appear as occupied preview cells, and remaining cells appear as empty muted squares. Clicking any cell updates the compact details label; `Swap coming next` remains disabled/read-only.
+- **Equipment tab**: Uses a horizontal layout. The left panel is Equipped Gear with selected hero preview, Core, Suit, Emblem, Gauntlets, Boots, Artifact, levels, stat bonuses, and existing upgrade buttons. The right panel is Inventory with live item instances.
+- **Inventory grid**: Shows at least 20 square cells. Each owned item appears as a cell showing short name, slot, level, and `[E]` tag when equipped. Clicking a cell updates the detail label and enables or disables the Equip button. Clicking Equip swaps the item into its slot immediately.
 - **Training tab**: Shows the existing scrollable Training upgrades list with buy buttons, level display, currency gating, max state, and per-hero levels unchanged.
 
 The Training screen (`MetaUpgradeShop`) is now a tabbed character progression screen. The large top Training HUD was compacted into a persistent navigation row with **Equipment**, **Training**, a small currency label, and an always-visible **Main Menu** button. `ui_cancel` / Escape still closes the screen through Main's existing safe back flow.
@@ -733,9 +745,10 @@ The equipment panel hero preview updates from the hero id resolved by Main when 
 Supported equipment bonuses are applied at run start for the selected hero only through `MetaApplier`, after hero stats and alongside Training: max health, move speed, XP gain, attack damage, ability damage, ability cooldown reduction, Tactical Mark damage, Rage gain, and starting shield charges. Future-facing stat ids remain aggregated/debuggable but are ignored by gameplay until a safe system exists for them.
 
 Not implemented yet (equipment):
-- Full inventory ownership and swapping.
 - Item drops or gacha pulls.
 - Random item stats or item ownership lists.
+- Locking items to prevent accidental equip.
+- More than 2 alternative items per hero.
 
 Not implemented yet (meta):
 - Gacha pulls, shards, and banner system (collection screen foundation exists).

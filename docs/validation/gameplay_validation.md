@@ -1991,6 +1991,65 @@ Equipment / Inventory horizontal layout validation:
 | 1 | Equipment levels are fixed-gear progression only | `equipment_by_hero` exists, defaults to level 0, and can be upgraded only through fixed hero equipment slots |
 | 2 | Inventory shell only | Read-only Inventory section is present, but no item ownership, random generation, full swapping, drops, or equip/unequip behavior is added |
 | 3 | No gacha added | No banner, pull button, or shard system present |
-| 4 | No item drops or swapping | No item pickup/drop logic, equipment inventory, or equip/unequip UI was added |
+| 4 | No item drops or random stats | No item pickup/drop logic or random item generation was added |
 | 5 | Existing systems unchanged | Training purchase flow, goals/mastery, rewards, hero selection, collection, combat kits, evolutions, stage objectives, boss flow, and 4/4/4 rules still work |
+
+---
+
+## Inventory Data & Equipment Swapping Foundation
+
+### Save Migration
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Delete save file, open Training → Equipment tab | Starter inventory auto-created: 6 equipped + 2 alternative items per hero |
+| 2 | Open Training after upgrading equipment, then delete and re-open | Save migration copies existing equipment levels into equipped item instances |
+| 3 | Check save file | `inventory_by_hero` and `equipped_by_hero` keys are present; save version = 5 |
+
+### Inventory Grid
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training → Equipment tab for Solar Guardian | Inventory grid shows 8 items (6 equipped + 2 alternatives) for Guardian, remaining cells are empty |
+| 2 | Inspect item cells | Equipped items show `[E]` in label; unequipped alternatives show no `[E]` |
+| 3 | Click an equipped item cell | Detail label shows item name, slot, "EQUIPPED" status, level, and bonus info; Equip button shows "Equipped" (disabled) |
+| 4 | Click an unequipped alternative item cell | Detail label shows name, slot, "Not equipped" status; Equip button shows "Equip" (green, enabled) |
+| 5 | Click an empty cell | Detail label shows "Empty inventory slot."; Equip button shows "Equip" (disabled) |
+| 6 | Switch hero in Equipment tab | Grid refreshes to show that hero's inventory items |
+
+### Equipment Swapping
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select an unequipped Core alternative (e.g. Radiant Reactor Core for Guardian), press Equip | Item becomes equipped; `[E]` moves to the new item; old core item loses `[E]`; Equipped Gear panel updates to show new item name |
+| 2 | Swap Gauntlets for Guardian | Power Gauntlets ↔ Sunbreaker Gauntlets swaps correctly; Equipped Gear panel reflects new gauntlet name |
+| 3 | Re-open Training after a swap | Swap is persisted; inventory and equipped state are restored correctly |
+| 4 | Equip the previously equipped item back | Swap works in both directions; no item is lost |
+
+### Gameplay Modifiers
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Upgrade the equipped Solar Core to level 2, start a Guardian run | Ability damage bonus applies from the equipped core's level |
+| 2 | Swap Guardian Core to Radiant Reactor Core (level 0), start a Guardian run | Ability damage bonus is 0 (from the newly equipped level-0 alternative, not the old core) |
+| 3 | Upgrade equipment while an alternative is equipped | The equipped alternative's level is what MetaApplier reads; the unequipped item's upgrade does not affect gameplay |
+| 4 | Only equipped items contribute modifiers | `debug_get_equipment_modifiers_for_hero("guardian")` reflects only the currently equipped items' levels |
+
+### Equipped Gear Panel
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Equipment tab after a swap | Equipped Gear panel slot shows the swapped item's display name, not the old item's name |
+| 2 | Upgrade an equipped item through the Upgrade button | Level increments on the equipped slot; detail updates correctly |
+| 3 | Upgrade button on a slot where an alternative is equipped | Upgrade targets the primary definition's template_id; cost and level display correctly |
+
+### Scope Confirmation
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | No gacha or item drops added | No pull button, banner, or shard system present |
+| 2 | No random item stats | All items have fixed stat types from their template definition |
+| 3 | Equipping is free | No currency is spent when pressing Equip |
+| 4 | Training tab unchanged | Training upgrades, buy flow, and per-hero levels work as before |
+| 5 | Combat unchanged | Hero kits, evolutions, upgrade pool, boss flow, and 4/4/4 slot rules are unaffected |
 | 6 | Inspect diff | No random item stats, item drops, inventory, gacha, swapping, Training cost changes, reward changes, or slot rule changes |
