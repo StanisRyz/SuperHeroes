@@ -718,6 +718,20 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - Save migration: existing saves without `inventory_by_hero` are automatically populated with starter inventory data, copying existing equipment upgrade levels into the equipped item instances.
 - No gacha, random loot, or item drops in this patch.
 
+### Inventory Item Details & Compare UI
+
+- Selecting an inventory item shows: name, slot, level/max, status (EQUIPPED / In Inventory), stat bonus per level, and total bonus.
+- Comparison panel shows the currently equipped item in the same slot with stat delta (+/− better/worse/equal).
+- When the selected item IS the equipped item: compare section says "This item is currently equipped."
+- When no item is equipped in the slot: compare section says "No item currently equipped in this slot."
+- Empty cells display "[Empty Slot] / No item selected." as a placeholder hint.
+- Inventory cell color states: equipped = green tint, selected+equipped = bright green highlight, selected+unequipped = yellow-white highlight, empty = muted gray.
+- Equip button: "Equip" (enabled, green) for compatible unequipped items; "Equipped" (disabled, muted) if already equipped or nothing selected.
+- Clicking an equipped slot panel on the left Equipped Gear panel selects that item in the inventory grid and updates the detail panel.
+- Detail label is inside a ScrollContainer so longer text scrolls without pushing other UI.
+- New read-only MetaProgressionManager helpers: `get_item_template_for_instance`, `get_equipped_instance_id_for_slot`, `get_item_stat_total`.
+- No drag-and-drop, gacha, random loot, item drops, or random affixes in this patch.
+
 ### Training UI Tabs + Inventory Shell
 
 The screen now has these tabs:

@@ -352,13 +352,18 @@ func _build_inventory_panel() -> Control:
 
 	body.add_child(_build_inventory_grid())
 
+	var detail_scroll := ScrollContainer.new()
+	detail_scroll.custom_minimum_size = Vector2(0, 130)
+	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(detail_scroll)
+
 	_inventory_detail_label = Label.new()
-	_inventory_detail_label.custom_minimum_size = Vector2(0, 110)
 	_inventory_detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_inventory_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_inventory_detail_label.add_theme_font_size_override("font_size", 11)
 	_inventory_detail_label.modulate = Color(0.82, 0.86, 0.92, 1.0)
-	body.add_child(_inventory_detail_label)
+	detail_scroll.add_child(_inventory_detail_label)
 
 	return panel
 
@@ -415,6 +420,9 @@ func _build_equipment_slot(slot_id: String, slot_name: String) -> PanelContainer
 		"button": buy_btn,
 		"panel": panel,
 	}
+	# Allow clicking the slot panel to view detail of the equipped item
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.gui_input.connect(_on_equipment_slot_panel_clicked.bind(slot_id))
 	return panel
 
 
@@ -603,52 +611,38 @@ func _select_inventory_cell(index: int) -> void:
 		var data: Dictionary = cells[int(cell_index)]
 		var is_occupied: bool = bool(data.get("occupied", false))
 		var is_equipped_item: bool = bool(data.get("is_equipped", false))
-		if is_selected:
-			button.modulate = UIStateColors.positive_color()
+		if is_selected and is_occupied and is_equipped_item:
+			# Selected + equipped: bright white-green highlight
+			button.modulate = Color(0.85, 1.0, 0.85, 1.0)
+		elif is_selected and is_occupied:
+			# Selected + unequipped: bright yellow-white highlight
+			button.modulate = Color(1.0, 1.0, 0.75, 1.0)
+		elif is_selected:
+			# Selected + empty: slightly brighter gray
+			button.modulate = Color(0.72, 0.76, 0.82, 1.0)
 		elif is_occupied and is_equipped_item:
-			button.modulate = Color(0.7, 1.0, 0.7, 1.0)
+			# Unselected + equipped: green tint
+			button.modulate = UIStateColors.positive_color()
 		elif is_occupied:
+			# Unselected + in inventory: neutral white
 			button.modulate = Color.WHITE
 		else:
+			# Empty cell: muted gray
 			button.modulate = Color(0.48, 0.52, 0.58, 1.0)
 	_update_inventory_detail(selected_cell)
 
 
 func _update_inventory_detail(cell_data: Dictionary) -> void:
-	if _inventory_detail_label == null:
-		return
-	if cell_data.is_empty() or not bool(cell_data.get("occupied", false)):
-		_inventory_detail_label.text = "Empty inventory slot."
-		if _inventory_equip_button != null:
+	var is_occupied := bool(cell_data.get("occupied", false))
+	var instance_id := str(cell_data.get("instance_id", ""))
+
+	# Update equip button
+	if _inventory_equip_button != null:
+		if not is_occupied or instance_id.is_empty():
 			_inventory_equip_button.text = "Equip"
 			_inventory_equip_button.disabled = true
 			_inventory_equip_button.modulate = UIStateColors.muted_color()
-		return
-	var def: Dictionary = cell_data.get("definition", {})
-	var display_name := str(cell_data.get("display_name", str(def.get("display_name", "Equipment"))))
-	var slot_id := str(cell_data.get("slot_id", str(def.get("slot_id", ""))))
-	var level := int(cell_data.get("level", 0))
-	var max_level := int(cell_data.get("max_level", int(def.get("max_level", 10))))
-	var is_equipped := bool(cell_data.get("is_equipped", false))
-	var equipped_text := "EQUIPPED" if is_equipped else "Not equipped"
-	var bonus_text := _format_equipment_bonus(def) if not def.is_empty() else ""
-	var current_text := _format_equipment_total_bonus(def, level) if not def.is_empty() else ""
-	var next_text := ""
-	if not def.is_empty():
-		next_text = _format_equipment_total_bonus(def, level + 1) if level < max_level else "MAX"
-	_inventory_detail_label.text = "%s\nSlot: %s   Status: %s\nLevel %d / %d\n%s\nCurrent: %s   Next: %s" % [
-		display_name,
-		_format_slot_name(slot_id),
-		equipped_text,
-		level,
-		max_level,
-		bonus_text,
-		current_text,
-		next_text,
-	]
-	# Update equip button
-	if _inventory_equip_button != null:
-		if is_equipped:
+		elif _is_item_equipped(instance_id):
 			_inventory_equip_button.text = "Equipped"
 			_inventory_equip_button.disabled = true
 			_inventory_equip_button.modulate = UIStateColors.muted_color()
@@ -656,6 +650,52 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 			_inventory_equip_button.text = "Equip"
 			_inventory_equip_button.disabled = false
 			_inventory_equip_button.modulate = UIStateColors.positive_color()
+
+	if _inventory_detail_label == null:
+		return
+
+	if not is_occupied or instance_id.is_empty():
+		_inventory_detail_label.text = "[Empty Slot]\nNo item selected.\nFuture items will appear here."
+		return
+
+	# Gather data
+	var item: Dictionary = {}
+	if _meta_manager != null and _meta_manager.has_method("get_inventory_item"):
+		item = _meta_manager.get_inventory_item(_selected_hero_id, instance_id)
+	var tmpl := _get_item_template_for_instance(instance_id)
+	var stat_info := _get_item_stat_info(instance_id)
+	var slot_id := str(item.get("slot_id", str(cell_data.get("slot_id", ""))))
+	var level := int(item.get("level", int(cell_data.get("level", 0))))
+	var max_level := int(cell_data.get("max_level", int(tmpl.get("max_level", 0))))
+	if max_level <= 0 and not tmpl.is_empty():
+		max_level = int(tmpl.get("max_level", 10))
+	var is_equipped := _is_item_equipped(instance_id)
+
+	var display_name := _get_item_display_name(instance_id)
+	var slot_display := _format_slot_name(slot_id)
+	var status_str := "EQUIPPED" if is_equipped else "In Inventory"
+	var stat_str := _format_stat_line(stat_info)
+	var desc := str(tmpl.get("description", ""))
+
+	var compare_str := ""
+	if not slot_id.is_empty() and _meta_manager != null:
+		compare_str = _format_compare_section(instance_id, slot_id)
+
+	var lines := PackedStringArray()
+	lines.append("=== %s ===" % display_name)
+	lines.append("Slot: %s" % slot_display)
+	lines.append("Level: %d / %d" % [level, max_level])
+	lines.append("Status: %s" % status_str)
+	if not stat_str.is_empty():
+		lines.append("")
+		lines.append(stat_str)
+	if not desc.is_empty():
+		lines.append("")
+		lines.append(desc)
+	if not compare_str.is_empty():
+		lines.append("")
+		lines.append(compare_str)
+	_inventory_detail_label.text = "\n".join(lines)
 
 
 func _get_short_item_name(display_name: String) -> String:
@@ -667,6 +707,116 @@ func _get_short_item_name(display_name: String) -> String:
 		if word.length() > 0:
 			initials += word.substr(0, 1)
 	return initials.to_upper()
+
+
+# ─── Inventory detail helpers ─────────────────────────────────────────────────
+
+func _is_item_equipped(instance_id: String) -> bool:
+	if _meta_manager == null or instance_id.is_empty() or _selected_hero_id.is_empty():
+		return false
+	if not _meta_manager.has_method("get_equipped_items_for_hero"):
+		return false
+	var equipped: Dictionary = _meta_manager.get_equipped_items_for_hero(_selected_hero_id)
+	for slot in equipped:
+		if str(equipped[slot]) == instance_id:
+			return true
+	return false
+
+
+func _get_item_template_for_instance(instance_id: String) -> Dictionary:
+	if _meta_manager == null or instance_id.is_empty() or _selected_hero_id.is_empty():
+		return {}
+	if not _meta_manager.has_method("get_item_template_for_instance"):
+		return {}
+	return _meta_manager.get_item_template_for_instance(_selected_hero_id, instance_id)
+
+
+func _get_item_stat_info(instance_id: String) -> Dictionary:
+	if _meta_manager == null or instance_id.is_empty():
+		return {}
+	if not _meta_manager.has_method("get_item_stat_total"):
+		return {}
+	return _meta_manager.get_item_stat_total(_selected_hero_id, instance_id)
+
+
+func _format_stat_line(stat_info: Dictionary) -> String:
+	var stat_type := str(stat_info.get("stat_type", ""))
+	var total := float(stat_info.get("total", 0.0))
+	var per_level := float(stat_info.get("per_level", 0.0))
+	var level := int(stat_info.get("level", 0))
+	if stat_type.is_empty():
+		return ""
+	var stat_display := _format_stat_type_name(stat_type)
+	if level <= 0:
+		return "%s: +%.1f per level (unleveled)" % [stat_display, per_level]
+	return "%s: +%.1f per level\nTotal: +%.1f %s" % [stat_display, per_level, total, stat_display]
+
+
+func _format_stat_type_name(stat_type: String) -> String:
+	match stat_type:
+		"attack_damage": return "Attack Damage"
+		"attack_speed": return "Attack Speed"
+		"max_health": return "Max Health"
+		"health_regen": return "Health Regen"
+		"move_speed": return "Move Speed"
+		"ability_cooldown": return "Cooldown Reduction"
+		"ability_damage": return "Ability Damage"
+		"shield_capacity": return "Shield Capacity"
+		"xp_gain": return "XP Gain"
+		"mark_damage": return "Mark Damage"
+		"rage_gain": return "Rage Gain"
+		"impact_damage": return "Impact Damage"
+		"knockback_resist": return "Knockback Resist"
+		"low_health_damage": return "Low-Health Damage"
+		"support_damage": return "Support Damage"
+		_: return stat_type.replace("_", " ").capitalize()
+
+
+func _get_item_display_name(instance_id: String) -> String:
+	var tmpl := _get_item_template_for_instance(instance_id)
+	if not tmpl.is_empty():
+		var n := str(tmpl.get("display_name", ""))
+		if not n.is_empty():
+			return n
+		n = str(tmpl.get("name", ""))
+		if not n.is_empty():
+			return n
+	return instance_id.replace("_", " ").capitalize()
+
+
+func _format_compare_section(selected_instance_id: String, slot_id: String) -> String:
+	if _meta_manager == null:
+		return ""
+	if not _meta_manager.has_method("get_equipped_instance_id_for_slot"):
+		return ""
+	var equipped_instance_id := str(_meta_manager.get_equipped_instance_id_for_slot(_selected_hero_id, slot_id))
+	if equipped_instance_id.is_empty():
+		return "No item currently equipped in this slot."
+	if equipped_instance_id == selected_instance_id:
+		return "This item is currently equipped."
+	var sel_stat := _get_item_stat_info(selected_instance_id)
+	var eq_stat := _get_item_stat_info(equipped_instance_id)
+	var sel_name := _get_item_display_name(selected_instance_id)
+	var eq_name := _get_item_display_name(equipped_instance_id)
+	var sel_level := int(sel_stat.get("level", 0))
+	var eq_level := int(eq_stat.get("level", 0))
+	var sel_total := float(sel_stat.get("total", 0.0))
+	var eq_total := float(eq_stat.get("total", 0.0))
+	var stat_type := str(sel_stat.get("stat_type", str(eq_stat.get("stat_type", ""))))
+	var stat_display := _format_stat_type_name(stat_type)
+	var delta := sel_total - eq_total
+	var delta_str := ""
+	if abs(delta) < 0.001:
+		delta_str = "Delta: 0 (equal)"
+	elif delta > 0.0:
+		delta_str = "Delta: +%.1f (better)" % delta
+	else:
+		delta_str = "Delta: %.1f (worse)" % delta
+	return "--- Compare ---\nEquipped: %s Lv %d  %s: +%.1f\nSelected: %s Lv %d  %s: +%.1f\n%s" % [
+		eq_name, eq_level, stat_display, eq_total,
+		sel_name, sel_level, stat_display, sel_total,
+		delta_str,
+	]
 
 
 func _get_selected_hero_data() -> Dictionary:
@@ -1208,6 +1358,29 @@ func _on_inventory_equip_pressed() -> void:
 		return
 	if _meta_manager.has_method("equip_inventory_item"):
 		_meta_manager.equip_inventory_item(_selected_hero_id, _selected_inventory_instance_id, slot_id)
+
+
+func _on_equipment_slot_panel_clicked(event: InputEvent, slot_id: String) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var mb := event as InputEventMouseButton
+	if mb.button_index != MOUSE_BUTTON_LEFT or not mb.pressed:
+		return
+	_select_inventory_item_for_slot(slot_id)
+
+
+func _select_inventory_item_for_slot(slot_id: String) -> void:
+	if _meta_manager == null or not _meta_manager.has_method("get_equipped_instance_id_for_slot"):
+		return
+	var equipped_instance_id := str(_meta_manager.get_equipped_instance_id_for_slot(_selected_hero_id, slot_id))
+	if equipped_instance_id.is_empty():
+		return
+	var cells := _get_inventory_cell_data()
+	for i in range(cells.size()):
+		var c: Dictionary = cells[i]
+		if bool(c.get("occupied", false)) and str(c.get("instance_id", "")) == equipped_instance_id:
+			_select_inventory_cell(i)
+			return
 
 
 func _on_inventory_changed(hero_id: String) -> void:

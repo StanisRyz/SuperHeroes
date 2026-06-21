@@ -1737,6 +1737,31 @@ DEBUG_PLAYER: invulnerable=true
 
 ---
 
+## Inventory Item Details / Compare UI
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training → Equipment tab | Inventory grid shows items with short name, slot, level, and [E] tag for equipped items |
+| 2 | Click an occupied inventory cell | Detail panel shows item name, slot, level/max, status, stat bonus per level, and total bonus |
+| 3 | Click the currently equipped item cell | Detail shows "Status: EQUIPPED" and compare section says "This item is currently equipped." |
+| 4 | Click an unequipped item in the same slot | Compare section shows "--- Compare ---" with equipped item name/level/stat and selected item name/level/stat and delta (better/worse/equal) |
+| 5 | Delta when selected item is better | Delta line shows "Delta: +X.X (better)" in compare section |
+| 6 | Delta when selected item is worse | Delta line shows "Delta: -X.X (worse)" in compare section |
+| 7 | Delta when both items have equal stat total | Delta line shows "Delta: 0 (equal)" in compare section |
+| 8 | Click an empty inventory cell | Detail panel shows "[Empty Slot] / No item selected. / Future items will appear here." |
+| 9 | Equip button for empty cell | Equip button shows "Equip" and is disabled (muted) |
+| 10 | Equip button for an already-equipped item | Equip button shows "Equipped" and is disabled (muted) |
+| 11 | Equip button for an unequipped compatible item | Equip button shows "Equip" and is enabled (green) |
+| 12 | Press Equip on an unequipped item | Item swaps into its slot; inventory grid updates [E] tags; equipped gear panel updates; equip button changes to "Equipped" |
+| 13 | Click an equipped slot panel on the left Equipped Gear panel | The matching item cell in the inventory grid is selected; detail panel updates to that item |
+| 14 | Equipped item cell color | Unselected equipped items show green tint; selected equipped item shows bright green highlight |
+| 15 | Unequipped item cell color | Unselected unequipped items show white; selected unequipped item shows yellow-white highlight |
+| 16 | Empty cell color | Empty cells always show muted gray regardless of selection |
+| 17 | Detail panel with long text | Detail scrolls inside its container; inventory grid and equip button remain visible above it |
+| 18 | Inspect diff / save behavior | No gacha, random loot, item drops, random affixes, combat stat changes, evolution changes, rewards, stage changes, or enemy changes |
+
+---
+
 ### Phase Attack Pools
 
 | # | Test | Expected |

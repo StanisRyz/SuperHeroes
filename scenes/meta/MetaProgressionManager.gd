@@ -1361,6 +1361,42 @@ func _resolve_hero_id(hero_id: String) -> String:
 	return hero_id if not hero_id.is_empty() else DEFAULT_HERO_ID
 
 
+# ─── Inventory read-only helpers ─────────────────────────────────────────────
+
+func get_item_template_for_instance(hero_id: String, instance_id: String) -> Dictionary:
+	var item := get_inventory_item(hero_id, instance_id)
+	if item.is_empty():
+		return {}
+	var template_id := str(item.get("template_id", ""))
+	if template_id.is_empty():
+		return {}
+	return _get_item_template(template_id, _resolve_hero_id(hero_id))
+
+
+func get_equipped_instance_id_for_slot(hero_id: String, slot_id: String) -> String:
+	var equipped := get_equipped_items_for_hero(hero_id)
+	return str(equipped.get(slot_id, ""))
+
+
+func get_item_stat_total(hero_id: String, instance_id: String) -> Dictionary:
+	var item := get_inventory_item(hero_id, instance_id)
+	if item.is_empty():
+		return {}
+	var level := int(item.get("level", 0))
+	var template_id := str(item.get("template_id", ""))
+	var tmpl := _get_item_template(template_id, _resolve_hero_id(hero_id))
+	if tmpl.is_empty():
+		return {}
+	var stat_type := str(tmpl.get("stat_bonus_type", ""))
+	var per_level := float(tmpl.get("stat_bonus_per_level", 0.0))
+	return {
+		"stat_type": stat_type,
+		"total": per_level * float(level),
+		"per_level": per_level,
+		"level": level,
+	}
+
+
 func _sync_legacy_meta_upgrades() -> void:
 	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
 	var default_training: Dictionary = training_by_hero.get(DEFAULT_HERO_ID, {})
