@@ -706,16 +706,24 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - **Character Equipment Foundation** - save version 4 adds `equipment_by_hero`, a per-hero dictionary of fixed equipment levels. Existing currency, per-hero Training, hero mastery, stage mastery, goals, unlocked heroes, rewards, and lifetime totals are preserved during migration.
 - **Equipment Upgrade Integration** - fixed hero equipment can now be upgraded with shared currency. Equipment levels are per-hero, emit `equipment_upgrade_changed`, and save after each successful purchase.
 
-### Training Screen Layout Rework
+### Training UI Tabs + Inventory Shell
 
-The Training screen (`MetaUpgradeShop`) now uses a two-panel layout:
+The screen now has these tabs:
+
+- **Equipment tab**: Shows the selected hero preview, the existing six fixed equipment slots, and a read-only Inventory shell. The fixed slots remain Core, Suit, Emblem, Gauntlets, Boots, and Artifact.
+- **Inventory shell**: Shows a placeholder inventory section backed by existing equipped/fixed equipment entries and a details panel. The disabled action reads `Swap coming next`; no item ownership, drops, gacha, random generation, or full swapping is implemented.
+- **Training tab**: Shows the existing scrollable Training upgrades list with buy buttons, level display, currency gating, max state, and per-hero levels unchanged.
+
+The Training screen (`MetaUpgradeShop`) is now a tabbed character progression screen. The large top Training HUD was compacted into a persistent navigation row with **Equipment**, **Training**, a small currency label, and an always-visible **Main Menu** button. `ui_cancel` / Escape still closes the screen through Main's existing safe back flow.
 
 - **Left panel — Character Equipment preview**: Shows the selected hero's display name, subtitle/playstyle, and a color accent strip. Six fixed equipment slots are laid out around the hero preview:
   - Left column: Core, Suit, Emblem
   - Center: hero portrait area (name + subtitle)
   - Right column: Gauntlets, Boots, Artifact
 - **Right panel — Training Upgrades**: The existing scrollable list of Training upgrades with buy buttons, level display, and currency gating. Behavior is identical to the previous single-panel layout.
-- **Header**: Title, currency label, hero selector, and goals label remain above both panels.
+- **Navigation row**: Equipment tab, Training tab, compact currency, and Main Menu button remain visible above tab content.
+
+Current behavior: the visible hero selector buttons and the large standalone Training title are removed from this screen; selected hero context is shown inside tab content, and the top row stays compact.
 
 Equipment slots are backed by fixed hero equipment definitions:
 
@@ -725,13 +733,13 @@ Equipment slots are backed by fixed hero equipment definitions:
 
 Each definition includes `equipment_id`, `hero_id`, `slot_id`, `slot_name`, `display_name`, `description`, `max_level`, `base_cost`, `cost_growth`, `stat_bonus_type`, `stat_bonus_per_level`, and `tier`. Levels persist in `equipment_by_hero`, default to `0`, and upgrade costs use the definition's `base_cost` / `cost_growth`.
 
-The equipment panel hero preview updates when the hero selector changes. Each slot shows hero-specific equipment name, `Level current / max_level`, bonus per level, current total bonus, next-level bonus, and a currency-gated Upgrade button. Buttons show `Upgrade X` when affordable, `Need X` when unaffordable, and `MAX` at max level. The Collection detail panel also shows a compact read-only equipment summary.
+The equipment panel hero preview updates from the hero id resolved by Main when Training opens. Each slot shows hero-specific equipment name, `Level current / max_level`, bonus per level, current total bonus, next-level bonus, and a currency-gated Upgrade button. Buttons show `Upgrade X` when affordable, `Need X` when unaffordable, and `MAX` at max level. The Collection detail panel also shows a compact read-only equipment summary.
 
 Supported equipment bonuses are applied at run start for the selected hero only through `MetaApplier`, after hero stats and alongside Training: max health, move speed, XP gain, attack damage, ability damage, ability cooldown reduction, Tactical Mark damage, Rage gain, and starting shield charges. Future-facing stat ids remain aggregated/debuggable but are ignored by gameplay until a safe system exists for them.
 
 Not implemented yet (equipment):
-- Inventory.
-- Item drops, equipment swapping, or gacha pulls.
+- Full inventory ownership and swapping.
+- Item drops or gacha pulls.
 - Random item stats or item ownership lists.
 
 Not implemented yet (meta):

@@ -1881,7 +1881,24 @@ git status
 git diff --stat
 ```
 
-### Two-Panel Layout
+### Tabbed Layout + Navigation
+
+Current patch validation:
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Main Menu -> Training | MetaUpgradeShop opens on the Equipment tab |
+| 2 | Top navigation | Equipment tab, Training tab, compact currency label, and Main Menu button are visible |
+| 3 | Header cleanup | Large "Training" title, visible hero selector buttons, and standalone Goals Next block are not present |
+| 4 | Main Menu button | Click returns to MainMenu through the existing Training close flow |
+| 5 | Escape / ui_cancel | Closes Training and returns to MainMenu safely |
+| 6 | Equipment tab | Selected hero preview, 6 fixed equipment slots, and Inventory section are visible |
+| 7 | Inventory shell | Shows fixed/equipped item cards or empty placeholders, details update on card click, and Swap coming next is disabled |
+| 8 | Training tab | Existing Training upgrade rows appear and purchase behavior is unchanged |
+| 9 | Tab switching | Switching Equipment/Training tabs does not reset the selected hero or currency |
+| 10 | Scope exclusions | No gacha, item drops, random item generation, full swapping, combat, rewards, stages, enemies, boss flow, or 4/4/4 rules changed |
+
+Previous two-panel baseline kept below for historical comparison:
 
 | # | Test | Expected |
 |---|------|----------|
@@ -1969,7 +1986,7 @@ git diff --stat
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Equipment levels are fixed-gear progression only | `equipment_by_hero` exists, defaults to level 0, and can be upgraded only through fixed hero equipment slots |
-| 2 | No inventory added | No item inventory screen or node present |
+| 2 | Inventory shell only | Read-only Inventory section is present, but no item ownership, random generation, full swapping, drops, or equip/unequip behavior is added |
 | 3 | No gacha added | No banner, pull button, or shard system present |
 | 4 | No item drops or swapping | No item pickup/drop logic, equipment inventory, or equip/unequip UI was added |
 | 5 | Existing systems unchanged | Training purchase flow, goals/mastery, rewards, hero selection, collection, combat kits, evolutions, stage objectives, boss flow, and 4/4/4 rules still work |

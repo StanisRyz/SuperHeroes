@@ -126,7 +126,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/PostRunRewardsScreen.tscn` - post-run reward display CanvasLayer scene (instantiated at runtime by Main).
 - `scenes/ui/PostRunRewardsScreen.gd` - display-only reward breakdown screen. Emits continue_requested. Shown between V/GO result screen and the next action (restart or menu).
 - `scenes/ui/MetaUpgradeShop.tscn` - meta upgrade shop CanvasLayer scene (instantiated at runtime by Main).
-- `scenes/ui/MetaUpgradeShop.gd` - Training shop UI. Two-panel layout: left panel is Character Equipment preview/upgrades (6 fixed hero equipment slots + hero preview); right panel is Training Upgrades scroll list. Header contains title, currency label, hero selector, and goals label. Footer has Back button. Equipment rows read definitions/levels/costs, emit `equipment_buy_requested(hero_id, equipment_id)`, and Main handles the purchase. Emits `buy_requested(hero_id, upgrade_id)` for Training; Main handles that purchase too. Accessed via "Training" button on MainMenu.
+- `scenes/ui/MetaUpgradeShop.gd` - tabbed character progression UI opened by the MainMenu Training button. Persistent top navigation contains Equipment tab, Training tab, compact currency label, and always-visible Main Menu button. Equipment tab owns hero preview, six fixed equipment upgrade slots, and read-only inventory shell. Training tab owns existing Training upgrade rows. Emits `buy_requested(hero_id, upgrade_id)` and `equipment_buy_requested(hero_id, equipment_id)` only; Main handles purchases. No gacha, item drops, random loot, or full swapping in this patch.
 - `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, meta progression/rewards, expected console log patterns).
 - `scenes/stages/StageDataProvider.tscn` - runtime stage definition provider scene.
 - `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, display-only identity metadata, background_colors, run_settings, event_profile, final_boss_id, `objective_type` ("survival"/"defense"/"destroy_structures"), and `objective_data` (per-type parameters).
@@ -632,7 +632,7 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - Old global `meta_upgrades` saves migrate by copying global levels to each existing hero, preserving earned Training value.
 - `UserPreferencesManager` stores only non-gameplay preferences like last selected hero/stage; it must not store Training levels.
 - `Main` owns current selected hero/stage flow and resolves the safe hero id when opening Training from MainMenu.
-- `MetaUpgradeShop` displays the selected Training hero, offers a compact hero selector, and must never purchase upgrades without a resolved hero id.
+- `MetaUpgradeShop` displays the selected Training hero inside tab content and must never purchase upgrades without a resolved hero id. Visible per-hero selector buttons are removed from the Training screen until the hero-switching UX is redesigned.
 - `MetaUpgradeShop` emits `buy_requested(hero_id, upgrade_id)`; Main delegates to `MetaProgressionManager.purchase_training_upgrade(hero_id, upgrade_id)`.
 - `MetaApplier` must apply Training by selected hero id only. Runs as Guardian, Blaster, or Vanguard must never combine Training levels from other heroes.
 - Runtime upgrades, evolutions, and temporary run state must not be written into Training data.
@@ -654,15 +654,19 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - Unsupported future-facing stats such as `support_damage`, `impact_damage`, `knockback_resist`, and `low_health_damage` remain in aggregated/debug summaries but do not mutate gameplay until an explicit safe system exists.
 - Equipment upgrades do not change Training costs, rewards, hero unlocks, gacha, inventory, item drops, swapping, stage objectives, boss flow, evolutions, or 4/4/4 in-run slot rules.
 
-## Training Screen Two-Panel Layout Architecture
+## Training Screen Tabbed Progression Architecture
 
-- `MetaUpgradeShop` uses a two-panel layout under the header: left panel = Character Equipment preview; right panel = Training Upgrades scroll list.
-- **Header** (above both panels): title label, currency label, hero selector `HBoxContainer`, goals label.
-- **Left panel** (`_build_equipment_panel()`): "Equipment" section title, hero preview (`PanelContainer` with color swatch, display name, subtitle, status), a slot grid (`HBoxContainer` with left column + center spacer + right column), and a note label.
-- **Right panel** (`_build_training_panel()`): "Training Upgrades" section title, `ScrollContainer` containing `_list_vbox` with upgrade rows. This is identical to the previous single-panel list.
+- `MetaUpgradeShop` is a tabbed pre-run character progression screen with `_active_tab` set to `"equipment"` or `"training"`. Default tab is Equipment.
+- Top navigation is compact and persistent: Equipment tab button, Training tab button, small currency label, and a Main Menu button that emits `back_requested`. Main's existing `_close_meta_shop()` flow re-shows MainMenu, and `ui_cancel` / Escape still routes through `Main._handle_menu_back_requested()`.
+- The old large Training title, standalone Currency block, Goals Next block, and visible hero selector row are not part of the current UI. Selected hero state remains internal and is resolved by `Main._resolve_training_hero_id()` when opening the screen.
+- Equipment tab responsibilities: selected hero preview, six fixed equipment slots, existing upgrade buttons/costs/levels, and a read-only inventory foundation.
+- Inventory shell responsibilities: show an Inventory section, fixed/equipped item cards or empty placeholders, and a details label. The disabled action text is `Swap coming next`; no save/data ownership, gear swapping, gacha, item drops, or random item generation is implemented here.
+- Training tab responsibilities: show the existing Training Upgrades scroll list and preserve `buy_requested(hero_id, upgrade_id)`, currency spending, max states, per-hero levels, and post-purchase refresh behavior.
+- This UI patch must not change combat, evolutions, rewards, stages, enemies, boss flow, equipment stat balance, or in-run 4/4/4 upgrade rules.
+
 - **Slot grid layout**: left column holds Core/Suit/Emblem; right column holds Gauntlets/Boots/Artifact. Each slot is a `PanelContainer` with slot name, hero-specific display name, `Level current / max`, bonus per level, current total, next total, and an Upgrade/Need/MAX button.
 - **Hero preview** updates via `_refresh_equipment_panel()` on every `refresh()` call and on hero switch. It reads `display_name`, `subtitle`/`playstyle`, and `color` from `_get_selected_hero_data()`.
-- **Equipment rules**: fixed equipment can be upgraded with shared currency; no inventory, no item drops, no swapping, no random item stats, no gacha.
+- **Equipment rules**: fixed equipment can be upgraded with shared currency; the inventory shell is read-only UI foundation only; no item drops, no swapping, no random item stats, no gacha.
 - `_get_selected_hero_data()` returns the selected hero dict from `_heroes` (already loaded via `HeroDataProvider`), with fallback to `_hero_data_provider.get_hero()`.
 - `_update_equipment_slots()` reads `MetaProgressionManager.get_equipment_definitions(_selected_hero_id)`, levels, costs, and affordability. Missing equipment data falls back to safe placeholder text.
 - `_on_equipment_buy_pressed(slot_id)` resolves the current slot's equipment id and emits `equipment_buy_requested`; it does not mutate meta state directly.

@@ -9,12 +9,17 @@ const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
 var _meta_manager: Node
 var _hero_data_provider: Node
 var _selected_hero_id: String = ""
+var _active_tab: String = "equipment"
+var _selected_inventory_equipment_id: String = ""
 var _heroes: Array[Dictionary] = []
-var _title_label: Label
-var _hero_selector: HBoxContainer
 var _currency_label: Label
 var _goals_label: Label
 var _back_button: Button
+var _hero_selector: HBoxContainer
+var _equipment_tab_button: Button
+var _training_tab_button: Button
+var _equipment_content: Control
+var _training_content: Control
 var _list_vbox: VBoxContainer
 
 var _rows: Array[Dictionary] = []
@@ -26,6 +31,10 @@ var _equip_hero_subtitle_label: Label
 var _equip_hero_swatch: ColorRect
 var _equip_hero_status_label: Label
 var _equipment_slot_rows: Dictionary = {}
+var _inventory_list_vbox: VBoxContainer
+var _inventory_detail_label: Label
+var _inventory_buttons: Dictionary = {}
+var _training_hero_label: Label
 
 
 func _ready() -> void:
@@ -55,10 +64,11 @@ func setup(meta_progression_manager: Node, hero_data_provider: Node = null) -> v
 
 func open(hero_id: String = "") -> void:
 	set_selected_hero(hero_id)
+	_active_tab = "equipment"
 	refresh()
 	show()
-	if _back_button != null:
-		_back_button.grab_focus()
+	if _equipment_tab_button != null:
+		_equipment_tab_button.grab_focus()
 
 
 func close() -> void:
@@ -70,15 +80,14 @@ func refresh() -> void:
 		return
 	if _selected_hero_id.is_empty():
 		set_selected_hero("")
-	if _title_label != null:
-		_title_label.text = "Training"
 	if _currency_label != null:
 		_currency_label.text = "Currency: %d" % _meta_manager.get_currency()
 	_update_goals_label()
-	_update_hero_buttons()
 	_rebuild_rows_if_needed()
 	_update_rows()
 	_refresh_equipment_panel()
+	_refresh_inventory_shell()
+	_update_tab_state()
 
 
 func set_selected_hero(hero_id: String) -> void:
@@ -111,64 +120,64 @@ func _build_ui() -> void:
 	add_child(margin)
 
 	var main_vbox := VBoxContainer.new()
-	main_vbox.add_theme_constant_override("separation", 10)
+	main_vbox.add_theme_constant_override("separation", 8)
 	margin.add_child(main_vbox)
 
 	# ── header ────────────────────────────────────────────────────────────────
-	_title_label = Label.new()
-	_title_label.text = "Training"
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.add_theme_font_size_override("font_size", 28)
-	main_vbox.add_child(_title_label)
+	var nav := HBoxContainer.new()
+	nav.add_theme_constant_override("separation", 8)
+	nav.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(nav)
+
+	_equipment_tab_button = Button.new()
+	_equipment_tab_button.text = "Equipment"
+	_equipment_tab_button.custom_minimum_size = Vector2(150, 42)
+	_equipment_tab_button.pressed.connect(_set_active_tab.bind("equipment"))
+	nav.add_child(_equipment_tab_button)
+
+	_training_tab_button = Button.new()
+	_training_tab_button.text = "Training"
+	_training_tab_button.custom_minimum_size = Vector2(150, 42)
+	_training_tab_button.pressed.connect(_set_active_tab.bind("training"))
+	nav.add_child(_training_tab_button)
+
+	var nav_spacer := Control.new()
+	nav_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nav.add_child(nav_spacer)
 
 	_currency_label = Label.new()
 	_currency_label.text = "Currency: 0"
-	_currency_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_currency_label.add_theme_font_size_override("font_size", 16)
-	main_vbox.add_child(_currency_label)
+	_currency_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_currency_label.add_theme_font_size_override("font_size", 14)
+	_currency_label.modulate = Color(0.88, 0.92, 0.96, 1.0)
+	nav.add_child(_currency_label)
 
-	_hero_selector = HBoxContainer.new()
-	_hero_selector.add_theme_constant_override("separation", 8)
-	_hero_selector.alignment = BoxContainer.ALIGNMENT_CENTER
-	main_vbox.add_child(_hero_selector)
+	_back_button = Button.new()
+	_back_button.text = "Main Menu"
+	_back_button.custom_minimum_size = Vector2(150, 42)
+	_back_button.pressed.connect(_on_back_pressed)
+	nav.add_child(_back_button)
 
 	_goals_label = Label.new()
 	_goals_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_goals_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_goals_label.add_theme_font_size_override("font_size", 12)
-	_goals_label.modulate = Color(0.82, 0.86, 0.92, 1.0)
+	_goals_label.add_theme_font_size_override("font_size", 10)
+	_goals_label.modulate = Color(0.56, 0.62, 0.7, 1.0)
 	main_vbox.add_child(_goals_label)
 
 	main_vbox.add_child(HSeparator.new())
 
-	# ── two-panel content area ────────────────────────────────────────────────
-	var content_hbox := HBoxContainer.new()
-	content_hbox.add_theme_constant_override("separation", 16)
-	content_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_child(content_hbox)
+	# ── tab content area ──────────────────────────────────────────────────────
+	_equipment_content = _build_equipment_panel()
+	_equipment_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_equipment_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(_equipment_content)
 
-	var equip_panel := _build_equipment_panel()
-	equip_panel.custom_minimum_size = Vector2(340, 0)
-	equip_panel.size_flags_horizontal = Control.SIZE_FILL
-	content_hbox.add_child(equip_panel)
+	_training_content = _build_training_panel()
+	_training_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_training_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(_training_content)
 
-	var vsep := VSeparator.new()
-	content_hbox.add_child(vsep)
-
-	var training_panel := _build_training_panel()
-	training_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content_hbox.add_child(training_panel)
-
-	# ── footer ────────────────────────────────────────────────────────────────
-	main_vbox.add_child(HSeparator.new())
-
-	_back_button = Button.new()
-	_back_button.text = "Back"
-	_back_button.custom_minimum_size = Vector2(180, 48)
-	_back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_back_button.pressed.connect(_on_back_pressed)
-	main_vbox.add_child(_back_button)
-
+	_update_tab_state()
 
 func _build_training_panel() -> Control:
 	var vbox := VBoxContainer.new()
@@ -179,6 +188,12 @@ func _build_training_panel() -> Control:
 	section_title.add_theme_font_size_override("font_size", 16)
 	section_title.modulate = Color(0.9, 0.9, 0.7, 1.0)
 	vbox.add_child(section_title)
+
+	_training_hero_label = Label.new()
+	_training_hero_label.text = "Hero: -"
+	_training_hero_label.add_theme_font_size_override("font_size", 12)
+	_training_hero_label.modulate = Color(0.72, 0.8, 0.9, 1.0)
+	vbox.add_child(_training_hero_label)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -193,8 +208,14 @@ func _build_training_panel() -> Control:
 
 
 func _build_equipment_panel() -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
 	var outer_vbox := VBoxContainer.new()
 	outer_vbox.add_theme_constant_override("separation", 8)
+	outer_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(outer_vbox)
 
 	var section_title := Label.new()
 	section_title.text = "Equipment"
@@ -268,14 +289,73 @@ func _build_equipment_panel() -> Control:
 	right_col.add_child(_build_equipment_slot("artifact", "Artifact"))
 
 	var note := Label.new()
-	note.text = "Fixed hero gear. Uses shared currency. No inventory or swapping."
+	note.text = "Equipped gear uses shared currency. Inventory swapping will be added next."
 	note.add_theme_font_size_override("font_size", 10)
 	note.modulate = Color(0.55, 0.6, 0.65, 1.0)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	outer_vbox.add_child(note)
 
-	return outer_vbox
+	outer_vbox.add_child(_build_inventory_panel())
+
+	return scroll
+
+
+func _build_inventory_panel() -> Control:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	panel.add_child(vbox)
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	vbox.add_child(header)
+
+	var title := Label.new()
+	title.text = "Inventory"
+	title.add_theme_font_size_override("font_size", 15)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+
+	var swap_button := Button.new()
+	swap_button.text = "Swap coming next"
+	swap_button.disabled = true
+	swap_button.custom_minimum_size = Vector2(150, 32)
+	header.add_child(swap_button)
+
+	var note := Label.new()
+	note.text = "Inventory swapping will be added next."
+	note.add_theme_font_size_override("font_size", 10)
+	note.modulate = Color(0.68, 0.74, 0.82, 1.0)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(note)
+
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 10)
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(body)
+
+	var list_scroll := ScrollContainer.new()
+	list_scroll.custom_minimum_size = Vector2(330, 150)
+	list_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(list_scroll)
+
+	_inventory_list_vbox = VBoxContainer.new()
+	_inventory_list_vbox.add_theme_constant_override("separation", 6)
+	_inventory_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_scroll.add_child(_inventory_list_vbox)
+
+	_inventory_detail_label = Label.new()
+	_inventory_detail_label.custom_minimum_size = Vector2(260, 150)
+	_inventory_detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_inventory_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_inventory_detail_label.add_theme_font_size_override("font_size", 11)
+	_inventory_detail_label.modulate = Color(0.82, 0.86, 0.92, 1.0)
+	body.add_child(_inventory_detail_label)
+
+	return panel
 
 
 func _build_equipment_slot(slot_id: String, slot_name: String) -> PanelContainer:
@@ -344,12 +424,111 @@ func _refresh_equipment_panel() -> void:
 
 	_equip_hero_name_label.text = display_name
 	_equip_hero_subtitle_label.text = subtitle
+	if _training_hero_label != null:
+		_training_hero_label.text = "Hero: %s" % display_name
 	if _equip_hero_swatch != null:
 		_equip_hero_swatch.color = color
 	if _equip_hero_status_label != null:
 		_equip_hero_status_label.text = "Owned" if unlocked else "Locked"
 		_equip_hero_status_label.modulate = Color(0.6, 0.9, 0.6, 1.0) if unlocked else Color(0.8, 0.5, 0.3, 1.0)
-	_update_equipment_slots()
+		_update_equipment_slots()
+
+
+func _refresh_inventory_shell() -> void:
+	if _inventory_list_vbox == null:
+		return
+	var defs: Array = _meta_manager.get_equipment_definitions(_selected_hero_id) if _meta_manager != null and _meta_manager.has_method("get_equipment_definitions") else []
+	for child in _inventory_list_vbox.get_children():
+		child.queue_free()
+	_inventory_buttons.clear()
+
+	if defs.is_empty():
+		for i in range(6):
+			_inventory_list_vbox.add_child(_build_empty_inventory_slot(i + 1))
+		_update_inventory_detail({})
+		return
+
+	var has_selected := false
+	for def in defs:
+		if not def is Dictionary:
+			continue
+		var equipment_id := str(def.get("equipment_id", ""))
+		if equipment_id.is_empty():
+			continue
+		if _selected_inventory_equipment_id == equipment_id:
+			has_selected = true
+		var button := _build_inventory_card(def)
+		_inventory_list_vbox.add_child(button)
+		_inventory_buttons[equipment_id] = button
+	if not has_selected:
+		_selected_inventory_equipment_id = str((defs[0] as Dictionary).get("equipment_id", ""))
+	_update_inventory_selection()
+
+
+func _build_empty_inventory_slot(index: int) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var label := Label.new()
+	label.text = "Empty Slot %d" % index
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 11)
+	label.modulate = Color(0.55, 0.6, 0.66, 1.0)
+	panel.add_child(label)
+	return panel
+
+
+func _build_inventory_card(def: Dictionary) -> Button:
+	var equipment_id := str(def.get("equipment_id", ""))
+	var level := _get_equipment_level(equipment_id)
+	var max_level := int(def.get("max_level", 0))
+	var button := Button.new()
+	button.text = "%s  |  %s  |  Lv %d/%d" % [
+		str(def.get("display_name", "Equipment")),
+		str(def.get("slot_name", "Slot")),
+		level,
+		max_level,
+	]
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.custom_minimum_size = Vector2(0, 34)
+	button.pressed.connect(_on_inventory_item_pressed.bind(equipment_id))
+	return button
+
+
+func _on_inventory_item_pressed(equipment_id: String) -> void:
+	_selected_inventory_equipment_id = equipment_id
+	_update_inventory_selection()
+
+
+func _update_inventory_selection() -> void:
+	var selected_def := {}
+	for equipment_id in _inventory_buttons:
+		var button := _inventory_buttons[equipment_id] as Button
+		if button == null:
+			continue
+		var selected: bool = str(equipment_id) == _selected_inventory_equipment_id
+		button.modulate = UIStateColors.positive_color() if selected else Color.WHITE
+		if selected:
+			selected_def = _get_equipment_definition(str(equipment_id))
+	_update_inventory_detail(selected_def)
+
+
+func _update_inventory_detail(def: Dictionary) -> void:
+	if _inventory_detail_label == null:
+		return
+	if def.is_empty():
+		_inventory_detail_label.text = "No inventory data yet.\nEmpty slots reserve space for future owned gear."
+		return
+	var equipment_id := str(def.get("equipment_id", ""))
+	var level := _get_equipment_level(equipment_id)
+	_inventory_detail_label.text = "%s\n%s\nLevel %d / %d\n%s\nCurrent: %s\nNext: %s\n\nSwap coming next." % [
+		str(def.get("display_name", "Equipment")),
+		str(def.get("description", "")),
+		level,
+		int(def.get("max_level", 0)),
+		_format_equipment_bonus(def),
+		_format_equipment_total_bonus(def, level),
+		_format_equipment_total_bonus(def, level + 1) if level < int(def.get("max_level", 0)) else "MAX",
+	]
 
 
 func _get_selected_hero_data() -> Dictionary:
@@ -437,6 +616,17 @@ func _get_equipment_definitions_by_slot() -> Dictionary:
 		if not slot_id.is_empty():
 			result[slot_id] = def
 	return result
+
+
+func _get_equipment_definition(equipment_id: String) -> Dictionary:
+	if equipment_id.is_empty():
+		return {}
+	if _meta_manager != null and _meta_manager.has_method("get_equipment_definition"):
+		return _meta_manager.get_equipment_definition(_selected_hero_id, equipment_id)
+	for def in _get_equipment_definitions_by_slot().values():
+		if str(def.get("equipment_id", "")) == equipment_id:
+			return def
+	return {}
 
 
 func _get_equipment_level(equipment_id: String) -> int:
@@ -654,6 +844,28 @@ func _update_goals_label() -> void:
 
 
 # ─── Signal handlers ──────────────────────────────────────────────────────────
+
+func _set_active_tab(tab_id: String) -> void:
+	if tab_id != "equipment" and tab_id != "training":
+		return
+	_active_tab = tab_id
+	_update_tab_state()
+
+
+func _update_tab_state() -> void:
+	if _equipment_content != null:
+		_equipment_content.visible = _active_tab == "equipment"
+	if _training_content != null:
+		_training_content.visible = _active_tab == "training"
+	if _equipment_tab_button != null:
+		var equipment_selected := _active_tab == "equipment"
+		_equipment_tab_button.disabled = equipment_selected
+		_equipment_tab_button.modulate = UIStateColors.positive_color() if equipment_selected else Color.WHITE
+	if _training_tab_button != null:
+		var training_selected := _active_tab == "training"
+		_training_tab_button.disabled = training_selected
+		_training_tab_button.modulate = UIStateColors.positive_color() if training_selected else Color.WHITE
+
 
 func _on_buy_pressed(upgrade_id: String) -> void:
 	if _selected_hero_id.is_empty():
