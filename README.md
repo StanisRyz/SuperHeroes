@@ -1252,6 +1252,105 @@ All fields are crash-safe: if the boss controller is freed mid-run the section s
 - Projectile count is capped per attack (aimed_barrage ≤ 20, ring_barrage = 10).
 - Phase 3 is a continuation of the same encounter — it does not restart or re-spawn the boss.
 
+## Equipment Item Template System
+
+Item templates are now global and not hero-specific. Any hero can equip any item as long as the item's `slot_id` matches the target slot.
+
+### EquipmentDataProvider
+
+`scenes/equipment/EquipmentDataProvider.gd` — read-only global template catalog.
+
+- Instantiated as a child of `MetaProgressionManager` at startup.
+- Owns all canonical item template definitions.
+- Exposes a query API; never reads or writes save data.
+
+**Constants:**
+
+| Constant | Value |
+|----------|-------|
+| `MAX_ITEM_LEVEL` | `10` (all items, globally) |
+| `SLOT_IDS` | `core, suit, emblem, gauntlets, boots, artifact` |
+| `RARITIES` | `common, uncommon, rare, epic, legendary, mythic` |
+
+**API:**
+
+- `get_all_item_templates() -> Array[Dictionary]`
+- `get_item_template(template_id) -> Dictionary`
+- `get_templates_for_slot(slot_id) -> Array[Dictionary]`
+- `get_templates_by_rarity(rarity) -> Array[Dictionary]`
+- `get_rarity_values() -> Array[String]`
+- `get_slot_ids() -> Array[String]`
+- `get_max_item_level() -> int`
+- `is_valid_slot(slot_id) -> bool`
+- `is_valid_rarity(rarity) -> bool`
+- `is_valid_template_id(template_id) -> bool`
+- `debug_get_item_template_summary() -> Dictionary`
+
+### Canonical Template Schema
+
+Each template has exactly these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | String | Unique template identifier |
+| `name` | String | Display name |
+| `slot_id` | String | One of the six slot ids |
+| `rarity` | String | Rarity tier |
+| `stat_bonus_type` | String | Stat key applied to gameplay |
+| `stat_bonus_per_level` | float | Bonus amount per level |
+| `base_cost` | int | Upgrade cost at level 0 |
+| `cost_growth` | float | Multiplicative cost growth |
+| `tags` | Array | Descriptive category tags |
+
+Fields **not** in the canonical schema: `hero_id`, `description`, `per-item max_level`, `tier`, `equipment_id`, `display_name`.
+
+### Global Template Catalog (this patch)
+
+| id | slot | rarity | stat |
+|----|------|--------|------|
+| `power_core_common` | core | common | attack_damage +1/lv |
+| `cooldown_core_uncommon` | core | uncommon | ability_cooldown +0.008/lv |
+| `reinforced_suit_common` | suit | common | max_health +5/lv |
+| `vitality_suit_uncommon` | suit | uncommon | max_health +7/lv |
+| `awareness_emblem_common` | emblem | common | xp_gain +0.01/lv |
+| `battle_emblem_uncommon` | emblem | uncommon | attack_damage +1.5/lv |
+| `striker_gauntlets_common` | gauntlets | common | attack_damage +1/lv |
+| `force_gauntlets_uncommon` | gauntlets | uncommon | ability_damage +0.015/lv |
+| `runner_boots_common` | boots | common | move_speed +3/lv |
+| `momentum_boots_uncommon` | boots | uncommon | move_speed +4/lv |
+| `shield_artifact_common` | artifact | common | shield_capacity +1/lv |
+| `fury_artifact_uncommon` | artifact | uncommon | low_health_damage +0.02/lv |
+| `apex_artifact_rare` | artifact | rare | ability_damage +0.025/lv |
+
+### Equip Compatibility Rule
+
+Equip compatibility is slot-only. A hero can equip any item whose `slot_id` matches the target slot. No hero restriction on templates.
+
+### Max Item Level
+
+All equipment items have a uniform max level of **10**, defined in `EquipmentDataProvider.MAX_ITEM_LEVEL`. Per-item max overrides do not exist.
+
+### Supported Rarities
+
+`common`, `uncommon`, `rare`, `epic`, `legendary`, `mythic`
+
+Only `common`, `uncommon`, and `rare` are used in the initial catalog. `epic`, `legendary`, and `mythic` are reserved for future content.
+
+### No Items Granted in This Patch
+
+No items are added to any hero's inventory by this patch. Inventory and equipped slots remain empty unless the player already had valid saved item instances whose `template_id` exists in the new provider. Old hero-specific static items (Solar Core, Radiant Suit, etc.) are cleared by the existing `inventory_static_items_cleared` migration flag and not recreated.
+
+### Not Added in This Patch
+
+- Gacha / random loot
+- Item drops from enemies
+- Random affixes
+- Crafting or fusion
+- Starter item grants
+- Auto-equip
+
+These remain future work.
+
 ## Yandex Games Notes
 
 - Yandex SDK integration will be added later through a wrapper.

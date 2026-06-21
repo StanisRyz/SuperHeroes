@@ -5,6 +5,26 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Equipment Item Template System
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training screen → Equipment tab | No crash; equipped gear panel and inventory grid render without errors |
+| 2 | Inventory grid after fresh start | All cells empty (no items granted automatically) |
+| 3 | `MetaProgressionManager.debug_get_item_template_summary()` from debug console | Returns `total_templates: 13`, `by_slot` with 2 per slot (artifact has 3), `by_rarity` with 8 common + 4 uncommon + 1 rare, `max_item_level: 10` |
+| 4 | Old save with unknown template_ids | On load, pruned items are removed; valid items are preserved; currency is unchanged |
+| 5 | Old save with static hero items | After `inventory_static_items_cleared` migration, inventory is empty; currency unchanged |
+| 6 | `get_equipment_definitions("guardian")` | Returns 13 items; each has `equipment_id`, `display_name`, `slot_id`, `rarity`, `stat_bonus_type`, `max_level: 10` |
+| 7 | `get_equipment_definition("guardian", "apex_artifact_rare")` | Returns template with rarity `rare`, slot `artifact`, stat `ability_damage`, `per_level 0.025` |
+| 8 | `get_alt_item_template("power_core_common")` | Returns same result as `get_equipment_definition("", "power_core_common")` (routes to provider) |
+| 9 | Equip a core item on any hero | Succeeds regardless of which hero; no hero_id restriction on template |
+| 10 | Upgrade an inventory item to level 10 | Upgrade button shows MAX; no further upgrade allowed |
+| 11 | No gacha / starter grants / random loot | Nothing in UI or code grants items automatically; no random affixes or item drops |
+| 12 | Start run with items equipped | MetaApplier applies supported stats (attack_damage, max_health, move_speed, etc.); DebugStatsOverlay shows non-zero equipment modifier values |
+| 13 | `low_health_damage` stat from Fury Artifact | Aggregated in equipment modifiers; does not mutate any gameplay property (no MetaApplier handler for it yet) |
+
+---
+
 ## Training Equipment Polish / Inventory Reset
 
 | # | Test | Expected |

@@ -120,8 +120,9 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/DebugStatsOverlay.gd` - live debug stats panel: player HP/level/XP/speed/dash, weapon stats, ability cooldowns/damage/synergy flags, build archetype/points/synergies/build-defining picks, passive ids/levels/timers, buff/shield state, spawner wiring, objective state (type, HP or portal count, portal pressure modifier), and boss state (ID, encounter state, phase, HP%, current attack, cooldown, attacking/arena flags). `setup_objective_manager(obj_manager)` wires it after `_setup_stage_objective()`; `setup_boss_controller(controller)` wires it after boss spawn. Safe if either ref is nil. Refreshes every 0.25s while visible. Display-only; never mutates gameplay state.
 - `scenes/ui/VictoryScreen.tscn` - pause-time victory UI scene.
 - `scenes/ui/VictoryScreen.gd` - displays run summary on victory and emits restart_requested / quit_to_menu_requested.
+- `scenes/equipment/EquipmentDataProvider.gd` - global, non-hero-specific item template catalog. Instantiated as a child node of MetaProgressionManager in `_ready()`. Owns the canonical template list and hash index; never reads or writes save data. Query API: `get_all_item_templates()`, `get_item_template(template_id)`, `get_templates_for_slot(slot_id)`, `get_templates_by_rarity(rarity)`, `is_valid_template_id(template_id)`, `is_valid_slot(slot_id)`, `is_valid_rarity(rarity)`, `get_max_item_level() -> int` (always 10), `get_slot_ids()`, `get_rarity_values()`, `debug_get_item_template_summary()`. No hero_id field on templates; equip compatibility is slot-only.
 - `scenes/meta/MetaProgressionManager.tscn` - persistent meta manager node scene (instantiated at runtime by Main).
-- `scenes/meta/MetaProgressionManager.gd` - owns soft currency, meta upgrade levels, fixed per-hero equipment levels/upgrades, hero unlock state, lifetime stats, and save/load to user://superheroes_meta_progress.json. Calculates and applies run rewards. Never called directly by Arena. Read-only inventory helpers added: `get_item_template_for_instance(hero_id, instance_id) -> Dictionary` (returns the template dict for a given inventory instance), `get_equipped_instance_id_for_slot(hero_id, slot_id) -> String` (returns the currently equipped instance_id for a slot), `get_item_stat_total(hero_id, instance_id) -> Dictionary` (returns {stat_type, total, per_level, level} for an item instance). These are display-only and do not mutate save data. **Training Equipment Polish additions**: SAVE_VERSION incremented to 6. `_clear_static_inventory_if_needed(data)` clears inventory_by_hero, equipped_by_hero, and resets equipment_by_hero levels to 0 for all heroes — runs once per save via `inventory_static_items_cleared` flag (idempotent). Called from `load_progress()` on every code path including fresh starts. `can_unequip_slot(hero_id, slot_id) -> bool` returns true if a slot has an item equipped. `unequip_slot(hero_id, slot_id) -> bool` erases the slot from equipped_by_hero (does not delete the inventory instance), emits `equipment_changed(hero_id, slot_id, "")` and `inventory_changed(hero_id)`, then saves. Empty `equipped_by_hero` is valid — `get_equipment_stat_modifiers_for_hero` returns an empty dict safely and MetaApplier's `_apply_equipment_modifiers` exits early.
+- `scenes/meta/MetaProgressionManager.gd` - owns soft currency, meta upgrade levels, fixed per-hero equipment levels/upgrades, hero unlock state, lifetime stats, and save/load to user://superheroes_meta_progress.json. Calculates and applies run rewards. Never called directly by Arena. Routes all template lookups to `_equipment_provider` (EquipmentDataProvider child node). Read-only inventory helpers: `get_item_template_for_instance(hero_id, instance_id) -> Dictionary`, `get_equipped_instance_id_for_slot(hero_id, slot_id) -> String`, `get_item_stat_total(hero_id, instance_id) -> Dictionary`, `debug_get_item_template_summary() -> Dictionary`. **Training Equipment Polish additions**: SAVE_VERSION incremented to 6. `_clear_static_inventory_if_needed(data)` clears inventory_by_hero, equipped_by_hero, and resets equipment_by_hero levels to 0 for all heroes — runs once per save via `inventory_static_items_cleared` flag (idempotent). Called from `load_progress()` on every code path including fresh starts. `can_unequip_slot(hero_id, slot_id) -> bool` returns true if a slot has an item equipped. `unequip_slot(hero_id, slot_id) -> bool` erases the slot from equipped_by_hero (does not delete the inventory instance), emits `equipment_changed(hero_id, slot_id, "")` and `inventory_changed(hero_id)`, then saves. Empty `equipped_by_hero` is valid — `get_equipment_stat_modifiers_for_hero` returns an empty dict safely and MetaApplier's `_apply_equipment_modifiers` exits early.
 - `scenes/meta/MetaApplier.gd` - static helper; applies purchased Training bonuses and supported equipment bonuses to Player, AutoAttack, and AbilityManager. Called by Arena after HeroApplier at run start.
 - `scenes/ui/PostRunRewardsScreen.tscn` - post-run reward display CanvasLayer scene (instantiated at runtime by Main).
 - `scenes/ui/PostRunRewardsScreen.gd` - display-only reward breakdown screen. Emits continue_requested. Shown between V/GO result screen and the next action (restart or menu).
@@ -639,20 +640,16 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 
 ## Character Equipment Architecture
 
-- Each hero has exactly six fixed equipment items, one per slot: `core`, `suit`, `emblem`, `gauntlets`, `boots`, and `artifact`.
-- Equipment definition schema lives in `MetaProgressionManager` dictionaries with `equipment_id`, `hero_id`, `slot_id`, `slot_name`, `display_name`, `description`, `max_level`, `base_cost`, `cost_growth`, `stat_bonus_type`, `stat_bonus_per_level`, and `tier`.
-- Fixed hero equipment ids:
-  - Guardian: `solar_core`, `radiant_suit`, `sun_emblem`, `power_gauntlets`, `flight_boots`, `aegis_artifact`.
-  - Blaster: `tactical_core`, `shadow_suit`, `signal_emblem`, `gadget_gauntlets`, `grapnel_boots`, `drone_artifact`.
-  - Vanguard: `rage_core`, `titan_suit`, `war_emblem`, `impact_gauntlets`, `heavy_boots`, `fury_artifact`.
-- Persistent levels live in `equipment_by_hero`, shaped as `equipment_by_hero[hero_id][equipment_id] = level`. Defaults are `0`.
-- `MetaProgressionManager` exposes equipment APIs: `ensure_equipment_data_for_hero`, `ensure_equipment_data_for_all_heroes`, `get_equipment_definitions`, `get_equipment_definition`, `get_equipment_level`, `set_equipment_level`, `get_equipment_levels_for_hero`, `get_equipment_summary_for_hero`, `get_equipment_upgrade_cost`, `can_purchase_equipment_upgrade`, `purchase_equipment_upgrade`, `get_equipment_stat_modifiers_for_hero`, `debug_get_equipment_summary`, and `debug_get_equipment_modifiers_for_hero`.
-- `equipment_upgrade_changed(hero_id, equipment_id, level)` emits after equipment level changes. Successful purchases spend shared currency, emit `currency_changed`, set the new level, emit `equipment_upgrade_changed`, and save progress.
-- Equipment upgrades are per-hero and use shared currency. They never create inventory items, drops, swaps, random stats, gacha entries, or item ownership lists.
-- `get_equipment_stat_modifiers_for_hero(hero_id)` aggregates `stat_bonus_per_level * level` by `stat_bonus_type`. Debug summaries include all aggregated stat ids.
-- `MetaApplier` applies supported equipment stats at run start for the selected hero only: `max_health`, `move_speed`, `xp_gain` (`Player.experience_gain_multiplier`), `attack_damage`, `ability_damage`, `ability_cooldown`, `shield_capacity`, `mark_damage`, and `rage_gain`.
-- Unsupported future-facing stats such as `support_damage`, `impact_damage`, `knockback_resist`, and `low_health_damage` remain in aggregated/debug summaries but do not mutate gameplay until an explicit safe system exists.
-- Equipment upgrades do not change Training costs, rewards, hero unlocks, gacha, inventory, item drops, stage objectives, boss flow, evolutions, or 4/4/4 in-run slot rules.
+- Six equipment slots per hero: `core`, `suit`, `emblem`, `gauntlets`, `boots`, `artifact`.
+- **Item templates** are global and non-hero-specific — they live in `EquipmentDataProvider`. No `hero_id` field on templates. Equip compatibility is `slot_id`-only.
+- **Item instances** (with `instance_id`, `template_id`, `slot_id`, `level`, `locked`) live in `inventory_by_hero[hero_id]` (Array). Equipped slot pointers live in `equipped_by_hero[hero_id]` (Dictionary: slot_id → instance_id).
+- `MetaProgressionManager` is the player-state owner: it owns `inventory_by_hero`, `equipped_by_hero`, `equipment_by_hero`, and currency. It is NOT the canonical template data owner — that is `EquipmentDataProvider`.
+- Public API compatibility: `get_equipment_definitions(hero_id)` and `get_equipment_definition(hero_id, equipment_id)` route to `_equipment_provider` and wrap the result with legacy fields (`equipment_id`, `display_name`, `description`, `max_level`, `hero_id`) via `_adapt_template_to_definition()` so existing UI code keeps working.
+- Global max level = 10 for all items. `get_inventory_item_max_level()` reads `_equipment_provider.MAX_ITEM_LEVEL`.
+- `get_equipment_stat_modifiers_for_hero(hero_id)` aggregates `stat_bonus_per_level * level` by `stat_bonus_type` across equipped instances only. Unequipped items contribute zero.
+- `MetaApplier` applies supported equipment stats at run start for the selected hero only: `max_health`, `move_speed`, `xp_gain`, `attack_damage`, `ability_damage`, `ability_cooldown`, `shield_capacity`, `mark_damage`, and `rage_gain`.
+- `low_health_damage` and other future-facing stats are stored in aggregated modifiers but do not mutate gameplay until an explicit safe system exists.
+- Equipment does not change Training costs, rewards, hero unlocks, gacha, item drops, stage objectives, boss flow, evolutions, or in-run 4/4/4 slot rules.
 
 ## Inventory & Equipment Swapping Architecture
 
@@ -690,18 +687,7 @@ All items (equipped and alternatives) live in `inventory_by_hero`. `equipped_by_
 
 ### Alternative Item Templates
 
-Six alternative items exist (two per hero), defined in `_get_alt_item_templates()` in `MetaProgressionManager`:
-
-| template_id | hero_id | slot_id | stat |
-|---|---|---|---|
-| `radiant_reactor_core` | guardian | core | ability_damage 0.015/lv |
-| `sunbreaker_gauntlets` | guardian | gauntlets | attack_damage 1/lv |
-| `signal_processor` | blaster | core | ability_cooldown 0.008/lv |
-| `precision_bracers` | blaster | gauntlets | mark_damage 0.015/lv |
-| `berserker_core` | vanguard | core | rage_gain 0.015/lv |
-| `quake_gauntlets` | vanguard | gauntlets | impact_damage 0.015/lv |
-
-Use `get_alt_item_template(template_id)` to look them up. `_resolve_item_template(template_id)` in MetaUpgradeShop checks primary definitions first, then alt templates.
+`_get_alt_item_templates()` in MetaProgressionManager now returns `[]` (emptied as part of the Equipment Item Template System migration — all templates are served by `EquipmentDataProvider`). `get_alt_item_template(template_id)` routes to `get_equipment_definition("", template_id)` which queries `EquipmentDataProvider`. `_resolve_item_template(template_id)` in MetaUpgradeShop checks primary definitions first, then falls back to `get_alt_item_template` — both paths now resolve through the provider.
 
 ### equip_inventory_item Flow
 
@@ -719,11 +705,12 @@ The previously equipped item stays in inventory — only the pointer changes.
 
 ### Save Migration Rules
 
-- Save version bumped from 4 → 5.
+- Save version bumped from 4 → 5 (inventory/equipped structures introduced); Training Equipment Polish incremented to 6 (`inventory_static_items_cleared` flag, unequip support).
 - `_merge_with_defaults` calls `_migrate_inventory_if_needed()` after equipment data is ensured.
-- `_migrate_inventory_if_needed()` checks each hero in `DEFAULT_HERO_IDS`; if `inventory_by_hero[hero_id]` is missing or not an Array, calls `_initialize_starter_inventory(hero_id)`.
-- `_initialize_starter_inventory(hero_id)` copies existing `equipment_by_hero[hero_id][template_id]` levels into the equipped item instances; alternative items start at level 0.
-- Old saves without inventory data are silently upgraded; no data is lost.
+- `_migrate_inventory_if_needed()` checks each hero in `DEFAULT_HERO_IDS`; ensures `inventory_by_hero[hero_id]` is an Array and `equipped_by_hero[hero_id]` is a Dictionary if missing. Does NOT call `_initialize_starter_inventory` — no starter item grants.
+- `_validate_inventory_against_provider()` is called at the end of `_migrate_inventory_if_needed()` when `_equipment_provider` is available. It prunes inventory items whose `template_id` is not found in the provider and clears `equipped_by_hero` slot pointers that reference pruned instances. Currency, training, mastery, goals, and stage mastery are never touched.
+- Old saves with unknown template_ids (e.g. from hero-specific static items) are silently pruned. Players start with an empty inventory and may acquire items through future in-game systems.
+- `_clear_static_inventory_if_needed(data)` runs once via `inventory_static_items_cleared` flag (idempotent) to clear any pre-existing static hero item grants.
 
 ### New MetaProgressionManager APIs
 
@@ -804,6 +791,76 @@ Training tab, currency flow, hero unlock, main menu, goals, stage flow, evolutio
 - Signals include `back_requested`, `buy_requested(hero_id, upgrade_id)`, and `equipment_buy_requested(hero_id, equipment_id)`.
 - Row flash on purchase (`_flash_row`) unchanged.
 - Main.gd Training open/close flow unchanged.
+
+## Equipment Item Template System Architecture
+
+### Responsibilities
+
+- `EquipmentDataProvider` owns the canonical item template catalog. It is the single source of truth for what items exist, their stats, and their rarity. It never reads or writes save data.
+- `MetaProgressionManager` owns all player state: which items a hero has (instances), which are equipped, and instance levels. It must NOT embed canonical template data inline — template lookups always delegate to `_equipment_provider`.
+
+### Canonical Template Schema
+
+Each item template has exactly these fields (no `hero_id`, no `description`, no per-item `max_level`):
+
+```gdscript
+{
+  "id":                  String,  # unique template identifier e.g. "power_core_common"
+  "name":                String,  # display name e.g. "Power Core"
+  "slot_id":             String,  # "core" | "suit" | "emblem" | "gauntlets" | "boots" | "artifact"
+  "rarity":              String,  # "common" | "uncommon" | "rare" | "epic" | "legendary" | "mythic"
+  "stat_bonus_type":     String,  # e.g. "attack_damage", "ability_cooldown", "max_health"
+  "stat_bonus_per_level": float,  # bonus added per instance level
+  "base_cost":           int,     # currency cost at level 0 → 1
+  "cost_growth":         float,   # multiplicative cost scaling per level
+  "tags":                Array,   # e.g. ["offense"], ["defense", "ability"]
+}
+```
+
+### Global Rules
+
+- **Max level = 10** for all items. Defined as `EquipmentDataProvider.MAX_ITEM_LEVEL`. No per-template override.
+- **Equip compatibility = slot_id only.** Any item whose `slot_id` matches the target slot can be equipped regardless of hero. No `hero_id` filter.
+- **No starter item grants.** `_initialize_starter_inventory` is not called; players acquire items through future in-game systems only.
+- **No gacha, random loot, random affixes, crafting, item drops, or auto-equip.** The provider is a static catalog.
+
+### Adapter Pattern
+
+`_adapt_template_to_definition(tmpl, hero_id)` in MetaProgressionManager bridges the canonical schema to the legacy public API. It copies the template and adds: `equipment_id = id`, `display_name = name`, `description = ""`, `max_level = 10`, and optionally `hero_id`. This keeps MetaUpgradeShop and other UI callers working without changes.
+
+### EquipmentDataProvider Query API
+
+| Method | Returns | Notes |
+|---|---|---|
+| `get_all_item_templates()` | `Array[Dictionary]` | All templates, deep-copied |
+| `get_item_template(template_id)` | `Dictionary` | Empty if not found |
+| `get_templates_for_slot(slot_id)` | `Array[Dictionary]` | Filter by slot |
+| `get_templates_by_rarity(rarity)` | `Array[Dictionary]` | Filter by rarity |
+| `is_valid_template_id(template_id)` | `bool` | O(1) hash lookup |
+| `is_valid_slot(slot_id)` | `bool` | Checks SLOT_IDS constant |
+| `is_valid_rarity(rarity)` | `bool` | Checks RARITIES constant |
+| `get_max_item_level()` | `int` | Always 10 |
+| `get_slot_ids()` | `Array[String]` | Duplicate of SLOT_IDS |
+| `get_rarity_values()` | `Array[String]` | Duplicate of RARITIES |
+| `debug_get_item_template_summary()` | `Dictionary` | Counts by slot/rarity, totals |
+
+### Template Catalog (13 templates)
+
+| id | slot | rarity | stat | per_level |
+|---|---|---|---|---|
+| `power_core_common` | core | common | attack_damage | 1.0 |
+| `cooldown_core_uncommon` | core | uncommon | ability_cooldown | 0.008 |
+| `reinforced_suit_common` | suit | common | max_health | 5.0 |
+| `vitality_suit_uncommon` | suit | uncommon | max_health | 7.0 |
+| `awareness_emblem_common` | emblem | common | xp_gain | 0.01 |
+| `battle_emblem_uncommon` | emblem | uncommon | attack_damage | 1.5 |
+| `striker_gauntlets_common` | gauntlets | common | attack_damage | 1.0 |
+| `force_gauntlets_uncommon` | gauntlets | uncommon | ability_damage | 0.015 |
+| `runner_boots_common` | boots | common | move_speed | 3.0 |
+| `momentum_boots_uncommon` | boots | uncommon | move_speed | 4.0 |
+| `shield_artifact_common` | artifact | common | shield_capacity | 1.0 |
+| `fury_artifact_uncommon` | artifact | uncommon | low_health_damage | 0.02 |
+| `apex_artifact_rare` | artifact | rare | ability_damage | 0.025 |
 
 ## Inventory Filters & Sorting Architecture
 

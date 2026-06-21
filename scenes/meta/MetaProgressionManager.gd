@@ -19,9 +19,12 @@ const EQUIPMENT_SLOT_IDS: Array[String] = ["core", "suit", "emblem", "gauntlets"
 
 var _data: Dictionary = {}
 var _newly_completed_goals: Array[Dictionary] = []
+var _equipment_provider: Node = null
 
 
 func _ready() -> void:
+	_equipment_provider = load("res://scenes/equipment/EquipmentDataProvider.gd").new()
+	add_child(_equipment_provider)
 	load_progress()
 
 
@@ -135,20 +138,34 @@ func get_training_summary_for_hero(hero_id: String) -> Dictionary:
 
 
 func get_equipment_definitions(hero_id: String = "") -> Array[Dictionary]:
-	var resolved_hero_id := _resolve_hero_id(hero_id)
-	var result: Array[Dictionary] = []
-	for def in _get_all_equipment_definitions():
-		if hero_id.is_empty() or str(def.get("hero_id", "")) == resolved_hero_id:
-			result.append(def.duplicate(true))
-	return result
+	if _equipment_provider != null:
+		var resolved := _resolve_hero_id(hero_id) if not hero_id.is_empty() else ""
+		var result: Array[Dictionary] = []
+		for tmpl in _equipment_provider.get_all_item_templates():
+			result.append(_adapt_template_to_definition(tmpl, resolved))
+		return result
+	return []
 
 
 func get_equipment_definition(hero_id: String, equipment_id: String) -> Dictionary:
-	var resolved_hero_id := _resolve_hero_id(hero_id)
-	for def in _get_all_equipment_definitions():
-		if str(def.get("hero_id", "")) == resolved_hero_id and str(def.get("equipment_id", "")) == equipment_id:
-			return def.duplicate(true)
+	if _equipment_provider != null:
+		var tmpl: Dictionary = _equipment_provider.get_item_template(equipment_id)
+		if not tmpl.is_empty():
+			return _adapt_template_to_definition(tmpl, _resolve_hero_id(hero_id))
 	return {}
+
+
+func _adapt_template_to_definition(tmpl: Dictionary, hero_id: String = "") -> Dictionary:
+	if tmpl.is_empty():
+		return {}
+	var def := tmpl.duplicate(true)
+	def["equipment_id"] = str(tmpl.get("id", ""))
+	def["display_name"] = str(tmpl.get("name", ""))
+	def["description"] = ""
+	def["max_level"] = _equipment_provider.MAX_ITEM_LEVEL if _equipment_provider != null else 10
+	if not hero_id.is_empty():
+		def["hero_id"] = hero_id
+	return def
 
 
 func get_equipment_level(hero_id: String, equipment_id: String) -> int:
@@ -352,6 +369,8 @@ func get_inventory_item_max_level(hero_id: String, instance_id: String) -> int:
 	var item := get_inventory_item(hero_id, instance_id)
 	if item.is_empty():
 		return 0
+	if _equipment_provider != null:
+		return _equipment_provider.MAX_ITEM_LEVEL
 	var template_id := str(item.get("template_id", ""))
 	var tmpl := _get_item_template(template_id, _resolve_hero_id(hero_id))
 	return int(tmpl.get("max_level", 0))
@@ -966,21 +985,11 @@ func _get_default_equipment_by_hero() -> Dictionary:
 # ─── Inventory & Equipment Swapping ───────────────────────────────────────────
 
 func _get_alt_item_templates() -> Array:
-	return [
-		_make_equipment_definition("guardian", "radiant_reactor_core", "core", "Core", "Radiant Reactor Core", "An alternative core with a slightly different energy distribution.", "ability_damage", 0.015, 60, 1.35),
-		_make_equipment_definition("guardian", "sunbreaker_gauntlets", "gauntlets", "Gauntlets", "Sunbreaker Gauntlets", "Alternative gauntlets with a different solar charge pattern.", "attack_damage", 1, 60, 1.36),
-		_make_equipment_definition("blaster", "signal_processor", "core", "Core", "Signal Processor", "An alternative tactical core focused on signal processing.", "ability_cooldown", 0.008, 60, 1.35),
-		_make_equipment_definition("blaster", "precision_bracers", "gauntlets", "Gauntlets", "Precision Bracers", "Alternative bracers tuned for precision targeting.", "mark_damage", 0.015, 60, 1.36),
-		_make_equipment_definition("vanguard", "berserker_core", "core", "Core", "Berserker Core", "An alternative core that channels raw berserker energy.", "rage_gain", 0.015, 60, 1.35),
-		_make_equipment_definition("vanguard", "quake_gauntlets", "gauntlets", "Gauntlets", "Quake Gauntlets", "Alternative gauntlets that channel seismic force.", "impact_damage", 0.015, 60, 1.36),
-	]
+	return []
 
 
 func get_alt_item_template(template_id: String) -> Dictionary:
-	for def in _get_alt_item_templates():
-		if str(def.get("equipment_id", "")) == template_id:
-			return def.duplicate(true)
-	return {}
+	return get_equipment_definition("", template_id)
 
 
 func _migrate_inventory_if_needed() -> void:
@@ -988,7 +997,41 @@ func _migrate_inventory_if_needed() -> void:
 	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
 	for hero_id in DEFAULT_HERO_IDS:
 		if not inventory_by_hero.has(hero_id) or not inventory_by_hero.get(hero_id) is Array:
-			_initialize_starter_inventory(hero_id)
+			inventory_by_hero[hero_id] = []
+		if not equipped_by_hero.has(hero_id) or not equipped_by_hero.get(hero_id) is Dictionary:
+			equipped_by_hero[hero_id] = {}
+	_data["inventory_by_hero"] = inventory_by_hero
+	_data["equipped_by_hero"] = equipped_by_hero
+	if _equipment_provider != null:
+		_validate_inventory_against_provider()
+
+
+func _validate_inventory_against_provider() -> void:
+	var inventory_by_hero: Dictionary = _data.get("inventory_by_hero", {})
+	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
+	for hero_id in DEFAULT_HERO_IDS:
+		var items = inventory_by_hero.get(hero_id, [])
+		if not items is Array:
+			inventory_by_hero[hero_id] = []
+			equipped_by_hero[hero_id] = {}
+			continue
+		var valid_items: Array = []
+		var valid_instance_ids: Dictionary = {}
+		for item in items:
+			if not item is Dictionary:
+				continue
+			var template_id := str(item.get("template_id", ""))
+			if _equipment_provider.is_valid_template_id(template_id):
+				valid_items.append(item)
+				valid_instance_ids[str(item.get("instance_id", ""))] = true
+		inventory_by_hero[hero_id] = valid_items
+		var equipped: Dictionary = equipped_by_hero.get(hero_id, {})
+		if equipped is Dictionary:
+			for slot_id in equipped.keys():
+				var iid := str(equipped.get(slot_id, ""))
+				if not valid_instance_ids.has(iid) or iid.is_empty():
+					equipped.erase(slot_id)
+			equipped_by_hero[hero_id] = equipped
 	_data["inventory_by_hero"] = inventory_by_hero
 	_data["equipped_by_hero"] = equipped_by_hero
 
@@ -1040,35 +1083,7 @@ func _initialize_starter_inventory(hero_id: String) -> void:
 	_data["equipped_by_hero"] = equipped_by_hero
 
 
-func _get_starter_inventory_data(hero_id: String) -> Dictionary:
-	match hero_id:
-		"guardian":
-			return {
-				"core":      {"equipped_template_id": "solar_core",         "equipped_instance_id": "guardian_solar_core_001",          "alt_template_id": "radiant_reactor_core", "alt_instance_id": "guardian_radiant_reactor_core_001"},
-				"suit":      {"equipped_template_id": "radiant_suit",       "equipped_instance_id": "guardian_radiant_suit_001"},
-				"emblem":    {"equipped_template_id": "sun_emblem",         "equipped_instance_id": "guardian_sun_emblem_001"},
-				"gauntlets": {"equipped_template_id": "power_gauntlets",    "equipped_instance_id": "guardian_power_gauntlets_001",     "alt_template_id": "sunbreaker_gauntlets", "alt_instance_id": "guardian_sunbreaker_gauntlets_001"},
-				"boots":     {"equipped_template_id": "flight_boots",       "equipped_instance_id": "guardian_flight_boots_001"},
-				"artifact":  {"equipped_template_id": "aegis_artifact",     "equipped_instance_id": "guardian_aegis_artifact_001"},
-			}
-		"blaster":
-			return {
-				"core":      {"equipped_template_id": "tactical_core",      "equipped_instance_id": "blaster_tactical_core_001",        "alt_template_id": "signal_processor",    "alt_instance_id": "blaster_signal_processor_001"},
-				"suit":      {"equipped_template_id": "shadow_suit",        "equipped_instance_id": "blaster_shadow_suit_001"},
-				"emblem":    {"equipped_template_id": "signal_emblem",      "equipped_instance_id": "blaster_signal_emblem_001"},
-				"gauntlets": {"equipped_template_id": "gadget_gauntlets",   "equipped_instance_id": "blaster_gadget_gauntlets_001",     "alt_template_id": "precision_bracers",   "alt_instance_id": "blaster_precision_bracers_001"},
-				"boots":     {"equipped_template_id": "grapnel_boots",      "equipped_instance_id": "blaster_grapnel_boots_001"},
-				"artifact":  {"equipped_template_id": "drone_artifact",     "equipped_instance_id": "blaster_drone_artifact_001"},
-			}
-		"vanguard":
-			return {
-				"core":      {"equipped_template_id": "rage_core",          "equipped_instance_id": "vanguard_rage_core_001",           "alt_template_id": "berserker_core",      "alt_instance_id": "vanguard_berserker_core_001"},
-				"suit":      {"equipped_template_id": "titan_suit",         "equipped_instance_id": "vanguard_titan_suit_001"},
-				"emblem":    {"equipped_template_id": "war_emblem",         "equipped_instance_id": "vanguard_war_emblem_001"},
-				"gauntlets": {"equipped_template_id": "impact_gauntlets",   "equipped_instance_id": "vanguard_impact_gauntlets_001",    "alt_template_id": "quake_gauntlets",     "alt_instance_id": "vanguard_quake_gauntlets_001"},
-				"boots":     {"equipped_template_id": "heavy_boots",        "equipped_instance_id": "vanguard_heavy_boots_001"},
-				"artifact":  {"equipped_template_id": "fury_artifact",      "equipped_instance_id": "vanguard_fury_artifact_001"},
-			}
+func _get_starter_inventory_data(_hero_id: String) -> Dictionary:
 	return {}
 
 
@@ -1150,6 +1165,12 @@ func unequip_slot(hero_id: String, slot_id: String) -> bool:
 	return true
 
 
+func debug_get_item_template_summary() -> Dictionary:
+	if _equipment_provider != null:
+		return _equipment_provider.debug_get_item_template_summary()
+	return {}
+
+
 func debug_get_inventory_summary() -> Dictionary:
 	var result := {}
 	for hero_id in DEFAULT_HERO_IDS:
@@ -1163,54 +1184,16 @@ func debug_get_inventory_summary() -> Dictionary:
 	return result
 
 
-func _get_item_template(template_id: String, hero_id: String) -> Dictionary:
-	for def in _get_all_equipment_definitions():
-		if str(def.get("equipment_id", "")) == template_id and str(def.get("hero_id", "")) == hero_id:
-			return def.duplicate(true)
-	for def in _get_alt_item_templates():
-		if str(def.get("equipment_id", "")) == template_id:
-			return def.duplicate(true)
+func _get_item_template(template_id: String, hero_id: String = "") -> Dictionary:
+	if _equipment_provider != null:
+		var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
+		if not tmpl.is_empty():
+			return _adapt_template_to_definition(tmpl, hero_id)
 	return {}
 
 
 func _get_all_equipment_definitions() -> Array[Dictionary]:
-	return [
-		_make_equipment_definition("guardian", "solar_core", "core", "Core", "Solar Core", "A radiant reactor that will strengthen Solar Guardian's core power.", "ability_damage", 0.02, 60, 1.35),
-		_make_equipment_definition("guardian", "radiant_suit", "suit", "Suit", "Radiant Suit", "Layered solar armor reserved for future durability upgrades.", "max_health", 5, 55, 1.34),
-		_make_equipment_definition("guardian", "sun_emblem", "emblem", "Emblem", "Sun Emblem", "A bright insignia prepared for future mastery scaling.", "xp_gain", 0.01, 50, 1.33),
-		_make_equipment_definition("guardian", "power_gauntlets", "gauntlets", "Gauntlets", "Power Gauntlets", "Solar-charged gauntlets for future attack upgrades.", "attack_damage", 1, 60, 1.36),
-		_make_equipment_definition("guardian", "flight_boots", "boots", "Boots", "Flight Boots", "Stabilized boots reserved for future movement upgrades.", "move_speed", 3, 45, 1.32),
-		_make_equipment_definition("guardian", "aegis_artifact", "artifact", "Artifact", "Aegis Artifact", "A protective relic prepared for future shield upgrades.", "shield_capacity", 1, 75, 1.4),
-		_make_equipment_definition("blaster", "tactical_core", "core", "Core", "Tactical Core", "A compact command module for future ability cooldown upgrades.", "ability_cooldown", 0.01, 60, 1.35),
-		_make_equipment_definition("blaster", "shadow_suit", "suit", "Suit", "Shadow Suit", "Stealth-lined armor reserved for future survivability upgrades.", "max_health", 4, 55, 1.34),
-		_make_equipment_definition("blaster", "signal_emblem", "emblem", "Emblem", "Signal Emblem", "A targeting badge prepared for future mark upgrades.", "mark_damage", 0.02, 50, 1.33),
-		_make_equipment_definition("blaster", "gadget_gauntlets", "gauntlets", "Gauntlets", "Gadget Gauntlets", "Utility gauntlets reserved for future rocket damage upgrades.", "attack_damage", 1, 60, 1.36),
-		_make_equipment_definition("blaster", "grapnel_boots", "boots", "Boots", "Grapnel Boots", "Anchored boots prepared for future repositioning upgrades.", "move_speed", 3, 45, 1.32),
-		_make_equipment_definition("blaster", "drone_artifact", "artifact", "Artifact", "Drone Artifact", "A mini-drone relay reserved for future tactical support upgrades.", "support_damage", 0.02, 75, 1.4),
-		_make_equipment_definition("vanguard", "rage_core", "core", "Core", "Rage Core", "A volatile core prepared for future Rage scaling.", "rage_gain", 0.02, 60, 1.35),
-		_make_equipment_definition("vanguard", "titan_suit", "suit", "Suit", "Titan Suit", "Heavy reinforced armor reserved for future health upgrades.", "max_health", 6, 55, 1.34),
-		_make_equipment_definition("vanguard", "war_emblem", "emblem", "Emblem", "War Emblem", "A battle crest prepared for future impact upgrades.", "impact_damage", 0.02, 50, 1.33),
-		_make_equipment_definition("vanguard", "impact_gauntlets", "gauntlets", "Gauntlets", "Impact Gauntlets", "Weighted gauntlets reserved for future melee upgrades.", "attack_damage", 1, 60, 1.36),
-		_make_equipment_definition("vanguard", "heavy_boots", "boots", "Boots", "Heavy Boots", "Grounded boots prepared for future knockback resistance upgrades.", "knockback_resist", 0.03, 45, 1.32),
-		_make_equipment_definition("vanguard", "fury_artifact", "artifact", "Artifact", "Fury Artifact", "A charged relic prepared for future enrage upgrades.", "low_health_damage", 0.02, 75, 1.4),
-	]
-
-
-func _make_equipment_definition(hero_id: String, equipment_id: String, slot_id: String, slot_name: String, display_name: String, description: String, stat_bonus_type: String, stat_bonus_per_level, base_cost: int, cost_growth: float) -> Dictionary:
-	return {
-		"equipment_id": equipment_id,
-		"hero_id": hero_id,
-		"slot_id": slot_id,
-		"slot_name": slot_name,
-		"display_name": display_name,
-		"description": description,
-		"max_level": 10,
-		"base_cost": base_cost,
-		"cost_growth": cost_growth,
-		"stat_bonus_type": stat_bonus_type,
-		"stat_bonus_per_level": stat_bonus_per_level,
-		"tier": "signature",
-	}
+	return []
 
 
 func _get_default_hero_mastery() -> Dictionary:
