@@ -132,6 +132,8 @@ func _init_meta_upgrade_shop() -> void:
 		meta_upgrade_shop.back_requested.connect(_close_meta_shop)
 	if meta_upgrade_shop.has_signal("buy_requested") and not meta_upgrade_shop.buy_requested.is_connected(_on_meta_buy_requested):
 		meta_upgrade_shop.buy_requested.connect(_on_meta_buy_requested)
+	if meta_upgrade_shop.has_signal("equipment_buy_requested") and not meta_upgrade_shop.equipment_buy_requested.is_connected(_on_equipment_buy_requested):
+		meta_upgrade_shop.equipment_buy_requested.connect(_on_equipment_buy_requested)
 
 
 func _init_hero_collection_screen() -> void:
@@ -560,6 +562,11 @@ func _close_hero_collection() -> void:
 func _on_meta_buy_requested(hero_id: String, upgrade_id: String) -> void:
 	if meta_progression_manager != null and meta_progression_manager.has_method("purchase_training_upgrade"):
 		meta_progression_manager.purchase_training_upgrade(hero_id, upgrade_id)
+
+
+func _on_equipment_buy_requested(hero_id: String, equipment_id: String) -> void:
+	if meta_progression_manager != null and meta_progression_manager.has_method("purchase_equipment_upgrade"):
+		meta_progression_manager.purchase_equipment_upgrade(hero_id, equipment_id)
 
 
 func _get_hero_data(hero_id: String) -> Dictionary:

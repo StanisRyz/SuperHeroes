@@ -4,7 +4,7 @@ extends Node
 # Meta bonuses stack on top of hero starting stats.
 
 
-static func apply_meta_progression(meta_manager: Node, player: Node, auto_attack: Node, _ability_manager: Node, hero_id: String = "") -> void:
+static func apply_meta_progression(meta_manager: Node, player: Node, auto_attack: Node, ability_manager: Node, hero_id: String = "") -> void:
 	if meta_manager == null:
 		return
 	var resolved_hero_id := hero_id
@@ -13,6 +13,8 @@ static func apply_meta_progression(meta_manager: Node, player: Node, auto_attack
 		push_warning("MetaApplier: missing hero_id, falling back to guardian training.")
 	if meta_manager.has_method("ensure_training_data_for_hero"):
 		meta_manager.ensure_training_data_for_hero(resolved_hero_id)
+	if meta_manager.has_method("ensure_equipment_data_for_hero"):
+		meta_manager.ensure_equipment_data_for_hero(resolved_hero_id)
 
 	if player != null and is_instance_valid(player):
 		var hp_level: int = _get_training_level(meta_manager, resolved_hero_id, "meta_max_health")
@@ -40,6 +42,8 @@ static func apply_meta_progression(meta_manager: Node, player: Node, auto_attack
 			var new_dmg: int = int(auto_attack.get("attack_damage") or 10) + damage_level
 			auto_attack.set("attack_damage", new_dmg)
 
+	_apply_equipment_modifiers(meta_manager, resolved_hero_id, player, auto_attack, ability_manager)
+
 
 static func _get_training_level(meta_manager: Node, hero_id: String, upgrade_id: String) -> int:
 	if meta_manager.has_method("get_training_level"):
@@ -47,3 +51,105 @@ static func _get_training_level(meta_manager: Node, hero_id: String, upgrade_id:
 	if meta_manager.has_method("get_meta_upgrade_level"):
 		return int(meta_manager.get_meta_upgrade_level(upgrade_id))
 	return 0
+
+
+static func _apply_equipment_modifiers(meta_manager: Node, hero_id: String, player: Node, auto_attack: Node, ability_manager: Node) -> void:
+	if not meta_manager.has_method("get_equipment_stat_modifiers_for_hero"):
+		return
+	var modifiers: Dictionary = meta_manager.get_equipment_stat_modifiers_for_hero(hero_id)
+	if modifiers.is_empty():
+		return
+
+	if player != null and is_instance_valid(player):
+		var health_bonus := int(round(float(modifiers.get("max_health", 0.0))))
+		if health_bonus > 0 and player.get("max_health") != null:
+			var new_max := int(player.get("max_health") or 100) + health_bonus
+			player.set("max_health", new_max)
+			player.set("current_health", new_max)
+			if player.has_signal("health_changed"):
+				player.health_changed.emit(new_max, new_max)
+
+		var speed_bonus := float(modifiers.get("move_speed", 0.0))
+		if not is_zero_approx(speed_bonus) and player.get("speed") != null:
+			player.set("speed", float(player.get("speed") or 260.0) + speed_bonus)
+
+		var xp_bonus := float(modifiers.get("xp_gain", 0.0))
+		if not is_zero_approx(xp_bonus) and player.get("experience_gain_multiplier") != null:
+			player.set("experience_gain_multiplier", maxf(float(player.get("experience_gain_multiplier") or 1.0) + xp_bonus, 0.0))
+
+		var shield_bonus := int(round(float(modifiers.get("shield_capacity", 0.0))))
+		if shield_bonus > 0:
+			var buff_manager := player.get_node_or_null("PlayerBuffManager")
+			if buff_manager != null and buff_manager.has_method("add_shield_charges"):
+				buff_manager.add_shield_charges(shield_bonus)
+
+	if auto_attack != null and is_instance_valid(auto_attack):
+		var attack_bonus := int(round(float(modifiers.get("attack_damage", 0.0))))
+		if attack_bonus > 0 and auto_attack.get("attack_damage") != null:
+			auto_attack.set("attack_damage", int(auto_attack.get("attack_damage") or 0) + attack_bonus)
+
+	if ability_manager != null and is_instance_valid(ability_manager):
+		var ability_bonus := float(modifiers.get("ability_damage", 0.0))
+		if not is_zero_approx(ability_bonus):
+			_apply_ability_damage_multiplier(ability_manager, 1.0 + ability_bonus)
+
+		var cooldown_bonus := float(modifiers.get("ability_cooldown", 0.0))
+		if not is_zero_approx(cooldown_bonus):
+			_apply_all_cooldown_multiplier(ability_manager, maxf(1.0 - cooldown_bonus, 0.5))
+
+		var mark_bonus := float(modifiers.get("mark_damage", 0.0))
+		if not is_zero_approx(mark_bonus):
+			_add_number(ability_manager, "tactical_mark_autoattack_damage_multiplier", mark_bonus)
+
+		var rage_bonus := float(modifiers.get("rage_gain", 0.0))
+		if not is_zero_approx(rage_bonus):
+			var rage_multiplier := 1.0 + rage_bonus
+			_multiply_number(ability_manager, "rage_per_damage_taken", rage_multiplier)
+			_multiply_number(ability_manager, "rage_per_damage_dealt", rage_multiplier)
+			_multiply_number(ability_manager, "rage_per_hit", rage_multiplier)
+
+
+static func _apply_ability_damage_multiplier(ability_manager: Node, multiplier: float) -> void:
+	for property_name in [
+		"nova_damage", "nova_aftershock_damage", "laser_damage", "slam_damage",
+		"solar_beam_damage", "solar_beam_burn_damage", "frost_breath_damage", "death_dash_damage",
+		"explosive_trap_damage", "grappling_hook_damage",
+		"rage_wave_damage", "mighty_clap_damage", "rage_leap_damage",
+	]:
+		_multiply_number(ability_manager, property_name, multiplier)
+
+
+static func _apply_all_cooldown_multiplier(ability_manager: Node, multiplier: float) -> void:
+	for property_name in [
+		"nova_cooldown", "laser_cooldown", "slam_cooldown",
+		"solar_beam_cooldown", "frost_breath_cooldown", "death_dash_cooldown",
+		"smoke_screen_cooldown", "explosive_trap_cooldown", "grappling_hook_cooldown",
+		"rage_wave_cooldown", "mighty_clap_cooldown", "rage_leap_cooldown",
+	]:
+		_apply_cooldown_multiplier(ability_manager, property_name, multiplier)
+
+
+static func _apply_cooldown_multiplier(target: Node, property_name: String, multiplier: float) -> void:
+	if target.get(property_name) == null:
+		return
+	target.set(property_name, maxf(float(target.get(property_name)) * multiplier, 0.5))
+
+
+static func _add_number(target: Node, property_name: String, amount) -> void:
+	if is_zero_approx(float(amount)) or target.get(property_name) == null:
+		return
+	var current = target.get(property_name)
+	if current is int:
+		target.set(property_name, int(current) + int(amount))
+	else:
+		target.set(property_name, float(current) + float(amount))
+
+
+static func _multiply_number(target: Node, property_name: String, multiplier: float) -> void:
+	if target.get(property_name) == null:
+		return
+	var current = target.get(property_name)
+	if current is int:
+		target.set(property_name, maxi(roundi(float(current) * multiplier), 0))
+	else:
+		target.set(property_name, float(current) * multiplier)

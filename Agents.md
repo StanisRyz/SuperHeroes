@@ -90,7 +90,7 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/GameOverScreen.tscn` - pause-time game over UI.
 - `scenes/ui/GameOverScreen.gd` - displays run stats and emits restart requests.
 - `scenes/player/Player.tscn` - player scene with camera.
-- `scenes/player/Player.gd` - movement, bounds clamp, health state.
+- `scenes/player/Player.gd` - movement, bounds clamp, health state, XP gain multiplier.
 - `scenes/player/PlayerAutoAttack.gd` - autoattack range tracking, periodic enemy damage, and runtime-only attack evolution effects via `apply_attack_evolution(evolution_id, target_id)`.
 - `scenes/enemies/Enemy.tscn` - enemy scene and contact damage area.
 - `scenes/enemies/Enemy.gd` - chase movement, enemy health, contact damage.
@@ -121,12 +121,12 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/VictoryScreen.tscn` - pause-time victory UI scene.
 - `scenes/ui/VictoryScreen.gd` - displays run summary on victory and emits restart_requested / quit_to_menu_requested.
 - `scenes/meta/MetaProgressionManager.tscn` - persistent meta manager node scene (instantiated at runtime by Main).
-- `scenes/meta/MetaProgressionManager.gd` - owns soft currency, meta upgrade levels, fixed per-hero equipment levels, hero unlock state, lifetime stats, and save/load to user://superheroes_meta_progress.json. Calculates and applies run rewards. Never called directly by Arena.
-- `scenes/meta/MetaApplier.gd` - static helper; applies purchased meta bonuses to Player, AutoAttack, and pickup_radius_bonus. Called by Arena after HeroApplier at run start.
+- `scenes/meta/MetaProgressionManager.gd` - owns soft currency, meta upgrade levels, fixed per-hero equipment levels/upgrades, hero unlock state, lifetime stats, and save/load to user://superheroes_meta_progress.json. Calculates and applies run rewards. Never called directly by Arena.
+- `scenes/meta/MetaApplier.gd` - static helper; applies purchased Training bonuses and supported equipment bonuses to Player, AutoAttack, and AbilityManager. Called by Arena after HeroApplier at run start.
 - `scenes/ui/PostRunRewardsScreen.tscn` - post-run reward display CanvasLayer scene (instantiated at runtime by Main).
 - `scenes/ui/PostRunRewardsScreen.gd` - display-only reward breakdown screen. Emits continue_requested. Shown between V/GO result screen and the next action (restart or menu).
 - `scenes/ui/MetaUpgradeShop.tscn` - meta upgrade shop CanvasLayer scene (instantiated at runtime by Main).
-- `scenes/ui/MetaUpgradeShop.gd` - display-only Training shop UI. Two-panel layout: left panel is Character Equipment preview (6 fixed hero equipment slots + hero preview); right panel is Training Upgrades scroll list. Header contains title, currency label, hero selector, and goals label. Footer has Back button. Equipment rows read definitions and levels only, show disabled "Upgrade coming next" buttons, and never emit purchase intent. Emits `buy_requested(hero_id, upgrade_id)` for Training only; Main handles the purchase. Accessed via "Training" button on MainMenu.
+- `scenes/ui/MetaUpgradeShop.gd` - Training shop UI. Two-panel layout: left panel is Character Equipment preview/upgrades (6 fixed hero equipment slots + hero preview); right panel is Training Upgrades scroll list. Header contains title, currency label, hero selector, and goals label. Footer has Back button. Equipment rows read definitions/levels/costs, emit `equipment_buy_requested(hero_id, equipment_id)`, and Main handles the purchase. Emits `buy_requested(hero_id, upgrade_id)` for Training; Main handles that purchase too. Accessed via "Training" button on MainMenu.
 - `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, meta progression/rewards, expected console log patterns).
 - `scenes/stages/StageDataProvider.tscn` - runtime stage definition provider scene.
 - `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, display-only identity metadata, background_colors, run_settings, event_profile, final_boss_id, `objective_type` ("survival"/"defense"/"destroy_structures"), and `objective_data` (per-type parameters).
@@ -608,6 +608,7 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `PostRunRewardsScreen.continue_requested` → Main hides the screen, unpauses, and executes the pending action (`_do_restart_run` or `_do_quit_to_menu`).
 - `MetaApplier.apply_meta_progression(meta_manager, player, auto_attack, ability_manager)` is called by Arena after `_apply_selected_hero`, applying bonuses in this order: GameplayTuning → HeroApplier → MetaApplier. MetaApplier is loaded dynamically via `load("res://scenes/meta/MetaApplier.gd")`.
 - `MetaUpgradeShop` emits `buy_requested(hero_id, upgrade_id)` → `Main._on_meta_buy_requested(hero_id, upgrade_id)` → `MetaProgressionManager.purchase_training_upgrade(hero_id, upgrade_id)`. The shop is display-only outside that Training buy intent.
+- `MetaUpgradeShop` emits `equipment_buy_requested(hero_id, equipment_id)` → `Main._on_equipment_buy_requested(hero_id, equipment_id)` → `MetaProgressionManager.purchase_equipment_upgrade(hero_id, equipment_id)`.
 - `MainMenu` emits `meta_shop_requested` → `Main._open_meta_shop()` hides MainMenu and opens MetaUpgradeShop. Shop back → `Main._close_meta_shop()` closes shop and re-shows MainMenu.
 - `CharacterSelect.setup(hero_data_provider, meta_progression_manager)` accepts optional MetaProgressionManager. If provided and `is_hero_unlocked()` returns false, the hero button shows "[LOCKED — N currency]" and the start button is disabled. Currently all heroes are `unlocked_by_default: true` so no locking occurs in practice.
 - `Player.pickup_radius_bonus` is a `@export float = 0.0`. `ExperienceGem._update_target_player()` reads it safely via `player_node.get("pickup_radius_bonus") or 0.0` to extend the magnet radius without hard coupling.
@@ -636,7 +637,7 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `MetaApplier` must apply Training by selected hero id only. Runs as Guardian, Blaster, or Vanguard must never combine Training levels from other heroes.
 - Runtime upgrades, evolutions, and temporary run state must not be written into Training data.
 
-## Character Equipment Foundation Architecture
+## Character Equipment Architecture
 
 - Each hero has exactly six fixed equipment items, one per slot: `core`, `suit`, `emblem`, `gauntlets`, `boots`, and `artifact`.
 - Equipment definition schema lives in `MetaProgressionManager` dictionaries with `equipment_id`, `hero_id`, `slot_id`, `slot_name`, `display_name`, `description`, `max_level`, `base_cost`, `cost_growth`, `stat_bonus_type`, `stat_bonus_per_level`, and `tier`.
@@ -645,9 +646,13 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
   - Blaster: `tactical_core`, `shadow_suit`, `signal_emblem`, `gadget_gauntlets`, `grapnel_boots`, `drone_artifact`.
   - Vanguard: `rage_core`, `titan_suit`, `war_emblem`, `impact_gauntlets`, `heavy_boots`, `fury_artifact`.
 - Persistent levels live in `equipment_by_hero`, shaped as `equipment_by_hero[hero_id][equipment_id] = level`. Defaults are `0`.
-- `MetaProgressionManager` exposes read-only equipment APIs: `ensure_equipment_data_for_hero`, `ensure_equipment_data_for_all_heroes`, `get_equipment_definitions`, `get_equipment_definition`, `get_equipment_level`, `get_equipment_levels_for_hero`, `get_equipment_summary_for_hero`, and `debug_get_equipment_summary`.
-- `can_purchase_equipment_upgrade` and `purchase_equipment_upgrade` are inert stubs that return `false` until a future explicit equipment upgrade patch.
-- Equipment levels do not apply gameplay stats, rewards, Training costs, hero unlocks, gacha, inventory, item drops, swapping, or 4/4/4 in-run slot rules in this patch.
+- `MetaProgressionManager` exposes equipment APIs: `ensure_equipment_data_for_hero`, `ensure_equipment_data_for_all_heroes`, `get_equipment_definitions`, `get_equipment_definition`, `get_equipment_level`, `set_equipment_level`, `get_equipment_levels_for_hero`, `get_equipment_summary_for_hero`, `get_equipment_upgrade_cost`, `can_purchase_equipment_upgrade`, `purchase_equipment_upgrade`, `get_equipment_stat_modifiers_for_hero`, `debug_get_equipment_summary`, and `debug_get_equipment_modifiers_for_hero`.
+- `equipment_upgrade_changed(hero_id, equipment_id, level)` emits after equipment level changes. Successful purchases spend shared currency, emit `currency_changed`, set the new level, emit `equipment_upgrade_changed`, and save progress.
+- Equipment upgrades are per-hero and use shared currency. They never create inventory items, drops, swaps, random stats, gacha entries, or item ownership lists.
+- `get_equipment_stat_modifiers_for_hero(hero_id)` aggregates `stat_bonus_per_level * level` by `stat_bonus_type`. Debug summaries include all aggregated stat ids.
+- `MetaApplier` applies supported equipment stats at run start for the selected hero only: `max_health`, `move_speed`, `xp_gain` (`Player.experience_gain_multiplier`), `attack_damage`, `ability_damage`, `ability_cooldown`, `shield_capacity`, `mark_damage`, and `rage_gain`.
+- Unsupported future-facing stats such as `support_damage`, `impact_damage`, `knockback_resist`, and `low_health_damage` remain in aggregated/debug summaries but do not mutate gameplay until an explicit safe system exists.
+- Equipment upgrades do not change Training costs, rewards, hero unlocks, gacha, inventory, item drops, swapping, stage objectives, boss flow, evolutions, or 4/4/4 in-run slot rules.
 
 ## Training Screen Two-Panel Layout Architecture
 
@@ -655,14 +660,15 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - **Header** (above both panels): title label, currency label, hero selector `HBoxContainer`, goals label.
 - **Left panel** (`_build_equipment_panel()`): "Equipment" section title, hero preview (`PanelContainer` with color swatch, display name, subtitle, status), a slot grid (`HBoxContainer` with left column + center spacer + right column), and a note label.
 - **Right panel** (`_build_training_panel()`): "Training Upgrades" section title, `ScrollContainer` containing `_list_vbox` with upgrade rows. This is identical to the previous single-panel list.
-- **Slot grid layout**: left column holds Core/Suit/Emblem; right column holds Gauntlets/Boots/Artifact. Each slot is a `PanelContainer` with slot name, hero-specific display name, `Level current / max`, stat bonus text, and a disabled "Upgrade coming next" button.
+- **Slot grid layout**: left column holds Core/Suit/Emblem; right column holds Gauntlets/Boots/Artifact. Each slot is a `PanelContainer` with slot name, hero-specific display name, `Level current / max`, bonus per level, current total, next total, and an Upgrade/Need/MAX button.
 - **Hero preview** updates via `_refresh_equipment_panel()` on every `refresh()` call and on hero switch. It reads `display_name`, `subtitle`/`playstyle`, and `color` from `_get_selected_hero_data()`.
-- **Equipment rules for this patch**: slot levels are stored as foundation data only; no equipment purchase flow, no equipment stat application, no inventory, no item drops, no swapping, no gacha. Slots are display-only.
+- **Equipment rules**: fixed equipment can be upgraded with shared currency; no inventory, no item drops, no swapping, no random item stats, no gacha.
 - `_get_selected_hero_data()` returns the selected hero dict from `_heroes` (already loaded via `HeroDataProvider`), with fallback to `_hero_data_provider.get_hero()`.
-- `_update_equipment_slots()` reads `MetaProgressionManager.get_equipment_definitions(_selected_hero_id)` and `get_equipment_level()` only. Missing equipment data falls back to safe placeholder text.
+- `_update_equipment_slots()` reads `MetaProgressionManager.get_equipment_definitions(_selected_hero_id)`, levels, costs, and affordability. Missing equipment data falls back to safe placeholder text.
+- `_on_equipment_buy_pressed(slot_id)` resolves the current slot's equipment id and emits `equipment_buy_requested`; it does not mutate meta state directly.
 - Existing Training buy flow (`_on_buy_pressed`, `_on_buy_pressed.bind(upgrade_id)`, `buy_requested.emit`) is unchanged.
 - `open(hero_id)`, `close()`, `setup(meta_progression_manager, hero_data_provider)`, `refresh()`, `set_selected_hero(hero_id)` API unchanged.
-- Signals `back_requested` and `buy_requested(hero_id, upgrade_id)` unchanged.
+- Signals include `back_requested`, `buy_requested(hero_id, upgrade_id)`, and `equipment_buy_requested(hero_id, equipment_id)`.
 - Row flash on purchase (`_flash_row`) unchanged.
 - Main.gd Training open/close flow unchanged.
 

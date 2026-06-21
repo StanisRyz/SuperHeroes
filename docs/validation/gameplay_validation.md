@@ -1841,7 +1841,7 @@ git diff --stat
 | 4 | Detail panel — owned status | OWNED label in green |
 | 5 | Detail panel — mastery | Mastery Lv.N  \|  Runs: N  \|  Victories: N (reads MetaProgressionManager live) |
 | 6 | Detail panel — color swatch | Colored strip matches hero color |
-| 7 | Detail panel — equipment summary | Shows compact read-only equipment progress, e.g. Equipment: 0 / 6 upgraded |
+| 7 | Detail panel — equipment summary | Shows compact read-only equipment progress with upgraded count, total levels / max, and highest level |
 
 ### Collection Screen — Open / Close / ESC
 
@@ -1892,7 +1892,7 @@ git diff --stat
 | 5 | Footer | "Back" button present and accessible |
 | 6 | Layout fits screen | Both panels visible in landscape at 16:9 without cutting off the Back button |
 
-### Equipment Panel — Fixed Equipment Foundation
+### Equipment Panel — Fixed Equipment Upgrades
 
 | # | Test | Expected |
 |---|------|----------|
@@ -1900,8 +1900,10 @@ git diff --stat
 | 2 | Open Training for Solar Guardian | Slots show Solar Core, Radiant Suit, Sun Emblem, Power Gauntlets, Flight Boots, and Aegis Artifact |
 | 3 | Switch to Night Tactician | Slots update to Tactical Core, Shadow Suit, Signal Emblem, Gadget Gauntlets, Grapnel Boots, and Drone Artifact |
 | 4 | Switch to Fury Vanguard | Slots update to Rage Core, Titan Suit, War Emblem, Impact Gauntlets, Heavy Boots, and Fury Artifact |
-| 5 | Inspect each slot | Shows slot name, equipment display name, "Level 0 / 10", future stat bonus text, and disabled "Upgrade coming next" button |
-| 6 | No equipment purchase interaction | Disabled slot buttons do not emit Training buy intent and no equipment level can be increased |
+| 5 | Inspect each slot | Shows slot name, equipment display name, "Level current / 10", bonus per level, current total, next total, and an Upgrade/Need/MAX button |
+| 6 | Buy affordable equipment | Shared currency decreases, equipment level increases, currency label updates, and the slot flashes |
+| 7 | Try unaffordable equipment | Button shows Need X and is disabled |
+| 8 | Upgrade equipment to max | Button shows MAX and no further purchase is possible |
 
 ### Equipment Panel — Hero Preview
 
@@ -1919,7 +1921,7 @@ git diff --stat
 |---|------|----------|
 | 1 | Click Guardian, Blaster, Vanguard buttons | Selected hero button turns green and is disabled; other buttons are white |
 | 2 | Switch from Guardian to Blaster | Training upgrade rows update; equipment hero preview name/subtitle/color and all 6 equipment names/levels update |
-| 3 | Switch from Blaster to Vanguard | Same as above for Vanguard |
+| 3 | Switch from Blaster to Vanguard | Same as above for Vanguard; per-hero equipment levels remain separate |
 | 4 | Goals label after switch | Goals label still shows correct totals |
 | 5 | Currency after switch | Currency label unchanged (global shared currency) |
 
@@ -1948,16 +1950,27 @@ git diff --stat
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Load an old save without `equipment_by_hero` | Save loads without errors and equipment defaults are created for Guardian, Blaster, and Vanguard |
-| 2 | Inspect `debug_get_equipment_summary()` | Each hero has 6 equipment entries, upgraded count 0, and total equipment levels 0 |
+| 2 | Inspect `debug_get_equipment_summary()` | Each hero has 6 equipment entries, upgraded count, total levels, max levels, highest level, and aggregated modifiers |
 | 3 | Check existing save fields after migration | Currency, `training_by_hero`, `hero_mastery`, `stage_mastery`, `goals`, and `unlocked_heroes` are preserved |
-| 4 | Start gameplay after migration | Arena starts normally; equipment levels do not affect hero stats, rewards, combat, evolutions, or 4/4/4 slot rules |
+| 4 | Inspect `debug_get_equipment_modifiers_for_hero(hero_id)` | Returns aggregated equipment stat modifiers for the selected hero |
+
+### Equipment Run-Start Bonuses
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Upgrade Guardian health/damage/move/XP equipment, then start Solar Guardian | Supported bonuses apply at run start only for Guardian |
+| 2 | Start Night Tactician after upgrading Guardian only | Guardian equipment bonuses do not apply to Night Tactician |
+| 3 | Upgrade Night Tactician cooldown/mark equipment, then start Night Tactician | Ability cooldown and Tactical Mark modifiers apply from the selected hero's equipment |
+| 4 | Upgrade Fury Vanguard Rage equipment, then start Fury Vanguard | Rage gain modifiers apply from Vanguard equipment |
+| 5 | Restart a run | Equipment bonuses re-apply once from the fresh Arena setup; no permanent in-run stacking |
 
 ### Scope Confirmation
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Equipment levels are foundation-only | `equipment_by_hero` exists, defaults to level 0, and cannot be upgraded from UI |
+| 1 | Equipment levels are fixed-gear progression only | `equipment_by_hero` exists, defaults to level 0, and can be upgraded only through fixed hero equipment slots |
 | 2 | No inventory added | No item inventory screen or node present |
 | 3 | No gacha added | No banner, pull button, or shard system present |
-| 4 | No equipment stat application | Equipment levels do not change gameplay stats, rewards, Training costs, combat, evolutions, or run slot rules |
-| 5 | Inspect diff | No changes to Training upgrade costs, rewards, combat, evolutions, item drops, inventory, gacha, or 4/4/4 in-run slot rules |
+| 4 | No item drops or swapping | No item pickup/drop logic, equipment inventory, or equip/unequip UI was added |
+| 5 | Existing systems unchanged | Training purchase flow, goals/mastery, rewards, hero selection, collection, combat kits, evolutions, stage objectives, boss flow, and 4/4/4 rules still work |
+| 6 | Inspect diff | No random item stats, item drops, inventory, gacha, swapping, Training cost changes, reward changes, or slot rule changes |

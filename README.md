@@ -704,6 +704,7 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - **Save migration** - save version 3 adds `hero_mastery`, `stage_mastery`, and `goals` with defaults while preserving existing currency, per-hero Training, unlocked heroes, and lifetime totals.
 - **Training Goals snapshot** - MetaUpgradeShop shows a compact read-only goals progress line above Training rows. It does not claim rewards or mutate goals.
 - **Character Equipment Foundation** - save version 4 adds `equipment_by_hero`, a per-hero dictionary of fixed equipment levels. Existing currency, per-hero Training, hero mastery, stage mastery, goals, unlocked heroes, rewards, and lifetime totals are preserved during migration.
+- **Equipment Upgrade Integration** - fixed hero equipment can now be upgraded with shared currency. Equipment levels are per-hero, emit `equipment_upgrade_changed`, and save after each successful purchase.
 
 ### Training Screen Layout Rework
 
@@ -716,21 +717,22 @@ The Training screen (`MetaUpgradeShop`) now uses a two-panel layout:
 - **Right panel — Training Upgrades**: The existing scrollable list of Training upgrades with buy buttons, level display, and currency gating. Behavior is identical to the previous single-panel layout.
 - **Header**: Title, currency label, hero selector, and goals label remain above both panels.
 
-Equipment slots are now backed by read-only fixed hero equipment definitions:
+Equipment slots are backed by fixed hero equipment definitions:
 
 - **Solar Guardian**: Solar Core, Radiant Suit, Sun Emblem, Power Gauntlets, Flight Boots, Aegis Artifact.
 - **Night Tactician**: Tactical Core, Shadow Suit, Signal Emblem, Gadget Gauntlets, Grapnel Boots, Drone Artifact.
 - **Fury Vanguard**: Rage Core, Titan Suit, War Emblem, Impact Gauntlets, Heavy Boots, Fury Artifact.
 
-Each definition includes `equipment_id`, `hero_id`, `slot_id`, `slot_name`, `display_name`, `description`, `max_level`, `base_cost`, `cost_growth`, `stat_bonus_type`, `stat_bonus_per_level`, and `tier`. Levels persist in `equipment_by_hero` and default to `0`.
+Each definition includes `equipment_id`, `hero_id`, `slot_id`, `slot_name`, `display_name`, `description`, `max_level`, `base_cost`, `cost_growth`, `stat_bonus_type`, `stat_bonus_per_level`, and `tier`. Levels persist in `equipment_by_hero`, default to `0`, and upgrade costs use the definition's `base_cost` / `cost_growth`.
 
-The equipment panel hero preview updates when the hero selector changes. Each slot shows hero-specific equipment name, `Level 0 / max_level`, a short future stat bonus line, and a disabled "Upgrade coming next" button. The Collection detail panel also shows a compact read-only equipment summary.
+The equipment panel hero preview updates when the hero selector changes. Each slot shows hero-specific equipment name, `Level current / max_level`, bonus per level, current total bonus, next-level bonus, and a currency-gated Upgrade button. Buttons show `Upgrade X` when affordable, `Need X` when unaffordable, and `MAX` at max level. The Collection detail panel also shows a compact read-only equipment summary.
+
+Supported equipment bonuses are applied at run start for the selected hero only through `MetaApplier`, after hero stats and alongside Training: max health, move speed, XP gain, attack damage, ability damage, ability cooldown reduction, Tactical Mark damage, Rage gain, and starting shield charges. Future-facing stat ids remain aggregated/debuggable but are ignored by gameplay until a safe system exists for them.
 
 Not implemented yet (equipment):
-- Equipment purchase or upgrade flow.
-- Equipment stat application to gameplay.
 - Inventory.
 - Item drops, equipment swapping, or gacha pulls.
+- Random item stats or item ownership lists.
 
 Not implemented yet (meta):
 - Gacha pulls, shards, and banner system (collection screen foundation exists).

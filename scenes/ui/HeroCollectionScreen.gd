@@ -404,7 +404,9 @@ func _build_equipment_text(hero_id: String) -> String:
 	var upgraded := int(summary.get("upgraded_count", 0))
 	var count := int(summary.get("equipment_count", 0))
 	var total_levels := int(summary.get("total_levels", 0))
-	return "Equipment: %d / %d upgraded  |  Total levels: %d" % [upgraded, count, total_levels]
+	var max_total := int(summary.get("max_total_levels", 0))
+	var highest := int(summary.get("highest_level", 0))
+	return "Equipment: %d / %d upgraded  |  Levels: %d / %d  |  Highest: %d" % [upgraded, count, total_levels, max_total, highest]
 
 
 func _update_summary_label() -> void:

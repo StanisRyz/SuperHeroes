@@ -2,6 +2,7 @@ extends CanvasLayer
 
 signal back_requested
 signal buy_requested(hero_id: String, upgrade_id: String)
+signal equipment_buy_requested(hero_id: String, equipment_id: String)
 
 const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
 
@@ -44,6 +45,8 @@ func setup(meta_progression_manager: Node, hero_data_provider: Node = null) -> v
 		_meta_manager.currency_changed.connect(_on_currency_changed)
 	if _meta_manager.has_signal("meta_upgrade_changed") and not _meta_manager.meta_upgrade_changed.is_connected(_on_meta_upgrade_changed):
 		_meta_manager.meta_upgrade_changed.connect(_on_meta_upgrade_changed)
+	if _meta_manager.has_signal("equipment_upgrade_changed") and not _meta_manager.equipment_upgrade_changed.is_connected(_on_equipment_upgrade_changed):
+		_meta_manager.equipment_upgrade_changed.connect(_on_equipment_upgrade_changed)
 	if _meta_manager.has_method("ensure_training_data_for_all_heroes"):
 		_meta_manager.ensure_training_data_for_all_heroes(_get_hero_ids())
 	if _meta_manager.has_method("ensure_equipment_data_for_all_heroes"):
@@ -265,7 +268,7 @@ func _build_equipment_panel() -> Control:
 	right_col.add_child(_build_equipment_slot("artifact", "Artifact"))
 
 	var note := Label.new()
-	note.text = "Fixed hero gear. Upgrades coming next."
+	note.text = "Fixed hero gear. Uses shared currency. No inventory or swapping."
 	note.add_theme_font_size_override("font_size", 10)
 	note.modulate = Color(0.55, 0.6, 0.65, 1.0)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -290,7 +293,7 @@ func _build_equipment_slot(slot_id: String, slot_name: String) -> PanelContainer
 	vbox.add_child(name_lbl)
 
 	var item_lbl := Label.new()
-	item_lbl.text = "Upgrade coming next"
+	item_lbl.text = "Equipment"
 	item_lbl.add_theme_font_size_override("font_size", 10)
 	item_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	item_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -311,19 +314,21 @@ func _build_equipment_slot(slot_id: String, slot_name: String) -> PanelContainer
 	hint_lbl.modulate = Color(0.5, 0.55, 0.6, 1.0)
 	vbox.add_child(hint_lbl)
 
-	var disabled_btn := Button.new()
-	disabled_btn.text = "Upgrade coming next"
-	disabled_btn.disabled = true
-	disabled_btn.custom_minimum_size = Vector2(0, 28)
-	disabled_btn.add_theme_font_size_override("font_size", 9)
-	vbox.add_child(disabled_btn)
+	var buy_btn := Button.new()
+	buy_btn.text = "Upgrade"
+	buy_btn.disabled = true
+	buy_btn.custom_minimum_size = Vector2(0, 28)
+	buy_btn.add_theme_font_size_override("font_size", 9)
+	buy_btn.pressed.connect(_on_equipment_buy_pressed.bind(slot_id))
+	vbox.add_child(buy_btn)
 
 	_equipment_slot_rows[slot_id] = {
 		"slot_name": name_lbl,
 		"display_name": item_lbl,
 		"level": level_lbl,
 		"bonus": hint_lbl,
-		"button": disabled_btn,
+		"button": buy_btn,
+		"panel": panel,
 	}
 	return panel
 
@@ -370,16 +375,28 @@ func _update_equipment_slots() -> void:
 		var button := row.get("button") as Button
 
 		var slot_name := _format_slot_name(str(slot_id))
-		var display_name := "Upgrade coming next"
+		var display_name := "Equipment"
 		var level_text := "Level 0 / 0"
 		var bonus_text := "No equipment data"
+		var equipment_id := ""
+		var level := 0
+		var max_level := 0
+		var cost := 0
+		var can_buy := false
 		if not def.is_empty():
 			slot_name = str(def.get("slot_name", slot_name))
 			display_name = str(def.get("display_name", display_name))
-			var equipment_id := str(def.get("equipment_id", ""))
-			var level := _get_equipment_level(equipment_id)
-			level_text = "Level %d / %d" % [level, int(def.get("max_level", 0))]
-			bonus_text = _format_equipment_bonus(def)
+			equipment_id = str(def.get("equipment_id", ""))
+			level = _get_equipment_level(equipment_id)
+			max_level = int(def.get("max_level", 0))
+			cost = _get_equipment_cost(equipment_id)
+			can_buy = _can_buy_equipment(equipment_id)
+			level_text = "Level %d / %d" % [level, max_level]
+			bonus_text = "%s\nCurrent: %s\nNext: %s" % [
+				_format_equipment_bonus(def),
+				_format_equipment_total_bonus(def, level),
+				_format_equipment_total_bonus(def, level + 1) if level < max_level else "MAX",
+			]
 
 		if slot_name_lbl != null:
 			slot_name_lbl.text = slot_name
@@ -390,8 +407,22 @@ func _update_equipment_slots() -> void:
 		if bonus_lbl != null:
 			bonus_lbl.text = bonus_text
 		if button != null:
-			button.text = "Upgrade coming next"
-			button.disabled = true
+			if def.is_empty():
+				button.text = "Unavailable"
+				button.disabled = true
+				button.modulate = UIStateColors.muted_color()
+			elif level >= max_level:
+				button.text = "MAX"
+				button.disabled = true
+				button.modulate = UIStateColors.muted_color()
+			elif can_buy:
+				button.text = "Upgrade %d" % cost
+				button.disabled = false
+				button.modulate = UIStateColors.positive_color()
+			else:
+				button.text = "Need %d" % cost
+				button.disabled = true
+				button.modulate = UIStateColors.muted_color()
 
 
 func _get_equipment_definitions_by_slot() -> Dictionary:
@@ -416,6 +447,22 @@ func _get_equipment_level(equipment_id: String) -> int:
 	return 0
 
 
+func _get_equipment_cost(equipment_id: String) -> int:
+	if equipment_id.is_empty():
+		return 0
+	if _meta_manager != null and _meta_manager.has_method("get_equipment_upgrade_cost"):
+		return int(_meta_manager.get_equipment_upgrade_cost(_selected_hero_id, equipment_id))
+	return 0
+
+
+func _can_buy_equipment(equipment_id: String) -> bool:
+	if equipment_id.is_empty():
+		return false
+	if _meta_manager != null and _meta_manager.has_method("can_purchase_equipment_upgrade"):
+		return bool(_meta_manager.can_purchase_equipment_upgrade(_selected_hero_id, equipment_id))
+	return false
+
+
 func _format_equipment_bonus(def: Dictionary) -> String:
 	var bonus_type := str(def.get("stat_bonus_type", ""))
 	var value = def.get("stat_bonus_per_level", 0)
@@ -423,6 +470,21 @@ func _format_equipment_bonus(def: Dictionary) -> String:
 	if value is float and abs(float(value)) < 1.0:
 		return "+%d%% %s / level" % [int(round(float(value) * 100.0)), label]
 	return "+%s %s / level" % [str(value), label]
+
+
+func _format_equipment_total_bonus(def: Dictionary, level: int) -> String:
+	var bonus_type := str(def.get("stat_bonus_type", ""))
+	var value := float(def.get("stat_bonus_per_level", 0.0)) * float(level)
+	var label := _format_bonus_type(bonus_type)
+	if abs(value) < 1.0 and not is_zero_approx(value):
+		return "+%d%% %s" % [int(round(value * 100.0)), label]
+	return "+%s %s" % [_format_number(value), label]
+
+
+func _format_number(value: float) -> String:
+	if is_equal_approx(value, roundf(value)):
+		return str(int(roundi(value)))
+	return "%.2f" % value
 
 
 func _format_bonus_type(bonus_type: String) -> String:
@@ -600,6 +662,19 @@ func _on_buy_pressed(upgrade_id: String) -> void:
 	buy_requested.emit(_selected_hero_id, upgrade_id)
 
 
+func _on_equipment_buy_pressed(slot_id: String) -> void:
+	if _selected_hero_id.is_empty():
+		push_warning("MetaUpgradeShop: cannot buy equipment without selected hero.")
+		return
+	var defs_by_slot := _get_equipment_definitions_by_slot()
+	var def: Dictionary = defs_by_slot.get(slot_id, {})
+	var equipment_id := str(def.get("equipment_id", ""))
+	if equipment_id.is_empty():
+		push_warning("MetaUpgradeShop: cannot buy missing equipment slot %s." % slot_id)
+		return
+	equipment_buy_requested.emit(_selected_hero_id, equipment_id)
+
+
 func _on_back_pressed() -> void:
 	back_requested.emit()
 
@@ -613,6 +688,13 @@ func _on_meta_upgrade_changed(upgrade_id: String, _level: int) -> void:
 	if visible:
 		refresh()
 		_flash_row(upgrade_id)
+
+
+func _on_equipment_upgrade_changed(hero_id: String, equipment_id: String, _level: int) -> void:
+	if visible:
+		refresh()
+		if hero_id == _selected_hero_id:
+			_flash_equipment_slot(equipment_id)
 
 
 # ─── Hero selector ────────────────────────────────────────────────────────────
@@ -705,6 +787,22 @@ func _flash_row(upgrade_id: String) -> void:
 	for row in _rows:
 		if str(row.get("id", "")) != upgrade_id:
 			continue
+		var panel := row.get("panel") as CanvasItem
+		if panel == null or not is_instance_valid(panel):
+			return
+		var tween := panel.create_tween()
+		tween.tween_property(panel, "modulate", Color(0.6, 1.0, 0.6, 1.0), 0.0)
+		tween.tween_property(panel, "modulate", Color.WHITE, 0.35)
+		return
+
+
+func _flash_equipment_slot(equipment_id: String) -> void:
+	var defs_by_slot := _get_equipment_definitions_by_slot()
+	for slot_id in defs_by_slot:
+		var def: Dictionary = defs_by_slot.get(slot_id, {})
+		if str(def.get("equipment_id", "")) != equipment_id:
+			continue
+		var row: Dictionary = _equipment_slot_rows.get(slot_id, {})
 		var panel := row.get("panel") as CanvasItem
 		if panel == null or not is_instance_valid(panel):
 			return

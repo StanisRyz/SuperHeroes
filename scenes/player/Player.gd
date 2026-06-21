@@ -19,6 +19,7 @@ signal invulnerability_changed(is_invulnerable: bool)
 @export var dash_cooldown: float = 1.2
 @export var dash_invulnerability_duration: float = 0.25
 @export var pickup_radius_bonus: float = 0.0
+@export var experience_gain_multiplier: float = 1.0
 @export var dash_burst_scene: PackedScene
 @export var dash_damage_trail_enabled: bool = false
 @export var dash_trail_damage: int = 18
@@ -170,6 +171,7 @@ func is_debug_invulnerable() -> bool:
 
 
 func add_experience(amount: int) -> void:
+	amount = maxi(roundi(float(amount) * maxf(experience_gain_multiplier, 0.0)), 0)
 	if amount <= 0:
 		return
 

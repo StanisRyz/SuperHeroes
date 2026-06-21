@@ -2,6 +2,7 @@ extends Node
 
 signal currency_changed(amount: int)
 signal meta_upgrade_changed(upgrade_id: String, level: int)
+signal equipment_upgrade_changed(hero_id: String, equipment_id: String, level: int)
 signal hero_unlock_changed(hero_id: String, unlocked: bool)
 signal progress_loaded
 signal progress_saved
@@ -150,6 +151,21 @@ func get_equipment_level(hero_id: String, equipment_id: String) -> int:
 	return int(hero_equipment.get(equipment_id, 0))
 
 
+func set_equipment_level(hero_id: String, equipment_id: String, level: int) -> void:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var def := get_equipment_definition(resolved_hero_id, equipment_id)
+	if def.is_empty():
+		return
+	ensure_equipment_data_for_hero(resolved_hero_id)
+	var clamped_level := clampi(level, 0, int(def.get("max_level", 0)))
+	var equipment_by_hero: Dictionary = _data.get("equipment_by_hero", {})
+	var hero_equipment: Dictionary = equipment_by_hero.get(resolved_hero_id, {})
+	hero_equipment[equipment_id] = clamped_level
+	equipment_by_hero[resolved_hero_id] = hero_equipment
+	_data["equipment_by_hero"] = equipment_by_hero
+	equipment_upgrade_changed.emit(resolved_hero_id, equipment_id, clamped_level)
+
+
 func get_equipment_levels_for_hero(hero_id: String) -> Dictionary:
 	var resolved_hero_id := _resolve_hero_id(hero_id)
 	ensure_equipment_data_for_hero(resolved_hero_id)
@@ -166,6 +182,7 @@ func get_equipment_summary_for_hero(hero_id: String) -> Dictionary:
 	var upgraded_count := 0
 	var total_levels := 0
 	var max_total_levels := 0
+	var highest_level := 0
 	for def in defs:
 		var equipment_id := str(def.get("equipment_id", ""))
 		var level := int(levels.get(equipment_id, 0))
@@ -173,13 +190,16 @@ func get_equipment_summary_for_hero(hero_id: String) -> Dictionary:
 			upgraded_count += 1
 		total_levels += level
 		max_total_levels += int(def.get("max_level", 0))
+		highest_level = maxi(highest_level, level)
 	return {
 		"hero_id": resolved_hero_id,
 		"equipment_count": defs.size(),
 		"upgraded_count": upgraded_count,
 		"total_levels": total_levels,
 		"max_total_levels": max_total_levels,
+		"highest_level": highest_level,
 		"levels": levels,
+		"modifiers": get_equipment_stat_modifiers_for_hero(resolved_hero_id),
 	}
 
 
@@ -190,12 +210,62 @@ func debug_get_equipment_summary() -> Dictionary:
 	return result
 
 
-func can_purchase_equipment_upgrade(_hero_id: String, _equipment_id: String) -> bool:
-	return false
+func debug_get_equipment_modifiers_for_hero(hero_id: String) -> Dictionary:
+	return get_equipment_stat_modifiers_for_hero(hero_id)
 
 
-func purchase_equipment_upgrade(_hero_id: String, _equipment_id: String) -> bool:
-	return false
+func get_equipment_stat_modifiers_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_equipment_data_for_hero(resolved_hero_id)
+	var result := {}
+	for def in get_equipment_definitions(resolved_hero_id):
+		var equipment_id := str(def.get("equipment_id", ""))
+		var level := get_equipment_level(resolved_hero_id, equipment_id)
+		if level <= 0:
+			continue
+		var stat_type := str(def.get("stat_bonus_type", ""))
+		if stat_type.is_empty():
+			continue
+		var current := float(result.get(stat_type, 0.0))
+		result[stat_type] = current + float(def.get("stat_bonus_per_level", 0.0)) * float(level)
+	return result
+
+
+func get_equipment_upgrade_cost(hero_id: String, equipment_id: String) -> int:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var def := get_equipment_definition(resolved_hero_id, equipment_id)
+	if def.is_empty():
+		return 0
+	var level := get_equipment_level(resolved_hero_id, equipment_id)
+	if level >= int(def.get("max_level", 0)):
+		return 0
+	return _calculate_upgrade_cost(def, level)
+
+
+func can_purchase_equipment_upgrade(hero_id: String, equipment_id: String) -> bool:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var def := get_equipment_definition(resolved_hero_id, equipment_id)
+	if def.is_empty():
+		return false
+	if not is_hero_unlocked(resolved_hero_id):
+		return false
+	if get_equipment_level(resolved_hero_id, equipment_id) >= int(def.get("max_level", 0)):
+		return false
+	var cost := get_equipment_upgrade_cost(resolved_hero_id, equipment_id)
+	return cost > 0 and get_currency() >= cost
+
+
+func purchase_equipment_upgrade(hero_id: String, equipment_id: String) -> bool:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	if not can_purchase_equipment_upgrade(resolved_hero_id, equipment_id):
+		return false
+	var cost := get_equipment_upgrade_cost(resolved_hero_id, equipment_id)
+	if not spend_currency(cost):
+		return false
+	var new_level := get_equipment_level(resolved_hero_id, equipment_id) + 1
+	set_equipment_level(resolved_hero_id, equipment_id, new_level)
+	save_progress()
+	return true
 
 
 func get_debug_training_summary() -> Dictionary:
