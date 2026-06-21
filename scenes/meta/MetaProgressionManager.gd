@@ -311,18 +311,21 @@ func get_equipment_stat_modifiers_for_hero(hero_id: String) -> Dictionary:
 				continue
 			var current := float(result.get(stat_type, 0.0))
 			result[stat_type] = current + float(def.get("stat_bonus_per_level", 0.0)) * float(level)
-		return result
-	# Fallback to legacy equipment_by_hero if no global inventory data exists
-	for def in get_equipment_definitions(resolved_hero_id):
-		var equipment_id := str(def.get("equipment_id", ""))
-		var level := get_equipment_level(resolved_hero_id, equipment_id)
-		if level <= 0:
-			continue
-		var stat_type := str(def.get("stat_bonus_type", ""))
-		if stat_type.is_empty():
-			continue
-		var current := float(result.get(stat_type, 0.0))
-		result[stat_type] = current + float(def.get("stat_bonus_per_level", 0.0)) * float(level)
+	else:
+		# Fallback to legacy equipment_by_hero if no global inventory data exists
+		for def in get_equipment_definitions(resolved_hero_id):
+			var equipment_id := str(def.get("equipment_id", ""))
+			var level := get_equipment_level(resolved_hero_id, equipment_id)
+			if level <= 0:
+				continue
+			var stat_type := str(def.get("stat_bonus_type", ""))
+			if stat_type.is_empty():
+				continue
+			var current := float(result.get(stat_type, 0.0))
+			result[stat_type] = current + float(def.get("stat_bonus_per_level", 0.0)) * float(level)
+	var set_modifiers := get_set_bonus_stat_modifiers()
+	for stat_type in set_modifiers:
+		result[stat_type] = float(result.get(stat_type, 0.0)) + float(set_modifiers.get(stat_type, 0.0))
 	return result
 
 
@@ -1264,6 +1267,14 @@ func can_claim_starter_equipment() -> bool:
 	return not has_equipment_grant(STARTER_PACK_ID)
 
 
+func debug_get_equipped_set_summary() -> Array[Dictionary]:
+	return get_equipped_set_bonus_summary()
+
+
+func debug_get_set_bonus_stat_modifiers() -> Dictionary:
+	return get_set_bonus_stat_modifiers()
+
+
 func preview_starter_equipment() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if _equipment_provider == null:
@@ -1901,7 +1912,33 @@ func get_equipped_set_counts() -> Dictionary:
 	return result
 
 
-func get_equipped_set_summary() -> Array[Dictionary]:
+func get_active_set_bonuses() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if _equipment_provider == null or not _equipment_provider.has_method("get_active_set_bonuses"):
+		return result
+	var counts := get_equipped_set_counts()
+	for set_id in counts:
+		var active: Array = _equipment_provider.get_active_set_bonuses(str(set_id), int(counts.get(set_id, 0)))
+		for bonus in active:
+			if not bonus is Dictionary:
+				continue
+			var entry: Dictionary = bonus.duplicate(true)
+			entry["set_id"] = str(set_id)
+			entry["piece_count"] = int(counts.get(set_id, 0))
+			result.append(entry)
+	return result
+
+
+func get_set_bonus_stat_modifiers() -> Dictionary:
+	var result := {}
+	for bonus in get_active_set_bonuses():
+		var modifiers: Dictionary = bonus.get("modifiers", {}) if bonus.get("modifiers", {}) is Dictionary else {}
+		for stat_type in modifiers:
+			result[stat_type] = float(result.get(stat_type, 0.0)) + float(modifiers.get(stat_type, 0.0))
+	return result
+
+
+func get_equipped_set_bonus_summary() -> Array[Dictionary]:
 	var counts := get_equipped_set_counts()
 	var result: Array[Dictionary] = []
 	for s in get_equipment_sets():
@@ -1909,6 +1946,13 @@ func get_equipped_set_summary() -> Array[Dictionary]:
 		var count := int(counts.get(set_id, 0))
 		if count <= 0:
 			continue
+		var active_bonuses: Array = []
+		var next_bonus := {}
+		if _equipment_provider != null:
+			if _equipment_provider.has_method("get_active_set_bonuses"):
+				active_bonuses = _equipment_provider.get_active_set_bonuses(set_id, count)
+			if _equipment_provider.has_method("get_next_set_bonus"):
+				next_bonus = _equipment_provider.get_next_set_bonus(set_id, count)
 		result.append({
 			"set_id": set_id,
 			"name": str(s.get("name", set_id)),
@@ -1916,7 +1960,25 @@ func get_equipped_set_summary() -> Array[Dictionary]:
 			"max_count": EQUIPMENT_SLOT_IDS.size(),
 			"color": s.get("color", Color.WHITE),
 			"theme": str(s.get("theme", "")),
+			"active_bonuses": active_bonuses,
+			"next_bonus": next_bonus,
+			"stat_modifiers": _sum_set_bonus_modifiers(active_bonuses),
 		})
+	return result
+
+
+func get_equipped_set_summary() -> Array[Dictionary]:
+	return get_equipped_set_bonus_summary()
+
+
+func _sum_set_bonus_modifiers(bonuses: Array) -> Dictionary:
+	var result := {}
+	for bonus in bonuses:
+		if not bonus is Dictionary:
+			continue
+		var modifiers: Dictionary = bonus.get("modifiers", {}) if bonus.get("modifiers", {}) is Dictionary else {}
+		for stat_type in modifiers:
+			result[stat_type] = float(result.get(stat_type, 0.0)) + float(modifiers.get(stat_type, 0.0))
 	return result
 
 

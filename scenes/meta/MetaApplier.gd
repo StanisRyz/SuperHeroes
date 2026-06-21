@@ -71,7 +71,10 @@ static func _apply_equipment_modifiers(meta_manager: Node, hero_id: String, play
 
 		var speed_bonus := float(modifiers.get("move_speed", 0.0))
 		if not is_zero_approx(speed_bonus) and player.get("speed") != null:
-			player.set("speed", float(player.get("speed") or 260.0) + speed_bonus)
+			var current_speed := float(player.get("speed") or 260.0)
+			var flat_speed_bonus := floorf(speed_bonus) if speed_bonus > 1.0 else 0.0
+			var percent_speed_bonus := speed_bonus - flat_speed_bonus
+			player.set("speed", (current_speed + flat_speed_bonus) * maxf(1.0 + percent_speed_bonus, 0.0))
 
 		var xp_bonus := float(modifiers.get("xp_gain", 0.0))
 		if not is_zero_approx(xp_bonus) and player.get("experience_gain_multiplier") != null:

@@ -950,11 +950,11 @@ Each item template has exactly these fields (no `hero_id`, no `description`, no 
 | `fury_artifact_uncommon` | artifact | uncommon | low_health_damage | 0.02 |
 | `apex_artifact_rare` | artifact | rare | ability_damage | 0.025 |
 
-## Equipment Set Data Foundation
+## Equipment Set Bonus Effects
 
 ### Overview
 
-Every item template now has a `set_id: String` field. Sets are **data and display only** — no bonus gameplay effects are applied. The set identity lives exclusively on the template; item instances and save data do not store `set_id`.
+Every item template has a `set_id: String` field. Sets now include data-only `bonuses` entries, and active bonuses apply as simple stat modifiers when enough globally equipped pieces from the same set are equipped. The set identity lives exclusively on the template; item instances and save data do not store `set_id`.
 
 ### Template Schema Addition
 
@@ -976,56 +976,74 @@ New constant: `SET_IDS: Array[String]`
 | `tactical_set` | Tactical Set | Mark damage / support / precision |
 | `fury_set` | Fury Set | Rage / low-health damage / impact |
 
-Each set dict: `{ "id", "name", "theme", "color": Color, "tags": Array }`.
+Each set dict: `{ "id", "name", "theme", "color": Color, "tags": Array, "bonuses": Array[Dictionary] }`. Each bonus uses `{ "pieces": 2|4|6, "modifiers": Dictionary }`. Bonuses are data only; MetaProgressionManager owns counting and application.
+
+### Set Bonus Catalog
+
+| Set | 2 pieces | 4 pieces | 6 pieces |
+|---|---|---|---|
+| Storm Set | move_speed +0.05 | ability_cooldown +0.08 | ability_damage +0.10, move_speed +0.05 |
+| Titan Set | max_health +15 | knockback_resist +0.10 | max_health +25, shield_capacity +2 |
+| Solar Set | ability_damage +0.06 | shield_capacity +2 | ability_damage +0.12, low_health_damage +0.08 |
+| Tactical Set | xp_gain +0.05 | mark_damage +0.10 | support_damage +0.12, ability_cooldown +0.05 |
+| Fury Set | attack_damage +3 | rage_gain +0.10 | low_health_damage +0.15, impact_damage +0.10 |
 
 ### EquipmentDataProvider Set API
 
 | Method | Returns |
 |---|---|
-| `get_all_equipment_sets()` | `Array[Dictionary]` — all sets, deep-copied |
-| `get_equipment_set(set_id)` | `Dictionary` — empty if not found |
+| `get_all_equipment_sets()` | `Array[Dictionary]` - all sets, deep-copied |
+| `get_equipment_set(set_id)` | `Dictionary` - empty if not found |
 | `get_equipment_set_display_name(set_id)` | `String` |
 | `get_equipment_set_color(set_id)` | `Color` |
+| `get_equipment_set_bonuses(set_id)` | `Array[Dictionary]` - all bonus entries, deep-copied |
+| `get_active_set_bonuses(set_id, piece_count)` | `Array[Dictionary]` - bonuses with `pieces <= piece_count` |
+| `get_next_set_bonus(set_id, piece_count)` | `Dictionary` - first bonus above current count, or empty |
+| `get_set_bonus_thresholds(set_id)` | `Array[int]` - sorted thresholds |
 | `is_valid_set_id(set_id)` | `bool` |
 | `get_templates_for_set(set_id)` | `Array[Dictionary]` |
 
-`debug_get_item_template_summary()` now includes a `by_set` key.
+`debug_get_item_template_summary()` includes a `by_set` key.
 
 ### EquipmentFormat Set Helpers
 
-Two new static methods (both on the preloaded `EquipmentFormat` constant):
+Static helpers on the preloaded `EquipmentFormat` constant:
 
-- `set_display_name(set_id: String) -> String` — "Storm Set" … "No Set"
-- `set_color(set_id: String) -> Color` — per-set theme Color
+- `set_display_name(set_id: String, provider: Node = null) -> String`
+- `set_color(set_id: String, provider: Node = null) -> Color`
+- `set_bonus_text(bonus: Dictionary) -> String`
+- `modifiers_text(modifiers: Dictionary) -> String`
 
-Use these everywhere set names or colors are displayed. Do not hardcode set strings in UI code.
+Use these everywhere set names, colors, bonuses, or modifier lists are displayed. Do not hardcode set strings in UI code.
 
 ### MetaProgressionManager Set Helpers
 
 ```gdscript
-func get_equipment_sets() -> Array[Dictionary]          # delegates to _equipment_provider
+func get_equipment_sets() -> Array[Dictionary]
 func get_equipment_set(set_id: String) -> Dictionary
-func get_item_set_id(instance_id: String) -> String     # item → template → set_id
-func get_equipped_set_counts() -> Dictionary            # {set_id: count} equipped items only
-func get_equipped_set_summary() -> Array[Dictionary]    # UI rows: set_id, name, count, max_count(6), color, theme
+func get_item_set_id(instance_id: String) -> String
+func get_equipped_set_counts() -> Dictionary
+func get_active_set_bonuses() -> Array[Dictionary]
+func get_set_bonus_stat_modifiers() -> Dictionary
+func get_equipped_set_bonus_summary() -> Array[Dictionary]
+func get_equipped_set_summary() -> Array[Dictionary]
+func debug_get_equipped_set_summary() -> Array[Dictionary]
+func debug_get_set_bonus_stat_modifiers() -> Dictionary
 ```
+
+Counting is based only on global `equipped_slots`; inventory items do not count unless equipped. `get_equipment_stat_modifiers_for_hero(hero_id)` keeps the hero argument for compatibility, but it returns global equipped item modifiers plus active set bonus modifiers for every hero. Calculating modifiers must not mutate save data.
 
 ### UI Set Display Rules
 
-- **Item action popup** (`_update_inventory_detail`): show "Set: <name>" after Rarity; show "Set Progress: N / 6 equipped" when `set_id` is non-empty.
-- **Equipped slot popup** (`_update_slot_popup_content`): show "Set: <name>" after Rarity.
-- **Set summary bar** (`_set_summary_label`) in Equipped Gear panel: refreshed by `_refresh_set_summary()` on every equip/unequip. Format: `Sets:  Storm Set 2/6  |  Fury Set 1/6`; "Sets: none" when nothing equipped.
+- **Item action popup** (`_update_inventory_detail`): show set name, set progress, and compact next bonus text when `set_id` is non-empty.
+- **Equipped slot popup** (`_update_slot_popup_content`): show set name, set progress, and compact next bonus text.
+- **Set summary bar** (`_set_summary_label`) in Equipped Gear panel: refreshed by `_refresh_set_summary()` on every equip/unequip; lists each set count, active bonuses, and next threshold, or "Sets: none" when nothing equipped.
 - **Cell data** (`_get_inventory_cell_data`): cell dicts include `"set_id"` and `"set_name"` for downstream use.
 
 ### Set Bonus Rules
 
-- **No set bonuses are applied in this patch.** No gameplay effects, no stat multipliers, no threshold checks.
-- Future work: activate bonuses at 2 / 4 / 6 equipped pieces from the same set.
-
-### What NOT to Change
-
-- Do not add set bonuses, unlock flows, or reward logic without an explicit request.
-- Do not store `set_id` on item instances or in save data — resolve it at runtime via template lookup.
+- Set bonuses are simple stat modifiers only. Do not add procs, visual effects, special triggers, skill behavior changes, crafting, gacha, enemy drops, reward chance changes, reward quantity changes, item upgrade economy changes, stages, zones, hero kit changes, evolutions, boss-flow changes, Training upgrade changes, or in-run 4/4/4 slot-rule changes in this patch.
+- Do not store `set_id` or active set state on item instances or in save data; resolve and aggregate it at runtime via equipped instance -> template -> set.
 - Do not add a set filter dropdown to the inventory panel without an explicit request.
 
 ## Inventory Filters & Sorting Architecture

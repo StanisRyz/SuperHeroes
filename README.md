@@ -1424,9 +1424,9 @@ Items appear in **Training → Equipment** after the run. They are not auto-equi
 - Duplicate template rewards are allowed (two of the same item possible).
 - No gacha, no enemy item drops, no random affixes, no crafting, no fusion, no selling, no inventory cap.
 
-## Equipment Set Data Foundation
+## Equipment Set Bonus Effects
 
-Every item template now belongs to an optional named equipment set. Sets are data and display only — no bonus gameplay effects are applied in this patch.
+Every item template now belongs to an optional named equipment set. Set bonuses activate at 2 / 4 / 6 globally equipped pieces from the same set. Only `equipped_slots` count; unequipped inventory items never count. Equipment is shared globally, so active set bonuses apply to every hero and stack on top of normal equipped item modifiers.
 
 ### Equipment Sets
 
@@ -1437,6 +1437,16 @@ Every item template now belongs to an optional named equipment set. Sets are dat
 | `solar_set` | Solar Set | Ability damage / shield / radiance | Gold |
 | `tactical_set` | Tactical Set | Mark damage / support / precision | Purple |
 | `fury_set` | Fury Set | Rage / low-health damage / impact | Orange |
+
+### Set Bonuses
+
+| Set | 2 pieces | 4 pieces | 6 pieces |
+|-----|----------|----------|----------|
+| Storm Set | +5% Move Speed | -8% Ability Cooldown | +10% Ability Damage, +5% Move Speed |
+| Titan Set | +15 Max HP | +10% Knockback Resist | +25 Max HP, +2 Shield Capacity |
+| Solar Set | +6% Ability Damage | +2 Shield Capacity | +12% Ability Damage, +8% Low Health Damage |
+| Tactical Set | +5% XP Gain | +10% Mark Damage | +12% Support Damage, -5% Ability Cooldown |
+| Fury Set | +3 Attack Damage | +10% Rage Gain | +15% Low Health Damage, +10% Impact Damage |
 
 ### Template Set Assignments
 
@@ -1471,6 +1481,10 @@ New methods:
 - `get_equipment_set(set_id) -> Dictionary`
 - `get_equipment_set_display_name(set_id) -> String`
 - `get_equipment_set_color(set_id) -> Color`
+- `get_equipment_set_bonuses(set_id) -> Array[Dictionary]`
+- `get_active_set_bonuses(set_id, piece_count) -> Array[Dictionary]`
+- `get_next_set_bonus(set_id, piece_count) -> Dictionary`
+- `get_set_bonus_thresholds(set_id) -> Array[int]`
 - `is_valid_set_id(set_id) -> bool`
 - `get_templates_for_set(set_id) -> Array[Dictionary]`
 
@@ -1478,9 +1492,11 @@ New methods:
 
 ### EquipmentFormat Set Helpers
 
-Two new static methods added to `EquipmentFormat`:
+Static set helpers on `EquipmentFormat`:
 - `set_display_name(set_id) -> String` — "Storm Set" … "No Set"
 - `set_color(set_id) -> Color` — per-set theme Color
+- `set_bonus_text(bonus) -> String` - threshold plus formatted modifier text
+- `modifiers_text(modifiers) -> String` - comma-joined stat modifier text
 
 ### MetaProgressionManager Set Helpers
 
@@ -1489,16 +1505,21 @@ New methods (delegate to `_equipment_provider` where needed):
 - `get_equipment_set(set_id) -> Dictionary`
 - `get_item_set_id(instance_id) -> String`
 - `get_equipped_set_counts() -> Dictionary` — `{set_id: int}` for currently equipped items only
-- `get_equipped_set_summary() -> Array[Dictionary]` — UI rows: `set_id, name, count, max_count (6), color, theme`
+- `get_active_set_bonuses() -> Array[Dictionary]`
+- `get_set_bonus_stat_modifiers() -> Dictionary` - summed active set modifiers
+- `get_equipped_set_bonus_summary() -> Array[Dictionary]` - UI/debug rows with active and next bonus data
+- `get_equipped_set_summary() -> Array[Dictionary]` - compatibility wrapper for the set bonus summary
+
+`get_equipment_stat_modifiers_for_hero(hero_id)` still accepts `hero_id` for compatibility, but equipment is global. It now returns equipped item modifiers plus active set bonus modifiers. The calculation is read-only and does not mutate save data.
 
 ### UI: Set Name in Popups
 
-- **Item action popup** (`_update_inventory_detail`) — shows "Set: <name>" after Rarity, plus "Set Progress: N / 6 equipped" when the item belongs to a set and `get_equipped_set_counts` is available.
-- **Equipped slot popup** (`_update_slot_popup_content`) — shows "Set: <name>" after Rarity.
+- **Item action popup** (`_update_inventory_detail`) - shows "Set: <name>", "Set Progress: N / 6 equipped", and compact next bonus text when the item belongs to a set.
+- **Equipped slot popup** (`_update_slot_popup_content`) - shows the same compact set progress and next bonus details for the equipped item.
 
 ### UI: Set Summary Bar
 
-A compact set summary `Label` (`_set_summary_label`) is shown in the Equipped Gear panel below the slot buttons. It is refreshed by `_refresh_set_summary()` whenever equipped items change. Format: `Sets:  Storm Set 2/6  |  Fury Set 1/6`. Shows "Sets: none" when nothing is equipped.
+A compact set summary `Label` (`_set_summary_label`) is shown in the Equipped Gear panel below the slot buttons. It is refreshed by `_refresh_set_summary()` whenever equipped items change. It lists each equipped set count, active threshold bonuses, and the next threshold, or "Sets: none" when nothing is equipped.
 
 ### UI: Cell Data
 
@@ -1506,11 +1527,10 @@ Inventory cell dicts now include `set_id` and `set_name` for downstream use (too
 
 ### Rules
 
-- No set bonus gameplay effects are applied in this patch.
-- No reward or economy changes.
+- Set bonuses are simple stat modifiers only: no procs, visual effects, triggers, skill rewrites, or special behaviors.
+- No reward chance, reward quantity, item upgrade economy, stage, zone, level selection, gacha, drops, crafting, fusion, dismantle, random affix, hero kit, evolution, boss flow, Training upgrade, or in-run 4/4/4 rule changes.
 - No new items are added.
 - No save format changes — `set_id` lives on templates only (no instance migration needed).
-- Future work: set bonus activation at 2/4/6 equipped pieces.
 
 ## Yandex Games Notes
 

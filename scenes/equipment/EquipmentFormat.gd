@@ -108,7 +108,9 @@ static func stat_next_text(stat_bonus_type: String, value_per_level: float, leve
 	return stat_value_text(stat_bonus_type, value_per_level * float(level + 1))
 
 
-static func set_display_name(set_id: String) -> String:
+static func set_display_name(set_id: String, provider: Node = null) -> String:
+	if provider != null and provider.has_method("get_equipment_set_display_name"):
+		return str(provider.get_equipment_set_display_name(set_id))
 	match set_id:
 		"storm_set":    return "Storm Set"
 		"titan_set":    return "Titan Set"
@@ -119,7 +121,9 @@ static func set_display_name(set_id: String) -> String:
 		_:              return set_id.replace("_", " ").capitalize()
 
 
-static func set_color(set_id: String) -> Color:
+static func set_color(set_id: String, provider: Node = null) -> Color:
+	if provider != null and provider.has_method("get_equipment_set_color"):
+		return provider.get_equipment_set_color(set_id)
 	match set_id:
 		"storm_set":    return Color(0.30, 0.70, 1.00, 1.0)
 		"titan_set":    return Color(0.50, 0.75, 0.40, 1.0)
@@ -127,6 +131,28 @@ static func set_color(set_id: String) -> Color:
 		"tactical_set": return Color(0.70, 0.45, 1.00, 1.0)
 		"fury_set":     return Color(1.00, 0.45, 0.20, 1.0)
 		_:              return Color(0.70, 0.75, 0.80, 1.0)
+
+
+static func modifiers_text(modifiers: Dictionary) -> String:
+	if modifiers.is_empty():
+		return ""
+	var keys := modifiers.keys()
+	keys.sort()
+	var parts: PackedStringArray = []
+	for stat_id in keys:
+		var stat_key := str(stat_id)
+		parts.append(stat_value_text(stat_key, float(modifiers.get(stat_id, 0.0))))
+	return ", ".join(parts)
+
+
+static func set_bonus_text(bonus: Dictionary) -> String:
+	if bonus.is_empty():
+		return ""
+	var pieces := int(bonus.get("pieces", 0))
+	var text := modifiers_text(bonus.get("modifiers", {}) if bonus.get("modifiers", {}) is Dictionary else {})
+	if text.is_empty():
+		return "%d: none" % pieces
+	return "%d: %s" % [pieces, text]
 
 
 static func item_display_line(item_or_template: Dictionary) -> String:

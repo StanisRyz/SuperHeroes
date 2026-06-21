@@ -5,6 +5,23 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Equipment Set Bonus Effects
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training screen -> Equipment tab with no equipped items | Set Summary shows `Sets: none`; no set bonus modifiers are active |
+| 2 | Equip 1 Storm Set item | Set Summary shows Storm Set 1/6 and next 2-piece bonus |
+| 3 | Equip 2 Storm Set items | Set Summary shows active 2-piece Move Speed bonus; `get_set_bonus_stat_modifiers()` includes `move_speed: 0.05` |
+| 4 | Equip 4 Storm Set items if available/test-created | Set Summary shows active 2-piece and 4-piece bonuses; modifiers include move speed and ability cooldown |
+| 5 | Equip 6 Storm Set items if available/test-created | Set Summary shows active 2/4/6 bonuses and `Next: Full set active` |
+| 6 | Unequip a Storm Set item | Set Summary count drops and removed threshold modifiers no longer appear |
+| 7 | Select an unequipped inventory item from a set | Item popup shows set progress and next bonus, but gameplay note remains equip-to-apply |
+| 8 | Start a run with active set bonuses | `get_equipment_stat_modifiers_for_hero(hero_id)` includes item modifiers plus active set bonuses |
+| 9 | Switch selected hero and start a run | Same global set bonuses apply to the new hero |
+| 10 | Inspect scope | No reward chance/quantity, item upgrade economy, stage/zone, gacha/drop/crafting/affix, hero kit, evolution, boss-flow, Training upgrade, or in-run 4/4/4 rule changes |
+
+---
+
 ## Equipment Item Template System
 
 | # | Test | Expected |

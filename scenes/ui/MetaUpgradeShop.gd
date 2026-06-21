@@ -864,6 +864,9 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	if not popup_set_id.is_empty() and _meta_manager != null and _meta_manager.has_method("get_equipped_set_counts"):
 		var set_counts: Dictionary = _meta_manager.get_equipped_set_counts()
 		lines.append("Set Progress: %d / 6 equipped" % int(set_counts.get(popup_set_id, 0)))
+		var next_bonus_text := _get_next_set_bonus_text(popup_set_id)
+		if not next_bonus_text.is_empty():
+			lines.append("Next Bonus: %s" % next_bonus_text)
 	lines.append("Level: %d / %d" % [level, max_level])
 	lines.append("Status: %s" % status_str)
 	lines.append("Locked: %s" % ("Yes" if is_locked else "No"))
@@ -1051,11 +1054,40 @@ func _refresh_set_summary() -> void:
 		_set_summary_label.text = "Sets: none"
 		_set_summary_label.modulate = Color(0.55, 0.6, 0.68, 1.0)
 		return
-	var parts: PackedStringArray = []
+	var lines: PackedStringArray = []
 	for entry in summary:
-		parts.append("%s %d/%d" % [str(entry.get("name", "?")), int(entry.get("count", 0)), int(entry.get("max_count", 6))])
-	_set_summary_label.text = "Sets:  " + "  |  ".join(parts)
+		lines.append("%s %d/%d" % [str(entry.get("name", "?")), int(entry.get("count", 0)), int(entry.get("max_count", 6))])
+		var active_bonuses: Array = entry.get("active_bonuses", []) if entry.get("active_bonuses", []) is Array else []
+		if active_bonuses.is_empty():
+			lines.append("Active: none")
+		else:
+			var active_lines: PackedStringArray = []
+			for bonus in active_bonuses:
+				if bonus is Dictionary:
+					active_lines.append(EquipmentFormat.set_bonus_text(bonus))
+			lines.append("Active: %s" % "; ".join(active_lines))
+		var next_bonus: Dictionary = entry.get("next_bonus", {}) if entry.get("next_bonus", {}) is Dictionary else {}
+		if next_bonus.is_empty():
+			lines.append("Next: Full set active")
+		else:
+			lines.append("Next: %s" % EquipmentFormat.set_bonus_text(next_bonus))
+	_set_summary_label.text = "\n".join(lines)
 	_set_summary_label.modulate = Color(0.75, 0.82, 0.92, 1.0)
+
+
+func _get_next_set_bonus_text(set_id: String) -> String:
+	if set_id.is_empty() or _meta_manager == null:
+		return ""
+	if not _meta_manager.has_method("get_equipped_set_counts"):
+		return ""
+	var counts: Dictionary = _meta_manager.get_equipped_set_counts()
+	var count := int(counts.get(set_id, 0))
+	var set_data: Dictionary = _meta_manager.get_equipment_set(set_id) if _meta_manager.has_method("get_equipment_set") else {}
+	var bonuses: Array = set_data.get("bonuses", []) if set_data.get("bonuses", []) is Array else []
+	for bonus in bonuses:
+		if bonus is Dictionary and int(bonus.get("pieces", 0)) > count:
+			return EquipmentFormat.set_bonus_text(bonus)
+	return "Full set active"
 
 
 func _get_equipment_definitions_by_slot() -> Dictionary:
@@ -1585,6 +1617,12 @@ func _update_slot_popup_content(slot_id: String) -> void:
 	lines.append("Rarity: %s" % EquipmentFormat.rarity_display_name(popup_rarity))
 	var slot_set_id := str(tmpl.get("set_id", "")) if not tmpl.is_empty() else ""
 	lines.append("Set: %s" % EquipmentFormat.set_display_name(slot_set_id))
+	if not slot_set_id.is_empty() and _meta_manager != null and _meta_manager.has_method("get_equipped_set_counts"):
+		var set_counts: Dictionary = _meta_manager.get_equipped_set_counts()
+		lines.append("Set Progress: %d / 6 equipped" % int(set_counts.get(slot_set_id, 0)))
+		var next_bonus_text := _get_next_set_bonus_text(slot_set_id)
+		if not next_bonus_text.is_empty():
+			lines.append("Next Bonus: %s" % next_bonus_text)
 	lines.append("Level: %d / %d" % [level, max_level_val])
 	lines.append("Status: EQUIPPED")
 	if not stat_str.is_empty():

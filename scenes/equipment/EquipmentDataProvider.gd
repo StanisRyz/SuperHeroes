@@ -115,6 +115,43 @@ func get_equipment_set_color(set_id: String) -> Color:
 	return c as Color
 
 
+func get_equipment_set_bonuses(set_id: String) -> Array[Dictionary]:
+	var s: Dictionary = _set_index.get(set_id, {})
+	if s.is_empty():
+		return []
+	var result: Array[Dictionary] = []
+	var bonuses: Array = s.get("bonuses", [])
+	for bonus in bonuses:
+		if bonus is Dictionary:
+			result.append(bonus.duplicate(true))
+	return result
+
+
+func get_active_set_bonuses(set_id: String, piece_count: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for bonus in get_equipment_set_bonuses(set_id):
+		if int(bonus.get("pieces", 0)) <= piece_count:
+			result.append(bonus.duplicate(true))
+	return result
+
+
+func get_next_set_bonus(set_id: String, piece_count: int) -> Dictionary:
+	for bonus in get_equipment_set_bonuses(set_id):
+		if int(bonus.get("pieces", 0)) > piece_count:
+			return bonus.duplicate(true)
+	return {}
+
+
+func get_set_bonus_thresholds(set_id: String) -> Array[int]:
+	var result: Array[int] = []
+	for bonus in get_equipment_set_bonuses(set_id):
+		var pieces := int(bonus.get("pieces", 0))
+		if pieces > 0:
+			result.append(pieces)
+	result.sort()
+	return result
+
+
 func is_valid_set_id(set_id: String) -> bool:
 	return _set_index.has(set_id)
 
@@ -177,11 +214,31 @@ func _build_templates() -> Array[Dictionary]:
 
 func _build_sets() -> Array[Dictionary]:
 	return [
-		_s("storm_set",    "Storm Set",    "speed / cooldown / ability flow",   Color(0.30, 0.70, 1.00, 1.0), ["speed", "ability", "cooldown"]),
-		_s("titan_set",    "Titan Set",    "health / resist / heavy impact",     Color(0.50, 0.75, 0.40, 1.0), ["defense", "health"]),
-		_s("solar_set",    "Solar Set",    "ability damage / shield / radiance", Color(1.00, 0.82, 0.20, 1.0), ["ability", "shield"]),
-		_s("tactical_set", "Tactical Set", "mark damage / support / precision",  Color(0.70, 0.45, 1.00, 1.0), ["support", "precision"]),
-		_s("fury_set",     "Fury Set",     "rage / low-health damage / impact",  Color(1.00, 0.45, 0.20, 1.0), ["offense", "impact"]),
+		_s("storm_set",    "Storm Set",    "speed / cooldown / ability flow",   Color(0.30, 0.70, 1.00, 1.0), ["speed", "ability", "cooldown"], [
+			_b(2, {"move_speed": 0.05}),
+			_b(4, {"ability_cooldown": 0.08}),
+			_b(6, {"ability_damage": 0.10, "move_speed": 0.05}),
+		]),
+		_s("titan_set",    "Titan Set",    "health / resist / heavy impact",     Color(0.50, 0.75, 0.40, 1.0), ["defense", "health"], [
+			_b(2, {"max_health": 15.0}),
+			_b(4, {"knockback_resist": 0.10}),
+			_b(6, {"max_health": 25.0, "shield_capacity": 2.0}),
+		]),
+		_s("solar_set",    "Solar Set",    "ability damage / shield / radiance", Color(1.00, 0.82, 0.20, 1.0), ["ability", "shield"], [
+			_b(2, {"ability_damage": 0.06}),
+			_b(4, {"shield_capacity": 2.0}),
+			_b(6, {"ability_damage": 0.12, "low_health_damage": 0.08}),
+		]),
+		_s("tactical_set", "Tactical Set", "mark damage / support / precision",  Color(0.70, 0.45, 1.00, 1.0), ["support", "precision"], [
+			_b(2, {"xp_gain": 0.05}),
+			_b(4, {"mark_damage": 0.10}),
+			_b(6, {"support_damage": 0.12, "ability_cooldown": 0.05}),
+		]),
+		_s("fury_set",     "Fury Set",     "rage / low-health damage / impact",  Color(1.00, 0.45, 0.20, 1.0), ["offense", "impact"], [
+			_b(2, {"attack_damage": 3.0}),
+			_b(4, {"rage_gain": 0.10}),
+			_b(6, {"low_health_damage": 0.15, "impact_damage": 0.10}),
+		]),
 	]
 
 
@@ -200,11 +257,19 @@ func _t(id: String, item_name: String, slot_id: String, rarity: String, set_id: 
 	}
 
 
-func _s(id: String, sname: String, theme: String, color: Color, tags: Array) -> Dictionary:
+func _s(id: String, sname: String, theme: String, color: Color, tags: Array, bonuses: Array) -> Dictionary:
 	return {
 		"id": id,
 		"name": sname,
 		"theme": theme,
 		"color": color,
 		"tags": tags,
+		"bonuses": bonuses,
+	}
+
+
+func _b(pieces: int, modifiers: Dictionary) -> Dictionary:
+	return {
+		"pieces": pieces,
+		"modifiers": modifiers,
 	}
