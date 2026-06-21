@@ -25,6 +25,17 @@ SuperHeroes is a Godot 4.x survivors-like / horde survival / bullet heaven game 
 
 The project is currently in the balance, cleanup, and production-readiness stage. Core systems (combat, XP, upgrades, powerups, miniboss, mobile controls, events, victory/defeat flow, and build-defining synergies) are implemented. This pass centralizes tunable balance defaults, quiets verbose debug logs by default, adds a startup wiring health check, and adds lightweight performance safeguards.
 
+### Dismantle / Gold / Upgrade Materials
+
+Equipment disposal is now handled through **Dismantle** only. The player-facing Sell action has been removed from the Training -> Equipment item popup.
+
+- Gold is a new separate save-backed currency. Existing Training/progression currency remains unchanged and still pays current Training and equipment upgrade costs.
+- Dismantling an unequipped, unlocked item removes it from `inventory_items` after confirmation and awards both Gold and a material matching the item's own rarity.
+- Materials are saved for future upgrade-economy work but are not spent by upgrades in this patch.
+- Material mapping: common -> Common Dust, uncommon -> Uncommon Dust, rare -> Rare Dust, epic -> Epic Core, legendary -> Legendary Core, mythic -> Mythic Core.
+- Equipped items cannot be dismantled. Locked items cannot be dismantled. Favorite items can be dismantled, but the confirmation dialog warns the player.
+- This patch does not add crafting, fusion, gacha, random affixes, enemy item drops, hard inventory capacity, multi-dismantle, reward chance changes, set bonus changes, or upgrade cost changes.
+
 ### Gameplay Validation / Debug Pass
 
 A debug toolset has been added to help verify all gameplay systems quickly without waiting for natural game time:
@@ -1422,7 +1433,7 @@ Items appear in **Training → Equipment** after the run. They are not auto-equi
 - Items go to global `inventory_items` with `source = "run_reward"`.
 - Items are never auto-equipped.
 - Duplicate template rewards are allowed (two of the same item possible).
-- No gacha, no enemy item drops, no random affixes, no crafting, no fusion, no selling, no inventory cap.
+- No gacha, no enemy item drops, no random affixes, no crafting, no fusion, no player-facing Sell, no inventory cap.
 
 ## Equipment Set Bonus Effects
 
@@ -1526,7 +1537,7 @@ Inventory cell dicts now include `set_id` and `set_name` for downstream use (too
 ### Rules
 
 - Set bonuses are simple stat modifiers only: no procs, visual effects, triggers, skill rewrites, or special behaviors.
-- No reward chance, reward quantity, item upgrade economy, stage, zone, level selection, gacha, drops, crafting, fusion, dismantle, random affix, hero kit, evolution, boss flow, Training upgrade, or in-run 4/4/4 rule changes.
+- No reward chance, reward quantity, item upgrade economy, stage, zone, level selection, gacha, drops, crafting, fusion, random affix, hero kit, evolution, boss flow, Training upgrade, or in-run 4/4/4 rule changes.
 - No new items are added.
 - No save format changes — `set_id` lives on templates only (no instance migration needed).
 
@@ -1552,11 +1563,12 @@ Inventory cell dicts now include `set_id` and `set_name` for downstream use (too
 
 MetaUpgradeShop uses EquipmentFormat for: inventory cell rarity short names and rarity-colored tints, equipped slot button rarity tags, sort modes Rar High / Rar Low, Starter Pack popup item list. VictoryScreen and GameOverScreen item reward lines use `item_display_line`. `_format_stat_type_name` and `_format_slot_name` in MetaUpgradeShop delegate to EquipmentFormat.
 
-## Inventory Management QoL (Lock / Favorite / Sell)
+## Inventory Management QoL (Lock / Favorite / Dismantle)
 
 MetaProgressionManager constants:
-- `INVENTORY_CAPACITY = 60` — soft display limit; never blocks grants.
-- `_RARITY_SELL_BASE` — sell base by rarity: common=5, uncommon=10, rare=20, epic=40, legendary=80, mythic=160.
+- `INVENTORY_CAPACITY = 60` - soft display limit; never blocks grants.
+- `_RARITY_GOLD_BASE` - Dismantle Gold base by rarity: common=5, uncommon=10, rare=20, epic=40, legendary=80, mythic=160.
+- `_RARITY_MATERIAL_BASE` - Dismantle material base by rarity: common/uncommon/rare=3, epic/legendary=2, mythic=1.
 
 Item instance schema additions: `favorite: bool`, `created_index: int` (equals `instance_id_counter` at creation).
 
@@ -1564,14 +1576,19 @@ New MetaProgressionManager API:
 - `get_inventory_item_count() -> int`, `get_inventory_capacity() -> int`
 - `is_inventory_item_locked/toggle_inventory_item_locked/set_inventory_item_locked`
 - `is_inventory_item_favorite/toggle_inventory_item_favorite/set_inventory_item_favorite`
-- `get_inventory_item_sell_value(instance_id) -> int` — base + level × 2
-- `get_inventory_item_sell_block_reason(instance_id) -> String` — "" if sellable; "locked" / "equipped" otherwise
-- `can_sell_inventory_item(instance_id) -> bool`
-- `sell_inventory_item(instance_id) -> Dictionary` — removes item, adds currency, emits `inventory_changed` + `currency_changed`, saves
+- `get_gold()`, `add_gold(amount)`, `spend_gold(amount)`, `set_gold(amount)` - separate Gold currency API.
+- `get_equipment_materials()`, `get_equipment_material_amount(material_id)`, `add_equipment_material(material_id, amount)`, `set_equipment_material_amount(material_id, amount)` - saved material balances.
+- `get_material_ids()`, `get_material_for_rarity(rarity)`, `get_material_display_name(material_id)`, `is_valid_material_id(material_id)` - material helper API.
+- `get_inventory_item_dismantle_result(instance_id) -> Dictionary` - returns Gold and matching-rarity material rewards.
+- `get_inventory_item_dismantle_block_reason(instance_id) -> String` - empty when allowed; blocks equipped or locked items.
+- `can_dismantle_inventory_item(instance_id) -> bool`
+- `dismantle_inventory_item(instance_id) -> Dictionary` - removes item, adds Gold/materials, emits `inventory_changed`, `gold_changed`, and `equipment_materials_changed`, saves.
+
+Gold is separate from the old Training/progression currency. Current Training and equipment upgrade costs still spend only old currency; Gold/material spending is intentionally not implemented yet.
 
 New inventory sort modes: **Fav First** (favorites sorted to top) and **Newest** (higher `created_index` first).
 
-Cell markers: `[E]` equipped, `[L]` locked, `[*]` favorite — shown in cell text. Cells tinted by rarity for unselected unequipped items.
+Cell markers: `[E]` equipped, `[L]` locked, `[*]` favorite - shown in cell text. Cells tinted by rarity for unselected unequipped items.
 
 ## Inventory Actions Popup UI Rework
 
@@ -1580,9 +1597,9 @@ Main Inventory panel (right side of Equipment tab) is now clean: header row show
 **Item action popup** (`PopupPanel`, assigned to `_item_action_popup`):
 - Opens when clicking an occupied inventory cell; does not re-center if already visible.
 - Closes when clicking an empty cell or pressing Close.
-- Contains: item title label, scrollable detail text (slot, rarity, level, status, locked, favorite, gameplay note, stat, next-level stat, sell value, compare), action rows (Equip + Upgrade / Lock + Favorite + Sell + Close).
-- Sell flow: Sell button → `ConfirmationDialog` → sell confirmed → popup hidden → signals refresh grid.
+- Contains: item title label, scrollable detail text (slot, rarity, level, status, locked, favorite, gameplay note, stat, next-level stat, Dismantle reward, compare), action rows (Equip + Upgrade / Lock + Favorite + Dismantle + Close).
+- Dismantle flow: Dismantle button -> `ConfirmationDialog` with Gold/material payout and Favorite warning if needed -> dismantle confirmed -> popup hidden -> signals refresh grid and resource labels.
 - Lock/Favorite buttons show toggle state: "Unlock"/"Lock", "[*]Off"/"[*]On".
-- Sell button disabled with muted color when item is locked or equipped.
+- Dismantle button disabled with muted color when item is locked or equipped.
 
 Capacity label shows `(X / 60)` and turns warning color when over capacity. The equipped slot popup (for clicking filled equipment slots on the left panel) remains a separate `PopupPanel` and is not mixed with the item action popup.

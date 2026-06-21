@@ -1,6 +1,8 @@
 extends Node
 
 signal currency_changed(amount: int)
+signal gold_changed(value: int)
+signal equipment_materials_changed(materials: Dictionary)
 signal meta_upgrade_changed(upgrade_id: String, level: int)
 signal equipment_upgrade_changed(hero_id: String, equipment_id: String, level: int)
 signal inventory_changed(hero_id: String)
@@ -11,7 +13,7 @@ signal progress_saved
 signal inventory_item_upgraded(hero_id: String, instance_id: String, level: int)
 
 const SAVE_PATH := "user://superheroes_meta_progress.json"
-const SAVE_VERSION := 6
+const SAVE_VERSION := 7
 const DEFAULT_HERO_ID := "guardian"
 const DEFAULT_HERO_IDS: Array[String] = ["guardian", "blaster", "vanguard"]
 const DEFAULT_STAGE_IDS: Array[String] = ["city_rooftop", "neon_lab", "wasteland_gate"]
@@ -19,13 +21,21 @@ const EQUIPMENT_SLOT_IDS: Array[String] = ["core", "suit", "emblem", "gauntlets"
 const STARTER_PACK_ID := "starter_pack_v1"
 const INVENTORY_CAPACITY := 60
 
-const _RARITY_SELL_BASE := {
+const _RARITY_GOLD_BASE := {
 	"common": 5,
 	"uncommon": 10,
 	"rare": 20,
 	"epic": 40,
 	"legendary": 80,
 	"mythic": 160,
+}
+const _RARITY_MATERIAL_BASE := {
+	"common": 3,
+	"uncommon": 3,
+	"rare": 3,
+	"epic": 2,
+	"legendary": 2,
+	"mythic": 1,
 }
 const STARTER_PACK_TEMPLATES: Array[String] = [
 	"power_core_common", "reinforced_suit_common", "awareness_emblem_common",
@@ -89,6 +99,8 @@ func reset_progress() -> void:
 	_data = _get_defaults()
 	save_progress()
 	currency_changed.emit(int(_data.get("currency", 0)))
+	gold_changed.emit(get_gold())
+	equipment_materials_changed.emit(get_equipment_materials())
 
 
 func get_currency() -> int:
@@ -110,6 +122,100 @@ func spend_currency(amount: int) -> bool:
 	_data["currency"] = get_currency() - amount
 	currency_changed.emit(get_currency())
 	return true
+
+
+func get_gold() -> int:
+	return int(_data.get("gold", 0))
+
+
+func set_gold(amount: int) -> void:
+	_data["gold"] = maxi(amount, 0)
+	gold_changed.emit(get_gold())
+	save_progress()
+
+
+func add_gold(amount: int) -> void:
+	if amount <= 0:
+		return
+	_data["gold"] = get_gold() + amount
+	gold_changed.emit(get_gold())
+	save_progress()
+
+
+func spend_gold(amount: int) -> bool:
+	if amount <= 0:
+		return true
+	if get_gold() < amount:
+		return false
+	_data["gold"] = get_gold() - amount
+	gold_changed.emit(get_gold())
+	save_progress()
+	return true
+
+
+func get_material_ids() -> Array[String]:
+	if _equipment_provider != null and _equipment_provider.has_method("get_material_ids"):
+		return _equipment_provider.get_material_ids()
+	return ["common_dust", "uncommon_dust", "rare_dust", "epic_core", "legendary_core", "mythic_core"]
+
+
+func get_material_for_rarity(rarity: String) -> String:
+	if _equipment_provider != null and _equipment_provider.has_method("get_material_for_rarity"):
+		return str(_equipment_provider.get_material_for_rarity(rarity))
+	match rarity:
+		"uncommon": return "uncommon_dust"
+		"rare": return "rare_dust"
+		"epic": return "epic_core"
+		"legendary": return "legendary_core"
+		"mythic": return "mythic_core"
+		_: return "common_dust"
+
+
+func get_material_display_name(material_id: String) -> String:
+	if _equipment_provider != null and _equipment_provider.has_method("get_material_display_name"):
+		return str(_equipment_provider.get_material_display_name(material_id))
+	return material_id.replace("_", " ").capitalize()
+
+
+func is_valid_material_id(material_id: String) -> bool:
+	if _equipment_provider != null and _equipment_provider.has_method("is_valid_material_id"):
+		return bool(_equipment_provider.is_valid_material_id(material_id))
+	return material_id in get_material_ids()
+
+
+func get_equipment_materials() -> Dictionary:
+	_ensure_equipment_material_defaults()
+	return _data.get("equipment_materials", {}).duplicate(true)
+
+
+func get_equipment_material_amount(material_id: String) -> int:
+	_ensure_equipment_material_defaults()
+	if not is_valid_material_id(material_id):
+		return 0
+	var materials: Dictionary = _data.get("equipment_materials", {})
+	return int(materials.get(material_id, 0))
+
+
+func set_equipment_material_amount(material_id: String, amount: int) -> void:
+	if not is_valid_material_id(material_id):
+		return
+	_ensure_equipment_material_defaults()
+	var materials: Dictionary = _data.get("equipment_materials", {})
+	materials[material_id] = maxi(amount, 0)
+	_data["equipment_materials"] = materials
+	equipment_materials_changed.emit(materials.duplicate(true))
+	save_progress()
+
+
+func add_equipment_material(material_id: String, amount: int) -> void:
+	if amount <= 0 or not is_valid_material_id(material_id):
+		return
+	_ensure_equipment_material_defaults()
+	var materials: Dictionary = _data.get("equipment_materials", {})
+	materials[material_id] = int(materials.get(material_id, 0)) + amount
+	_data["equipment_materials"] = materials
+	equipment_materials_changed.emit(materials.duplicate(true))
+	save_progress()
 
 
 func get_training_level(hero_id: String, upgrade_id: String) -> int:
@@ -663,6 +769,8 @@ func apply_run_result(summary: Dictionary) -> Dictionary:
 func get_progress_summary() -> Dictionary:
 	return {
 		"currency": get_currency(),
+		"gold": get_gold(),
+		"equipment_materials": get_equipment_materials(),
 		"total_runs": int(_data.get("total_runs", 0)),
 		"total_victories": int(_data.get("total_victories", 0)),
 		"total_kills": int(_data.get("total_kills", 0)),
@@ -916,6 +1024,8 @@ func _get_defaults() -> Dictionary:
 	return {
 		"version": SAVE_VERSION,
 		"currency": 0,
+		"gold": 0,
+		"equipment_materials": _get_default_equipment_materials(),
 		"meta_upgrades": {},
 		"training_by_hero": _get_default_training_by_hero(),
 		"equipment_by_hero": _get_default_equipment_by_hero(),
@@ -959,6 +1069,8 @@ func _merge_with_defaults(parsed: Dictionary) -> void:
 		_data["equipped_slots"] = {}
 	if not _data.get("equipment_grants") is Dictionary:
 		_data["equipment_grants"] = {}
+	_data["gold"] = maxi(int(_data.get("gold", 0)), 0)
+	_ensure_equipment_material_defaults()
 	_migrate_global_training_if_needed(parsed)
 	ensure_training_data_for_all_heroes(DEFAULT_HERO_IDS)
 	ensure_equipment_data_for_all_heroes(DEFAULT_HERO_IDS)
@@ -1008,6 +1120,26 @@ func _get_default_equipment_by_hero() -> Dictionary:
 			hero_equipment[str(def.get("equipment_id", ""))] = 0
 		result[hero_id] = hero_equipment
 	return result
+
+
+func _get_default_equipment_materials() -> Dictionary:
+	var result := {}
+	for material_id in get_material_ids():
+		result[material_id] = 0
+	return result
+
+
+func _ensure_equipment_material_defaults() -> void:
+	var materials = _data.get("equipment_materials", {})
+	if not materials is Dictionary:
+		materials = {}
+	for material_id in get_material_ids():
+		materials[material_id] = maxi(int(materials.get(material_id, 0)), 0)
+	var saved_material_ids: Array = materials.keys()
+	for material_id in saved_material_ids:
+		if not is_valid_material_id(str(material_id)):
+			materials.erase(material_id)
+	_data["equipment_materials"] = materials
 
 
 # ─── Inventory & Equipment Swapping ───────────────────────────────────────────
@@ -1253,6 +1385,8 @@ func debug_get_inventory_summary() -> Dictionary:
 		"items": items,
 		"equipment_grants": _data.get("equipment_grants", {}).duplicate(true),
 		"items_by_source": by_source,
+		"gold": get_gold(),
+		"equipment_materials": get_equipment_materials(),
 	}
 
 
@@ -1506,19 +1640,93 @@ func toggle_inventory_item_favorite(instance_id: String) -> bool:
 	return set_inventory_item_favorite(instance_id, not is_inventory_item_favorite(instance_id))
 
 
-func get_inventory_item_sell_value(instance_id: String) -> int:
+func _get_inventory_item_rarity(instance_id: String) -> String:
 	var item := get_inventory_item("", instance_id)
 	if item.is_empty():
-		return 0
+		return "common"
 	var template_id := str(item.get("template_id", ""))
 	var rarity := "common"
 	if _equipment_provider != null and not template_id.is_empty():
 		var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
 		if not tmpl.is_empty():
 			rarity = str(tmpl.get("rarity", "common"))
-	var base := int(_RARITY_SELL_BASE.get(rarity, 5))
+	return rarity
+
+
+func get_inventory_item_dismantle_result(instance_id: String) -> Dictionary:
+	var item := get_inventory_item("", instance_id)
+	if item.is_empty():
+		return {"gold": 0, "materials": {}}
+	var rarity := _get_inventory_item_rarity(instance_id)
+	var material_id := get_material_for_rarity(rarity)
 	var level := int(item.get("level", 0))
-	return base + level * 2
+	var material_amount := int(_RARITY_MATERIAL_BASE.get(rarity, 3)) + int(floor(float(level) / 3.0))
+	var gold_amount := int(_RARITY_GOLD_BASE.get(rarity, 5)) + level * 2
+	return {
+		"gold": gold_amount,
+		"materials": {
+			material_id: material_amount,
+		},
+	}
+
+
+func get_inventory_item_dismantle_block_reason(instance_id: String) -> String:
+	var item := get_inventory_item("", instance_id)
+	if item.is_empty():
+		return "Item not found."
+	if bool(item.get("locked", false)):
+		return "Locked item cannot be dismantled."
+	var equipped := get_equipped_slots()
+	for slot in equipped:
+		if str(equipped[slot]) == instance_id:
+			return "Equipped item cannot be dismantled."
+	return ""
+
+
+func can_dismantle_inventory_item(instance_id: String) -> bool:
+	return get_inventory_item_dismantle_block_reason(instance_id).is_empty()
+
+
+func dismantle_inventory_item(instance_id: String) -> Dictionary:
+	var reason := get_inventory_item_dismantle_block_reason(instance_id)
+	if not reason.is_empty():
+		return {"success": false, "gold": 0, "materials": {}, "reason": reason, "dismantled_item": {}}
+	var dismantled_item := get_inventory_item("", instance_id)
+	var result := get_inventory_item_dismantle_result(instance_id)
+	var items: Array = _data.get("inventory_items", [])
+	if not items is Array:
+		return {"success": false, "gold": 0, "materials": {}, "reason": "Inventory not initialized.", "dismantled_item": {}}
+	for i in range(items.size()):
+		var it = items[i]
+		if it is Dictionary and str(it.get("instance_id", "")) == instance_id:
+			items.remove_at(i)
+			break
+	_data["inventory_items"] = items
+	_data["gold"] = get_gold() + int(result.get("gold", 0))
+	_ensure_equipment_material_defaults()
+	var current_materials: Dictionary = _data.get("equipment_materials", {})
+	var reward_materials: Dictionary = result.get("materials", {}) if result.get("materials", {}) is Dictionary else {}
+	for material_id in reward_materials:
+		var key := str(material_id)
+		if not is_valid_material_id(key):
+			continue
+		current_materials[key] = maxi(int(current_materials.get(key, 0)) + int(reward_materials.get(material_id, 0)), 0)
+	_data["equipment_materials"] = current_materials
+	inventory_changed.emit("")
+	gold_changed.emit(get_gold())
+	equipment_materials_changed.emit(current_materials.duplicate(true))
+	save_progress()
+	return {
+		"success": true,
+		"gold": int(result.get("gold", 0)),
+		"materials": reward_materials.duplicate(true),
+		"reason": "",
+		"dismantled_item": dismantled_item,
+	}
+
+
+func get_inventory_item_sell_value(instance_id: String) -> int:
+	return int(get_inventory_item_dismantle_result(instance_id).get("gold", 0))
 
 
 func get_inventory_item_sell_block_reason(instance_id: String) -> String:

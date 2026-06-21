@@ -3,6 +3,15 @@ extends Node
 const MAX_ITEM_LEVEL := 10
 const SLOT_IDS: Array[String] = ["core", "suit", "emblem", "gauntlets", "boots", "artifact"]
 const RARITIES: Array[String] = ["common", "uncommon", "rare", "epic", "legendary", "mythic"]
+const MATERIAL_IDS: Array[String] = ["common_dust", "uncommon_dust", "rare_dust", "epic_core", "legendary_core", "mythic_core"]
+const RARITY_TO_MATERIAL := {
+	"common": "common_dust",
+	"uncommon": "uncommon_dust",
+	"rare": "rare_dust",
+	"epic": "epic_core",
+	"legendary": "legendary_core",
+	"mythic": "mythic_core",
+}
 const SET_IDS: Array[String] = ["storm_set", "titan_set", "solar_set", "tactical_set", "fury_set"]
 
 var _templates: Array[Dictionary] = []
@@ -84,6 +93,29 @@ func is_valid_rarity(rarity: String) -> bool:
 
 func is_valid_template_id(template_id: String) -> bool:
 	return _template_index.has(template_id)
+
+
+func get_material_ids() -> Array[String]:
+	return MATERIAL_IDS.duplicate()
+
+
+func get_material_for_rarity(rarity: String) -> String:
+	return str(RARITY_TO_MATERIAL.get(rarity, "common_dust"))
+
+
+func get_material_display_name(material_id: String) -> String:
+	match material_id:
+		"common_dust": return "Common Dust"
+		"uncommon_dust": return "Uncommon Dust"
+		"rare_dust": return "Rare Dust"
+		"epic_core": return "Epic Core"
+		"legendary_core": return "Legendary Core"
+		"mythic_core": return "Mythic Core"
+		_: return material_id.replace("_", " ").capitalize()
+
+
+func is_valid_material_id(material_id: String) -> bool:
+	return material_id in MATERIAL_IDS
 
 
 # ─── Equipment Set API ────────────────────────────────────────────────────────

@@ -53,10 +53,12 @@ var _inventory_equip_button: Button
 var _inventory_upgrade_button: Button
 var _inventory_lock_button: Button
 var _inventory_favorite_button: Button
-var _inventory_sell_button: Button
+var _inventory_dismantle_button: Button
 var _inventory_capacity_label: Label
 var _selected_inventory_instance_id: String = ""
 var _training_hero_label: Label
+var _gold_label: Label
+var _materials_label: Label
 
 # Item action popup
 var _item_action_popup: PopupPanel = null
@@ -66,9 +68,9 @@ var _inventory_slot_filter: String = "all"
 var _inventory_state_filter: String = "all"
 var _inventory_sort_mode: String = "default"
 
-# Sell confirmation popup
-var _sell_confirm_popup: ConfirmationDialog = null
-var _sell_confirm_instance_id: String = ""
+# Dismantle confirmation popup
+var _dismantle_confirm_popup: ConfirmationDialog = null
+var _dismantle_confirm_instance_id: String = ""
 
 
 func _ready() -> void:
@@ -86,6 +88,10 @@ func setup(meta_progression_manager: Node, hero_data_provider: Node = null) -> v
 		return
 	if _meta_manager.has_signal("currency_changed") and not _meta_manager.currency_changed.is_connected(_on_currency_changed):
 		_meta_manager.currency_changed.connect(_on_currency_changed)
+	if _meta_manager.has_signal("gold_changed") and not _meta_manager.gold_changed.is_connected(_on_gold_changed):
+		_meta_manager.gold_changed.connect(_on_gold_changed)
+	if _meta_manager.has_signal("equipment_materials_changed") and not _meta_manager.equipment_materials_changed.is_connected(_on_equipment_materials_changed):
+		_meta_manager.equipment_materials_changed.connect(_on_equipment_materials_changed)
 	if _meta_manager.has_signal("meta_upgrade_changed") and not _meta_manager.meta_upgrade_changed.is_connected(_on_meta_upgrade_changed):
 		_meta_manager.meta_upgrade_changed.connect(_on_meta_upgrade_changed)
 	if _meta_manager.has_signal("equipment_upgrade_changed") and not _meta_manager.equipment_upgrade_changed.is_connected(_on_equipment_upgrade_changed):
@@ -126,6 +132,10 @@ func refresh() -> void:
 		set_selected_hero("")
 	if _currency_label != null:
 		_currency_label.text = "Currency: %d" % _meta_manager.get_currency()
+	if _gold_label != null:
+		var gold := int(_meta_manager.get_gold()) if _meta_manager.has_method("get_gold") else 0
+		_gold_label.text = "Gold: %d" % gold
+	_update_materials_label()
 	_update_goals_label()
 	_rebuild_rows_if_needed()
 	_update_rows()
@@ -209,6 +219,13 @@ func _build_ui() -> void:
 	_currency_label.modulate = Color(0.88, 0.92, 0.96, 1.0)
 	nav.add_child(_currency_label)
 
+	_gold_label = Label.new()
+	_gold_label.text = "Gold: 0"
+	_gold_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_gold_label.add_theme_font_size_override("font_size", 14)
+	_gold_label.modulate = Color(1.0, 0.82, 0.28, 1.0)
+	nav.add_child(_gold_label)
+
 	_back_button = Button.new()
 	_back_button.text = "Main Menu"
 	_back_button.custom_minimum_size = Vector2(150, 42)
@@ -220,6 +237,13 @@ func _build_ui() -> void:
 	_goals_label.add_theme_font_size_override("font_size", 10)
 	_goals_label.modulate = Color(0.56, 0.62, 0.7, 1.0)
 	main_vbox.add_child(_goals_label)
+
+	_materials_label = Label.new()
+	_materials_label.text = "Materials: none"
+	_materials_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_materials_label.add_theme_font_size_override("font_size", 10)
+	_materials_label.modulate = Color(0.66, 0.78, 0.86, 1.0)
+	main_vbox.add_child(_materials_label)
 
 	main_vbox.add_child(HSeparator.new())
 
@@ -236,7 +260,7 @@ func _build_ui() -> void:
 
 	_build_starter_pack_popup()
 	_build_slot_popup()
-	_build_sell_confirm_popup()
+	_build_dismantle_confirm_popup()
 	_build_item_action_popup()
 	_update_tab_state()
 
@@ -843,12 +867,12 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	# Gameplay effect note
 	var gameplay_note := "Affects gameplay: YES" if is_equipped else "Affects gameplay: NO (equip to apply)"
 
-	# Sell info
-	var sell_value := 0
-	var sell_block := ""
-	if _meta_manager != null and _meta_manager.has_method("get_inventory_item_sell_value"):
-		sell_value = int(_meta_manager.get_inventory_item_sell_value(instance_id))
-		sell_block = str(_meta_manager.get_inventory_item_sell_block_reason(instance_id))
+	# Dismantle info
+	var dismantle_result := {}
+	var dismantle_block := ""
+	if _meta_manager != null and _meta_manager.has_method("get_inventory_item_dismantle_result"):
+		dismantle_result = _meta_manager.get_inventory_item_dismantle_result(instance_id)
+		dismantle_block = str(_meta_manager.get_inventory_item_dismantle_block_reason(instance_id))
 
 	var lines := PackedStringArray()
 	lines.append("=== %s ===" % display_name)
@@ -868,9 +892,9 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	if not next_level_str.is_empty():
 		lines.append(next_level_str)
 	lines.append("")
-	lines.append("Sell value: %d" % sell_value)
-	if not sell_block.is_empty():
-		lines.append("Cannot sell: %s" % sell_block)
+	lines.append("Dismantle reward: %s" % _format_dismantle_result(dismantle_result))
+	if not dismantle_block.is_empty():
+		lines.append("Cannot dismantle: %s" % dismantle_block)
 	if not desc.is_empty():
 		lines.append("")
 		lines.append(desc)
@@ -878,7 +902,7 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 		lines.append("")
 		lines.append(compare_str)
 	_inventory_detail_label.text = "\n".join(lines)
-	_refresh_management_buttons(instance_id, is_locked, is_fav, sell_block)
+	_refresh_management_buttons(instance_id, is_locked, is_fav, dismantle_block)
 
 
 func _get_short_item_name(display_name: String) -> String:
@@ -984,6 +1008,25 @@ func _format_compare_section(selected_instance_id: String, slot_id: String) -> S
 		sel_name, sel_level, stat_display, sel_total,
 		delta_str,
 	]
+
+
+func _format_dismantle_result(result: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	var gold := int(result.get("gold", 0))
+	if gold > 0:
+		parts.append("%d Gold" % gold)
+	var materials: Dictionary = result.get("materials", {}) if result.get("materials", {}) is Dictionary else {}
+	var material_ids := materials.keys()
+	material_ids.sort()
+	for material_id in material_ids:
+		var amount := int(materials.get(material_id, 0))
+		if amount <= 0:
+			continue
+		var display := str(material_id).replace("_", " ").capitalize()
+		if _meta_manager != null and _meta_manager.has_method("get_material_display_name"):
+			display = str(_meta_manager.get_material_display_name(str(material_id)))
+		parts.append("%d %s" % [amount, display])
+	return "none" if parts.is_empty() else ", ".join(parts)
 
 
 func _get_selected_hero_data() -> Dictionary:
@@ -1302,6 +1345,30 @@ func _update_goals_label() -> void:
 	_goals_label.text = text
 
 
+func _update_materials_label() -> void:
+	if _materials_label == null:
+		return
+	if _meta_manager == null or not _meta_manager.has_method("get_equipment_materials"):
+		_materials_label.text = "Materials: none"
+		return
+	var materials: Dictionary = _meta_manager.get_equipment_materials()
+	var parts: PackedStringArray = []
+	var ids: Array[String] = []
+	if _meta_manager.has_method("get_material_ids"):
+		ids = _meta_manager.get_material_ids()
+	else:
+		ids = ["common_dust", "uncommon_dust", "rare_dust", "epic_core", "legendary_core", "mythic_core"]
+	for material_id in ids:
+		var amount := int(materials.get(material_id, 0))
+		if amount <= 0:
+			continue
+		var display := material_id.replace("_", " ").capitalize()
+		if _meta_manager.has_method("get_material_display_name"):
+			display = str(_meta_manager.get_material_display_name(material_id))
+		parts.append("%s %d" % [display, amount])
+	_materials_label.text = "Materials: %s" % (" | ".join(parts) if not parts.is_empty() else "none")
+
+
 # ─── Signal handlers ──────────────────────────────────────────────────────────
 
 func _set_active_tab(tab_id: String) -> void:
@@ -1351,6 +1418,16 @@ func _on_back_pressed() -> void:
 
 
 func _on_currency_changed(_amount: int) -> void:
+	if visible:
+		refresh()
+
+
+func _on_gold_changed(_value: int) -> void:
+	if visible:
+		refresh()
+
+
+func _on_equipment_materials_changed(_materials: Dictionary) -> void:
 	if visible:
 		refresh()
 
@@ -1854,7 +1931,7 @@ func _on_inventory_upgrade_pressed() -> void:
 	# UI refreshes via inventory_item_upgraded / inventory_changed / currency_changed signals
 
 
-func _refresh_management_buttons(instance_id: String, is_locked: bool, is_fav: bool, sell_block: String) -> void:
+func _refresh_management_buttons(instance_id: String, is_locked: bool, is_fav: bool, dismantle_block: String) -> void:
 	var has_item := not instance_id.is_empty()
 	if _inventory_lock_button != null:
 		_inventory_lock_button.disabled = not has_item
@@ -1862,12 +1939,12 @@ func _refresh_management_buttons(instance_id: String, is_locked: bool, is_fav: b
 	if _inventory_favorite_button != null:
 		_inventory_favorite_button.disabled = not has_item
 		_inventory_favorite_button.text = "[*]Off" if (has_item and is_fav) else "[*]On"
-	if _inventory_sell_button != null:
-		_inventory_sell_button.disabled = not has_item or not sell_block.is_empty()
-		if has_item and not sell_block.is_empty():
-			_inventory_sell_button.modulate = UIStateColors.muted_color()
+	if _inventory_dismantle_button != null:
+		_inventory_dismantle_button.disabled = not has_item or not dismantle_block.is_empty()
+		if has_item and not dismantle_block.is_empty():
+			_inventory_dismantle_button.modulate = UIStateColors.muted_color()
 		else:
-			_inventory_sell_button.modulate = Color.WHITE
+			_inventory_dismantle_button.modulate = Color.WHITE
 
 
 func _update_capacity_label() -> void:
@@ -1902,44 +1979,66 @@ func _on_inventory_favorite_pressed() -> void:
 	_meta_manager.toggle_inventory_item_favorite(_selected_inventory_instance_id)
 
 
-func _on_inventory_sell_pressed() -> void:
+func _on_inventory_dismantle_pressed() -> void:
 	if _selected_inventory_instance_id.is_empty() or _meta_manager == null:
 		return
-	if not _meta_manager.has_method("can_sell_inventory_item"):
+	if not _meta_manager.has_method("can_dismantle_inventory_item"):
 		return
-	if not _meta_manager.can_sell_inventory_item(_selected_inventory_instance_id):
+	if not _meta_manager.can_dismantle_inventory_item(_selected_inventory_instance_id):
 		return
-	var sell_value := 0
-	if _meta_manager.has_method("get_inventory_item_sell_value"):
-		sell_value = int(_meta_manager.get_inventory_item_sell_value(_selected_inventory_instance_id))
+	var result := {}
+	if _meta_manager.has_method("get_inventory_item_dismantle_result"):
+		result = _meta_manager.get_inventory_item_dismantle_result(_selected_inventory_instance_id)
 	var item_name := _get_item_display_name(_selected_inventory_instance_id)
-	_sell_confirm_instance_id = _selected_inventory_instance_id
-	if _sell_confirm_popup != null:
-		_sell_confirm_popup.dialog_text = "Sell %s for %d currency?" % [item_name, sell_value]
-		_sell_confirm_popup.popup_centered()
+	_dismantle_confirm_instance_id = _selected_inventory_instance_id
+	if _dismantle_confirm_popup != null:
+		var lines := PackedStringArray()
+		lines.append("Dismantle %s?" % item_name)
+		lines.append("")
+		lines.append("You will receive:")
+		lines.append("- %d Gold" % int(result.get("gold", 0)))
+		var materials: Dictionary = result.get("materials", {}) if result.get("materials", {}) is Dictionary else {}
+		var material_ids := materials.keys()
+		material_ids.sort()
+		for material_id in material_ids:
+			var amount := int(materials.get(material_id, 0))
+			if amount <= 0:
+				continue
+			var display := str(material_id).replace("_", " ").capitalize()
+			if _meta_manager.has_method("get_material_display_name"):
+				display = str(_meta_manager.get_material_display_name(str(material_id)))
+			lines.append("- %d %s" % [amount, display])
+		var item: Dictionary = {}
+		if _meta_manager.has_method("get_inventory_item"):
+			item = _meta_manager.get_inventory_item(_selected_hero_id, _selected_inventory_instance_id)
+		if bool(item.get("favorite", false)):
+			lines.append("")
+			lines.append("Warning: this item is marked as Favorite.")
+		_dismantle_confirm_popup.dialog_text = "\n".join(lines)
+		_dismantle_confirm_popup.popup_centered()
 
 
-func _on_sell_confirmed() -> void:
-	var instance_id := _sell_confirm_instance_id
-	_sell_confirm_instance_id = ""
+func _on_dismantle_confirmed() -> void:
+	var instance_id := _dismantle_confirm_instance_id
+	_dismantle_confirm_instance_id = ""
 	if instance_id.is_empty() or _meta_manager == null:
 		return
-	if not _meta_manager.has_method("sell_inventory_item"):
+	if not _meta_manager.has_method("dismantle_inventory_item"):
 		return
-	_meta_manager.sell_inventory_item(instance_id)
+	_meta_manager.dismantle_inventory_item(instance_id)
 	# Close item action popup — item no longer exists
 	if _item_action_popup != null:
 		_item_action_popup.hide()
-	# UI refreshes via inventory_changed + currency_changed signals
+	# UI refreshes via inventory_changed + gold/material signals
 
 
-func _build_sell_confirm_popup() -> void:
-	_sell_confirm_popup = ConfirmationDialog.new()
-	_sell_confirm_popup.title = "Sell Item"
-	_sell_confirm_popup.min_size = Vector2i(320, 100)
-	_sell_confirm_popup.get_ok_button().text = "Sell"
-	_sell_confirm_popup.confirmed.connect(_on_sell_confirmed)
-	add_child(_sell_confirm_popup)
+func _build_dismantle_confirm_popup() -> void:
+	_dismantle_confirm_popup = ConfirmationDialog.new()
+	_dismantle_confirm_popup.title = "Dismantle Item"
+	_dismantle_confirm_popup.min_size = Vector2i(360, 140)
+	_dismantle_confirm_popup.get_ok_button().text = "Dismantle"
+	_dismantle_confirm_popup.confirmed.connect(_on_dismantle_confirmed)
+	add_child(_dismantle_confirm_popup)
 
 
 func _build_item_action_popup() -> void:
@@ -2018,12 +2117,12 @@ func _build_item_action_popup() -> void:
 	_inventory_favorite_button.pressed.connect(_on_inventory_favorite_pressed)
 	row2.add_child(_inventory_favorite_button)
 
-	_inventory_sell_button = Button.new()
-	_inventory_sell_button.text = "Sell"
-	_inventory_sell_button.disabled = true
-	_inventory_sell_button.custom_minimum_size = Vector2(80, 36)
-	_inventory_sell_button.pressed.connect(_on_inventory_sell_pressed)
-	row2.add_child(_inventory_sell_button)
+	_inventory_dismantle_button = Button.new()
+	_inventory_dismantle_button.text = "Dismantle"
+	_inventory_dismantle_button.disabled = true
+	_inventory_dismantle_button.custom_minimum_size = Vector2(110, 36)
+	_inventory_dismantle_button.pressed.connect(_on_inventory_dismantle_pressed)
+	row2.add_child(_inventory_dismantle_button)
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"

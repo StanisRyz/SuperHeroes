@@ -2337,7 +2337,7 @@ Equipment / Inventory horizontal layout validation:
 | 4 | Goals and mastery | Unaffected |
 | 5 | In-run combat, abilities, evolutions | Entirely unaffected |
 | 6 | Stage flow, boss flow | Unchanged |
-| 7 | No gacha/affixes/drops/crafting/fusion/selling/auto-equip added | Diff shows none of these |
+| 7 | No gacha/affixes/drops/crafting/fusion/player-facing Sell/auto-equip added | Diff shows none of these |
 
 ---
 
@@ -2360,7 +2360,7 @@ Equipment / Inventory horizontal layout validation:
 
 ---
 
-## Inventory Management QoL (Lock / Favorite / Sell)
+## Inventory Management QoL (Lock / Favorite / Dismantle)
 
 ### Lock
 
@@ -2369,8 +2369,8 @@ Equipment / Inventory horizontal layout validation:
 | 1 | Click an occupied inventory cell | Item action popup opens with Lock button enabled |
 | 2 | Press Lock on an unlocked item | Button text changes to "Unlock"; cell shows [L] marker; item detail shows "Locked: Yes" |
 | 3 | Press Unlock on a locked item | Button text changes to "Lock"; [L] marker removed; item detail shows "Locked: No" |
-| 4 | Lock an item, then press Sell | Sell button is disabled and muted |
-| 5 | Lock state persists across sessions | Reload game; locked item still shows [L] and Sell is still disabled |
+| 4 | Lock an item, then inspect Dismantle | Dismantle button is disabled and muted |
+| 5 | Lock state persists across sessions | Reload game; locked item still shows [L] and Dismantle is still disabled |
 
 ### Favorite
 
@@ -2381,19 +2381,24 @@ Equipment / Inventory horizontal layout validation:
 | 3 | Press [*]Off to unfavorite | Button changes to "[*]On"; [*] marker removed; item detail shows "Favorite: No" |
 | 4 | Favorite state persists across sessions | Reload game; item still shows [*] marker |
 
-### Sell
+### Dismantle / Gold / Materials
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Click an unequipped, unlocked item | Sell button is enabled in popup |
-| 2 | Press Sell | Confirmation dialog opens: "Sell <Name> for <N> currency?" |
-| 3 | Cancel sell | Dialog closes; item remains in inventory; popup stays open |
-| 4 | Confirm sell | Item removed from inventory; currency increases by sell value; popup closes; grid refreshes |
-| 5 | Sell value for common item at level 0 | 5 currency |
-| 6 | Sell value for common item at level 5 | 5 + 5×2 = 15 currency |
-| 7 | Sell value for rare item at level 0 | 20 currency |
-| 8 | Sell an equipped item | Sell button disabled and muted; item detail shows "Cannot sell: Item is equipped. Unequip first." |
-| 9 | Sell a locked item | Sell button disabled and muted; item detail shows "Cannot sell: Item is locked." |
+| 1 | Open Training -> Equipment | Currency label remains; Gold label is visible and starts at 0 on migrated saves; Materials shows none when all balances are 0 |
+| 2 | Click an occupied inventory cell | Sell button is gone; Dismantle button is visible in the item action popup |
+| 3 | Click an unequipped, unlocked item | Dismantle button is enabled; detail shows Gold/material reward |
+| 4 | Press Dismantle | Confirmation opens with item name, Gold reward, and material reward |
+| 5 | Cancel Dismantle | Dialog closes; item remains in inventory; Gold/materials unchanged |
+| 6 | Confirm Dismantle | Item removed from inventory; Gold increases; matching rarity material increases; popup closes; grid refreshes |
+| 7 | Favorite item -> Dismantle | Confirmation includes "Warning: this item is marked as Favorite." |
+| 8 | Common item | Awards common_dust |
+| 9 | Equipped item | Dismantle disabled and muted; item detail shows "Cannot dismantle: Equipped item cannot be dismantled." |
+| 10 | Locked item | Dismantle disabled and muted; item detail shows "Cannot dismantle: Locked item cannot be dismantled." |
+| 11 | Uncommon item | Awards uncommon_dust |
+| 12 | Rare item | Awards rare_dust |
+| 13 | Upgrade an item after earning Gold/materials | Upgrade still spends only old currency; Gold/materials are not consumed yet |
+| 14 | Restart game after dismantle | Gold and equipment_materials persist in `user://superheroes_meta_progress.json` |
 
 ### Capacity Display
 
@@ -2422,7 +2427,7 @@ Equipment / Inventory horizontal layout validation:
 | 3 | Training tab | Entirely unaffected |
 | 4 | Item reward flow | Unaffected; item count/rarity unchanged |
 | 5 | In-run combat, abilities, evolutions | Entirely unaffected |
-| 6 | No gacha/drops/affixes/crafting/multi-sell/auto-sell/hard-cap added | Diff shows none of these |
+| 6 | No gacha/drops/affixes/crafting/multi-dismantle/auto-sell/hard-cap added | Diff shows none of these |
 
 ---
 
@@ -2433,7 +2438,7 @@ Equipment / Inventory horizontal layout validation:
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Open Training → Equipment tab | Main Inventory panel shows only: Inventory title + capacity label + hint text + filter row + grid |
-| 2 | Inspect main panel | No action buttons (Equip/Upgrade/Lock/Favorite/Sell) in the main panel; no detail text label in the main panel |
+| 2 | Inspect main panel | No action buttons (Equip/Upgrade/Lock/Favorite/Dismantle) in the main panel; no detail text label in the main panel |
 | 3 | Inspect filter row | Slot / State / Sort OptionButtons are present and functional |
 | 4 | Inventory grid | 5-column grid fills the remaining height; items and empty cells render correctly |
 
@@ -2442,16 +2447,16 @@ Equipment / Inventory horizontal layout validation:
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Click an occupied inventory cell | Item action popup opens near center of screen; title shows item display name |
-| 2 | Popup content | Scrollable detail text: slot, rarity, level, status (EQUIPPED/In Inventory), Locked, Favorite, gameplay note, stat, next-level stat, sell value; action rows with Equip + Upgrade and Lock + Favorite + Sell + Close |
+| 2 | Popup content | Scrollable detail text: slot, rarity, level, status (EQUIPPED/In Inventory), Locked, Favorite, gameplay note, stat, next-level stat, Dismantle reward; action rows with Equip + Upgrade and Lock + Favorite + Dismantle + Close |
 | 3 | Click a different occupied cell while popup is open | Popup content updates to new item; popup does NOT re-center (stays in place) |
 | 4 | Click an empty cell while popup is open | Popup closes |
 | 5 | Press Close button in popup | Popup closes |
 | 6 | Lock/Favorite/Upgrade/Equip action from popup | Action applies; grid refreshes; popup stays open in place (no re-center) |
-| 7 | Sell action from popup | Confirmation dialog opens; on confirm, popup closes after sell; grid refreshes |
+| 7 | Dismantle action from popup | Confirmation dialog opens; on confirm, popup closes after dismantle; grid and Gold/material labels refresh |
 | 8 | Equip action for item already equipped | Equip button shows "Equipped" and is disabled |
 | 9 | Lock button state | "Lock" when item is unlocked; "Unlock" when locked |
 | 10 | Favorite button state | "[*]On" when not favorited; "[*]Off" when favorited |
-| 11 | Sell button state | Disabled+muted when item is locked or equipped; enabled otherwise |
+| 11 | Dismantle button state | Disabled+muted when item is locked or equipped; enabled otherwise |
 
 ### Equipped Slot Popup (regression)
 
@@ -2470,7 +2475,7 @@ Equipment / Inventory horizontal layout validation:
 | 3 | In-run combat, abilities, evolutions | Entirely unaffected |
 | 4 | Item reward flow | Unaffected |
 | 5 | Starter pack flow | Unaffected |
-| 6 | No gacha/drops/affixes/crafting/fusion/multi-sell/auto-sell/hard-cap added | Diff shows none of these |
+| 6 | No gacha/drops/affixes/crafting/fusion/multi-dismantle/auto-sell/hard-cap added | Diff shows none of these |
 
 ---
 

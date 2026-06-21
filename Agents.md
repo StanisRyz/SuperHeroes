@@ -644,7 +644,7 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - **Equipment is shared across all heroes.** Inventory and equipped slots are global — not per-hero. All heroes receive bonuses from the globally equipped set.
 - **Item templates** are global and non-hero-specific — they live in `EquipmentDataProvider`. No `hero_id` field on templates. Equip compatibility is `slot_id`-only.
 - **Item instances** (with `instance_id`, `template_id`, `slot_id`, `level`, `locked`, `source`) live in `_data["inventory_items"]` (Array — global). Equipped slot pointers live in `_data["equipped_slots"]` (Dictionary: slot_id → instance_id — global).
-- `MetaProgressionManager` is the player-state owner: it owns `inventory_items`, `equipped_slots`, `equipment_grants`, `equipment_by_hero` (legacy), and currency. It is NOT the canonical template data owner — that is `EquipmentDataProvider`.
+- `MetaProgressionManager` is the player-state owner: it owns `inventory_items`, `equipped_slots`, `equipment_grants`, `equipment_by_hero` (legacy), Training currency, Gold, and equipment material balances. It is NOT the canonical template data owner — that is `EquipmentDataProvider`.
 - Legacy per-hero fields `inventory_by_hero` and `equipped_by_hero` are kept in `_data` for backward compatibility but are cleared to empty on every load (`_validate_inventory_against_provider` clears them). All UI and logic reads from global fields.
 - Public API compatibility: `get_inventory_items_for_hero(hero_id)` and `get_equipped_items_for_hero(hero_id)` are wrappers that route to `get_inventory_items()` / `get_equipped_slots()` (hero_id ignored). `get_equipment_definitions()` and `get_equipment_definition()` still route to provider.
 - Global max level = 10 for all items. `get_inventory_item_max_level()` reads `_equipment_provider.MAX_ITEM_LEVEL`.
@@ -652,6 +652,10 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `MetaApplier` applies supported equipment stats at run start: `max_health`, `move_speed`, `xp_gain`, `attack_damage`, `ability_damage`, `ability_cooldown`, `shield_capacity`, `mark_damage`, and `rage_gain`. These bonuses apply identically for all heroes because equipped slots are global.
 - `low_health_damage` and other future-facing stats are stored in aggregated modifiers but do not mutate gameplay until an explicit safe system exists.
 - Equipment does not change Training costs, rewards, hero unlocks, gacha, item drops, stage objectives, boss flow, evolutions, or in-run 4/4/4 slot rules.
+- Gold is separate from the existing Training/progression currency. Current Training and equipment upgrade costs still spend only the old currency until a later upgrade-economy patch.
+- Equipment materials are saved under `_data["equipment_materials"]` with ids `common_dust`, `uncommon_dust`, `rare_dust`, `epic_core`, `legendary_core`, and `mythic_core`.
+- Material mapping is fixed by item rarity: common -> common_dust, uncommon -> uncommon_dust, rare -> rare_dust, epic -> epic_core, legendary -> legendary_core, mythic -> mythic_core.
+- Player-facing item disposal is Dismantle only. Sell may remain as compatibility/debug API, but it must not be exposed in MetaUpgradeShop UI.
 
 ## Inventory & Equipment Swapping Architecture
 
@@ -715,9 +719,10 @@ The previously equipped item stays in inventory — only the pointer changes. He
 
 ### Save Migration Rules
 
-- Save version: SAVE_VERSION = 6.
+- Save version: SAVE_VERSION = 7.
 - `_merge_with_defaults` calls `_migrate_inventory_if_needed()` after equipment data is ensured.
 - `_migrate_inventory_if_needed()` initializes `inventory_items: []`, `equipped_slots: {}`, `equipment_grants: {}` if absent. If `inventory_items` is empty and `inventory_by_hero` has valid items, they are migrated into the global store and legacy structures are cleared.
+- `_merge_with_defaults()` initializes `gold: 0` and `equipment_materials` with all known material ids at 0 when loading older saves. Migration preserves `inventory_items`, `equipped_slots`, `equipment_grants`, old currency, Training, mastery, goals, and unlocked heroes.
 - `_validate_inventory_against_provider()` prunes `inventory_items` entries with unknown template_ids, prunes `equipped_slots` pointers to missing instances, and clears `inventory_by_hero`/`equipped_by_hero` (dead data going forward).
 - `equipment_grants: { "starter_pack_v1": true }` tracks which grant packs have been claimed; prevents popup from reappearing after Accept.
 - `instance_id_counter: int` in `_data` increments on each `create_inventory_item_instance()` call to ensure globally unique `instance_id` values across sessions.
@@ -737,6 +742,10 @@ The previously equipped item stays in inventory — only the pointer changes. He
 - `can_unequip_slot(_hero_id, slot_id) -> bool` — checks global `equipped_slots`.
 - `unequip_slot(hero_id, slot_id) -> bool` — erases from `equipped_slots`.
 - `debug_get_inventory_summary() -> Dictionary` — global item_count, equipped_slots, items, equipment_grants.
+- Gold API: `get_gold()`, `add_gold(amount)`, `spend_gold(amount)`, `set_gold(amount)`; emits `gold_changed(value)`.
+- Material API: `get_material_ids()`, `get_material_for_rarity(rarity)`, `get_material_display_name(material_id)`, `is_valid_material_id(material_id)`, `get_equipment_materials()`, `get_equipment_material_amount(material_id)`, `add_equipment_material(material_id, amount)`, `set_equipment_material_amount(material_id, amount)`; emits `equipment_materials_changed(materials)`.
+- Dismantle API: `get_inventory_item_dismantle_result(instance_id)`, `can_dismantle_inventory_item(instance_id)`, `get_inventory_item_dismantle_block_reason(instance_id)`, and `dismantle_inventory_item(instance_id)`.
+- Dismantle rules: item must exist, equipped items are blocked, locked items are blocked, favorite items are allowed but UI confirmation must warn. A successful dismantle removes the item, adds Gold, adds the matching rarity material, emits `inventory_changed`, `gold_changed`, and `equipment_materials_changed`, then saves.
 
 ### Starter Equipment Grant API (MetaProgressionManager)
 
@@ -856,12 +865,12 @@ Display dict (returned by `grant_item_rewards`, included in `item_rewards` array
 
 ### Restrictions (not in this patch)
 
-No gacha, no enemy item drops, no random affixes, no crafting/fusion, no item selling/discarding, no inventory capacity limit, no auto-equip on grant.
+No gacha, no enemy item drops, no random affixes, no crafting/fusion, no player-facing Sell, no inventory capacity limit, no auto-equip on grant. Item disposal is confirmation-gated Dismantle only.
 
 ## Training Screen Tabbed Progression Architecture
 
 - `MetaUpgradeShop` is a tabbed pre-run character progression screen with `_active_tab` set to `"equipment"` or `"training"`. Default tab is Equipment.
-- Top navigation is compact and persistent: Equipment tab button, Training tab button, small currency label, and a Main Menu button that emits `back_requested`. Main's existing `_close_meta_shop()` flow re-shows MainMenu, and `ui_cancel` / Escape still routes through `Main._handle_menu_back_requested()`.
+- Top navigation is compact and persistent: Equipment tab button, Training tab button, small old-currency label, Gold label, and a Main Menu button that emits `back_requested`. A compact Materials line sits below the nav and shows non-zero material balances or `Materials: none`. Main's existing `_close_meta_shop()` flow re-shows MainMenu, and `ui_cancel` / Escape still routes through `Main._handle_menu_back_requested()`.
 - The old large Training title, standalone Currency block, Goals Next block, and visible hero selector row are not part of the current UI. Selected hero state remains internal and is resolved by `Main._resolve_training_hero_id()` when opening the screen.
 - Equipment tab layout rule: content is a horizontal row. Left child is the Equipped Gear panel with selected hero preview, six fixed equipment slots, existing upgrade buttons/costs/levels, and `equipment_buy_requested` behavior. Right child is the Inventory panel.
 - Inventory grid responsibilities: use `GridContainer` square cells (minimum 20 cells) with occupied and empty states. Occupied cells show real inventory item instances; `[E]` tag marks equipped items. Clicking a cell updates the detail label and the Equip button state. `equip_inventory_item` is called on Equip press; no gacha, item drops, or random item generation.
@@ -1827,17 +1836,18 @@ Do not add action buttons, detail text, or per-item controls to the main invento
 ### Item Action Popup (`_item_action_popup: PopupPanel`)
 - Opened via `popup_centered()` when the player clicks an occupied inventory cell, but only if `not _item_action_popup.visible` to prevent re-centering on refresh.
 - Hidden (`.hide()`) when the player clicks an empty cell or presses the Close button.
-- Contains: `_item_action_title_label` (item name), scrollable `_inventory_detail_label`, `_inventory_equip_button`, `_inventory_upgrade_button`, `_inventory_lock_button`, `_inventory_favorite_button`, `_inventory_sell_button`, and a Close button.
+- Contains: `_item_action_title_label` (item name), scrollable `_inventory_detail_label`, `_inventory_equip_button`, `_inventory_upgrade_button`, `_inventory_lock_button`, `_inventory_favorite_button`, `_inventory_dismantle_button`, and a Close button.
 - All of these button/label vars are assigned inside `_build_item_action_popup()`, NOT inside `_build_inventory_panel()`. They are null until `_build_item_action_popup()` runs. Guard all reads of `_inventory_detail_label` with `if _inventory_detail_label == null: return`.
 - Lock button text: "Unlock" when item is locked, "Lock" otherwise.
 - Favorite button text: "[*]Off" when item is favorite (clicking turns it off), "[*]On" otherwise.
-- Sell button is disabled with muted color when sell_block_reason is non-empty.
+- Dismantle button is disabled with muted color when `get_inventory_item_dismantle_block_reason(instance_id)` is non-empty.
 
-### Sell Confirmation Flow
-1. Sell button → `_on_inventory_sell_pressed()` → validates sellable → fills `_sell_confirm_instance_id` → opens `_sell_confirm_popup` (ConfirmationDialog).
-2. Confirmed → `_on_sell_confirmed()` → `_meta_manager.sell_inventory_item(instance_id)` → hides `_item_action_popup`.
-3. `inventory_changed` signal fires → grid refreshes automatically.
-Do not sell without confirmation. Do not skip the ConfirmationDialog.
+### Dismantle Confirmation Flow
+1. Dismantle button -> `_on_inventory_dismantle_pressed()` -> validates dismantle eligibility -> fills `_dismantle_confirm_instance_id` -> opens `_dismantle_confirm_popup` (ConfirmationDialog).
+2. Confirmation text must show `Dismantle <Item Name>?`, Gold reward, material reward, and the Favorite warning when applicable.
+3. Confirmed -> `_on_dismantle_confirmed()` -> `_meta_manager.dismantle_inventory_item(instance_id)` -> hides `_item_action_popup`.
+4. `inventory_changed`, `gold_changed`, and `equipment_materials_changed` signals refresh the grid and resource labels automatically.
+Do not dismantle without confirmation. Do not skip the ConfirmationDialog.
 
 ### Equipped Slot Popup (separate)
 `_slot_popup: PopupPanel` is a separate popup for clicking already-equipped slot buttons on the left Equipped Gear panel. It shows item name, level, stat bonus, and an Unequip button. It is NOT the item action popup and must not be merged with it.
@@ -1849,12 +1859,12 @@ Inventory cell text format: `"ABBR [E][L][*]\nSlot Rar\nLv X/Y"` where `[E]` = e
 `_inventory_capacity_label` shows `"(X / 60)"` and turns warning color when count > capacity. Updated in `_update_capacity_label()` called at the start of `_refresh_inventory_grid()`.
 
 ### Inventory Management Rules
-- Lock: locked items cannot be sold. `toggle_inventory_item_locked` / `set_inventory_item_locked` emit `inventory_changed` and save.
+- Lock: locked items cannot be dismantled. `toggle_inventory_item_locked` / `set_inventory_item_locked` emit `inventory_changed` and save.
 - Favorite: `toggle_inventory_item_favorite` / `set_inventory_item_favorite` emit `inventory_changed` and save.
-- Sell value: `_RARITY_SELL_BASE[rarity] + level * 2`. Never sell without confirmation. Never sell locked or equipped items.
+- Dismantle rewards: Gold = rarity base (5/10/20/40/80/160) + 2 per item level. Materials = rarity base (common/uncommon/rare 3, epic/legendary 2, mythic 1) + 1 per 3 item levels. Never dismantle without confirmation. Never dismantle locked or equipped items.
 - Sort modes: Default, Slot, Lvl High, Lvl Low, Name, Rar High, Rar Low, Fav First (favorites first), Newest (higher `created_index` first).
 - `INVENTORY_CAPACITY = 60` is a soft display limit only. Never block item grants due to capacity.
-- Do not add gacha, enemy drops, random affixes, crafting, fusion, multi-sell, auto-sell, hard capacity blocking, or dismantle.
+- Do not add gacha, enemy drops, random affixes, crafting, fusion, multi-dismantle, auto-sell, hard capacity blocking, or upgrade material spending in this patch.
 
 ### Rarity Display in MetaUpgradeShop
 - Inventory cells: short rarity via `EquipmentFormat.rarity_short(rarity)`.
