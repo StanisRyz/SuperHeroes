@@ -11,7 +11,7 @@ signal progress_saved
 signal inventory_item_upgraded(hero_id: String, instance_id: String, level: int)
 
 const SAVE_PATH := "user://superheroes_meta_progress.json"
-const SAVE_VERSION := 5
+const SAVE_VERSION := 6
 const DEFAULT_HERO_ID := "guardian"
 const DEFAULT_HERO_IDS: Array[String] = ["guardian", "blaster", "vanguard"]
 const DEFAULT_STAGE_IDS: Array[String] = ["city_rooftop", "neon_lab", "wasteland_gate"]
@@ -28,11 +28,13 @@ func _ready() -> void:
 func load_progress() -> void:
 	_data = _get_defaults()
 	if not FileAccess.file_exists(SAVE_PATH):
+		_clear_static_inventory_if_needed(_data)
 		progress_loaded.emit()
 		return
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		push_warning("MetaProgressionManager: cannot open save file. Starting fresh.")
+		_clear_static_inventory_if_needed(_data)
 		progress_loaded.emit()
 		return
 	var text := file.get_as_text()
@@ -40,14 +42,17 @@ func load_progress() -> void:
 	var json := JSON.new()
 	if json.parse(text) != OK:
 		push_warning("MetaProgressionManager: corrupt save file. Starting fresh.")
+		_clear_static_inventory_if_needed(_data)
 		progress_loaded.emit()
 		return
 	var parsed = json.get_data()
 	if not parsed is Dictionary:
 		push_warning("MetaProgressionManager: unexpected save format. Starting fresh.")
+		_clear_static_inventory_if_needed(_data)
 		progress_loaded.emit()
 		return
 	_merge_with_defaults(parsed)
+	_clear_static_inventory_if_needed(_data)
 	progress_loaded.emit()
 
 
@@ -879,6 +884,7 @@ func _get_defaults() -> Dictionary:
 		"equipment_by_hero": _get_default_equipment_by_hero(),
 		"inventory_by_hero": {},
 		"equipped_by_hero": {},
+		"inventory_static_items_cleared": false,
 		"unlocked_heroes": ["guardian", "blaster", "vanguard"],
 		"total_runs": 0,
 		"total_victories": 0,
@@ -918,6 +924,26 @@ func _merge_with_defaults(parsed: Dictionary) -> void:
 		unlocked.append("guardian")
 	_ensure_mastery_defaults()
 	_ensure_goal_defaults()
+
+
+func _clear_static_inventory_if_needed(data: Dictionary) -> void:
+	if bool(data.get("inventory_static_items_cleared", false)):
+		return  # already done — idempotent
+	var inv: Dictionary = data.get("inventory_by_hero", {})
+	var eq: Dictionary = data.get("equipped_by_hero", {})
+	var leg: Dictionary = data.get("equipment_by_hero", {})
+	for hid in DEFAULT_HERO_IDS:
+		inv[hid] = []
+		eq[hid] = {}
+		if leg.has(hid):
+			var hero_leg: Dictionary = leg[hid]
+			for k in hero_leg.keys():
+				hero_leg[k] = 0
+			leg[hid] = hero_leg
+	data["inventory_by_hero"] = inv
+	data["equipped_by_hero"] = eq
+	data["equipment_by_hero"] = leg
+	data["inventory_static_items_cleared"] = true
 
 
 func _get_default_training_by_hero() -> Dictionary:
@@ -1099,6 +1125,27 @@ func equip_inventory_item(hero_id: String, instance_id: String, slot_id: String)
 	_data["equipped_by_hero"] = equipped_by_hero
 	inventory_changed.emit(resolved)
 	equipment_changed.emit(resolved, slot_id, instance_id)
+	save_progress()
+	return true
+
+
+func can_unequip_slot(hero_id: String, slot_id: String) -> bool:
+	var resolved := _resolve_hero_id(hero_id)
+	var instance_id := get_equipped_instance_id_for_slot(resolved, slot_id)
+	return not instance_id.is_empty()
+
+
+func unequip_slot(hero_id: String, slot_id: String) -> bool:
+	var resolved := _resolve_hero_id(hero_id)
+	if not can_unequip_slot(resolved, slot_id):
+		return false
+	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
+	var equipped: Dictionary = equipped_by_hero.get(resolved, {}) if equipped_by_hero.get(resolved, {}) is Dictionary else {}
+	equipped.erase(slot_id)
+	equipped_by_hero[resolved] = equipped
+	_data["equipped_by_hero"] = equipped_by_hero
+	equipment_changed.emit(resolved, slot_id, "")
+	inventory_changed.emit(resolved)
 	save_progress()
 	return true
 

@@ -758,6 +758,18 @@ The equipment panel hero preview updates from the hero id resolved by Main when 
 
 Supported equipment bonuses are applied at run start for the selected hero only through `MetaApplier`, after hero stats and alongside Training: max health, move speed, XP gain, attack damage, ability damage, ability cooldown reduction, Tactical Mark damage, Rage gain, and starting shield charges. Future-facing stat ids remain aggregated/debuggable but are ignored by gameplay until a safe system exists for them.
 
+### Training Equipment Polish / Inventory Reset
+
+- Hero dropdown (OptionButton) in the Training nav row selects the active hero for both Equipment and Training tabs
+- Static starter inventory items cleared on load via migration flag `inventory_static_items_cleared` (idempotent — runs once per save)
+- Equipped slots are now clickable: clicking a slot panel opens a popup showing item name, level, stat bonus, and description
+- Popup has an Unequip button that moves the item back to inventory without deleting it; empty slots show Unequip disabled
+- Empty equipped_by_hero is a valid state — runs start normally with zero gear equipped and zero equipment modifiers
+- Inventory grid remains 5 columns (72 px cells)
+- Equipped Gear panel is wider (580 px min) and Inventory panel is narrower (410 px min) for a tighter fit
+- Save version incremented to 6; old saves are migrated automatically
+- No gacha, random loot, item drops, affixes, crafting, or fusion
+
 ### Inventory Filters & Sorting
 
 - Filter by slot: All / Core / Suit / Emblem / Gauntlets / Boots / Artifact

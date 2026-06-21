@@ -5,6 +5,32 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Training Equipment Polish / Inventory Reset
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training screen | Hero dropdown visible in the nav row between Training tab and spacer |
+| 2 | Hero dropdown items | Lists all available heroes (Solar Guardian, Night Tactician, Fury Vanguard) |
+| 3 | Switch hero via dropdown | Equipment and Training tabs refresh for the new hero; currency label stays |
+| 4 | Switch hero while on Training tab | Active tab stays Training; hero label in training updates |
+| 5 | Inventory grid after migration | All cells show Empty (no items populated) |
+| 6 | Equipped slots after migration | All six slots show "Equipment" / no item name / Level 0/0 |
+| 7 | Equipment stat modifiers with no gear | Run starts normally; no crash; all equipment modifiers zero |
+| 8 | Click an empty equipped slot | Popup opens; title shows slot name; detail says "No item equipped in this slot."; Unequip button disabled |
+| 9 | Manually equip an item, then click its slot | Popup opens; shows item name, level, stat bonus; Unequip enabled |
+| 10 | Click Unequip in popup | Popup closes; slot shows empty state; inventory grid shows item as unequipped |
+| 11 | After Unequip — item in inventory | Inventory grid still shows the item cell (item not deleted, just unequipped) |
+| 12 | Inventory grid column count | Always 5 columns |
+| 13 | Equipped Gear panel width | Wider than before (580 px minimum) |
+| 14 | Inventory panel width | Narrower than before (410 px minimum); no large empty gap after last column |
+| 15 | Start run with no gear equipped | Arena loads; no crash; equipment modifiers are all 0 in DebugStatsOverlay |
+| 16 | Training upgrades with no gear | Buy/upgrade buttons work normally; no interference |
+| 17 | Currency label updates | Reflects current currency in nav row after any purchase |
+| 18 | Main Menu button | Works from both Equipment and Training tabs |
+| 19 | No gacha / loot / drops / affixes | Nothing in UI suggests random loot, item drops, gacha pulls, or crafting |
+
+---
+
 ## Debug Mode
 
 | # | Test | Expected |

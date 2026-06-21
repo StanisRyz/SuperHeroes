@@ -15,7 +15,6 @@ var _heroes: Array[Dictionary] = []
 var _currency_label: Label
 var _goals_label: Label
 var _back_button: Button
-var _hero_selector: HBoxContainer
 var _equipment_tab_button: Button
 var _training_tab_button: Button
 var _equipment_content: Control
@@ -23,7 +22,15 @@ var _training_content: Control
 var _list_vbox: VBoxContainer
 
 var _rows: Array[Dictionary] = []
-var _hero_buttons: Dictionary = {}
+var _hero_dropdown: OptionButton
+
+# Equipped slot popup
+var _slot_popup: PopupPanel
+var _slot_popup_slot_id: String = ""
+var _slot_popup_title_label: Label
+var _slot_popup_detail_label: Label
+var _slot_popup_unequip_button: Button
+var _slot_popup_close_button: Button
 
 # Equipment panel references
 var _equip_hero_name_label: Label
@@ -79,6 +86,7 @@ func open(hero_id: String = "") -> void:
 	set_selected_hero(hero_id)
 	_active_tab = "equipment"
 	refresh()
+	_rebuild_hero_dropdown()
 	show()
 	if _equipment_tab_button != null:
 		_equipment_tab_button.grab_focus()
@@ -101,6 +109,7 @@ func refresh() -> void:
 	_refresh_equipment_panel()
 	_refresh_inventory_shell()
 	_update_tab_state()
+	_rebuild_hero_dropdown()
 
 
 func set_selected_hero(hero_id: String) -> void:
@@ -154,6 +163,18 @@ func _build_ui() -> void:
 	_training_tab_button.pressed.connect(_set_active_tab.bind("training"))
 	nav.add_child(_training_tab_button)
 
+	var hero_label := Label.new()
+	hero_label.text = "  Hero:"
+	hero_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hero_label.add_theme_font_size_override("font_size", 13)
+	nav.add_child(hero_label)
+
+	_hero_dropdown = OptionButton.new()
+	_hero_dropdown.custom_minimum_size = Vector2(180, 42)
+	_hero_dropdown.add_theme_font_size_override("font_size", 13)
+	_hero_dropdown.item_selected.connect(_on_hero_dropdown_changed)
+	nav.add_child(_hero_dropdown)
+
 	var nav_spacer := Control.new()
 	nav_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nav.add_child(nav_spacer)
@@ -190,6 +211,7 @@ func _build_ui() -> void:
 	_training_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.add_child(_training_content)
 
+	_build_slot_popup()
 	_update_tab_state()
 
 func _build_training_panel() -> Control:
@@ -231,7 +253,7 @@ func _build_equipment_panel() -> Control:
 	scroll.add_child(content_row)
 
 	var equipped_panel := PanelContainer.new()
-	equipped_panel.custom_minimum_size = Vector2(430, 0)
+	equipped_panel.custom_minimum_size = Vector2(580, 0)
 	equipped_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_row.add_child(equipped_panel)
 
@@ -320,7 +342,7 @@ func _build_equipment_panel() -> Control:
 	equipped_vbox.add_child(note)
 
 	var inventory_panel := _build_inventory_panel()
-	inventory_panel.custom_minimum_size = Vector2(470, 0)
+	inventory_panel.custom_minimum_size = Vector2(410, 0)
 	inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_row.add_child(inventory_panel)
 
@@ -1349,40 +1371,162 @@ func _reload_heroes() -> void:
 			{"id": "blaster", "display_name": "Blaster"},
 			{"id": "vanguard", "display_name": "Vanguard"},
 		]
-	_rebuild_hero_selector()
+	_rebuild_hero_dropdown()
 
 
-func _rebuild_hero_selector() -> void:
-	if _hero_selector == null:
+func _rebuild_hero_dropdown() -> void:
+	if _hero_dropdown == null:
 		return
-	for child in _hero_selector.get_children():
-		child.queue_free()
-	_hero_buttons.clear()
-	for hero in _heroes:
-		var hero_id := str(hero.get("id", ""))
-		if hero_id.is_empty():
-			continue
-		var button := Button.new()
-		button.text = str(hero.get("display_name", hero_id.capitalize()))
-		button.custom_minimum_size = Vector2(150, 42)
-		button.pressed.connect(_on_hero_button_pressed.bind(hero_id))
-		_hero_selector.add_child(button)
-		_hero_buttons[hero_id] = button
-	_update_hero_buttons()
+	# Disconnect signal temporarily to avoid triggering selection during rebuild
+	if _hero_dropdown.item_selected.is_connected(_on_hero_dropdown_changed):
+		_hero_dropdown.item_selected.disconnect(_on_hero_dropdown_changed)
+	_hero_dropdown.clear()
+	for i in range(_heroes.size()):
+		var hero: Dictionary = _heroes[i]
+		var hero_display_name := str(hero.get("display_name", str(hero.get("id", "Hero %d" % i))))
+		_hero_dropdown.add_item(hero_display_name)
+	# Select current hero
+	for i in range(_heroes.size()):
+		var hero: Dictionary = _heroes[i]
+		if str(hero.get("id", "")) == _selected_hero_id:
+			_hero_dropdown.select(i)
+			break
+	if not _hero_dropdown.item_selected.is_connected(_on_hero_dropdown_changed):
+		_hero_dropdown.item_selected.connect(_on_hero_dropdown_changed)
 
 
-func _update_hero_buttons() -> void:
-	for hero_id in _hero_buttons:
-		var button := _hero_buttons[hero_id] as Button
-		if button == null:
-			continue
-		var selected: bool = hero_id == _selected_hero_id
-		button.disabled = selected
-		button.modulate = UIStateColors.positive_color() if selected else Color.WHITE
-
-
-func _on_hero_button_pressed(hero_id: String) -> void:
+func _on_hero_dropdown_changed(index: int) -> void:
+	if index < 0 or index >= _heroes.size():
+		return
+	var hero: Dictionary = _heroes[index]
+	var hero_id := str(hero.get("id", ""))
+	if hero_id.is_empty():
+		return
 	set_selected_hero(hero_id)
+
+
+# ─── Slot popup ───────────────────────────────────────────────────────────────
+
+func _build_slot_popup() -> void:
+	_slot_popup = PopupPanel.new()
+	_slot_popup.min_size = Vector2i(340, 260)
+	add_child(_slot_popup)
+
+	var popup_margin := MarginContainer.new()
+	popup_margin.add_theme_constant_override("margin_left", 16)
+	popup_margin.add_theme_constant_override("margin_right", 16)
+	popup_margin.add_theme_constant_override("margin_top", 12)
+	popup_margin.add_theme_constant_override("margin_bottom", 12)
+	_slot_popup.add_child(popup_margin)
+
+	var popup_inner := VBoxContainer.new()
+	popup_inner.add_theme_constant_override("separation", 6)
+	popup_margin.add_child(popup_inner)
+
+	_slot_popup_title_label = Label.new()
+	_slot_popup_title_label.add_theme_font_size_override("font_size", 15)
+	popup_inner.add_child(_slot_popup_title_label)
+
+	popup_inner.add_child(HSeparator.new())
+
+	_slot_popup_detail_label = Label.new()
+	_slot_popup_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_slot_popup_detail_label.add_theme_font_size_override("font_size", 12)
+	popup_inner.add_child(_slot_popup_detail_label)
+
+	var popup_buttons := HBoxContainer.new()
+	popup_buttons.add_theme_constant_override("separation", 8)
+	popup_inner.add_child(popup_buttons)
+
+	_slot_popup_unequip_button = Button.new()
+	_slot_popup_unequip_button.text = "Unequip"
+	_slot_popup_unequip_button.custom_minimum_size = Vector2(100, 36)
+	_slot_popup_unequip_button.pressed.connect(_on_slot_popup_unequip_pressed)
+	popup_buttons.add_child(_slot_popup_unequip_button)
+
+	_slot_popup_close_button = Button.new()
+	_slot_popup_close_button.text = "Close"
+	_slot_popup_close_button.custom_minimum_size = Vector2(80, 36)
+	_slot_popup_close_button.pressed.connect(_on_slot_popup_close_pressed)
+	popup_buttons.add_child(_slot_popup_close_button)
+
+
+func _on_equipped_slot_pressed(slot_id: String) -> void:
+	_slot_popup_slot_id = slot_id
+	_update_slot_popup_content(slot_id)
+	_slot_popup.popup_centered()
+
+
+func _update_slot_popup_content(slot_id: String) -> void:
+	if _slot_popup_title_label == null:
+		return
+	var slot_display := _format_slot_name(slot_id)
+	_slot_popup_title_label.text = "Slot: %s" % slot_display
+
+	if _meta_manager == null:
+		_slot_popup_detail_label.text = "No data available."
+		if _slot_popup_unequip_button != null:
+			_slot_popup_unequip_button.disabled = true
+		return
+
+	var instance_id := ""
+	if _meta_manager.has_method("get_equipped_instance_id_for_slot"):
+		instance_id = str(_meta_manager.get_equipped_instance_id_for_slot(_selected_hero_id, slot_id))
+
+	if instance_id.is_empty():
+		_slot_popup_detail_label.text = "No item equipped in this slot."
+		if _slot_popup_unequip_button != null:
+			_slot_popup_unequip_button.disabled = true
+		return
+
+	var item: Dictionary = {}
+	if _meta_manager.has_method("get_inventory_item"):
+		item = _meta_manager.get_inventory_item(_selected_hero_id, instance_id)
+	if item.is_empty():
+		_slot_popup_detail_label.text = "No item equipped in this slot."
+		if _slot_popup_unequip_button != null:
+			_slot_popup_unequip_button.disabled = true
+		return
+
+	var display_name := _get_item_display_name(instance_id)
+	var level := int(item.get("level", 0))
+	var max_level_val := 0
+	if _meta_manager.has_method("get_inventory_item_max_level"):
+		max_level_val = int(_meta_manager.get_inventory_item_max_level(_selected_hero_id, instance_id))
+	var stat_info := _get_item_stat_info(instance_id)
+	var stat_str := _format_stat_line(stat_info)
+	var tmpl := _get_item_template_for_instance(instance_id)
+	var desc := str(tmpl.get("description", ""))
+
+	var lines := PackedStringArray()
+	lines.append(display_name)
+	lines.append("Level: %d / %d" % [level, max_level_val])
+	lines.append("Status: EQUIPPED")
+	if not stat_str.is_empty():
+		lines.append("")
+		lines.append(stat_str)
+	if not desc.is_empty():
+		lines.append("")
+		lines.append(desc)
+	_slot_popup_detail_label.text = "\n".join(lines)
+
+	if _slot_popup_unequip_button != null:
+		_slot_popup_unequip_button.disabled = false
+
+
+func _on_slot_popup_unequip_pressed() -> void:
+	if _slot_popup_slot_id.is_empty() or _meta_manager == null:
+		return
+	if not _meta_manager.has_method("unequip_slot"):
+		return
+	_meta_manager.unequip_slot(_selected_hero_id, _slot_popup_slot_id)
+	if _slot_popup != null:
+		_slot_popup.hide()
+
+
+func _on_slot_popup_close_pressed() -> void:
+	if _slot_popup != null:
+		_slot_popup.hide()
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1582,7 +1726,7 @@ func _on_equipment_slot_panel_clicked(event: InputEvent, slot_id: String) -> voi
 	var mb := event as InputEventMouseButton
 	if mb.button_index != MOUSE_BUTTON_LEFT or not mb.pressed:
 		return
-	_select_inventory_item_for_slot(slot_id)
+	_on_equipped_slot_pressed(slot_id)
 
 
 func _select_inventory_item_for_slot(slot_id: String) -> void:
@@ -1605,10 +1749,12 @@ func _on_inventory_changed(hero_id: String) -> void:
 		_refresh_inventory_shell()
 
 
-func _on_equipment_slot_changed(hero_id: String, _slot_id: String, _instance_id: String) -> void:
+func _on_equipment_slot_changed(hero_id: String, slot_id: String, _instance_id: String) -> void:
 	if visible and hero_id == _selected_hero_id:
 		_update_equipment_slots()
 		_refresh_inventory_shell()
+		if _slot_popup != null and _slot_popup.visible and _slot_popup_slot_id == slot_id:
+			_update_slot_popup_content(slot_id)
 
 
 func _on_inventory_item_upgraded(hero_id: String, _instance_id: String, _level: int) -> void:
