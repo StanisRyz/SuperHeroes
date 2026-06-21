@@ -1898,16 +1898,19 @@ Current patch validation:
 | 9 | Tab switching | Switching Equipment/Training tabs does not reset the selected hero or currency |
 | 10 | Scope exclusions | No gacha, item drops, random item generation, full swapping, combat, rewards, stages, enemies, boss flow, or 4/4/4 rules changed |
 
-Previous two-panel baseline kept below for historical comparison:
+Equipment / Inventory horizontal layout validation:
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Main Menu → Training | MetaUpgradeShop opens showing a two-panel layout |
-| 2 | Left panel | "Equipment" title visible; 6 slot placeholders visible (Core, Suit, Emblem, Gauntlets, Boots, Artifact) |
-| 3 | Right panel | "Training Upgrades" title visible; existing upgrade rows present and scrollable |
-| 4 | Header | Title "Training", currency label, hero selector buttons, goals label all present above panels |
-| 5 | Footer | "Back" button present and accessible |
-| 6 | Layout fits screen | Both panels visible in landscape at 16:9 without cutting off the Back button |
+| 1 | Open Training | Equipment tab is active by default |
+| 2 | Inspect Equipment tab layout | Equipped Gear panel is on the left and Inventory panel is on the right on the same horizontal line |
+| 3 | Inspect Equipped Gear panel | Hero preview and all 6 equipped slots remain visible with level, stat bonus, and existing upgrade buttons |
+| 4 | Inspect Inventory panel | Inventory uses square grid cells, not a vertical list |
+| 5 | Count inventory states | Occupied preview cells and empty muted cells are both visible, with at least 20 total cells |
+| 6 | Click occupied inventory cell | Details show item name, slot, level/max, current bonus, next bonus, and Swap coming next |
+| 7 | Click empty inventory cell | Details show Empty inventory slot and Swap coming next |
+| 8 | Regression | Training tab, equipment purchases, Training purchases, currency refresh, Main Menu button, and ESC/ui_cancel still work |
+
 
 ### Equipment Panel — Fixed Equipment Upgrades
 

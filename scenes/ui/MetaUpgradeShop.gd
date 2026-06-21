@@ -10,7 +10,7 @@ var _meta_manager: Node
 var _hero_data_provider: Node
 var _selected_hero_id: String = ""
 var _active_tab: String = "equipment"
-var _selected_inventory_equipment_id: String = ""
+var _selected_inventory_cell_index: int = 0
 var _heroes: Array[Dictionary] = []
 var _currency_label: Label
 var _goals_label: Label
@@ -31,7 +31,7 @@ var _equip_hero_subtitle_label: Label
 var _equip_hero_swatch: ColorRect
 var _equip_hero_status_label: Label
 var _equipment_slot_rows: Dictionary = {}
-var _inventory_list_vbox: VBoxContainer
+var _inventory_grid: GridContainer
 var _inventory_detail_label: Label
 var _inventory_buttons: Dictionary = {}
 var _training_hero_label: Label
@@ -212,21 +212,31 @@ func _build_equipment_panel() -> Control:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var outer_vbox := VBoxContainer.new()
-	outer_vbox.add_theme_constant_override("separation", 8)
-	outer_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(outer_vbox)
+	var content_row := HBoxContainer.new()
+	content_row.add_theme_constant_override("separation", 12)
+	content_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content_row)
+
+	var equipped_panel := PanelContainer.new()
+	equipped_panel.custom_minimum_size = Vector2(430, 0)
+	equipped_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_row.add_child(equipped_panel)
+
+	var equipped_vbox := VBoxContainer.new()
+	equipped_vbox.add_theme_constant_override("separation", 8)
+	equipped_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equipped_panel.add_child(equipped_vbox)
 
 	var section_title := Label.new()
-	section_title.text = "Equipment"
+	section_title.text = "Equipped Gear"
 	section_title.add_theme_font_size_override("font_size", 16)
 	section_title.modulate = Color(0.7, 0.85, 1.0, 1.0)
-	outer_vbox.add_child(section_title)
+	equipped_vbox.add_child(section_title)
 
 	# ── hero preview ──────────────────────────────────────────────────────────
 	var hero_panel := PanelContainer.new()
 	hero_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outer_vbox.add_child(hero_panel)
+	equipped_vbox.add_child(hero_panel)
 
 	var hero_vbox := VBoxContainer.new()
 	hero_vbox.add_theme_constant_override("separation", 4)
@@ -265,7 +275,7 @@ func _build_equipment_panel() -> Control:
 	var slot_hbox := HBoxContainer.new()
 	slot_hbox.add_theme_constant_override("separation", 8)
 	slot_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outer_vbox.add_child(slot_hbox)
+	equipped_vbox.add_child(slot_hbox)
 
 	var left_col := VBoxContainer.new()
 	left_col.add_theme_constant_override("separation", 6)
@@ -294,9 +304,12 @@ func _build_equipment_panel() -> Control:
 	note.modulate = Color(0.55, 0.6, 0.65, 1.0)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	outer_vbox.add_child(note)
+	equipped_vbox.add_child(note)
 
-	outer_vbox.add_child(_build_inventory_panel())
+	var inventory_panel := _build_inventory_panel()
+	inventory_panel.custom_minimum_size = Vector2(470, 0)
+	inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_row.add_child(inventory_panel)
 
 	return scroll
 
@@ -332,23 +345,15 @@ func _build_inventory_panel() -> Control:
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(note)
 
-	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 10)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(body)
 
-	var list_scroll := ScrollContainer.new()
-	list_scroll.custom_minimum_size = Vector2(330, 150)
-	list_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(list_scroll)
-
-	_inventory_list_vbox = VBoxContainer.new()
-	_inventory_list_vbox.add_theme_constant_override("separation", 6)
-	_inventory_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list_scroll.add_child(_inventory_list_vbox)
+	body.add_child(_build_inventory_grid())
 
 	_inventory_detail_label = Label.new()
-	_inventory_detail_label.custom_minimum_size = Vector2(260, 150)
+	_inventory_detail_label.custom_minimum_size = Vector2(0, 110)
 	_inventory_detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_inventory_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_inventory_detail_label.add_theme_font_size_override("font_size", 11)
@@ -434,101 +439,136 @@ func _refresh_equipment_panel() -> void:
 		_update_equipment_slots()
 
 
-func _refresh_inventory_shell() -> void:
-	if _inventory_list_vbox == null:
-		return
+func _build_inventory_grid() -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 250)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	_inventory_grid = GridContainer.new()
+	_inventory_grid.columns = 5
+	_inventory_grid.add_theme_constant_override("h_separation", 6)
+	_inventory_grid.add_theme_constant_override("v_separation", 6)
+	_inventory_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_inventory_grid)
+	return scroll
+
+
+func _get_inventory_cell_data() -> Array[Dictionary]:
+	var cells: Array[Dictionary] = []
 	var defs: Array = _meta_manager.get_equipment_definitions(_selected_hero_id) if _meta_manager != null and _meta_manager.has_method("get_equipment_definitions") else []
-	for child in _inventory_list_vbox.get_children():
-		child.queue_free()
-	_inventory_buttons.clear()
-
-	if defs.is_empty():
-		for i in range(6):
-			_inventory_list_vbox.add_child(_build_empty_inventory_slot(i + 1))
-		_update_inventory_detail({})
-		return
-
-	var has_selected := false
 	for def in defs:
 		if not def is Dictionary:
 			continue
 		var equipment_id := str(def.get("equipment_id", ""))
 		if equipment_id.is_empty():
 			continue
-		if _selected_inventory_equipment_id == equipment_id:
-			has_selected = true
-		var button := _build_inventory_card(def)
-		_inventory_list_vbox.add_child(button)
-		_inventory_buttons[equipment_id] = button
-	if not has_selected:
-		_selected_inventory_equipment_id = str((defs[0] as Dictionary).get("equipment_id", ""))
-	_update_inventory_selection()
+		var level := _get_equipment_level(equipment_id)
+		cells.append({
+			"occupied": true,
+			"equipment_id": equipment_id,
+			"definition": def,
+			"level": level,
+			"max_level": int(def.get("max_level", 0)),
+		})
+	while cells.size() < 20:
+		cells.append({"occupied": false})
+	return cells
 
 
-func _build_empty_inventory_slot(index: int) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var label := Label.new()
-	label.text = "Empty Slot %d" % index
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 11)
-	label.modulate = Color(0.55, 0.6, 0.66, 1.0)
-	panel.add_child(label)
-	return panel
+func _refresh_inventory_shell() -> void:
+	_refresh_inventory_grid()
 
 
-func _build_inventory_card(def: Dictionary) -> Button:
-	var equipment_id := str(def.get("equipment_id", ""))
-	var level := _get_equipment_level(equipment_id)
-	var max_level := int(def.get("max_level", 0))
+func _refresh_inventory_grid() -> void:
+	if _inventory_grid == null:
+		return
+	for child in _inventory_grid.get_children():
+		child.queue_free()
+	_inventory_buttons.clear()
+
+	var cells := _get_inventory_cell_data()
+	if _selected_inventory_cell_index < 0 or _selected_inventory_cell_index >= cells.size():
+		_selected_inventory_cell_index = 0
+	for i in range(cells.size()):
+		var cell := _build_inventory_cell(cells[i], i)
+		_inventory_grid.add_child(cell)
+		_inventory_buttons[i] = cell
+	_select_inventory_cell(_selected_inventory_cell_index)
+
+
+func _build_inventory_cell(cell_data: Dictionary, index: int) -> Control:
 	var button := Button.new()
-	button.text = "%s  |  %s  |  Lv %d/%d" % [
-		str(def.get("display_name", "Equipment")),
-		str(def.get("slot_name", "Slot")),
-		level,
-		max_level,
-	]
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.custom_minimum_size = Vector2(0, 34)
-	button.pressed.connect(_on_inventory_item_pressed.bind(equipment_id))
+	button.custom_minimum_size = Vector2(72, 72)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.add_theme_font_size_override("font_size", 9)
+	button.clip_text = true
+	button.pressed.connect(_select_inventory_cell.bind(index))
+	if bool(cell_data.get("occupied", false)):
+		var def: Dictionary = cell_data.get("definition", {})
+		button.text = "%s\n%s\nLv %d/%d" % [
+			_get_short_item_name(str(def.get("display_name", "Item"))),
+			str(def.get("slot_name", "")),
+			int(cell_data.get("level", 0)),
+			int(cell_data.get("max_level", 0)),
+		]
+	else:
+		button.text = "+\nEmpty"
+		button.modulate = Color(0.48, 0.52, 0.58, 1.0)
 	return button
 
 
-func _on_inventory_item_pressed(equipment_id: String) -> void:
-	_selected_inventory_equipment_id = equipment_id
-	_update_inventory_selection()
-
-
-func _update_inventory_selection() -> void:
-	var selected_def := {}
-	for equipment_id in _inventory_buttons:
-		var button := _inventory_buttons[equipment_id] as Button
+func _select_inventory_cell(index: int) -> void:
+	var cells := _get_inventory_cell_data()
+	if cells.is_empty():
+		_update_inventory_detail({})
+		return
+	_selected_inventory_cell_index = clampi(index, 0, cells.size() - 1)
+	for cell_index in _inventory_buttons:
+		var button := _inventory_buttons[cell_index] as Button
 		if button == null:
 			continue
-		var selected: bool = str(equipment_id) == _selected_inventory_equipment_id
-		button.modulate = UIStateColors.positive_color() if selected else Color.WHITE
+		var selected: bool = int(cell_index) == _selected_inventory_cell_index
+		var data: Dictionary = cells[int(cell_index)]
 		if selected:
-			selected_def = _get_equipment_definition(str(equipment_id))
-	_update_inventory_detail(selected_def)
+			button.modulate = UIStateColors.positive_color()
+		elif bool(data.get("occupied", false)):
+			button.modulate = Color.WHITE
+		else:
+			button.modulate = Color(0.48, 0.52, 0.58, 1.0)
+	_update_inventory_detail(cells[_selected_inventory_cell_index])
 
 
-func _update_inventory_detail(def: Dictionary) -> void:
+func _update_inventory_detail(cell_data: Dictionary) -> void:
 	if _inventory_detail_label == null:
 		return
-	if def.is_empty():
-		_inventory_detail_label.text = "No inventory data yet.\nEmpty slots reserve space for future owned gear."
+	if cell_data.is_empty() or not bool(cell_data.get("occupied", false)):
+		_inventory_detail_label.text = "Empty inventory slot\n\nReserved for future gear drops or owned items.\nSwap coming next."
 		return
+	var def: Dictionary = cell_data.get("definition", {})
 	var equipment_id := str(def.get("equipment_id", ""))
 	var level := _get_equipment_level(equipment_id)
-	_inventory_detail_label.text = "%s\n%s\nLevel %d / %d\n%s\nCurrent: %s\nNext: %s\n\nSwap coming next." % [
+	_inventory_detail_label.text = "%s\nSlot: %s\nLevel %d / %d\n%s\nCurrent: %s\nNext: %s\n\nSwap coming next." % [
 		str(def.get("display_name", "Equipment")),
-		str(def.get("description", "")),
+		str(def.get("slot_name", "")),
 		level,
 		int(def.get("max_level", 0)),
 		_format_equipment_bonus(def),
 		_format_equipment_total_bonus(def, level),
 		_format_equipment_total_bonus(def, level + 1) if level < int(def.get("max_level", 0)) else "MAX",
 	]
+
+
+func _get_short_item_name(display_name: String) -> String:
+	var words := display_name.split(" ", false)
+	if words.size() <= 1:
+		return display_name.substr(0, 10)
+	var initials := ""
+	for word in words:
+		if word.length() > 0:
+			initials += word.substr(0, 1)
+	return initials.to_upper()
 
 
 func _get_selected_hero_data() -> Dictionary:

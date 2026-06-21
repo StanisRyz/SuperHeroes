@@ -710,17 +710,12 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 
 The screen now has these tabs:
 
-- **Equipment tab**: Shows the selected hero preview, the existing six fixed equipment slots, and a read-only Inventory shell. The fixed slots remain Core, Suit, Emblem, Gauntlets, Boots, and Artifact.
-- **Inventory shell**: Shows a placeholder inventory section backed by existing equipped/fixed equipment entries and a details panel. The disabled action reads `Swap coming next`; no item ownership, drops, gacha, random generation, or full swapping is implemented.
+- **Equipment tab**: Uses a horizontal layout. The left panel is Equipped Gear with selected hero preview, Core, Suit, Emblem, Gauntlets, Boots, Artifact, levels, stat bonuses, and existing upgrade buttons. The right panel is Inventory.
+- **Inventory grid**: Shows at least 20 square cells. Current fixed/equipped items appear as occupied preview cells, and remaining cells appear as empty muted squares. Clicking any cell updates the compact details label; `Swap coming next` remains disabled/read-only.
 - **Training tab**: Shows the existing scrollable Training upgrades list with buy buttons, level display, currency gating, max state, and per-hero levels unchanged.
 
 The Training screen (`MetaUpgradeShop`) is now a tabbed character progression screen. The large top Training HUD was compacted into a persistent navigation row with **Equipment**, **Training**, a small currency label, and an always-visible **Main Menu** button. `ui_cancel` / Escape still closes the screen through Main's existing safe back flow.
 
-- **Left panel — Character Equipment preview**: Shows the selected hero's display name, subtitle/playstyle, and a color accent strip. Six fixed equipment slots are laid out around the hero preview:
-  - Left column: Core, Suit, Emblem
-  - Center: hero portrait area (name + subtitle)
-  - Right column: Gauntlets, Boots, Artifact
-- **Right panel — Training Upgrades**: The existing scrollable list of Training upgrades with buy buttons, level display, and currency gating. Behavior is identical to the previous single-panel layout.
 - **Navigation row**: Equipment tab, Training tab, compact currency, and Main Menu button remain visible above tab content.
 
 Current behavior: the visible hero selector buttons and the large standalone Training title are removed from this screen; selected hero context is shown inside tab content, and the top row stays compact.
