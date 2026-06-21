@@ -1629,3 +1629,80 @@ Main Inventory panel (right side of Equipment tab) is now clean: header row show
 - Dismantle button disabled with muted color when item is locked or equipped.
 
 Capacity label shows `(X / 60)` and turns warning color when over capacity. The equipped slot popup (for clicking filled equipment slots on the left panel) remains a separate `PopupPanel` and is not mixed with the item action popup.
+
+## Loadout Power Summary + Item Power
+
+A lightweight UI-only power score system that helps players compare items and evaluate their loadout. Power does not affect gameplay, combat stats, rewards, or economy in any way.
+
+### Item Power
+
+Every equipped or inventory item has an **Item Power** score shown in the item action popup and the equipped slot popup.
+
+- Item Power is derived from the item's actual stat contribution: `stat_bonus_per_level × level × stat_weight`.
+- Rarity is **not** a direct power factor. A common item with higher stats can have more power than a mythic item with lower stats.
+- Stat weights are UI-only tuning constants. They do not feed into any gameplay formula.
+- At level 0, Item Power is 0 (no stat contribution yet).
+
+**Stat Power Weight Table:**
+
+| Stat | Weight | Rationale |
+|------|--------|-----------|
+| `attack_damage` | 10 | Flat value |
+| `ability_damage` | 1000 | Decimal (percent-style) |
+| `ability_cooldown` | 1000 | Decimal |
+| `xp_gain` | 600 | Decimal |
+| `max_health` | 2 | Flat value |
+| `move_speed` | 4 | Flat value |
+| `shield_capacity` | 25 | Flat value |
+| `low_health_damage` | 900 | Decimal |
+| `mark_damage` | 900 | Decimal |
+| `support_damage` | 900 | Decimal |
+| `rage_gain` | 800 | Decimal |
+| `impact_damage` | 800 | Decimal |
+| `knockback_resist` | 500 | Decimal |
+
+### Loadout Power Score
+
+**Loadout Power = sum of Item Power for all equipped slots + Set Bonus Power**
+
+Set Bonus Power is calculated from active set bonus modifier values using the same stat weight table.
+
+### Loadout Summary Popup
+
+A compact **"Loadout"** button appears in the Equipped Gear panel header. Clicking it opens the **Loadout Summary** popup — a popup-only view, never a permanent on-screen panel.
+
+**Popup contents:**
+- Loadout Power (total score)
+- Equipment: N / 6 slots equipped
+- Empty Slots: names of unfilled slots (or "none")
+- Total Stats: all active stat modifiers from equipped items + active set bonuses
+- Active Sets: set names and piece counts
+- Strongest Item: name, slot, level, power (highest power among equipped)
+- Weakest Item: name, slot, level, power (lowest power among equipped)
+- Set Bonus Power
+
+When no equipment is equipped the popup shows Power 0, 0 / 6 slots, all empty slots, and "none" for stats/sets/items.
+
+### MetaProgressionManager Power API
+
+- `get_inventory_item_power(instance_id) -> int`
+- `get_inventory_item_power_details(instance_id) -> Dictionary` — power, stat_type, stat_total, per_level, level, weight
+- `get_set_bonus_power() -> int`
+- `get_set_bonus_power_details() -> Array[Dictionary]`
+- `get_loadout_power_score() -> int`
+- `get_loadout_summary() -> Dictionary` — power_score, equipped_count, slot_count, empty_slots, highest_item, lowest_item, item_powers, stat_modifiers, active_sets, set_bonus_power
+- `get_loadout_stat_summary() -> Dictionary`
+- `get_loadout_slot_summary() -> Dictionary`
+- `get_loadout_set_summary() -> Array[Dictionary]`
+- `debug_get_loadout_summary() -> Dictionary`
+- `debug_get_item_power_summary() -> Array[Dictionary]`
+
+### EquipmentFormat Addition
+
+- `power_text(value: int) -> String` — returns `"Power: N"`
+
+### Rules
+
+- Power is UI-only. It does not affect combat stats, hero kits, evolutions, upgrade costs, dismantle rewards, item reward chances, set bonus values, or any in-run mechanic.
+- Rarity has no direct role in the power formula. Visual rarity display is unchanged.
+- No economy, reward, stage, or gameplay changes were added in this patch.

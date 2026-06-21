@@ -1690,6 +1690,76 @@ Do not add arena hazards in this project. Disruptor, Exploder, and Support creat
 - The 4 passive slot limit still applies: a new passive line consumes a Passive slot, while already selected passive lines can continue leveling after Passive slots are full.
 - This pack does not add Night/Fury 9 attack grids, Night/Fury 9 active grids, new EvolutionManager behavior, Overdrive UI, evolved active skills, rewards, saves, meta economy, enemies, stages, boss flow, hero kits, primary weapons, or 4/4/4 slot-limit changes.
 
+## Loadout Power Summary + Item Power Architecture
+
+### Power Formula Rule
+
+`item_power = max(round(stat_bonus_per_level × level × weight), 0)`
+
+- Rarity has **no role** in the power formula. A common item with higher stats beats a mythic with lower stats.
+- Level-0 items have power 0 (no stat contribution yet).
+- Weights are UI-only tuning constants stored in `MetaProgressionManager.STAT_POWER_WEIGHTS`. They do not feed into any gameplay formula.
+- Set bonus power uses the same weight table applied to the active modifier values.
+
+### Stat Power Weights
+
+| Stat | Weight | Rationale |
+|------|--------|-----------|
+| `attack_damage` | 10 | Flat |
+| `ability_damage` | 1000 | Decimal (percent-style) |
+| `ability_cooldown` | 1000 | Decimal |
+| `xp_gain` | 600 | Decimal |
+| `max_health` | 2 | Flat |
+| `move_speed` | 4 | Flat |
+| `shield_capacity` | 25 | Flat |
+| `low_health_damage` | 900 | Decimal |
+| `mark_damage` | 900 | Decimal |
+| `support_damage` | 900 | Decimal |
+| `rage_gain` | 800 | Decimal |
+| `impact_damage` | 800 | Decimal |
+| `knockback_resist` | 500 | Decimal |
+
+### Loadout Power Score
+
+`loadout_power = Σ(equipped item powers) + set_bonus_power`
+
+Set bonus power sums each active set modifier value × its weight across all active thresholds.
+
+### MetaProgressionManager Power API
+
+- `get_inventory_item_power(instance_id) -> int` — single-item power score.
+- `get_inventory_item_power_details(instance_id) -> Dictionary` — power, stat_type, stat_total, per_level, level, weight, instance_id.
+- `get_set_bonus_power() -> int` — total set bonus power from all active thresholds.
+- `get_set_bonus_power_details() -> Array[Dictionary]` — per-active-threshold: set_id, pieces, piece_count, modifiers, power.
+- `get_loadout_power_score() -> int` — total loadout power score.
+- `get_loadout_summary() -> Dictionary` — power_score, equipped_count, slot_count, empty_slots, highest_item, lowest_item, item_powers, stat_modifiers, active_sets, set_bonus_power.
+- `get_loadout_stat_summary() -> Dictionary` — wrapper over `get_equipment_stat_modifiers_for_hero(DEFAULT_HERO_ID)`.
+- `get_loadout_slot_summary() -> Dictionary` — slot_id → {occupied, power, instance_id?}.
+- `get_loadout_set_summary() -> Array[Dictionary]` — wrapper over `get_equipped_set_bonus_summary()`.
+- `debug_get_loadout_summary() -> Dictionary` — `get_loadout_summary()` enriched with item_power_details and set_bonus_details.
+- `debug_get_item_power_summary() -> Array[Dictionary]` — one entry per slot: slot_id, occupied, power, stat_type, stat_total, per_level, level, weight.
+
+### EquipmentFormat Addition
+
+- `power_text(value: int) -> String` — returns `"Power: N"`.
+
+### MetaUpgradeShop Loadout UI
+
+- A compact `"Loadout"` button is placed in the Equipped Gear panel header (HBox alongside the "Equipped Gear" title label). The button opens the Loadout Summary popup via `_show_loadout_summary_popup()`.
+- The Loadout Summary is a `PopupPanel` (min 400×340). It is never a permanent on-screen panel.
+- Popup content: Loadout Power score, equipped count / slot count, empty slots, total stat modifiers, active sets, strongest equipped item (by power), weakest equipped item (by power), set bonus power.
+- Popup refreshes in-place via `_update_loadout_summary_popup()` when `_on_inventory_changed`, `_on_equipment_slot_changed`, or `_on_inventory_item_upgraded` fires while the popup is visible.
+- `"Item Power: N"` line is shown in both the item action popup and the equipped slot popup, inserted after the Level line.
+
+### Power UI Rules
+
+- Power is display-only. It does not affect combat stats, hero kits, evolutions, upgrade costs, dismantle rewards, item reward chances, set bonus values, or any in-run mechanic.
+- The main Equipment UI must remain clean. Do not add a persistent loadout power block to the Equipment tab; the summary lives in the popup only.
+- Rarity must not directly increase power. The weight table and formula above are the single source of truth.
+- Empty slots are omitted from the highest/lowest item comparison (no empty slot is treated as the lowest).
+- `highest_item` and `lowest_item` in `get_loadout_summary()` are selected by `item_power` comparison, not rarity order.
+- Do not change real combat stats, item upgrade costs, dismantle rewards, set bonus values, item reward chances, quantity rules, stages, hero kits, evolutions, boss flow, Training upgrades, or in-run 4/4/4 rules.
+
 ## Input Flow
 
 - Keyboard movement and ability input still use the Godot InputMap.

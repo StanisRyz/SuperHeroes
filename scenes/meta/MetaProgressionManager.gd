@@ -2319,3 +2319,188 @@ func _sync_legacy_meta_upgrades() -> void:
 	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
 	var default_training: Dictionary = training_by_hero.get(DEFAULT_HERO_ID, {})
 	_data["meta_upgrades"] = default_training.duplicate()
+
+
+# ─── Item & Loadout Power ──────────────────────────────────────────────────────
+# Percent-style stats (decimals) use high weights; flat stats use lower weights.
+# These weights affect only the UI power score — never gameplay.
+const STAT_POWER_WEIGHTS := {
+	"attack_damage": 10,
+	"ability_damage": 1000,
+	"ability_cooldown": 1000,
+	"xp_gain": 600,
+	"max_health": 2,
+	"move_speed": 4,
+	"shield_capacity": 25,
+	"low_health_damage": 900,
+	"mark_damage": 900,
+	"support_damage": 900,
+	"rage_gain": 800,
+	"impact_damage": 800,
+	"knockback_resist": 500,
+}
+
+
+func get_inventory_item_power(instance_id: String) -> int:
+	return int(get_inventory_item_power_details(instance_id).get("power", 0))
+
+
+func get_inventory_item_power_details(instance_id: String) -> Dictionary:
+	var item := get_inventory_item("", instance_id)
+	if item.is_empty():
+		return {"power": 0, "stat_type": "", "stat_total": 0.0, "weight": 0}
+	var level := int(item.get("level", 0))
+	var template_id := str(item.get("template_id", ""))
+	if template_id.is_empty() or _equipment_provider == null:
+		return {"power": 0, "stat_type": "", "stat_total": 0.0, "weight": 0}
+	var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
+	if tmpl.is_empty():
+		return {"power": 0, "stat_type": "", "stat_total": 0.0, "weight": 0}
+	var stat_type := str(tmpl.get("stat_bonus_type", ""))
+	var per_level := float(tmpl.get("stat_bonus_per_level", 0.0))
+	var stat_total := per_level * float(level)
+	var weight := int(STAT_POWER_WEIGHTS.get(stat_type, 10))
+	var power := maxi(int(round(stat_total * float(weight))), 0)
+	return {
+		"power": power,
+		"stat_type": stat_type,
+		"stat_total": stat_total,
+		"per_level": per_level,
+		"level": level,
+		"weight": weight,
+		"instance_id": instance_id,
+	}
+
+
+func get_set_bonus_power() -> int:
+	var total := 0
+	for detail in get_set_bonus_power_details():
+		total += int(detail.get("power", 0))
+	return total
+
+
+func get_set_bonus_power_details() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for bonus in get_active_set_bonuses():
+		var modifiers: Dictionary = bonus.get("modifiers", {}) if bonus.get("modifiers", {}) is Dictionary else {}
+		var bonus_power := 0
+		for stat_key in modifiers:
+			var weight := int(STAT_POWER_WEIGHTS.get(str(stat_key), 10))
+			bonus_power += maxi(int(round(float(modifiers.get(stat_key, 0.0)) * float(weight))), 0)
+		result.append({
+			"set_id": str(bonus.get("set_id", "")),
+			"pieces": int(bonus.get("pieces", 0)),
+			"piece_count": int(bonus.get("piece_count", 0)),
+			"modifiers": modifiers.duplicate(true),
+			"power": bonus_power,
+		})
+	return result
+
+
+func get_loadout_power_score() -> int:
+	return int(get_loadout_summary().get("power_score", 0))
+
+
+func get_loadout_summary() -> Dictionary:
+	var equipped := get_equipped_slots()
+	var item_powers := {}
+	var equipped_count := 0
+	var empty_slots: Array[String] = []
+	var all_item_entries: Array[Dictionary] = []
+
+	for slot_id in EQUIPMENT_SLOT_IDS:
+		var instance_id := str(equipped.get(slot_id, ""))
+		if instance_id.is_empty():
+			empty_slots.append(slot_id)
+			item_powers[slot_id] = 0
+		else:
+			var power := get_inventory_item_power(instance_id)
+			item_powers[slot_id] = power
+			equipped_count += 1
+			var item := get_inventory_item("", instance_id)
+			var template_id := str(item.get("template_id", ""))
+			var tmpl: Dictionary = {}
+			if _equipment_provider != null and not template_id.is_empty():
+				tmpl = _equipment_provider.get_item_template(template_id)
+			all_item_entries.append({
+				"slot_id": slot_id,
+				"instance_id": instance_id,
+				"name": str(tmpl.get("name", instance_id)) if not tmpl.is_empty() else instance_id,
+				"level": int(item.get("level", 0)),
+				"rarity": str(tmpl.get("rarity", "common")) if not tmpl.is_empty() else "common",
+				"item_power": power,
+			})
+
+	var set_bonus_power := get_set_bonus_power()
+	var total_item_power := 0
+	for sid in item_powers:
+		total_item_power += int(item_powers.get(sid, 0))
+	var power_score := total_item_power + set_bonus_power
+
+	var highest_item := {}
+	var lowest_item := {}
+	for entry in all_item_entries:
+		var p := int(entry.get("item_power", 0))
+		if highest_item.is_empty() or p > int(highest_item.get("item_power", 0)):
+			highest_item = entry.duplicate(true)
+		if lowest_item.is_empty() or p < int(lowest_item.get("item_power", 0)):
+			lowest_item = entry.duplicate(true)
+
+	return {
+		"power_score": power_score,
+		"equipped_count": equipped_count,
+		"slot_count": EQUIPMENT_SLOT_IDS.size(),
+		"empty_slots": empty_slots.duplicate(),
+		"highest_item": highest_item,
+		"lowest_item": lowest_item,
+		"item_powers": item_powers.duplicate(true),
+		"stat_modifiers": get_equipment_stat_modifiers_for_hero(DEFAULT_HERO_ID),
+		"active_sets": get_equipped_set_bonus_summary(),
+		"set_bonus_power": set_bonus_power,
+	}
+
+
+func get_loadout_stat_summary() -> Dictionary:
+	return get_equipment_stat_modifiers_for_hero(DEFAULT_HERO_ID)
+
+
+func get_loadout_slot_summary() -> Dictionary:
+	var equipped := get_equipped_slots()
+	var result := {}
+	for slot_id in EQUIPMENT_SLOT_IDS:
+		var instance_id := str(equipped.get(slot_id, ""))
+		if instance_id.is_empty():
+			result[slot_id] = {"occupied": false, "power": 0}
+		else:
+			result[slot_id] = {
+				"occupied": true,
+				"power": get_inventory_item_power(instance_id),
+				"instance_id": instance_id,
+			}
+	return result
+
+
+func get_loadout_set_summary() -> Array[Dictionary]:
+	return get_equipped_set_bonus_summary()
+
+
+func debug_get_loadout_summary() -> Dictionary:
+	var summary := get_loadout_summary()
+	summary["item_power_details"] = debug_get_item_power_summary()
+	summary["set_bonus_details"] = get_set_bonus_power_details()
+	return summary
+
+
+func debug_get_item_power_summary() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var equipped := get_equipped_slots()
+	for slot_id in EQUIPMENT_SLOT_IDS:
+		var instance_id := str(equipped.get(slot_id, ""))
+		if instance_id.is_empty():
+			result.append({"slot_id": slot_id, "occupied": false, "power": 0})
+		else:
+			var details := get_inventory_item_power_details(instance_id)
+			details["slot_id"] = slot_id
+			details["occupied"] = true
+			result.append(details)
+	return result

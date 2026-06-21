@@ -162,3 +162,7 @@ static func item_display_line(item_or_template: Dictionary) -> String:
 	var slot := slot_display_name(str(item_or_template.get("slot_id", "")))
 	var rarity := rarity_display_name(str(item_or_template.get("rarity", "common")))
 	return "%s  —  %s  —  %s" % [iname, slot, rarity]
+
+
+static func power_text(value: int) -> String:
+	return "Power: %d" % value

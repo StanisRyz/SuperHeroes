@@ -2508,3 +2508,59 @@ Equipment / Inventory horizontal layout validation:
 | 3 | In-run combat, abilities, evolutions, waves | Entirely unaffected |
 | 4 | No gacha, random items, enemy drops, random affixes, crafting, auto-equip added | Diff shows none of these |
 
+---
+
+## Loadout Power Summary + Item Power
+
+### Item Power in Popups
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click an occupied inventory cell | Item action popup shows "Power: N" line after the Level line |
+| 2 | Item at level 0 | "Power: 0" (no stat contribution yet) |
+| 3 | Upgrade item from level 1 to level 5, re-open popup | Power increases proportionally; no rarity bonus is added |
+| 4 | Compare common vs mythic item with same stat and same level | Both show identical power; rarity does not inflate score |
+| 5 | Click an occupied equipped slot button | Equipped slot popup shows "Power: N" after the Level line |
+| 6 | Click an empty equipped slot button | Slot popup shows; no power line needed (item is absent) |
+
+### Loadout Button and Popup Open/Close
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training → Equipment tab | Equipped Gear header shows "Loadout" button alongside the "Equipped Gear" title |
+| 2 | Click "Loadout" button with no gear equipped | Loadout Summary popup opens; shows Power: 0, 0 / 6 slots, all 6 empty slots listed, no stats, no sets, no items |
+| 3 | Click "Loadout" button with some gear equipped | Popup opens and shows power score, equipped count, stats, active sets, strongest/weakest items |
+| 4 | Click X / Close button in popup | Popup closes; Equipment UI remains usable |
+| 5 | Open popup, then equip an item | Popup content updates without re-centering |
+| 6 | Open popup, then unequip an item | Popup content updates in-place |
+| 7 | Open popup, then upgrade an item | Popup power score increases in-place |
+| 8 | Open popup, then dismantle an item | Popup updates to reflect removed item |
+| 9 | Main Equipment panel with popup closed | No loadout power block is visible in the main panel; panel is clean |
+
+### Power Score Correctness
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Equip one item at level 5 with stat `attack_damage`, `per_level = 1.0` | Item power = 1.0 × 5 × 10 = 50; Loadout Power = 50 + set bonus power |
+| 2 | Equip one item at level 3 with stat `ability_cooldown`, `per_level = 0.008` | Item power = round(0.008 × 3 × 1000) = 24 |
+| 3 | Equip all 6 slots | Loadout Power = sum of all 6 item powers + set bonus power |
+| 4 | Active 2-piece Storm Set bonus (`move_speed: 0.05`) | Set bonus power includes round(0.05 × 4) = 0 (≈0 for move_speed weight=4 × 0.05=0.2, rounds to 0); check actual bonus math |
+| 5 | Active 2-piece Fury Set bonus (`attack_damage: 3`) | Set bonus power includes round(3 × 10) = 30 |
+| 6 | Highest/Weakest item display | Strongest shows highest-power item; Weakest shows lowest; empty slots are excluded from comparison |
+| 7 | `MetaProgressionManager.get_loadout_power_score()` from remote console | Returns same value as popup title |
+| 8 | `MetaProgressionManager.debug_get_loadout_summary()` | Returns full details including item_power_details and set_bonus_details arrays |
+| 9 | `MetaProgressionManager.debug_get_item_power_summary()` | Returns one dict per slot with occupied, power, stat_type, stat_total, per_level, level, weight |
+
+### Scope Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start a run after opening Loadout popup | Arena starts normally; no crash; no combat stat change from power score |
+| 2 | Upgrade an item | Upgrade cost unchanged; power score updates as expected |
+| 3 | Dismantle an item | Dismantle reward unchanged; power score updates |
+| 4 | Active set bonuses | Set bonus values unchanged; power score reflects them but does not modify them |
+| 5 | Item reward flow | Reward count and rarity rules unchanged |
+| 6 | Training upgrades | Unaffected |
+| 7 | Hero kits, evolutions, boss flow, in-run 4/4/4 rules | Entirely unaffected |
+| 8 | No gacha, crafting, new items/materials/sets, auto-equip, stages/zones added | Diff shows none of these |
+

@@ -73,6 +73,11 @@ var _inventory_sort_mode: String = "default"
 var _dismantle_confirm_popup: ConfirmationDialog = null
 var _dismantle_confirm_instance_id: String = ""
 
+# Loadout summary popup
+var _loadout_summary_button: Button = null
+var _loadout_summary_popup: PopupPanel = null
+var _loadout_summary_label: Label = null
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -263,6 +268,7 @@ func _build_ui() -> void:
 	_build_slot_popup()
 	_build_dismantle_confirm_popup()
 	_build_item_action_popup()
+	_build_loadout_summary_popup()
 	_update_tab_state()
 
 func _build_training_panel() -> Control:
@@ -312,11 +318,24 @@ func _build_equipment_panel() -> Control:
 	equipped_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	equipped_panel.add_child(equipped_vbox)
 
+	var eq_header := HBoxContainer.new()
+	eq_header.add_theme_constant_override("separation", 8)
+	equipped_vbox.add_child(eq_header)
+
 	var section_title := Label.new()
 	section_title.text = "Equipped Gear"
 	section_title.add_theme_font_size_override("font_size", 16)
 	section_title.modulate = Color(0.7, 0.85, 1.0, 1.0)
-	equipped_vbox.add_child(section_title)
+	section_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	section_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	eq_header.add_child(section_title)
+
+	_loadout_summary_button = Button.new()
+	_loadout_summary_button.text = "Loadout"
+	_loadout_summary_button.custom_minimum_size = Vector2(90, 32)
+	_loadout_summary_button.add_theme_font_size_override("font_size", 12)
+	_loadout_summary_button.pressed.connect(_show_loadout_summary_popup)
+	eq_header.add_child(_loadout_summary_button)
 
 	# ── slot columns + central character holder ───────────────────────────────
 	var slot_hbox := HBoxContainer.new()
@@ -892,6 +911,8 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	for set_line in _get_compact_set_popup_lines(popup_set_id):
 		lines.append(set_line)
 	lines.append("Level: %d / %d" % [level, max_level])
+	if not instance_id.is_empty() and _meta_manager != null and _meta_manager.has_method("get_inventory_item_power"):
+		lines.append(EquipmentFormat.power_text(int(_meta_manager.get_inventory_item_power(instance_id))))
 	lines.append("Status: %s" % status_str)
 	lines.append("Locked: %s" % ("Yes" if is_locked else "No"))
 	lines.append("Favorite: %s" % ("Yes" if is_fav else "No"))
@@ -1750,6 +1771,8 @@ func _update_slot_popup_content(slot_id: String) -> void:
 	for set_line in _get_compact_set_popup_lines(slot_set_id):
 		lines.append(set_line)
 	lines.append("Level: %d / %d" % [level, max_level_val])
+	if _meta_manager != null and _meta_manager.has_method("get_inventory_item_power"):
+		lines.append(EquipmentFormat.power_text(int(_meta_manager.get_inventory_item_power(instance_id))))
 	lines.append("Status: EQUIPPED")
 	if not stat_str.is_empty():
 		lines.append("")
@@ -2236,6 +2259,8 @@ func _on_inventory_changed(_hero_id: String) -> void:
 	if visible:
 		_refresh_equipment_panel()
 		_refresh_inventory_shell()
+		if _loadout_summary_popup != null and _loadout_summary_popup.visible:
+			_update_loadout_summary_popup()
 
 
 func _on_equipment_slot_changed(_hero_id: String, slot_id: String, _instance_id: String) -> void:
@@ -2244,6 +2269,8 @@ func _on_equipment_slot_changed(_hero_id: String, slot_id: String, _instance_id:
 		_refresh_inventory_shell()
 		if _slot_popup != null and _slot_popup.visible and _slot_popup_slot_id == slot_id:
 			_update_slot_popup_content(slot_id)
+		if _loadout_summary_popup != null and _loadout_summary_popup.visible:
+			_update_loadout_summary_popup()
 
 
 func _on_inventory_item_upgraded(_hero_id: String, _instance_id: String, _level: int) -> void:
@@ -2251,3 +2278,139 @@ func _on_inventory_item_upgraded(_hero_id: String, _instance_id: String, _level:
 		_update_equipment_slots()
 		_refresh_inventory_shell()
 		_select_inventory_cell(_selected_inventory_cell_index, _item_action_popup != null and _item_action_popup.visible)
+		if _loadout_summary_popup != null and _loadout_summary_popup.visible:
+			_update_loadout_summary_popup()
+
+
+# ─── Loadout summary popup ────────────────────────────────────────────────────
+
+func _build_loadout_summary_popup() -> void:
+	_loadout_summary_popup = PopupPanel.new()
+	_loadout_summary_popup.min_size = Vector2i(400, 340)
+	add_child(_loadout_summary_popup)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	_loadout_summary_popup.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Loadout Summary"
+	title.add_theme_font_size_override("font_size", 17)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.modulate = Color(0.85, 0.95, 1.0, 1.0)
+	vbox.add_child(title)
+
+	vbox.add_child(HSeparator.new())
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 220)
+	vbox.add_child(scroll)
+
+	_loadout_summary_label = Label.new()
+	_loadout_summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_loadout_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_loadout_summary_label.add_theme_font_size_override("font_size", 12)
+	_loadout_summary_label.modulate = Color(0.86, 0.90, 0.96, 1.0)
+	scroll.add_child(_loadout_summary_label)
+
+	var close_btn := Button.new()
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(100, 36)
+	close_btn.pressed.connect(func(): _loadout_summary_popup.hide())
+	vbox.add_child(close_btn)
+
+
+func _show_loadout_summary_popup() -> void:
+	if _loadout_summary_popup == null:
+		return
+	_update_loadout_summary_popup()
+	_loadout_summary_popup.popup_centered()
+
+
+func _update_loadout_summary_popup() -> void:
+	if _loadout_summary_label == null or _meta_manager == null:
+		return
+	if not _meta_manager.has_method("get_loadout_summary"):
+		_loadout_summary_label.text = "Not available."
+		return
+
+	var summary: Dictionary = _meta_manager.get_loadout_summary()
+	var power_score := int(summary.get("power_score", 0))
+	var equipped_count := int(summary.get("equipped_count", 0))
+	var slot_count := int(summary.get("slot_count", 6))
+	var empty_slots: Array = summary.get("empty_slots", [])
+	var highest: Dictionary = summary.get("highest_item", {})
+	var lowest: Dictionary = summary.get("lowest_item", {})
+	var set_bonus_power := int(summary.get("set_bonus_power", 0))
+	var stat_mods: Dictionary = summary.get("stat_modifiers", {})
+	var active_sets: Array = summary.get("active_sets", [])
+
+	var lines := PackedStringArray()
+	lines.append("Loadout Power: %d" % power_score)
+	lines.append("")
+	lines.append("Equipment: %d / %d slots equipped" % [equipped_count, slot_count])
+
+	if empty_slots.is_empty():
+		lines.append("Empty Slots: none")
+	else:
+		var slot_names := PackedStringArray()
+		for sid in empty_slots:
+			slot_names.append(EquipmentFormat.slot_display_name(str(sid)))
+		lines.append("Empty Slots: %s" % ", ".join(slot_names))
+
+	lines.append("")
+	lines.append("Total Stats:")
+	if stat_mods.is_empty():
+		lines.append("  none")
+	else:
+		var stat_keys := stat_mods.keys()
+		stat_keys.sort()
+		for stat_key in stat_keys:
+			var stat_val := float(stat_mods.get(stat_key, 0.0))
+			lines.append("  %s" % EquipmentFormat.stat_value_text(str(stat_key), stat_val))
+
+	lines.append("")
+	lines.append("Active Sets:")
+	if active_sets.is_empty():
+		lines.append("  none")
+	else:
+		for set_entry in active_sets:
+			if not set_entry is Dictionary:
+				continue
+			var sname := str(set_entry.get("name", ""))
+			var count := int(set_entry.get("count", 0))
+			lines.append("  %s  (%d pieces)" % [sname, count])
+
+	lines.append("")
+	if highest.is_empty():
+		lines.append("Strongest Item: none")
+	else:
+		lines.append("Strongest Item: %s  —  %s  Lv %d  (Power: %d)" % [
+			str(highest.get("name", "?")),
+			EquipmentFormat.slot_display_name(str(highest.get("slot_id", ""))),
+			int(highest.get("level", 0)),
+			int(highest.get("item_power", 0)),
+		])
+
+	if lowest.is_empty():
+		lines.append("Weakest Item: none")
+	else:
+		lines.append("Weakest Item: %s  —  %s  Lv %d  (Power: %d)" % [
+			str(lowest.get("name", "?")),
+			EquipmentFormat.slot_display_name(str(lowest.get("slot_id", ""))),
+			int(lowest.get("level", 0)),
+			int(lowest.get("item_power", 0)),
+		])
+
+	lines.append("")
+	lines.append("Set Bonus Power: %d" % set_bonus_power)
+
+	_loadout_summary_label.text = "\n".join(lines)
