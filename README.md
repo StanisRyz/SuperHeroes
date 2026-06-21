@@ -1346,10 +1346,42 @@ No items are added to any hero's inventory by this patch. Inventory and equipped
 - Item drops from enemies
 - Random affixes
 - Crafting or fusion
-- Starter item grants
 - Auto-equip
 
 These remain future work.
+
+## Starter Equipment Grant Flow
+
+When the player opens the Training screen for the first time (before claiming the starter pack), a popup titled **"Starter Equipment Pack"** appears automatically.
+
+### Behavior
+
+- Popup lists 6 common items — one per equipment slot.
+- Player clicks **Accept** → items are added to the global inventory → popup closes.
+- Popup never reappears once claimed (tracked via `equipment_grants["starter_pack_v1"]`).
+- Items are **not** auto-equipped. The player must manually equip each item.
+
+### Starter Pack Contents
+
+| Template ID | Slot | Rarity |
+|-------------|------|--------|
+| `power_core_common` | core | common |
+| `reinforced_suit_common` | suit | common |
+| `awareness_emblem_common` | emblem | common |
+| `striker_gauntlets_common` | gauntlets | common |
+| `runner_boots_common` | boots | common |
+| `shield_artifact_common` | artifact | common |
+
+### Global (Shared) Equipment Model
+
+All heroes share a single set of equipped items. Equipping an item in any hero view equips it globally — switching heroes does not change the equipped slots. Stat bonuses from globally equipped items apply to every hero equally.
+
+### Not in the Grant Flow
+
+- No gacha or random selection — all 6 items are always the same.
+- No hero-restricted items — any hero can equip any item of the matching slot type.
+- No auto-equip on grant.
+- No inventory cap — all items received are always stored.
 
 ## Yandex Games Notes
 

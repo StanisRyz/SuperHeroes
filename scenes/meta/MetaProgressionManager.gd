@@ -16,6 +16,11 @@ const DEFAULT_HERO_ID := "guardian"
 const DEFAULT_HERO_IDS: Array[String] = ["guardian", "blaster", "vanguard"]
 const DEFAULT_STAGE_IDS: Array[String] = ["city_rooftop", "neon_lab", "wasteland_gate"]
 const EQUIPMENT_SLOT_IDS: Array[String] = ["core", "suit", "emblem", "gauntlets", "boots", "artifact"]
+const STARTER_PACK_ID := "starter_pack_v1"
+const STARTER_PACK_TEMPLATES: Array[String] = [
+	"power_core_common", "reinforced_suit_common", "awareness_emblem_common",
+	"striker_gauntlets_common", "runner_boots_common", "shield_artifact_common",
+]
 
 var _data: Dictionary = {}
 var _newly_completed_goals: Array[Dictionary] = []
@@ -209,9 +214,8 @@ func set_equipment_level(hero_id: String, equipment_id: String, level: int) -> v
 	equipment_upgrade_changed.emit(resolved_hero_id, equipment_id, clamped_level)
 
 
-func _set_inventory_item_level(hero_id: String, instance_id: String, level: int) -> void:
-	var inventory_by_hero: Dictionary = _data.get("inventory_by_hero", {})
-	var items = inventory_by_hero.get(hero_id, [])
+func _set_inventory_item_level(_hero_id: String, instance_id: String, level: int) -> void:
+	var items: Array = _data.get("inventory_items", [])
 	if not items is Array:
 		return
 	for i in range(items.size()):
@@ -220,8 +224,7 @@ func _set_inventory_item_level(hero_id: String, instance_id: String, level: int)
 			item["level"] = level
 			items[i] = item
 			break
-	inventory_by_hero[hero_id] = items
-	_data["inventory_by_hero"] = inventory_by_hero
+	_data["inventory_items"] = items
 
 
 func get_equipment_levels_for_hero(hero_id: String) -> Dictionary:
@@ -276,22 +279,21 @@ func get_equipment_stat_modifiers_for_hero(hero_id: String) -> Dictionary:
 	var resolved_hero_id := _resolve_hero_id(hero_id)
 	ensure_equipment_data_for_hero(resolved_hero_id)
 	var result := {}
-	# Use equipped items only — gameplay modifiers come from equipped items
-	var equipped := get_equipped_items_for_hero(resolved_hero_id)
-	var items := get_inventory_items_for_hero(resolved_hero_id)
-	if not equipped.is_empty() and not items.is_empty():
+	# Read from global equipped_slots — shared across all heroes
+	var equipped := get_equipped_slots()
+	if not equipped.is_empty():
 		for slot_id in EQUIPMENT_SLOT_IDS:
 			var instance_id := str(equipped.get(slot_id, ""))
 			if instance_id.is_empty():
 				continue
-			var item := get_inventory_item(resolved_hero_id, instance_id)
+			var item := get_inventory_item("", instance_id)
 			if item.is_empty():
 				continue
 			var template_id := str(item.get("template_id", ""))
 			var level := int(item.get("level", 0))
 			if level <= 0:
 				continue
-			var def := _get_item_template(template_id, resolved_hero_id)
+			var def := _get_item_template(template_id)
 			if def.is_empty():
 				continue
 			var stat_type := str(def.get("stat_bonus_type", ""))
@@ -300,7 +302,7 @@ func get_equipment_stat_modifiers_for_hero(hero_id: String) -> Dictionary:
 			var current := float(result.get(stat_type, 0.0))
 			result[stat_type] = current + float(def.get("stat_bonus_per_level", 0.0)) * float(level)
 		return result
-	# Fallback to legacy equipment_by_hero if no inventory data yet
+	# Fallback to legacy equipment_by_hero if no global inventory data exists
 	for def in get_equipment_definitions(resolved_hero_id):
 		var equipment_id := str(def.get("equipment_id", ""))
 		var level := get_equipment_level(resolved_hero_id, equipment_id)
@@ -903,6 +905,10 @@ func _get_defaults() -> Dictionary:
 		"equipment_by_hero": _get_default_equipment_by_hero(),
 		"inventory_by_hero": {},
 		"equipped_by_hero": {},
+		"inventory_items": [],
+		"equipped_slots": {},
+		"equipment_grants": {},
+		"instance_id_counter": 0,
 		"inventory_static_items_cleared": false,
 		"unlocked_heroes": ["guardian", "blaster", "vanguard"],
 		"total_runs": 0,
@@ -931,6 +937,12 @@ func _merge_with_defaults(parsed: Dictionary) -> void:
 		_data["inventory_by_hero"] = {}
 	if not _data.get("equipped_by_hero") is Dictionary:
 		_data["equipped_by_hero"] = {}
+	if not _data.get("inventory_items") is Array:
+		_data["inventory_items"] = []
+	if not _data.get("equipped_slots") is Dictionary:
+		_data["equipped_slots"] = {}
+	if not _data.get("equipment_grants") is Dictionary:
+		_data["equipment_grants"] = {}
 	_migrate_global_training_if_needed(parsed)
 	ensure_training_data_for_all_heroes(DEFAULT_HERO_IDS)
 	ensure_equipment_data_for_all_heroes(DEFAULT_HERO_IDS)
@@ -993,6 +1005,7 @@ func get_alt_item_template(template_id: String) -> Dictionary:
 
 
 func _migrate_inventory_if_needed() -> void:
+	# Ensure legacy per-hero structures are valid (backward compat, now read-only)
 	var inventory_by_hero: Dictionary = _data.get("inventory_by_hero", {})
 	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
 	for hero_id in DEFAULT_HERO_IDS:
@@ -1002,19 +1015,54 @@ func _migrate_inventory_if_needed() -> void:
 			equipped_by_hero[hero_id] = {}
 	_data["inventory_by_hero"] = inventory_by_hero
 	_data["equipped_by_hero"] = equipped_by_hero
+	# Initialize global structures
+	if not _data.get("inventory_items") is Array:
+		_data["inventory_items"] = []
+	if not _data.get("equipped_slots") is Dictionary:
+		_data["equipped_slots"] = {}
+	if not _data.get("equipment_grants") is Dictionary:
+		_data["equipment_grants"] = {}
+	# Migrate valid items from per-hero legacy into global inventory if global is still empty
+	var global_items: Array = _data.get("inventory_items", [])
+	if global_items.is_empty() and _equipment_provider != null:
+		var migrated: Array = []
+		var seen_ids: Dictionary = {}
+		for hero_id in DEFAULT_HERO_IDS:
+			var items = inventory_by_hero.get(hero_id, [])
+			if not items is Array:
+				continue
+			for item in items:
+				if not item is Dictionary:
+					continue
+				var iid := str(item.get("instance_id", ""))
+				if iid.is_empty() or seen_ids.has(iid):
+					continue
+				var template_id := str(item.get("template_id", ""))
+				if not _equipment_provider.is_valid_template_id(template_id):
+					continue
+				seen_ids[iid] = true
+				var migrated_item: Dictionary = item.duplicate(true)
+				migrated_item.erase("hero_id")
+				migrated.append(migrated_item)
+		if not migrated.is_empty():
+			_data["inventory_items"] = migrated
+			if (_data.get("equipped_slots", {}) as Dictionary).is_empty():
+				for hero_id in DEFAULT_HERO_IDS:
+					var eq = equipped_by_hero.get(hero_id, {})
+					if eq is Dictionary and not eq.is_empty():
+						_data["equipped_slots"] = eq.duplicate(true)
+						break
 	if _equipment_provider != null:
 		_validate_inventory_against_provider()
 
 
 func _validate_inventory_against_provider() -> void:
-	var inventory_by_hero: Dictionary = _data.get("inventory_by_hero", {})
-	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
-	for hero_id in DEFAULT_HERO_IDS:
-		var items = inventory_by_hero.get(hero_id, [])
-		if not items is Array:
-			inventory_by_hero[hero_id] = []
-			equipped_by_hero[hero_id] = {}
-			continue
+	# Validate global inventory_items and prune unknown template_ids
+	var items = _data.get("inventory_items", [])
+	if not items is Array:
+		_data["inventory_items"] = []
+		_data["equipped_slots"] = {}
+	else:
 		var valid_items: Array = []
 		var valid_instance_ids: Dictionary = {}
 		for item in items:
@@ -1024,14 +1072,20 @@ func _validate_inventory_against_provider() -> void:
 			if _equipment_provider.is_valid_template_id(template_id):
 				valid_items.append(item)
 				valid_instance_ids[str(item.get("instance_id", ""))] = true
-		inventory_by_hero[hero_id] = valid_items
-		var equipped: Dictionary = equipped_by_hero.get(hero_id, {})
+		_data["inventory_items"] = valid_items
+		var equipped: Dictionary = _data.get("equipped_slots", {})
 		if equipped is Dictionary:
 			for slot_id in equipped.keys():
 				var iid := str(equipped.get(slot_id, ""))
-				if not valid_instance_ids.has(iid) or iid.is_empty():
+				if iid.is_empty() or not valid_instance_ids.has(iid):
 					equipped.erase(slot_id)
-			equipped_by_hero[hero_id] = equipped
+			_data["equipped_slots"] = equipped
+	# Also clear legacy per-hero structures (they are dead data now)
+	var inventory_by_hero: Dictionary = _data.get("inventory_by_hero", {})
+	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
+	for hero_id in DEFAULT_HERO_IDS:
+		inventory_by_hero[hero_id] = []
+		equipped_by_hero[hero_id] = {}
 	_data["inventory_by_hero"] = inventory_by_hero
 	_data["equipped_by_hero"] = equipped_by_hero
 
@@ -1087,26 +1141,32 @@ func _get_starter_inventory_data(_hero_id: String) -> Dictionary:
 	return {}
 
 
-func get_inventory_items_for_hero(hero_id: String) -> Array:
-	var resolved := _resolve_hero_id(hero_id)
-	var inventory_by_hero: Dictionary = _data.get("inventory_by_hero", {})
-	var items = inventory_by_hero.get(resolved, [])
+func get_inventory_items() -> Array:
+	var items = _data.get("inventory_items", [])
 	if items is Array:
 		return items.duplicate(true)
 	return []
 
 
-func get_equipped_items_for_hero(hero_id: String) -> Dictionary:
-	var resolved := _resolve_hero_id(hero_id)
-	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
-	var equipped = equipped_by_hero.get(resolved, {})
+func get_equipped_slots() -> Dictionary:
+	var equipped = _data.get("equipped_slots", {})
 	if equipped is Dictionary:
 		return equipped.duplicate(true)
 	return {}
 
 
-func get_inventory_item(hero_id: String, instance_id: String) -> Dictionary:
-	var items := get_inventory_items_for_hero(hero_id)
+func get_inventory_items_for_hero(_hero_id: String) -> Array:
+	return get_inventory_items()
+
+
+func get_equipped_items_for_hero(_hero_id: String) -> Dictionary:
+	return get_equipped_slots()
+
+
+func get_inventory_item(_hero_id: String, instance_id: String) -> Dictionary:
+	var items: Array = _data.get("inventory_items", [])
+	if not items is Array:
+		return {}
 	for item in items:
 		if item is Dictionary and str(item.get("instance_id", "")) == instance_id:
 			return item.duplicate(true)
@@ -1114,53 +1174,47 @@ func get_inventory_item(hero_id: String, instance_id: String) -> Dictionary:
 
 
 func get_equipped_item_for_slot(hero_id: String, slot_id: String) -> Dictionary:
-	var resolved := _resolve_hero_id(hero_id)
-	var equipped := get_equipped_items_for_hero(resolved)
-	var instance_id := str(equipped.get(slot_id, ""))
+	var instance_id := get_equipped_instance_id_for_slot(hero_id, slot_id)
 	if instance_id.is_empty():
 		return {}
-	return get_inventory_item(resolved, instance_id)
+	return get_inventory_item("", instance_id)
 
 
-func can_equip_inventory_item(hero_id: String, instance_id: String, slot_id: String) -> bool:
-	var item := get_inventory_item(hero_id, instance_id)
+func can_equip_inventory_item(_hero_id: String, instance_id: String, slot_id: String) -> bool:
+	var item := get_inventory_item("", instance_id)
 	if item.is_empty():
 		return false
 	return str(item.get("slot_id", "")) == slot_id
 
 
 func equip_inventory_item(hero_id: String, instance_id: String, slot_id: String) -> bool:
-	var resolved := _resolve_hero_id(hero_id)
-	if not can_equip_inventory_item(resolved, instance_id, slot_id):
+	if not can_equip_inventory_item("", instance_id, slot_id):
 		return false
-	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
-	var equipped: Dictionary = equipped_by_hero.get(resolved, {}) if equipped_by_hero.get(resolved, {}) is Dictionary else {}
+	var equipped: Dictionary = _data.get("equipped_slots", {})
+	if not equipped is Dictionary:
+		equipped = {}
 	equipped[slot_id] = instance_id
-	equipped_by_hero[resolved] = equipped
-	_data["equipped_by_hero"] = equipped_by_hero
-	inventory_changed.emit(resolved)
-	equipment_changed.emit(resolved, slot_id, instance_id)
+	_data["equipped_slots"] = equipped
+	inventory_changed.emit(hero_id)
+	equipment_changed.emit(hero_id, slot_id, instance_id)
 	save_progress()
 	return true
 
 
-func can_unequip_slot(hero_id: String, slot_id: String) -> bool:
-	var resolved := _resolve_hero_id(hero_id)
-	var instance_id := get_equipped_instance_id_for_slot(resolved, slot_id)
-	return not instance_id.is_empty()
+func can_unequip_slot(_hero_id: String, slot_id: String) -> bool:
+	return not get_equipped_instance_id_for_slot("", slot_id).is_empty()
 
 
 func unequip_slot(hero_id: String, slot_id: String) -> bool:
-	var resolved := _resolve_hero_id(hero_id)
-	if not can_unequip_slot(resolved, slot_id):
+	if not can_unequip_slot("", slot_id):
 		return false
-	var equipped_by_hero: Dictionary = _data.get("equipped_by_hero", {})
-	var equipped: Dictionary = equipped_by_hero.get(resolved, {}) if equipped_by_hero.get(resolved, {}) is Dictionary else {}
+	var equipped: Dictionary = _data.get("equipped_slots", {})
+	if not equipped is Dictionary:
+		equipped = {}
 	equipped.erase(slot_id)
-	equipped_by_hero[resolved] = equipped
-	_data["equipped_by_hero"] = equipped_by_hero
-	equipment_changed.emit(resolved, slot_id, "")
-	inventory_changed.emit(resolved)
+	_data["equipped_slots"] = equipped
+	equipment_changed.emit(hero_id, slot_id, "")
+	inventory_changed.emit(hero_id)
 	save_progress()
 	return true
 
@@ -1172,23 +1226,83 @@ func debug_get_item_template_summary() -> Dictionary:
 
 
 func debug_get_inventory_summary() -> Dictionary:
-	var result := {}
-	for hero_id in DEFAULT_HERO_IDS:
-		var items := get_inventory_items_for_hero(hero_id)
-		var equipped := get_equipped_items_for_hero(hero_id)
-		result[hero_id] = {
-			"item_count": items.size(),
-			"equipped": equipped,
-			"items": items,
-		}
+	return {
+		"item_count": get_inventory_items().size(),
+		"equipped_slots": get_equipped_slots(),
+		"items": get_inventory_items(),
+		"equipment_grants": _data.get("equipment_grants", {}).duplicate(true),
+	}
+
+
+# ─── Starter Equipment Grant ──────────────────────────────────────────────────
+
+func has_equipment_grant(grant_id: String) -> bool:
+	var grants = _data.get("equipment_grants", {})
+	return grants is Dictionary and bool(grants.get(grant_id, false))
+
+
+func can_claim_starter_equipment() -> bool:
+	return not has_equipment_grant(STARTER_PACK_ID)
+
+
+func preview_starter_equipment() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if _equipment_provider == null:
+		return result
+	for template_id in STARTER_PACK_TEMPLATES:
+		var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
+		if not tmpl.is_empty():
+			result.append(tmpl.duplicate(true))
 	return result
 
 
-func _get_item_template(template_id: String, hero_id: String = "") -> Dictionary:
+func claim_starter_equipment() -> Array[Dictionary]:
+	if not can_claim_starter_equipment():
+		return []
+	var items: Array = _data.get("inventory_items", [])
+	if not items is Array:
+		items = []
+	var granted: Array[Dictionary] = []
+	for template_id in STARTER_PACK_TEMPLATES:
+		var item := create_inventory_item_instance(template_id, STARTER_PACK_ID)
+		if not item.is_empty():
+			items.append(item)
+			granted.append(item.duplicate(true))
+	_data["inventory_items"] = items
+	var grants: Dictionary = _data.get("equipment_grants", {})
+	if not grants is Dictionary:
+		grants = {}
+	grants[STARTER_PACK_ID] = true
+	_data["equipment_grants"] = grants
+	inventory_changed.emit("")
+	save_progress()
+	return granted
+
+
+func create_inventory_item_instance(template_id: String, source: String = "") -> Dictionary:
+	if _equipment_provider == null:
+		return {}
+	var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
+	if tmpl.is_empty():
+		return {}
+	var slot_id := str(tmpl.get("slot_id", ""))
+	var counter := int(_data.get("instance_id_counter", 0)) + 1
+	_data["instance_id_counter"] = counter
+	return {
+		"instance_id": "%s_%04d" % [template_id, counter],
+		"template_id": template_id,
+		"slot_id": slot_id,
+		"level": 0,
+		"locked": false,
+		"source": source,
+	}
+
+
+func _get_item_template(template_id: String, _hero_id: String = "") -> Dictionary:
 	if _equipment_provider != null:
 		var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
 		if not tmpl.is_empty():
-			return _adapt_template_to_definition(tmpl, hero_id)
+			return _adapt_template_to_definition(tmpl, _hero_id)
 	return {}
 
 
@@ -1510,8 +1624,8 @@ func get_item_template_for_instance(hero_id: String, instance_id: String) -> Dic
 	return _get_item_template(template_id, _resolve_hero_id(hero_id))
 
 
-func get_equipped_instance_id_for_slot(hero_id: String, slot_id: String) -> String:
-	var equipped := get_equipped_items_for_hero(hero_id)
+func get_equipped_instance_id_for_slot(_hero_id: String, slot_id: String) -> String:
+	var equipped := get_equipped_slots()
 	return str(equipped.get(slot_id, ""))
 
 

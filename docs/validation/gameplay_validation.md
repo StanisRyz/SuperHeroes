@@ -2224,3 +2224,61 @@ Equipment / Inventory horizontal layout validation:
 | 20 | Training tab | Entirely unaffected by inventory filter/sort changes |
 | 21 | Main Menu button | Visible and returns to MainMenu regardless of filter state |
 | 22 | No gacha, random loot, item drops, random affixes, crafting, or fusion added | Diff shows none of these |
+
+---
+
+## Starter Equipment Grant Flow
+
+### Popup Trigger
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training for the first time (fresh save) | Starter Equipment Pack popup appears automatically |
+| 2 | Popup header and body | Title: "Starter Equipment Pack"; description text visible |
+| 3 | Popup item list | Shows 6 items: Power Core, Reinforced Suit, Awareness Emblem, Striker Gauntlets, Runner Boots, Shield Artifact; each shows slot and rarity |
+| 4 | Popup has Accept button | Button is visible and enabled |
+
+### Accept Flow
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click Accept | Popup closes immediately |
+| 2 | After Accept — inventory grid | 6 new items appear in the inventory grid (one per slot) |
+| 3 | After Accept — equipped slots panel | All 6 slot panels remain empty (no auto-equip) |
+| 4 | Open Training again (same session) | Popup does NOT reappear |
+| 5 | Restart game, open Training | Popup does NOT reappear (grant tracked in save) |
+
+### Grant Persistence
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | `MetaProgressionManager.has_equipment_grant("starter_pack_v1")` after Accept | Returns `true` |
+| 2 | `MetaProgressionManager.can_claim_starter_equipment()` after Accept | Returns `false` |
+| 3 | Inspect save data | `equipment_grants.starter_pack_v1 = true`; 6 items in `inventory_items` with `source = "starter_pack_v1"` |
+
+### Equip After Grant
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select any granted item → click Equip | Item moves to equipped slot; slot panel updates |
+| 2 | Switch to a different hero | Equipped slot remains filled (global equipment model) |
+| 3 | Start a run after equipping | Equipment stat modifiers apply to the run (`get_equipment_stat_modifiers_for_hero` returns non-zero) |
+| 4 | Return to meta, check equipped slot | Equipped slot still shows the item from before the run |
+
+### Global Shared Equipment
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Equip item as Hero A, view as Hero B | Slot panel shows same equipped item for Hero B |
+| 2 | Unequip item as Hero B, view as Hero A | Slot panel shows empty for Hero A |
+| 3 | Equip different item in same slot as Hero A | Slot panel updates for both heroes |
+
+### Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Training tab purchases | Unaffected |
+| 2 | Hero unlock, goals, mastery, stage mastery, currency | All unaffected |
+| 3 | In-run combat, abilities, evolutions, waves | Entirely unaffected |
+| 4 | No gacha, random items, enemy drops, random affixes, crafting, auto-equip added | Diff shows none of these |
+

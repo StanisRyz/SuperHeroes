@@ -640,14 +640,16 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 
 ## Character Equipment Architecture
 
-- Six equipment slots per hero: `core`, `suit`, `emblem`, `gauntlets`, `boots`, `artifact`.
+- Six equipment slots: `core`, `suit`, `emblem`, `gauntlets`, `boots`, `artifact`.
+- **Equipment is shared across all heroes.** Inventory and equipped slots are global — not per-hero. All heroes receive bonuses from the globally equipped set.
 - **Item templates** are global and non-hero-specific — they live in `EquipmentDataProvider`. No `hero_id` field on templates. Equip compatibility is `slot_id`-only.
-- **Item instances** (with `instance_id`, `template_id`, `slot_id`, `level`, `locked`) live in `inventory_by_hero[hero_id]` (Array). Equipped slot pointers live in `equipped_by_hero[hero_id]` (Dictionary: slot_id → instance_id).
-- `MetaProgressionManager` is the player-state owner: it owns `inventory_by_hero`, `equipped_by_hero`, `equipment_by_hero`, and currency. It is NOT the canonical template data owner — that is `EquipmentDataProvider`.
-- Public API compatibility: `get_equipment_definitions(hero_id)` and `get_equipment_definition(hero_id, equipment_id)` route to `_equipment_provider` and wrap the result with legacy fields (`equipment_id`, `display_name`, `description`, `max_level`, `hero_id`) via `_adapt_template_to_definition()` so existing UI code keeps working.
+- **Item instances** (with `instance_id`, `template_id`, `slot_id`, `level`, `locked`, `source`) live in `_data["inventory_items"]` (Array — global). Equipped slot pointers live in `_data["equipped_slots"]` (Dictionary: slot_id → instance_id — global).
+- `MetaProgressionManager` is the player-state owner: it owns `inventory_items`, `equipped_slots`, `equipment_grants`, `equipment_by_hero` (legacy), and currency. It is NOT the canonical template data owner — that is `EquipmentDataProvider`.
+- Legacy per-hero fields `inventory_by_hero` and `equipped_by_hero` are kept in `_data` for backward compatibility but are cleared to empty on every load (`_validate_inventory_against_provider` clears them). All UI and logic reads from global fields.
+- Public API compatibility: `get_inventory_items_for_hero(hero_id)` and `get_equipped_items_for_hero(hero_id)` are wrappers that route to `get_inventory_items()` / `get_equipped_slots()` (hero_id ignored). `get_equipment_definitions()` and `get_equipment_definition()` still route to provider.
 - Global max level = 10 for all items. `get_inventory_item_max_level()` reads `_equipment_provider.MAX_ITEM_LEVEL`.
-- `get_equipment_stat_modifiers_for_hero(hero_id)` aggregates `stat_bonus_per_level * level` by `stat_bonus_type` across equipped instances only. Unequipped items contribute zero.
-- `MetaApplier` applies supported equipment stats at run start for the selected hero only: `max_health`, `move_speed`, `xp_gain`, `attack_damage`, `ability_damage`, `ability_cooldown`, `shield_capacity`, `mark_damage`, and `rage_gain`.
+- `get_equipment_stat_modifiers_for_hero(hero_id)` reads from global `equipped_slots`. Same result for every hero_id — the hero_id arg is kept for call-site compatibility only.
+- `MetaApplier` applies supported equipment stats at run start: `max_health`, `move_speed`, `xp_gain`, `attack_damage`, `ability_damage`, `ability_cooldown`, `shield_capacity`, `mark_damage`, and `rage_gain`. These bonuses apply identically for all heroes because equipped slots are global.
 - `low_health_damage` and other future-facing stats are stored in aggregated modifiers but do not mutate gameplay until an explicit safe system exists.
 - Equipment does not change Training costs, rewards, hero unlocks, gacha, item drops, stage objectives, boss flow, evolutions, or in-run 4/4/4 slot rules.
 
@@ -655,35 +657,43 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 
 ### Item Instance Schema
 
-Each item in `inventory_by_hero[hero_id]` (an Array) has this shape:
+Each item in `inventory_items` (global Array) has this shape:
 
 ```gdscript
 {
-  "instance_id": String,   # unique e.g. "guardian_solar_core_001"
-  "template_id": String,   # references equipment_id in definitions or alt templates
-  "hero_id": String,
-  "slot_id": String,       # "core" / "suit" / "emblem" / "gauntlets" / "boots" / "artifact"
-  "level": int,
-  "locked": bool,
+  "instance_id": String,   # unique e.g. "power_core_common_0001"
+  "template_id": String,   # references EquipmentDataProvider template id
+  "slot_id":     String,   # "core" / "suit" / "emblem" / "gauntlets" / "boots" / "artifact"
+  "level":       int,      # 0–10
+  "locked":      bool,
+  "source":      String,   # e.g. "starter_pack_v1" or ""
 }
 ```
 
-### equipped_by_hero Schema
+No `hero_id` field on instances — inventory is global.
 
-`equipped_by_hero[hero_id]` is a Dictionary mapping slot_id → instance_id:
+### equipped_slots Schema
+
+`equipped_slots` is a global Dictionary mapping slot_id → instance_id:
 
 ```gdscript
 {
-  "core":      "guardian_solar_core_001",
-  "suit":      "guardian_radiant_suit_001",
-  "emblem":    "guardian_sun_emblem_001",
-  "gauntlets": "guardian_power_gauntlets_001",
-  "boots":     "guardian_flight_boots_001",
-  "artifact":  "guardian_aegis_artifact_001",
+  "core":      "power_core_common_0001",
+  "suit":      "",   # empty = nothing equipped in this slot
 }
 ```
 
-All items (equipped and alternatives) live in `inventory_by_hero`. `equipped_by_hero` is a pointer layer only.
+All items live in the global `inventory_items`. `equipped_slots` is a pointer layer only. Any slot may be absent (treated as empty).
+
+### equipment_grants Schema
+
+`equipment_grants` tracks which grant packs have been claimed:
+
+```gdscript
+{
+  "starter_pack_v1": true,   # true = claimed, key absent = not yet claimed
+}
+```
 
 ### Alternative Item Templates
 
@@ -691,80 +701,91 @@ All items (equipped and alternatives) live in `inventory_by_hero`. `equipped_by_
 
 ### equip_inventory_item Flow
 
-1. Validate item exists in `inventory_by_hero[hero_id]` and `item.slot_id == slot_id`.
-2. Update `equipped_by_hero[hero_id][slot_id] = instance_id`.
-3. Emit `inventory_changed(hero_id)` and `equipment_changed(hero_id, slot_id, instance_id)`.
+1. Validate item exists in global `inventory_items` and `item.slot_id == slot_id`.
+2. Update `equipped_slots[slot_id] = instance_id` (global).
+3. Emit `inventory_changed(hero_id)` and `equipment_changed(hero_id, slot_id, instance_id)` with the caller's hero_id for signal compat.
 4. Call `save_progress()`.
 5. Return `true`.
 
-The previously equipped item stays in inventory — only the pointer changes.
+The previously equipped item stays in inventory — only the pointer changes. Hero dropdown does not affect which items are equipped.
 
 ### Gameplay Modifiers Rule
 
-`get_equipment_stat_modifiers_for_hero(hero_id)` reads only from equipped instances (via `equipped_by_hero`). Unequipped alternatives contribute zero stat to gameplay. This is the single source of truth for `MetaApplier`.
+`get_equipment_stat_modifiers_for_hero(hero_id)` reads from global `equipped_slots`. The `hero_id` arg is kept for call-site compatibility but is ignored for lookup — all heroes receive the same equipment modifiers. This is the single source of truth for `MetaApplier`.
 
 ### Save Migration Rules
 
-- Save version bumped from 4 → 5 (inventory/equipped structures introduced); Training Equipment Polish incremented to 6 (`inventory_static_items_cleared` flag, unequip support).
+- Save version: SAVE_VERSION = 6.
 - `_merge_with_defaults` calls `_migrate_inventory_if_needed()` after equipment data is ensured.
-- `_migrate_inventory_if_needed()` checks each hero in `DEFAULT_HERO_IDS`; ensures `inventory_by_hero[hero_id]` is an Array and `equipped_by_hero[hero_id]` is a Dictionary if missing. Does NOT call `_initialize_starter_inventory` — no starter item grants.
-- `_validate_inventory_against_provider()` is called at the end of `_migrate_inventory_if_needed()` when `_equipment_provider` is available. It prunes inventory items whose `template_id` is not found in the provider and clears `equipped_by_hero` slot pointers that reference pruned instances. Currency, training, mastery, goals, and stage mastery are never touched.
-- Old saves with unknown template_ids (e.g. from hero-specific static items) are silently pruned. Players start with an empty inventory and may acquire items through future in-game systems.
-- `_clear_static_inventory_if_needed(data)` runs once via `inventory_static_items_cleared` flag (idempotent) to clear any pre-existing static hero item grants.
+- `_migrate_inventory_if_needed()` initializes `inventory_items: []`, `equipped_slots: {}`, `equipment_grants: {}` if absent. If `inventory_items` is empty and `inventory_by_hero` has valid items, they are migrated into the global store and legacy structures are cleared.
+- `_validate_inventory_against_provider()` prunes `inventory_items` entries with unknown template_ids, prunes `equipped_slots` pointers to missing instances, and clears `inventory_by_hero`/`equipped_by_hero` (dead data going forward).
+- `equipment_grants: { "starter_pack_v1": true }` tracks which grant packs have been claimed; prevents popup from reappearing after Accept.
+- `instance_id_counter: int` in `_data` increments on each `create_inventory_item_instance()` call to ensure globally unique `instance_id` values across sessions.
+- Currency, training, mastery, goals, and stage mastery are never touched by migration.
 
-### New MetaProgressionManager APIs
+### Global Inventory API (MetaProgressionManager)
 
-- `get_inventory_items_for_hero(hero_id) -> Array` — all items for hero (equipped + alternatives).
-- `get_equipped_items_for_hero(hero_id) -> Dictionary` — slot_id → instance_id map.
-- `get_inventory_item(hero_id, instance_id) -> Dictionary` — single item lookup.
-- `get_equipped_item_for_slot(hero_id, slot_id) -> Dictionary` — item dict for the currently equipped instance in a slot.
-- `can_equip_inventory_item(hero_id, instance_id, slot_id) -> bool` — validates item exists and slot matches.
-- `equip_inventory_item(hero_id, instance_id, slot_id) -> bool` — performs the swap.
-- `debug_get_inventory_summary() -> Dictionary` — full inventory + equipped state per hero.
-- `get_alt_item_template(template_id) -> Dictionary` — looks up alternative item definition.
+- `get_inventory_items() -> Array` — global inventory (all items, every slot).
+- `get_equipped_slots() -> Dictionary` — global slot_id → instance_id map.
+- `get_inventory_items_for_hero(_hero_id) -> Array` — compat wrapper → `get_inventory_items()`.
+- `get_equipped_items_for_hero(_hero_id) -> Dictionary` — compat wrapper → `get_equipped_slots()`.
+- `get_inventory_item(_hero_id, instance_id) -> Dictionary` — global lookup by instance_id.
+- `get_equipped_item_for_slot(hero_id, slot_id) -> Dictionary` — global equipped instance dict.
+- `get_equipped_instance_id_for_slot(_hero_id, slot_id) -> String` — reads global `equipped_slots`.
+- `can_equip_inventory_item(_hero_id, instance_id, slot_id) -> bool` — validates slot match.
+- `equip_inventory_item(hero_id, instance_id, slot_id) -> bool` — writes to `equipped_slots`.
+- `can_unequip_slot(_hero_id, slot_id) -> bool` — checks global `equipped_slots`.
+- `unequip_slot(hero_id, slot_id) -> bool` — erases from `equipped_slots`.
+- `debug_get_inventory_summary() -> Dictionary` — global item_count, equipped_slots, items, equipment_grants.
+
+### Starter Equipment Grant API (MetaProgressionManager)
+
+- `has_equipment_grant(grant_id) -> bool` — reads `equipment_grants[grant_id]`.
+- `can_claim_starter_equipment() -> bool` — true when `starter_pack_v1` not yet claimed.
+- `preview_starter_equipment() -> Array[Dictionary]` — returns the 6 template dicts for the pack.
+- `claim_starter_equipment() -> Array[Dictionary]` — creates 6 instances, appends to `inventory_items`, marks `equipment_grants["starter_pack_v1"] = true`, emits `inventory_changed("")`, saves. Items are NOT auto-equipped.
+- `create_inventory_item_instance(template_id, source) -> Dictionary` — creates a new instance dict using `instance_id_counter`.
+- `STARTER_PACK_ID = "starter_pack_v1"`, `STARTER_PACK_TEMPLATES` = 6 common items (one per slot).
 
 ### MetaUpgradeShop Inventory UI Rules
 
-- `_get_inventory_cell_data()` uses `get_inventory_items_for_hero` when available; falls back to primary definitions as preview cells.
-- Inventory cells show `[E]` tag and green tint when the item is currently equipped.
-- Selected cell stores `_selected_inventory_instance_id`; selection is restored by instance_id after grid refresh.
-- Equip button shows "Equipped" (disabled) for already-equipped items, "Equip" (enabled, green) for unequipped items.
-- `_on_inventory_equip_pressed()` reads the selected item's `slot_id` and calls `equip_inventory_item`.
-- `_on_inventory_changed(hero_id)` and `_on_equipment_slot_changed(hero_id, slot_id, instance_id)` connect to `MetaProgressionManager` signals and refresh the equipped gear panel and inventory grid.
-- `_update_equipment_slots()` reads `get_equipped_items_for_hero` and resolves the equipped item's display name and level from inventory instance data, falling back to primary definition if no inventory data exists.
+- `_get_inventory_cell_data()` calls `get_inventory_items_for_hero` (wrapper → global); all items shown regardless of selected hero.
+- Inventory cells show `[E]` tag and green tint when the item is currently equipped in global `equipped_slots`.
+- `_on_inventory_changed` and `_on_equipment_slot_changed` no longer filter by `hero_id` — equipment is global so any change refreshes the visible UI.
+- `_on_inventory_item_upgraded` likewise refreshes on any upgrade regardless of hero_id.
+- Hero dropdown changes character preview and Training rows; it does NOT change the displayed inventory or equipped slots.
+- Starter pack popup (`_starter_pack_popup`) shown automatically in `open()` if `can_claim_starter_equipment()` returns true. No animation. Accept button calls `claim_starter_equipment()` and closes the popup. Popup does not reappear after claim.
 
 ## Equipment Item Progression Rework
 
-Equipment levels now belong to individual inventory item instances, not to abstract slot definitions. The equipped instance's level is the authoritative source for gameplay stat modifiers.
+Equipment levels belong to individual inventory item instances in the global store. The equipped instance's level is the authoritative source for gameplay stat modifiers.
 
 ### Item-Instance Upgrade API (MetaProgressionManager)
 
-- `upgrade_inventory_item(hero_id: String, instance_id: String) -> bool` — spends shared currency, increments the instance level by one, keeps `equipment_by_hero` in sync when the item is currently equipped (so existing signal-refresh paths continue working), emits `inventory_item_upgraded`, `inventory_changed`, and (if equipped) `equipment_upgrade_changed` and `currency_changed`, then saves progress. Returns `false` if item not found, already max level, or insufficient currency.
-- `get_inventory_item_upgrade_cost(hero_id: String, instance_id: String) -> int` — read-only; returns `_calculate_upgrade_cost(tmpl, level)` or `0` if the item is at max level or not found.
-- `can_upgrade_inventory_item(hero_id: String, instance_id: String) -> bool` — read-only; returns `true` when item exists, level < max_level, and `get_currency() >= cost`.
-- `get_inventory_item_level(hero_id: String, instance_id: String) -> int` — read-only; returns `item.get("level", 0)`.
-- `get_inventory_item_max_level(hero_id: String, instance_id: String) -> int` — read-only; resolves template via `_get_item_template` and returns `tmpl.get("max_level", 0)`.
-- `set_inventory_item_level(hero_id: String, instance_id: String, level: int) -> void` — direct setter clamped to `[0, max_level]`; keeps `equipment_by_hero` in sync when equipped; emits `inventory_item_upgraded`, `inventory_changed`, `equipment_upgrade_changed` (if equipped), and saves. For tooling and debug use; does not spend currency.
+- `upgrade_inventory_item(hero_id, instance_id) -> bool` — spends shared currency, increments the instance level in global `inventory_items`, keeps `equipment_by_hero` in sync (legacy compat), emits `inventory_item_upgraded`, `inventory_changed`, and (if equipped) `equipment_upgrade_changed`. Returns `false` if not found, at max level, or insufficient currency.
+- `get_inventory_item_upgrade_cost(hero_id, instance_id) -> int` — read-only; `0` if at max level or not found.
+- `can_upgrade_inventory_item(hero_id, instance_id) -> bool` — item exists, level < max_level, currency sufficient.
+- `get_inventory_item_level(hero_id, instance_id) -> int` — reads global `inventory_items`.
+- `get_inventory_item_max_level(hero_id, instance_id) -> int` — reads `_equipment_provider.MAX_ITEM_LEVEL`.
+- `set_inventory_item_level(hero_id, instance_id, level) -> void` — debug/tooling setter; does not spend currency.
 
 ### Signal
 
-- `inventory_item_upgraded(hero_id: String, instance_id: String, level: int)` — emitted by both `upgrade_inventory_item` and `set_inventory_item_level` after a successful level change.
+- `inventory_item_upgraded(hero_id, instance_id, level)` — emitted after successful level change. `hero_id` is the caller's hero_id for signal compat; MetaUpgradeShop no longer filters on it.
 
 ### purchase_equipment_upgrade Routing
 
-`purchase_equipment_upgrade(hero_id, equipment_id)` resolves the slot for the given equipment definition, finds the currently equipped instance via `get_equipped_instance_id_for_slot`, and routes through `upgrade_inventory_item` when a match exists. This prevents double currency spend and keeps instance level authoritative. If no equipped instance is found, the legacy path (spend + `set_equipment_level`) runs as a fallback for backward compatibility.
+`purchase_equipment_upgrade(hero_id, equipment_id)` resolves the slot, finds the globally equipped instance via `get_equipped_instance_id_for_slot`, and routes through `upgrade_inventory_item` when a match exists. Legacy spend + `set_equipment_level` path runs as fallback if no equipped instance.
 
 ### Stat Modifier Rule
 
-`get_equipment_stat_modifiers_for_hero(hero_id)` reads only from equipped instances (`equipped_by_hero`). Unequipped item levels contribute zero stat to gameplay. This rule is unchanged and is the single source of truth for `MetaApplier`.
+`get_equipment_stat_modifiers_for_hero(hero_id)` reads from global `equipped_slots`. Unequipped items contribute zero. Same result for all hero_ids. Single source of truth for `MetaApplier`.
 
 ### Inventory Panel Upgrade Button (MetaUpgradeShop)
 
-- `_inventory_upgrade_button: Button` is in the inventory panel header alongside `_inventory_equip_button`.
-- `_on_inventory_upgrade_pressed()` calls `_meta_manager.upgrade_inventory_item(_selected_hero_id, _selected_inventory_instance_id)` guarded by `has_method("upgrade_inventory_item")`.
-- `_update_inventory_detail()` sets button text and enabled state: "MAX" + disabled (muted) at max level; "Need N" + disabled (muted) when currency is short; "Upgrade N" + enabled (positive) when affordable.
-- Detail panel appends: current stat total, next-level stat preview ("Next Level: +X.XX stat_type"), "Affects gameplay: YES/NO (equip to apply)" gameplay note.
-- `_on_inventory_item_upgraded(hero_id, instance_id, level)` — connected to `inventory_item_upgraded` in `setup()`; triggers `_update_equipment_slots()`, `_refresh_inventory_shell()`, and `_select_inventory_cell(_selected_inventory_cell_index)` when the screen is visible and hero matches.
+- `_inventory_upgrade_button` is in the inventory panel header alongside `_inventory_equip_button`.
+- `_on_inventory_upgrade_pressed()` calls `upgrade_inventory_item(_selected_hero_id, _selected_inventory_instance_id)`.
+- `_update_inventory_detail()` sets button: "MAX" + disabled at max level; "Need N" + disabled when currency is short; "Upgrade N" + enabled when affordable.
 
 ### Unchanged Systems
 

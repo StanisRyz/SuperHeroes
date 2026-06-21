@@ -24,6 +24,9 @@ var _list_vbox: VBoxContainer
 var _rows: Array[Dictionary] = []
 var _hero_dropdown: OptionButton
 
+# Starter pack popup
+var _starter_pack_popup: PopupPanel = null
+
 # Equipped slot popup
 var _slot_popup: PopupPanel
 var _slot_popup_slot_id: String = ""
@@ -93,6 +96,7 @@ func open(hero_id: String = "") -> void:
 	show()
 	if _equipment_tab_button != null:
 		_equipment_tab_button.grab_focus()
+	_show_starter_pack_popup_if_needed()
 
 
 func close() -> void:
@@ -214,6 +218,7 @@ func _build_ui() -> void:
 	_training_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.add_child(_training_content)
 
+	_build_starter_pack_popup()
 	_build_slot_popup()
 	_update_tab_state()
 
@@ -1333,6 +1338,83 @@ func _on_hero_dropdown_changed(index: int) -> void:
 
 # ─── Slot popup ───────────────────────────────────────────────────────────────
 
+func _build_starter_pack_popup() -> void:
+	_starter_pack_popup = PopupPanel.new()
+	_starter_pack_popup.min_size = Vector2i(420, 300)
+	add_child(_starter_pack_popup)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	_starter_pack_popup.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	margin.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Starter Equipment Pack"
+	title.add_theme_font_size_override("font_size", 18)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	vbox.add_child(HSeparator.new())
+
+	var desc := Label.new()
+	desc.text = "Claim your first equipment items.\nEquip them manually from the inventory."
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	desc.add_theme_font_size_override("font_size", 12)
+	desc.modulate = Color(0.82, 0.86, 0.92, 1.0)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(desc)
+
+	vbox.add_child(HSeparator.new())
+
+	var items_label := Label.new()
+	items_label.text = (
+		"Power Core  /  Core  /  common\n" +
+		"Reinforced Suit  /  Suit  /  common\n" +
+		"Awareness Emblem  /  Emblem  /  common\n" +
+		"Striker Gauntlets  /  Gauntlets  /  common\n" +
+		"Runner Boots  /  Boots  /  common\n" +
+		"Shield Artifact  /  Artifact  /  common"
+	)
+	items_label.add_theme_font_size_override("font_size", 12)
+	items_label.modulate = Color(0.9, 0.95, 1.0, 1.0)
+	vbox.add_child(items_label)
+
+	vbox.add_child(HSeparator.new())
+
+	var buttons_row := HBoxContainer.new()
+	buttons_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(buttons_row)
+
+	var accept_btn := Button.new()
+	accept_btn.text = "Accept"
+	accept_btn.custom_minimum_size = Vector2(140, 44)
+	accept_btn.add_theme_font_size_override("font_size", 14)
+	accept_btn.pressed.connect(_on_starter_pack_accept_pressed)
+	buttons_row.add_child(accept_btn)
+
+
+func _show_starter_pack_popup_if_needed() -> void:
+	if _meta_manager == null or _starter_pack_popup == null:
+		return
+	if not _meta_manager.has_method("can_claim_starter_equipment"):
+		return
+	if _meta_manager.can_claim_starter_equipment():
+		_starter_pack_popup.popup_centered()
+
+
+func _on_starter_pack_accept_pressed() -> void:
+	if _starter_pack_popup != null:
+		_starter_pack_popup.hide()
+	if _meta_manager != null and _meta_manager.has_method("claim_starter_equipment"):
+		_meta_manager.claim_starter_equipment()
+
+
 func _build_slot_popup() -> void:
 	_slot_popup = PopupPanel.new()
 	_slot_popup.min_size = Vector2i(340, 260)
@@ -1669,22 +1751,22 @@ func _select_inventory_item_for_slot(slot_id: String) -> void:
 			return
 
 
-func _on_inventory_changed(hero_id: String) -> void:
-	if visible and hero_id == _selected_hero_id:
+func _on_inventory_changed(_hero_id: String) -> void:
+	if visible:
 		_refresh_equipment_panel()
 		_refresh_inventory_shell()
 
 
-func _on_equipment_slot_changed(hero_id: String, slot_id: String, _instance_id: String) -> void:
-	if visible and hero_id == _selected_hero_id:
+func _on_equipment_slot_changed(_hero_id: String, slot_id: String, _instance_id: String) -> void:
+	if visible:
 		_update_equipment_slots()
 		_refresh_inventory_shell()
 		if _slot_popup != null and _slot_popup.visible and _slot_popup_slot_id == slot_id:
 			_update_slot_popup_content(slot_id)
 
 
-func _on_inventory_item_upgraded(hero_id: String, _instance_id: String, _level: int) -> void:
-	if visible and hero_id == _selected_hero_id:
+func _on_inventory_item_upgraded(_hero_id: String, _instance_id: String, _level: int) -> void:
+	if visible:
 		_update_equipment_slots()
 		_refresh_inventory_shell()
 		_select_inventory_cell(_selected_inventory_cell_index)
