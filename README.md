@@ -1512,14 +1512,12 @@ New methods (delegate to `_equipment_provider` where needed):
 
 `get_equipment_stat_modifiers_for_hero(hero_id)` still accepts `hero_id` for compatibility, but equipment is global. It now returns equipped item modifiers plus active set bonus modifiers. The calculation is read-only and does not mutate save data.
 
-### UI: Set Name in Popups
+### Equipment Set UI Cleanup
 
-- **Item action popup** (`_update_inventory_detail`) - shows "Set: <name>", "Set Progress: N / 6 equipped", and compact next bonus text when the item belongs to a set.
-- **Equipped slot popup** (`_update_slot_popup_content`) - shows the same compact set progress and next bonus details for the equipped item.
-
-### UI: Set Summary Bar
-
-A compact set summary `Label` (`_set_summary_label`) is shown in the Equipped Gear panel below the slot buttons. It is refreshed by `_refresh_set_summary()` whenever equipped items change. It lists each equipped set count, active threshold bonuses, and the next threshold, or "Sets: none" when nothing is equipped.
+- Set bonuses remain active, but the main Equipment panel no longer renders a large always-visible set summary block.
+- **Item action popup** (`_update_inventory_detail`) - opens only after an explicit inventory cell click and shows the selected item's set name, equipped piece count, active bonus, and next bonus.
+- **Equipped slot popup** (`_update_slot_popup_content`) - shows the equipped item's set name, equipped piece count, active bonus, and next bonus. Empty slots show only the existing empty-slot message.
+- Refreshing inventory, opening Training, switching tabs, or switching heroes must not open the item action popup automatically.
 
 ### UI: Cell Data
 

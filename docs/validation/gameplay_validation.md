@@ -22,6 +22,23 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Equipment Set UI Cleanup
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training -> Equipment | No item action popup appears automatically |
+| 2 | Open Training with unclaimed starter pack | Starter Pack popup may appear; item action popup remains closed |
+| 3 | Inspect left Equipment panel | No long set summary block; square equipment slots and centered character holder remain clean |
+| 4 | Switch tabs or hero, then return to Equipment | Inventory refreshes without opening item action popup |
+| 5 | Click an occupied inventory cell | Item action popup opens and shows only that item's set name, equipped pieces, active bonus, and next bonus |
+| 6 | Click an empty inventory cell | No crash; item action popup closes or stays closed |
+| 7 | Click an occupied equipped slot | Slot popup shows that item's set name, equipped pieces, active bonus, and next bonus |
+| 8 | Click an empty equipped slot | Slot popup shows empty-slot message with no irrelevant set info |
+| 9 | Equip/unequip a set item | Popup set counts/bonuses update; set bonus modifiers still aggregate from global equipped slots |
+| 10 | Inspect scope | No set bonus value, item stat, reward/economy, stage/zone, gacha/drop/crafting/affix, hero kit, evolution, boss-flow, Training upgrade, or in-run 4/4/4 rule changes |
+
+---
+
 ## Equipment Item Template System
 
 | # | Test | Expected |

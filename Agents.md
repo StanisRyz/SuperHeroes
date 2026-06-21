@@ -1035,9 +1035,11 @@ Counting is based only on global `equipped_slots`; inventory items do not count 
 
 ### UI Set Display Rules
 
-- **Item action popup** (`_update_inventory_detail`): show set name, set progress, and compact next bonus text when `set_id` is non-empty.
-- **Equipped slot popup** (`_update_slot_popup_content`): show set name, set progress, and compact next bonus text.
-- **Set summary bar** (`_set_summary_label`) in Equipped Gear panel: refreshed by `_refresh_set_summary()` on every equip/unequip; lists each set count, active bonuses, and next threshold, or "Sets: none" when nothing equipped.
+- The main Equipment panel must not contain long set summary blocks. Keep it to square equipment slots, the centered character holder, and short helper text.
+- Set details are popup-only: item action popup and equipped slot popup show only the selected item's set name, equipped piece count, active bonus, and next bonus.
+- Inventory selection and popup opening must stay separated. `_select_inventory_cell(index, open_popup = false)` may update selection/details quietly; explicit inventory cell presses are the only item-action popup trigger.
+- The starter pack popup is the only Training popup allowed to open automatically. Opening Training, refreshing inventory, switching tabs, or switching heroes must not auto-open the item action popup.
+- Empty equipped slot popups must keep the empty-slot message and must not show irrelevant set details.
 - **Cell data** (`_get_inventory_cell_data`): cell dicts include `"set_id"` and `"set_name"` for downstream use.
 
 ### Set Bonus Rules

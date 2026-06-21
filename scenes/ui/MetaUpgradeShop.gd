@@ -62,9 +62,6 @@ var _training_hero_label: Label
 var _item_action_popup: PopupPanel = null
 var _item_action_title_label: Label = null
 
-# Set summary
-var _set_summary_label: Label = null
-
 var _inventory_slot_filter: String = "all"
 var _inventory_state_filter: String = "all"
 var _inventory_sort_mode: String = "default"
@@ -111,6 +108,8 @@ func open(hero_id: String = "") -> void:
 	refresh()
 	_rebuild_hero_dropdown()
 	show()
+	if _item_action_popup != null:
+		_item_action_popup.hide()
 	if _equipment_tab_button != null:
 		_equipment_tab_button.grab_focus()
 	_show_starter_pack_popup_if_needed()
@@ -378,14 +377,6 @@ func _build_equipment_panel() -> Control:
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	equipped_vbox.add_child(note)
-
-	_set_summary_label = Label.new()
-	_set_summary_label.text = "Sets: none"
-	_set_summary_label.add_theme_font_size_override("font_size", 10)
-	_set_summary_label.modulate = Color(0.55, 0.6, 0.68, 1.0)
-	_set_summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_set_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	equipped_vbox.add_child(_set_summary_label)
 
 	# ── Inventory panel ───────────────────────────────────────────────────────
 	var inventory_panel := _build_inventory_panel()
@@ -659,7 +650,7 @@ func _refresh_inventory_grid() -> void:
 		var cell := _build_inventory_cell(cells[i], i)
 		_inventory_grid.add_child(cell)
 		_inventory_buttons[i] = cell
-	_select_inventory_cell(_selected_inventory_cell_index)
+	_select_inventory_cell(_selected_inventory_cell_index, false)
 
 
 func _build_inventory_cell(cell_data: Dictionary, index: int) -> Control:
@@ -669,7 +660,7 @@ func _build_inventory_cell(cell_data: Dictionary, index: int) -> Control:
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.add_theme_font_size_override("font_size", 9)
 	button.clip_text = true
-	button.pressed.connect(_select_inventory_cell.bind(index))
+	button.pressed.connect(_on_inventory_cell_pressed.bind(index))
 	if bool(cell_data.get("occupied", false)):
 		var display_name := str(cell_data.get("display_name", "Item"))
 		var slot_id := str(cell_data.get("slot_id", ""))
@@ -701,7 +692,11 @@ func _build_inventory_cell(cell_data: Dictionary, index: int) -> Control:
 	return button
 
 
-func _select_inventory_cell(index: int) -> void:
+func _on_inventory_cell_pressed(index: int) -> void:
+	_select_inventory_cell(index, true)
+
+
+func _select_inventory_cell(index: int, open_popup: bool = false) -> void:
 	var cells := _get_inventory_cell_data()
 	if cells.is_empty():
 		_update_inventory_detail({})
@@ -736,12 +731,12 @@ func _select_inventory_cell(index: int) -> void:
 			# Empty cell: muted gray
 			button.modulate = Color(0.48, 0.52, 0.58, 1.0)
 	_update_inventory_detail(selected_cell)
-	# Open item action popup for occupied cells; close for empty
+	# Selection is quiet during refresh; explicit cell clicks decide popup state.
 	if _item_action_popup != null:
-		if bool(selected_cell.get("occupied", false)):
+		if open_popup and bool(selected_cell.get("occupied", false)):
 			if not _item_action_popup.visible:
 				_item_action_popup.popup_centered()
-		else:
+		elif open_popup:
 			_item_action_popup.hide()
 
 
@@ -860,13 +855,8 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	lines.append("Slot: %s" % slot_display)
 	lines.append("Rarity: %s" % EquipmentFormat.rarity_display_name(rarity))
 	var popup_set_id := str(tmpl.get("set_id", "")) if not tmpl.is_empty() else ""
-	lines.append("Set: %s" % EquipmentFormat.set_display_name(popup_set_id))
-	if not popup_set_id.is_empty() and _meta_manager != null and _meta_manager.has_method("get_equipped_set_counts"):
-		var set_counts: Dictionary = _meta_manager.get_equipped_set_counts()
-		lines.append("Set Progress: %d / 6 equipped" % int(set_counts.get(popup_set_id, 0)))
-		var next_bonus_text := _get_next_set_bonus_text(popup_set_id)
-		if not next_bonus_text.is_empty():
-			lines.append("Next Bonus: %s" % next_bonus_text)
+	for set_line in _get_compact_set_popup_lines(popup_set_id):
+		lines.append(set_line)
 	lines.append("Level: %d / %d" % [level, max_level])
 	lines.append("Status: %s" % status_str)
 	lines.append("Locked: %s" % ("Yes" if is_locked else "No"))
@@ -1040,54 +1030,51 @@ func _update_equipment_slots() -> void:
 		if _slot_popup != null and _slot_popup.visible and _slot_popup_slot_id == slot_id:
 			_update_slot_popup_content(slot_id)
 
-	_refresh_set_summary()
-
-
-func _refresh_set_summary() -> void:
-	if _set_summary_label == null or _meta_manager == null:
-		return
-	if not _meta_manager.has_method("get_equipped_set_summary"):
-		_set_summary_label.text = ""
-		return
-	var summary: Array = _meta_manager.get_equipped_set_summary()
-	if summary.is_empty():
-		_set_summary_label.text = "Sets: none"
-		_set_summary_label.modulate = Color(0.55, 0.6, 0.68, 1.0)
-		return
-	var lines: PackedStringArray = []
-	for entry in summary:
-		lines.append("%s %d/%d" % [str(entry.get("name", "?")), int(entry.get("count", 0)), int(entry.get("max_count", 6))])
-		var active_bonuses: Array = entry.get("active_bonuses", []) if entry.get("active_bonuses", []) is Array else []
-		if active_bonuses.is_empty():
-			lines.append("Active: none")
-		else:
-			var active_lines: PackedStringArray = []
-			for bonus in active_bonuses:
-				if bonus is Dictionary:
-					active_lines.append(EquipmentFormat.set_bonus_text(bonus))
-			lines.append("Active: %s" % "; ".join(active_lines))
-		var next_bonus: Dictionary = entry.get("next_bonus", {}) if entry.get("next_bonus", {}) is Dictionary else {}
-		if next_bonus.is_empty():
-			lines.append("Next: Full set active")
-		else:
-			lines.append("Next: %s" % EquipmentFormat.set_bonus_text(next_bonus))
-	_set_summary_label.text = "\n".join(lines)
-	_set_summary_label.modulate = Color(0.75, 0.82, 0.92, 1.0)
-
-
-func _get_next_set_bonus_text(set_id: String) -> String:
-	if set_id.is_empty() or _meta_manager == null:
-		return ""
-	if not _meta_manager.has_method("get_equipped_set_counts"):
-		return ""
+func _get_compact_set_popup_lines(set_id: String) -> PackedStringArray:
+	var lines := PackedStringArray()
+	if set_id.is_empty():
+		lines.append("Set: None")
+		return lines
+	lines.append("Set: %s" % EquipmentFormat.set_display_name(set_id))
+	if _meta_manager == null or not _meta_manager.has_method("get_equipped_set_counts"):
+		lines.append("Equipped pieces: 0 / 6")
+		lines.append("Active bonus: None")
+		lines.append("Next bonus: Unknown")
+		return lines
 	var counts: Dictionary = _meta_manager.get_equipped_set_counts()
 	var count := int(counts.get(set_id, 0))
+	lines.append("Equipped pieces: %d / 6" % count)
 	var set_data: Dictionary = _meta_manager.get_equipment_set(set_id) if _meta_manager.has_method("get_equipment_set") else {}
 	var bonuses: Array = set_data.get("bonuses", []) if set_data.get("bonuses", []) is Array else []
+	var active_text: PackedStringArray = []
 	for bonus in bonuses:
-		if bonus is Dictionary and int(bonus.get("pieces", 0)) > count:
-			return EquipmentFormat.set_bonus_text(bonus)
-	return "Full set active"
+		if not bonus is Dictionary:
+			continue
+		var pieces := int(bonus.get("pieces", 0))
+		var modifiers: Dictionary = bonus.get("modifiers", {}) if bonus.get("modifiers", {}) is Dictionary else {}
+		var text := EquipmentFormat.modifiers_text(modifiers)
+		if pieces <= count:
+			if not text.is_empty():
+				active_text.append("%d pieces - %s" % [pieces, text])
+	if active_text.is_empty():
+		lines.append("Active bonus: None")
+	elif active_text.size() == 1:
+		var single_active := str(active_text[0])
+		lines.append("Active bonus: %s" % single_active.get_slice(" - ", 1))
+	else:
+		lines.append("Active bonuses: %s" % "; ".join(active_text))
+	for bonus in bonuses:
+		if not bonus is Dictionary:
+			continue
+		var pieces := int(bonus.get("pieces", 0))
+		if pieces <= count:
+			continue
+		var modifiers: Dictionary = bonus.get("modifiers", {}) if bonus.get("modifiers", {}) is Dictionary else {}
+		var text := EquipmentFormat.modifiers_text(modifiers)
+		lines.append("Next bonus: %d pieces - %s" % [pieces, text])
+		return lines
+	lines.append("Next bonus: Full set active")
+	return lines
 
 
 func _get_equipment_definitions_by_slot() -> Dictionary:
@@ -1616,13 +1603,8 @@ func _update_slot_popup_content(slot_id: String) -> void:
 	lines.append(display_name)
 	lines.append("Rarity: %s" % EquipmentFormat.rarity_display_name(popup_rarity))
 	var slot_set_id := str(tmpl.get("set_id", "")) if not tmpl.is_empty() else ""
-	lines.append("Set: %s" % EquipmentFormat.set_display_name(slot_set_id))
-	if not slot_set_id.is_empty() and _meta_manager != null and _meta_manager.has_method("get_equipped_set_counts"):
-		var set_counts: Dictionary = _meta_manager.get_equipped_set_counts()
-		lines.append("Set Progress: %d / 6 equipped" % int(set_counts.get(slot_set_id, 0)))
-		var next_bonus_text := _get_next_set_bonus_text(slot_set_id)
-		if not next_bonus_text.is_empty():
-			lines.append("Next Bonus: %s" % next_bonus_text)
+	for set_line in _get_compact_set_popup_lines(slot_set_id):
+		lines.append(set_line)
 	lines.append("Level: %d / %d" % [level, max_level_val])
 	lines.append("Status: EQUIPPED")
 	if not stat_str.is_empty():
@@ -1751,12 +1733,12 @@ func _refresh_inventory_grid_with_selection_preserve() -> void:
 		for i in range(cells.size()):
 			var c: Dictionary = cells[i]
 			if bool(c.get("occupied", false)) and str(c.get("instance_id", "")) == prev_instance_id:
-				_select_inventory_cell(i)
+				_select_inventory_cell(i, false)
 				return
 	# Fallback: select first occupied cell
 	for i in range(cells.size()):
 		if bool(cells[i].get("occupied", false)):
-			_select_inventory_cell(i)
+			_select_inventory_cell(i, false)
 			return
 	# No occupied cells visible
 	_selected_inventory_instance_id = ""
@@ -2069,7 +2051,7 @@ func _select_inventory_item_for_slot(slot_id: String) -> void:
 	for i in range(cells.size()):
 		var c: Dictionary = cells[i]
 		if bool(c.get("occupied", false)) and str(c.get("instance_id", "")) == equipped_instance_id:
-			_select_inventory_cell(i)
+			_select_inventory_cell(i, false)
 			return
 
 
@@ -2091,4 +2073,4 @@ func _on_inventory_item_upgraded(_hero_id: String, _instance_id: String, _level:
 	if visible:
 		_update_equipment_slots()
 		_refresh_inventory_shell()
-		_select_inventory_cell(_selected_inventory_cell_index)
+		_select_inventory_cell(_selected_inventory_cell_index, _item_action_popup != null and _item_action_popup.visible)
