@@ -2149,3 +2149,32 @@ Equipment / Inventory horizontal layout validation:
 | 5 | No gacha, random loot, item drops, affixes, or crafting added | Diff shows none of these; only deterministic per-level upgrades added |
 | 6 | 4/4/4 in-run slot rules | Unchanged |
 | 7 | Stage flow, boss flow, rewards | Unchanged |
+
+---
+
+## Inventory Filters / Sorting
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Equipment tab (default state) | All items visible in grid plus empty cells to reach 20; Slot=All, State=All, Sort=Default |
+| 2 | Set Slot filter to "Core" | Only core items shown in grid; empty cells fill the rest |
+| 3 | Set Slot filter to "Gauntlets" | Only gauntlet items shown; empty cells fill the rest |
+| 4 | Set Slot filter to "Suit", "Emblem", "Boots", "Artifact" | Each filter shows only items of that slot type |
+| 5 | Set State filter to "Equipped" | Only items currently equipped in a slot are shown |
+| 6 | Set State filter to "Unequipped" | Only items not currently equipped are shown |
+| 7 | Set Slot "Core" + State "Equipped" combined | Only the currently equipped core item is shown |
+| 8 | Set Sort to "Level High" | Items ordered highest level first; empty cells follow |
+| 9 | Set Sort to "Level Low" | Items ordered lowest level first; empty cells follow |
+| 10 | Set Sort to "Name" | Items ordered alphabetically by template_id; empty cells follow |
+| 11 | Set Sort to "Slot" | Items ordered core→suit→emblem→gauntlets→boots→artifact; empty cells follow |
+| 12 | Select an item, then change Slot filter to one that still includes that item | The selected item stays selected and detail panel is unchanged |
+| 13 | Select an item, then change Slot filter to one that excludes that item | Selection moves to first occupied cell in filtered view |
+| 14 | Set a filter that matches no items | Grid shows only empty cells; detail panel shows "No items match current filters." |
+| 15 | Reset Slot and State filters to "All" after empty result | Items reappear; empty slot message is gone |
+| 16 | Click Equip on a filtered item | Equip works normally; equipped gear panel updates |
+| 17 | Upgrade an item via inventory Upgrade button while filter is active | Upgrade works normally; level updates in grid and detail panel |
+| 18 | Click an equipped slot panel on the left | Corresponding inventory item is selected in the filtered grid (if visible); detail panel updates |
+| 19 | Switch hero via Training | Equipment tab refreshes with the new hero's inventory; filters remain as-is |
+| 20 | Training tab | Entirely unaffected by inventory filter/sort changes |
+| 21 | Main Menu button | Visible and returns to MainMenu regardless of filter state |
+| 22 | No gacha, random loot, item drops, random affixes, crafting, or fusion added | Diff shows none of these |

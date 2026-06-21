@@ -805,6 +805,17 @@ Training tab, currency flow, hero unlock, main menu, goals, stage flow, evolutio
 - Row flash on purchase (`_flash_row`) unchanged.
 - Main.gd Training open/close flow unchanged.
 
+## Inventory Filters & Sorting Architecture
+
+- `_inventory_slot_filter: String` (default `"all"`), `_inventory_state_filter: String` (default `"all"`), `_inventory_sort_mode: String` (default `"default"`) — state vars in MetaUpgradeShop.
+- Filter UI: compact HBoxContainer with three OptionButtons (Slot / State / Sort) inserted into the `body` VBox of `_build_inventory_panel()`, above `_build_inventory_grid()`.
+- `_on_inventory_slot_filter_changed(index)`, `_on_inventory_state_filter_changed(index)`, `_on_inventory_sort_mode_changed(index)` — OptionButton signal handlers; map index to string value via local arrays, then call `_refresh_inventory_grid_with_selection_preserve()`.
+- `_get_filtered_sorted_items() -> Array` — applies slot and state filters against `get_inventory_items_for_hero`, builds an equipped_ids set from `get_equipped_items_for_hero`, then sorts by the active `_inventory_sort_mode`. Returns the filtered+sorted Array of item dicts.
+- `_get_inventory_cell_data()` — unchanged schema; now calls `_get_filtered_sorted_items()` instead of raw `get_inventory_items_for_hero`. Empty cells are still appended to reach 20 minimum.
+- `_refresh_inventory_grid_with_selection_preserve()` — calls `_refresh_inventory_grid()`, then tries to restore the previously selected `_selected_inventory_instance_id` by scanning cells; falls back to first occupied cell; falls back to clearing selection and calling `_update_inventory_detail({})`.
+- `_update_inventory_detail()` empty-cell branch — when `filter_active` and `_get_filtered_sorted_items().is_empty()`, shows "No items match current filters." instead of "[Empty Slot]".
+- No changes to MetaProgressionManager.gd.
+
 ## Implemented Systems
 
 - MinibossAttackController with Nova, Barrage, and Charge Slam attacks.

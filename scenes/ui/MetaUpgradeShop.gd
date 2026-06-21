@@ -39,6 +39,10 @@ var _inventory_upgrade_button: Button
 var _selected_inventory_instance_id: String = ""
 var _training_hero_label: Label
 
+var _inventory_slot_filter: String = "all"
+var _inventory_state_filter: String = "all"
+var _inventory_sort_mode: String = "default"
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -360,6 +364,50 @@ func _build_inventory_panel() -> Control:
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(body)
 
+	# ── filter / sort row ─────────────────────────────────────────────────────
+	var filter_row := HBoxContainer.new()
+	filter_row.add_theme_constant_override("separation", 6)
+	body.add_child(filter_row)
+
+	var slot_filter_label := Label.new()
+	slot_filter_label.text = "Slot:"
+	slot_filter_label.add_theme_font_size_override("font_size", 11)
+	filter_row.add_child(slot_filter_label)
+
+	var slot_option := OptionButton.new()
+	slot_option.custom_minimum_size = Vector2(90, 28)
+	slot_option.add_theme_font_size_override("font_size", 11)
+	for slot_entry in [["All", "all"], ["Core", "core"], ["Suit", "suit"], ["Emblem", "emblem"], ["Gauntlets", "gauntlets"], ["Boots", "boots"], ["Artifact", "artifact"]]:
+		slot_option.add_item(slot_entry[0])
+	slot_option.item_selected.connect(_on_inventory_slot_filter_changed)
+	filter_row.add_child(slot_option)
+
+	var state_filter_label := Label.new()
+	state_filter_label.text = "  State:"
+	state_filter_label.add_theme_font_size_override("font_size", 11)
+	filter_row.add_child(state_filter_label)
+
+	var state_option := OptionButton.new()
+	state_option.custom_minimum_size = Vector2(100, 28)
+	state_option.add_theme_font_size_override("font_size", 11)
+	for state_entry in [["All", "all"], ["Equipped", "equipped"], ["Unequipped", "unequipped"]]:
+		state_option.add_item(state_entry[0])
+	state_option.item_selected.connect(_on_inventory_state_filter_changed)
+	filter_row.add_child(state_option)
+
+	var sort_label := Label.new()
+	sort_label.text = "  Sort:"
+	sort_label.add_theme_font_size_override("font_size", 11)
+	filter_row.add_child(sort_label)
+
+	var sort_option := OptionButton.new()
+	sort_option.custom_minimum_size = Vector2(100, 28)
+	sort_option.add_theme_font_size_override("font_size", 11)
+	for sort_entry in [["Default", "default"], ["Slot", "slot"], ["Lvl High", "level_high"], ["Lvl Low", "level_low"], ["Name", "name"]]:
+		sort_option.add_item(sort_entry[0])
+	sort_option.item_selected.connect(_on_inventory_sort_mode_changed)
+	filter_row.add_child(sort_option)
+
 	body.add_child(_build_inventory_grid())
 
 	var detail_scroll := ScrollContainer.new()
@@ -475,7 +523,7 @@ func _build_inventory_grid() -> Control:
 func _get_inventory_cell_data() -> Array:
 	var cells: Array = []
 	if _meta_manager != null and _meta_manager.has_method("get_inventory_items_for_hero"):
-		var items: Array = _meta_manager.get_inventory_items_for_hero(_selected_hero_id)
+		var items: Array = _get_filtered_sorted_items()
 		var equipped: Dictionary = {}
 		if _meta_manager.has_method("get_equipped_items_for_hero"):
 			equipped = _meta_manager.get_equipped_items_for_hero(_selected_hero_id)
@@ -692,7 +740,11 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 		return
 
 	if not is_occupied or instance_id.is_empty():
-		_inventory_detail_label.text = "[Empty Slot]\nNo item selected.\nFuture items will appear here."
+		var filter_active := (_inventory_slot_filter != "all" or _inventory_state_filter != "all")
+		if filter_active and _get_filtered_sorted_items().is_empty():
+			_inventory_detail_label.text = "No items match current filters.\nTry changing Slot or State filter."
+		else:
+			_inventory_detail_label.text = "[Empty Slot]\nNo item selected.\nFuture items will appear here."
 		return
 
 	# Gather data
@@ -1398,6 +1450,106 @@ func _flash_equipment_slot(equipment_id: String) -> void:
 		tween.tween_property(panel, "modulate", Color(0.6, 1.0, 0.6, 1.0), 0.0)
 		tween.tween_property(panel, "modulate", Color.WHITE, 0.35)
 		return
+
+
+func _on_inventory_slot_filter_changed(index: int) -> void:
+	var slot_values := ["all", "core", "suit", "emblem", "gauntlets", "boots", "artifact"]
+	if index >= 0 and index < slot_values.size():
+		_inventory_slot_filter = slot_values[index]
+	_refresh_inventory_grid_with_selection_preserve()
+
+
+func _on_inventory_state_filter_changed(index: int) -> void:
+	var state_values := ["all", "equipped", "unequipped"]
+	if index >= 0 and index < state_values.size():
+		_inventory_state_filter = state_values[index]
+	_refresh_inventory_grid_with_selection_preserve()
+
+
+func _on_inventory_sort_mode_changed(index: int) -> void:
+	var sort_values := ["default", "slot", "level_high", "level_low", "name"]
+	if index >= 0 and index < sort_values.size():
+		_inventory_sort_mode = sort_values[index]
+	_refresh_inventory_grid_with_selection_preserve()
+
+
+func _refresh_inventory_grid_with_selection_preserve() -> void:
+	var prev_instance_id := _selected_inventory_instance_id
+	_refresh_inventory_grid()
+	# Try to restore selection by instance_id
+	var cells := _get_inventory_cell_data()
+	if not prev_instance_id.is_empty():
+		for i in range(cells.size()):
+			var c: Dictionary = cells[i]
+			if bool(c.get("occupied", false)) and str(c.get("instance_id", "")) == prev_instance_id:
+				_select_inventory_cell(i)
+				return
+	# Fallback: select first occupied cell
+	for i in range(cells.size()):
+		if bool(cells[i].get("occupied", false)):
+			_select_inventory_cell(i)
+			return
+	# No occupied cells visible
+	_selected_inventory_instance_id = ""
+	_update_inventory_detail({})
+
+
+func _get_filtered_sorted_items() -> Array:
+	if _meta_manager == null:
+		return []
+	var all_items: Array = _meta_manager.get_inventory_items_for_hero(_selected_hero_id) if _meta_manager.has_method("get_inventory_items_for_hero") else []
+	var equipped_map: Dictionary = _meta_manager.get_equipped_items_for_hero(_selected_hero_id) if _meta_manager.has_method("get_equipped_items_for_hero") else {}
+	# Build set of equipped instance_ids for quick lookup
+	var equipped_ids := {}
+	for slot in equipped_map:
+		equipped_ids[str(equipped_map[slot])] = true
+
+	# Filter
+	var filtered: Array = []
+	for item in all_items:
+		if not item is Dictionary:
+			continue
+		var slot_id := str(item.get("slot_id", ""))
+		var instance_id := str(item.get("instance_id", ""))
+		var is_equipped: bool = equipped_ids.has(instance_id)
+		# Slot filter
+		if _inventory_slot_filter != "all" and slot_id != _inventory_slot_filter:
+			continue
+		# State filter
+		if _inventory_state_filter == "equipped" and not is_equipped:
+			continue
+		if _inventory_state_filter == "unequipped" and is_equipped:
+			continue
+		filtered.append(item)
+
+	# Sort
+	match _inventory_sort_mode:
+		"slot":
+			var slot_order := ["core", "suit", "emblem", "gauntlets", "boots", "artifact"]
+			filtered.sort_custom(func(a, b):
+				var ai := slot_order.find(str(a.get("slot_id", "")))
+				var bi := slot_order.find(str(b.get("slot_id", "")))
+				if ai == -1: ai = 99
+				if bi == -1: bi = 99
+				return ai < bi
+			)
+		"level_high":
+			filtered.sort_custom(func(a, b):
+				return int(a.get("level", 0)) > int(b.get("level", 0))
+			)
+		"level_low":
+			filtered.sort_custom(func(a, b):
+				return int(a.get("level", 0)) < int(b.get("level", 0))
+			)
+		"name":
+			filtered.sort_custom(func(a, b):
+				var na := str(a.get("template_id", ""))
+				var nb := str(b.get("template_id", ""))
+				return na < nb
+			)
+		# "default": keep inventory order
+
+	return filtered
 
 
 func _on_inventory_equip_pressed() -> void:

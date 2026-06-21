@@ -758,6 +758,15 @@ The equipment panel hero preview updates from the hero id resolved by Main when 
 
 Supported equipment bonuses are applied at run start for the selected hero only through `MetaApplier`, after hero stats and alongside Training: max health, move speed, XP gain, attack damage, ability damage, ability cooldown reduction, Tactical Mark damage, Rage gain, and starting shield charges. Future-facing stat ids remain aggregated/debuggable but are ignored by gameplay until a safe system exists for them.
 
+### Inventory Filters & Sorting
+
+- Filter by slot: All / Core / Suit / Emblem / Gauntlets / Boots / Artifact
+- Filter by state: All / Equipped / Unequipped
+- Sort by: Default / Slot / Level High / Level Low / Name
+- Empty cells are always shown after filtered results
+- Selection is preserved when the selected item remains visible after filtering
+- Inventory remains static/deterministic — no gacha, random loot, item drops, affixes, crafting, or fusion
+
 Not implemented yet (equipment):
 - Item drops or gacha pulls.
 - Random item stats or item ownership lists.
