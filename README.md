@@ -1383,6 +1383,47 @@ All heroes share a single set of equipped items. Equipping an item in any hero v
 - No auto-equip on grant.
 - No inventory cap — all items received are always stored.
 
+## Item Rewards After Run
+
+At the end of every run the player receives item rewards that go directly into the global equipment inventory.
+
+### Post-Run Flow
+
+`Run → Result screen → Currency/Mastery/Goals → Item Rewards → Inventory`
+
+Items appear in **Training → Equipment** after the run. They are not auto-equipped.
+
+### Reward Count
+
+| Outcome | Items |
+|---------|-------|
+| Defeat, run shorter than 5 min | 0 |
+| Defeat, run 5 min or longer | 1 (common only) |
+| Victory | 1 |
+| Victory + final boss defeated | 2 |
+
+### Rarity Rules
+
+- **Defeat (long)**: common only.
+- **Victory**: mostly common, some uncommon, small rare chance.
+- **Victory + objective completed**: improved uncommon chance.
+- **Victory + final boss defeated** (second item): notable rare chance.
+- **Grade A or S**: small additional rare weight on top.
+- Current drops use only `common`, `uncommon`, and `rare`. `epic`, `legendary`, `mythic` are reserved for future content.
+
+### Display
+
+- Victory screen: "Item Rewards" section above the buttons.
+- Game Over screen: same section (shows "No items found." on short defeats).
+- Run Rewards popup: "Item Rewards" section at the bottom of the scroll area.
+
+### Rules
+
+- Items go to global `inventory_items` with `source = "run_reward"`.
+- Items are never auto-equipped.
+- Duplicate template rewards are allowed (two of the same item possible).
+- No gacha, no enemy item drops, no random affixes, no crafting, no fusion, no selling, no inventory cap.
+
 ## Yandex Games Notes
 
 - Yandex SDK integration will be added later through a wrapper.

@@ -100,6 +100,7 @@ func show_stats(stats: Dictionary) -> void:
 			UIFormat.format_list(titles),
 		]
 
+	_append_item_rewards(stats.get("item_rewards", []))
 	show()
 	if restart_button != null:
 		restart_button.grab_focus()
@@ -107,6 +108,39 @@ func show_stats(stats: Dictionary) -> void:
 
 func setup_audio_manager(new_audio_manager: Node) -> void:
 	audio_manager = new_audio_manager
+
+
+func _append_item_rewards(item_rewards: Array) -> void:
+	var vbox := get_node_or_null("Root/Panel/VBoxContainer")
+	if vbox == null:
+		return
+	var lbl := vbox.get_node_or_null("ItemRewardsLabel") as Label
+	if lbl == null:
+		var sep := HSeparator.new()
+		sep.name = "ItemRewardsSep"
+		vbox.add_child(sep)
+		var btn_node: Node = restart_button if restart_button != null else menu_button
+		if btn_node != null:
+			vbox.move_child(sep, btn_node.get_index())
+		lbl = Label.new()
+		lbl.name = "ItemRewardsLabel"
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(lbl)
+		if btn_node != null:
+			vbox.move_child(lbl, btn_node.get_index())
+	if item_rewards.is_empty():
+		lbl.text = "Item Rewards:  No items found."
+		lbl.modulate = UIStateColors.muted_color()
+	else:
+		var lines: PackedStringArray = ["Item Rewards:"]
+		for item in item_rewards:
+			var iname := str(item.get("name", item.get("template_id", "?")))
+			var slot := str(item.get("slot_id", ""))
+			var rarity := str(item.get("rarity", ""))
+			lines.append("  + %s  [%s / %s]" % [iname, slot, rarity])
+		lbl.text = "\n".join(lines)
+		lbl.modulate = UIStateColors.positive_color()
 
 
 func _format_objective_line(stats: Dictionary) -> String:

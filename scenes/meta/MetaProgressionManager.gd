@@ -639,6 +639,9 @@ func apply_run_result(summary: Dictionary) -> Dictionary:
 	rewards["goal_rewards_auto_claimed"] = true
 
 	add_currency(int(rewards.get("total_reward", 0)))
+	var item_rewards := grant_item_rewards(summary)
+	rewards["item_rewards"] = item_rewards
+	summary["item_rewards"] = item_rewards
 	save_progress()
 
 	return rewards
@@ -1226,11 +1229,17 @@ func debug_get_item_template_summary() -> Dictionary:
 
 
 func debug_get_inventory_summary() -> Dictionary:
+	var items := get_inventory_items()
+	var by_source: Dictionary = {}
+	for item in items:
+		var src := str(item.get("source", ""))
+		by_source[src] = int(by_source.get(src, 0)) + 1
 	return {
-		"item_count": get_inventory_items().size(),
+		"item_count": items.size(),
 		"equipped_slots": get_equipped_slots(),
-		"items": get_inventory_items(),
+		"items": items,
 		"equipment_grants": _data.get("equipment_grants", {}).duplicate(true),
+		"items_by_source": by_source,
 	}
 
 
@@ -1296,6 +1305,121 @@ func create_inventory_item_instance(template_id: String, source: String = "") ->
 		"locked": false,
 		"source": source,
 	}
+
+
+# ─── Item Rewards After Run ───────────────────────────────────────────────────
+
+func _select_item_reward_count(summary: Dictionary) -> int:
+	var result := str(summary.get("result", "defeat"))
+	var run_time := float(summary.get("run_time", 0.0))
+	var final_boss_defeated := bool(summary.get("final_boss_defeated", false))
+	if result != "victory":
+		return 1 if run_time >= 300.0 else 0
+	return 2 if final_boss_defeated else 1
+
+
+func _select_item_reward_rarity(summary: Dictionary, item_index: int) -> String:
+	var result := str(summary.get("result", "defeat"))
+	var final_boss_defeated := bool(summary.get("final_boss_defeated", false))
+	var objective_completed := bool(summary.get("objective_completed", false))
+	var grade := str(summary.get("run_grade", "C"))
+	if result != "victory":
+		return "common"
+	var w_common := 60
+	var w_uncommon := 35
+	var w_rare := 5
+	if objective_completed:
+		w_common = 45
+		w_uncommon = 45
+		w_rare = 10
+	if final_boss_defeated and item_index >= 1:
+		w_common = 30
+		w_uncommon = 45
+		w_rare = 25
+	if grade == "A" or grade == "S":
+		w_rare += 5
+	var total := w_common + w_uncommon + w_rare
+	var roll := randi() % total
+	if roll < w_common:
+		return "common"
+	if roll < w_common + w_uncommon:
+		return "uncommon"
+	return "rare"
+
+
+func _select_item_reward_templates(summary: Dictionary) -> Array[String]:
+	var count := _select_item_reward_count(summary)
+	if count <= 0 or _equipment_provider == null:
+		return []
+	var result: Array[String] = []
+	for i in range(count):
+		var rarity := _select_item_reward_rarity(summary, i)
+		var candidates: Array = _equipment_provider.get_templates_by_rarity(rarity)
+		if candidates.is_empty():
+			candidates = _equipment_provider.get_templates_by_rarity("common")
+		if candidates.is_empty():
+			continue
+		var tmpl: Dictionary = candidates[randi() % candidates.size()]
+		var tid := str(tmpl.get("id", ""))
+		if not tid.is_empty():
+			result.append(tid)
+	return result
+
+
+func calculate_item_rewards(summary: Dictionary) -> Array[Dictionary]:
+	if _equipment_provider == null:
+		return []
+	var template_ids := _select_item_reward_templates(summary)
+	var result: Array[Dictionary] = []
+	for template_id in template_ids:
+		if template_id.is_empty():
+			continue
+		var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
+		if tmpl.is_empty():
+			continue
+		result.append({
+			"template_id": template_id,
+			"name": str(tmpl.get("name", template_id)),
+			"slot_id": str(tmpl.get("slot_id", "")),
+			"rarity": str(tmpl.get("rarity", "common")),
+			"stat_bonus_type": str(tmpl.get("stat_bonus_type", "")),
+			"stat_bonus_per_level": float(tmpl.get("stat_bonus_per_level", 0.0)),
+			"level": 0,
+			"source": "run_reward",
+		})
+	return result
+
+
+func grant_item_rewards(summary: Dictionary) -> Array[Dictionary]:
+	var template_ids := _select_item_reward_templates(summary)
+	if template_ids.is_empty():
+		return []
+	var items: Array = _data.get("inventory_items", [])
+	if not items is Array:
+		items = []
+	var granted: Array[Dictionary] = []
+	for template_id in template_ids:
+		if template_id.is_empty():
+			continue
+		var instance := create_inventory_item_instance(template_id, "run_reward")
+		if instance.is_empty():
+			continue
+		var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
+		var display := instance.duplicate(true)
+		display["name"] = str(tmpl.get("name", template_id))
+		display["rarity"] = str(tmpl.get("rarity", "common"))
+		display["stat_bonus_type"] = str(tmpl.get("stat_bonus_type", ""))
+		display["stat_bonus_per_level"] = float(tmpl.get("stat_bonus_per_level", 0.0))
+		items.append(instance)
+		granted.append(display)
+	_data["inventory_items"] = items
+	if not granted.is_empty():
+		inventory_changed.emit("")
+	return granted
+
+
+func debug_get_item_reward_preview(summary: Dictionary) -> Array[Dictionary]:
+	return calculate_item_rewards(summary)
 
 
 func _get_item_template(template_id: String, _hero_id: String = "") -> Dictionary:

@@ -2227,6 +2227,86 @@ Equipment / Inventory horizontal layout validation:
 
 ---
 
+## Item Rewards After Run
+
+### Short Defeat (< 5 minutes)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Die before 5 minutes | No item reward granted |
+| 2 | Victory/Game Over screen | "Item Rewards: No items found." shown in muted color |
+| 3 | Run Rewards popup | Item Rewards section shows "No items found." |
+| 4 | Training inventory after run | Item count unchanged |
+
+### Long Defeat (≥ 5 minutes)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Survive at least 5 minutes then die | 1 item granted |
+| 2 | Item rarity | Always common for defeat runs |
+| 3 | Victory/Game Over screen | "Item Rewards:" lists 1 item with name, slot, rarity |
+| 4 | Training inventory after run | 1 new item appears in grid |
+
+### Victory
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Win any run without final boss | 1 item granted |
+| 2 | Item rarity | common/uncommon/rare weighted (mostly common) |
+| 3 | Victory screen shows item rewards | "Item Rewards:" section above buttons; lists 1 item |
+| 4 | Run Rewards popup | Item Rewards section lists 1 item |
+
+### Victory + Final Boss Defeated
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Win and defeat final boss | 2 items granted |
+| 2 | Item rarities | First item standard victory weights; second item has higher rare chance |
+| 3 | Victory screen | Lists both items |
+| 4 | Training inventory | 2 new items appear |
+
+### Rarity and Weighting
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Victory + objective completed | Uncommon chance noticeably higher than base victory |
+| 2 | Grade A or S run | Rare weight increased by 5 points vs Grade C |
+| 3 | Rarity fallback | If no template for selected rarity, falls back to common without crash |
+| 4 | epic/legendary/mythic items | Never dropped in this patch |
+
+### Save and Persistence
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Close game after run | Reward items persist in inventory on next session |
+| 2 | item.source field | Each reward item has source = "run_reward" |
+| 3 | instance_id format | IDs are unique, format is "template_id_NNNN" |
+| 4 | No auto-equip | Equipped slots unchanged after reward grant |
+
+### Training Inventory After Run
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training → Equipment after run | New reward items visible in inventory grid |
+| 2 | Select reward item | Detail panel shows name, slot, rarity, level 0, stat |
+| 3 | Equip reward item | Works normally; slot panel updates |
+| 4 | Upgrade reward item | Works normally; cost applies |
+| 5 | Filters | Slot/State/Sort filters work on reward items same as other items |
+
+### Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Starter pack flow | Unaffected; popup still appears on first Training open |
+| 2 | Training upgrades | Unaffected |
+| 3 | Currency rewards | Unaffected; currency calculation unchanged |
+| 4 | Goals and mastery | Unaffected |
+| 5 | In-run combat, abilities, evolutions | Entirely unaffected |
+| 6 | Stage flow, boss flow | Unchanged |
+| 7 | No gacha/affixes/drops/crafting/fusion/selling/auto-equip added | Diff shows none of these |
+
+---
+
 ## Starter Equipment Grant Flow
 
 ### Popup Trigger

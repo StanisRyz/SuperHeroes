@@ -791,6 +791,73 @@ Equipment levels belong to individual inventory item instances in the global sto
 
 Training tab, currency flow, hero unlock, main menu, goals, stage flow, evolutions, in-run 4/4/4 upgrade rules, boss flow, enemy behavior, and all combat systems are unaffected.
 
+## Item Rewards After Run
+
+Items are granted at the end of every run via `apply_run_result`. The reward pipeline is fully deterministic (no gacha, no random affixes, no enemy drops). Reward items are added to global `inventory_items` with `source = "run_reward"` and are never auto-equipped.
+
+### Reward Count Rules
+
+| Condition | Item count |
+|-----------|-----------|
+| Defeat, run_time < 300 s | 0 |
+| Defeat, run_time ≥ 300 s | 1 (common only) |
+| Victory | 1 |
+| Victory + final_boss_defeated | 2 |
+
+Maximum items per run: 2. Objective completion and grade do not change item count — they improve rarity weighting only.
+
+### Rarity Weighting
+
+Base weights `[common / uncommon / rare]` per item index:
+
+| Context | common | uncommon | rare |
+|---------|--------|----------|------|
+| Defeat long survival | 100 | 0 | 0 |
+| Victory (base) | 60 | 35 | 5 |
+| Victory + objective_completed | 45 | 45 | 10 |
+| Victory + final_boss_defeated (2nd item) | 30 | 45 | 25 |
+| Grade A or S | base | base | +5 |
+
+Only `common`, `uncommon`, `rare` are currently dropped. `epic`/`legendary`/`mythic` are structurally supported but not weighted yet. If no template exists for the selected rarity, fallback to `common`.
+
+### Item Reward API (MetaProgressionManager)
+
+- `_select_item_reward_count(summary) -> int` — quantity logic.
+- `_select_item_reward_rarity(summary, item_index) -> String` — weighted rarity pick using `randi()`.
+- `_select_item_reward_templates(summary) -> Array[String]` — picks template_ids using count + rarity logic.
+- `calculate_item_rewards(summary) -> Array[Dictionary]` — preview display data without granting or modifying state.
+- `grant_item_rewards(summary) -> Array[Dictionary]` — creates instances via `create_inventory_item_instance`, appends to `inventory_items`, emits `inventory_changed("")` if non-empty. Does NOT call `save_progress` (apply_run_result does that).
+- `debug_get_item_reward_preview(summary) -> Array[Dictionary]` — calls `calculate_item_rewards`; for tooling/debug use.
+
+### apply_run_result Integration
+
+`apply_run_result(summary)` calls `grant_item_rewards(summary)` before `save_progress()`. It injects `item_rewards` into both the returned rewards dict and the `summary` dict in-place. This makes `item_rewards` visible to:
+- `PostRunRewardsScreen.show_rewards(reward_data, …)` via the rewards dict.
+- `VictoryScreen.show_stats(stats)` and `GameOverScreen.show_stats(stats)` via the mutated `summary` dict — the signal passes dict by reference so the mutation is visible when show_stats runs after emit.
+
+### Item Reward Instance Schema
+
+```
+instance_id          String   e.g. "runner_boots_common_0007"
+template_id          String   references EquipmentDataProvider template
+slot_id              String   copied from template
+level                int      always 0 at grant
+locked               bool     always false at grant
+source               String   "run_reward"
+```
+
+Display dict (returned by `grant_item_rewards`, included in `item_rewards` array) additionally has: `name`, `rarity`, `stat_bonus_type`, `stat_bonus_per_level`.
+
+### Post-Run UI Rules
+
+- **PostRunRewardsScreen**: "Item Rewards" section appended below goals inside the existing ScrollContainer. Lists `+ name  [slot / rarity]` per item, or "No items found." (muted) when empty.
+- **VictoryScreen**: `_append_item_rewards(item_rewards)` inserts a separator + label above the Restart/Menu buttons on first call; updates text on subsequent calls (idempotent).
+- **GameOverScreen**: Identical `_append_item_rewards` pattern. Section always shown; shows "No items found." on short defeat runs.
+
+### Restrictions (not in this patch)
+
+No gacha, no enemy item drops, no random affixes, no crafting/fusion, no item selling/discarding, no inventory capacity limit, no auto-equip on grant.
+
 ## Training Screen Tabbed Progression Architecture
 
 - `MetaUpgradeShop` is a tabbed pre-run character progression screen with `_active_tab` set to `"equipment"` or `"training"`. Default tab is Equipment.

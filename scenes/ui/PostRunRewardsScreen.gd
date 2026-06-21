@@ -19,6 +19,7 @@ var _total_label: Label
 var _currency_label: Label
 var _progress_label: Label
 var _goals_label: Label
+var _item_rewards_label: Label
 var _continue_button: Button
 
 
@@ -104,6 +105,18 @@ func _build_ui() -> void:
 	_goals_label.add_theme_font_size_override("font_size", 12)
 	content.add_child(_goals_label)
 
+	content.add_child(HSeparator.new())
+
+	var item_rewards_title := Label.new()
+	item_rewards_title.text = "  Item Rewards"
+	item_rewards_title.add_theme_font_size_override("font_size", 14)
+	content.add_child(item_rewards_title)
+
+	_item_rewards_label = Label.new()
+	_item_rewards_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_item_rewards_label.add_theme_font_size_override("font_size", 12)
+	content.add_child(_item_rewards_label)
+
 	_continue_button = Button.new()
 	_continue_button.text = "Continue"
 	_continue_button.custom_minimum_size = Vector2(180, 46)
@@ -153,6 +166,7 @@ func show_rewards(reward_data: Dictionary, progress_summary: Dictionary) -> void
 	_currency_label.modulate = UIStateColors.positive_color() if currency > 0 else Color.WHITE
 	_update_progress_text(reward_data)
 	_update_goals_text(reward_data)
+	_update_item_rewards_text(reward_data)
 
 	show()
 	if _continue_button != null:
@@ -224,6 +238,24 @@ func _update_goals_text(reward_data: Dictionary) -> void:
 		lines.append("+%d  %s" % [int(goal.get("reward_currency", 0)), str(goal.get("title", goal.get("id", "")))])
 	_goals_label.text = "\n".join(lines)
 	_goals_label.modulate = UIStateColors.positive_color()
+
+
+func _update_item_rewards_text(reward_data: Dictionary) -> void:
+	if _item_rewards_label == null:
+		return
+	var items: Array = reward_data.get("item_rewards", [])
+	if items.is_empty():
+		_item_rewards_label.text = "  No items found."
+		_item_rewards_label.modulate = UIStateColors.muted_color()
+		return
+	var lines: PackedStringArray = []
+	for item in items:
+		var iname := str(item.get("name", item.get("template_id", "?")))
+		var slot := str(item.get("slot_id", ""))
+		var rarity := str(item.get("rarity", ""))
+		lines.append("  + %s  [%s / %s]" % [iname, slot, rarity])
+	_item_rewards_label.text = "\n".join(lines)
+	_item_rewards_label.modulate = UIStateColors.positive_color()
 
 
 func _format_list(values: Array) -> String:
