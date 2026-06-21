@@ -5,6 +5,7 @@ signal buy_requested(hero_id: String, upgrade_id: String)
 signal equipment_buy_requested(hero_id: String, equipment_id: String)
 
 const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
+const EquipmentFormat = preload("res://scenes/equipment/EquipmentFormat.gd")
 
 var _meta_manager: Node
 var _hero_data_provider: Node
@@ -26,6 +27,7 @@ var _hero_dropdown: OptionButton
 
 # Starter pack popup
 var _starter_pack_popup: PopupPanel = null
+var _starter_pack_items_label: Label = null
 
 # Equipped slot popup
 var _slot_popup: PopupPanel
@@ -446,7 +448,7 @@ func _build_inventory_panel() -> Control:
 	var sort_option := OptionButton.new()
 	sort_option.custom_minimum_size = Vector2(100, 28)
 	sort_option.add_theme_font_size_override("font_size", 11)
-	for sort_entry in [["Default", "default"], ["Slot", "slot"], ["Lvl High", "level_high"], ["Lvl Low", "level_low"], ["Name", "name"]]:
+	for sort_entry in [["Default", "default"], ["Slot", "slot"], ["Lvl High", "level_high"], ["Lvl Low", "level_low"], ["Name", "name"], ["Rar High", "rarity_high"], ["Rar Low", "rarity_low"]]:
 		sort_option.add_item(sort_entry[0])
 	sort_option.item_selected.connect(_on_inventory_sort_mode_changed)
 	filter_row.add_child(sort_option)
@@ -563,6 +565,7 @@ func _get_inventory_cell_data() -> Array:
 				"max_level": max_level,
 				"is_equipped": is_equipped,
 				"definition": def,
+				"rarity": str(def.get("rarity", "common")) if not def.is_empty() else "common",
 			})
 	else:
 		# Fallback: show primary equipment definitions as preview cells
@@ -651,12 +654,14 @@ func _build_inventory_cell(cell_data: Dictionary, index: int) -> Control:
 		var level := int(cell_data.get("level", 0))
 		var max_level := int(cell_data.get("max_level", 0))
 		var is_equipped := bool(cell_data.get("is_equipped", false))
+		var rarity := str(cell_data.get("rarity", "common"))
 		var slot_label := _format_slot_name(slot_id)
 		var equipped_tag := " [E]" if is_equipped else ""
-		button.text = "%s%s\n%s\nLv %d/%d" % [
+		button.text = "%s%s\n%s %s\nLv %d/%d" % [
 			_get_short_item_name(display_name),
 			equipped_tag,
 			slot_label,
+			EquipmentFormat.rarity_short(rarity),
 			level,
 			max_level,
 		]
@@ -697,8 +702,8 @@ func _select_inventory_cell(index: int) -> void:
 			# Unselected + equipped: green tint
 			button.modulate = UIStateColors.positive_color()
 		elif is_occupied:
-			# Unselected + in inventory: neutral white
-			button.modulate = Color.WHITE
+			# Unselected + in inventory: tinted by rarity
+			button.modulate = EquipmentFormat.rarity_color(str(cells[int(cell_index)].get("rarity", "common")))
 		else:
 			# Empty cell: muted gray
 			button.modulate = Color(0.48, 0.52, 0.58, 1.0)
@@ -777,6 +782,7 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 
 	var display_name := _get_item_display_name(instance_id)
 	var slot_display := _format_slot_name(slot_id)
+	var rarity := str(tmpl.get("rarity", "common")) if not tmpl.is_empty() else "common"
 	var status_str := "EQUIPPED" if is_equipped else "In Inventory"
 	var stat_str := _format_stat_line(stat_info)
 	var desc := str(tmpl.get("description", ""))
@@ -794,8 +800,7 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 			var per_level := float(tmpl.get("stat_bonus_per_level", 0.0))
 			var stat_type_str := str(tmpl.get("stat_bonus_type", ""))
 			if per_level > 0.0 and not stat_type_str.is_empty():
-				var next_total := per_level * float(cur_level + 1)
-				next_level_str = "Next Level: +%.2f %s" % [next_total, _format_stat_type_name(stat_type_str)]
+				next_level_str = "Next Level: %s" % EquipmentFormat.stat_next_text(stat_type_str, per_level, cur_level)
 
 	# Gameplay effect note
 	var gameplay_note := "Affects gameplay: YES" if is_equipped else "Affects gameplay: NO (equip to apply)"
@@ -803,6 +808,7 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	var lines := PackedStringArray()
 	lines.append("=== %s ===" % display_name)
 	lines.append("Slot: %s" % slot_display)
+	lines.append("Rarity: %s" % EquipmentFormat.rarity_display_name(rarity))
 	lines.append("Level: %d / %d" % [level, max_level])
 	lines.append("Status: %s" % status_str)
 	lines.append(gameplay_note)
@@ -875,23 +881,7 @@ func _format_stat_line(stat_info: Dictionary) -> String:
 
 
 func _format_stat_type_name(stat_type: String) -> String:
-	match stat_type:
-		"attack_damage": return "Attack Damage"
-		"attack_speed": return "Attack Speed"
-		"max_health": return "Max Health"
-		"health_regen": return "Health Regen"
-		"move_speed": return "Move Speed"
-		"ability_cooldown": return "Cooldown Reduction"
-		"ability_damage": return "Ability Damage"
-		"shield_capacity": return "Shield Capacity"
-		"xp_gain": return "XP Gain"
-		"mark_damage": return "Mark Damage"
-		"rage_gain": return "Rage Gain"
-		"impact_damage": return "Impact Damage"
-		"knockback_resist": return "Knockback Resist"
-		"low_health_damage": return "Low-Health Damage"
-		"support_damage": return "Support Damage"
-		_: return stat_type.replace("_", " ").capitalize()
+	return EquipmentFormat.stat_display_name(stat_type)
 
 
 func _get_item_display_name(instance_id: String) -> String:
@@ -973,8 +963,9 @@ func _update_equipment_slots() -> void:
 			var template_id := str(equipped_item.get("template_id", ""))
 			var item_def := _resolve_item_template(template_id)
 			var display_name := str(item_def.get("display_name", template_id)) if not item_def.is_empty() else template_id
+			var item_rarity := str(item_def.get("rarity", "common")) if not item_def.is_empty() else "common"
 			var level := int(equipped_item.get("level", 0))
-			slot_btn.text = "%s\n%s\nLv %d" % [slot_name, _get_short_item_name(display_name), level]
+			slot_btn.text = "%s\n%s\nLv %d %s" % [slot_name, _get_short_item_name(display_name), level, EquipmentFormat.rarity_short(item_rarity)]
 			slot_btn.modulate = UIStateColors.positive_color()
 		else:
 			slot_btn.text = "%s\n+\nEmpty" % slot_name
@@ -1091,21 +1082,7 @@ func _format_bonus_type(bonus_type: String) -> String:
 
 
 func _format_slot_name(slot_id: String) -> String:
-	match slot_id:
-		"core":
-			return "Core"
-		"suit":
-			return "Suit"
-		"emblem":
-			return "Emblem"
-		"gauntlets":
-			return "Gauntlets"
-		"boots":
-			return "Boots"
-		"artifact":
-			return "Artifact"
-		_:
-			return slot_id.capitalize()
+	return EquipmentFormat.slot_display_name(slot_id)
 
 
 # ─── Training rows ────────────────────────────────────────────────────────────
@@ -1372,18 +1349,18 @@ func _build_starter_pack_popup() -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	var items_label := Label.new()
-	items_label.text = (
-		"Power Core  /  Core  /  common\n" +
-		"Reinforced Suit  /  Suit  /  common\n" +
-		"Awareness Emblem  /  Emblem  /  common\n" +
-		"Striker Gauntlets  /  Gauntlets  /  common\n" +
-		"Runner Boots  /  Boots  /  common\n" +
-		"Shield Artifact  /  Artifact  /  common"
+	_starter_pack_items_label = Label.new()
+	_starter_pack_items_label.text = (
+		"Power Core  —  Core  —  Common\n" +
+		"Reinforced Suit  —  Suit  —  Common\n" +
+		"Awareness Emblem  —  Emblem  —  Common\n" +
+		"Striker Gauntlets  —  Gauntlets  —  Common\n" +
+		"Runner Boots  —  Boots  —  Common\n" +
+		"Shield Artifact  —  Artifact  —  Common"
 	)
-	items_label.add_theme_font_size_override("font_size", 12)
-	items_label.modulate = Color(0.9, 0.95, 1.0, 1.0)
-	vbox.add_child(items_label)
+	_starter_pack_items_label.add_theme_font_size_override("font_size", 12)
+	_starter_pack_items_label.modulate = EquipmentFormat.rarity_color("common")
+	vbox.add_child(_starter_pack_items_label)
 
 	vbox.add_child(HSeparator.new())
 
@@ -1405,6 +1382,13 @@ func _show_starter_pack_popup_if_needed() -> void:
 	if not _meta_manager.has_method("can_claim_starter_equipment"):
 		return
 	if _meta_manager.can_claim_starter_equipment():
+		if _starter_pack_items_label != null and _meta_manager.has_method("preview_starter_equipment"):
+			var previews: Array = _meta_manager.preview_starter_equipment()
+			if not previews.is_empty():
+				var lines: PackedStringArray = []
+				for tmpl in previews:
+					lines.append(EquipmentFormat.item_display_line(tmpl))
+				_starter_pack_items_label.text = "\n".join(lines)
 		_starter_pack_popup.popup_centered()
 
 
@@ -1505,14 +1489,25 @@ func _update_slot_popup_content(slot_id: String) -> void:
 	var stat_str := _format_stat_line(stat_info)
 	var tmpl := _get_item_template_for_instance(instance_id)
 	var desc := str(tmpl.get("description", ""))
+	var popup_rarity := str(tmpl.get("rarity", "common")) if not tmpl.is_empty() else "common"
+
+	var next_stat_str := ""
+	if level < max_level_val and not tmpl.is_empty():
+		var per_level := float(tmpl.get("stat_bonus_per_level", 0.0))
+		var stat_type_str := str(tmpl.get("stat_bonus_type", ""))
+		if per_level > 0.0 and not stat_type_str.is_empty():
+			next_stat_str = "Next Level: %s" % EquipmentFormat.stat_next_text(stat_type_str, per_level, level)
 
 	var lines := PackedStringArray()
 	lines.append(display_name)
+	lines.append("Rarity: %s" % EquipmentFormat.rarity_display_name(popup_rarity))
 	lines.append("Level: %d / %d" % [level, max_level_val])
 	lines.append("Status: EQUIPPED")
 	if not stat_str.is_empty():
 		lines.append("")
 		lines.append(stat_str)
+	if not next_stat_str.is_empty():
+		lines.append(next_stat_str)
 	if not desc.is_empty():
 		lines.append("")
 		lines.append(desc)
@@ -1619,7 +1614,7 @@ func _on_inventory_state_filter_changed(index: int) -> void:
 
 
 func _on_inventory_sort_mode_changed(index: int) -> void:
-	var sort_values := ["default", "slot", "level_high", "level_low", "name"]
+	var sort_values := ["default", "slot", "level_high", "level_low", "name", "rarity_high", "rarity_low"]
 	if index >= 0 and index < sort_values.size():
 		_inventory_sort_mode = sort_values[index]
 	_refresh_inventory_grid_with_selection_preserve()
@@ -1699,9 +1694,24 @@ func _get_filtered_sorted_items() -> Array:
 				var nb := str(b.get("template_id", ""))
 				return na < nb
 			)
+		"rarity_high":
+			filtered.sort_custom(func(a, b):
+				return _get_item_rarity_order(a) > _get_item_rarity_order(b)
+			)
+		"rarity_low":
+			filtered.sort_custom(func(a, b):
+				return _get_item_rarity_order(a) < _get_item_rarity_order(b)
+			)
 		# "default": keep inventory order
 
 	return filtered
+
+
+func _get_item_rarity_order(item: Dictionary) -> int:
+	var template_id := str(item.get("template_id", ""))
+	var tmpl := _resolve_item_template(template_id)
+	var rarity := str(tmpl.get("rarity", "common")) if not tmpl.is_empty() else "common"
+	return EquipmentFormat.rarity_order(rarity)
 
 
 func _on_inventory_equip_pressed() -> void:

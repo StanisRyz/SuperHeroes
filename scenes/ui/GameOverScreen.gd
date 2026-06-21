@@ -5,6 +5,7 @@ signal quit_to_menu_requested
 
 const UIFormat = preload("res://scenes/ui/UIFormat.gd")
 const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
+const EquipmentFormat = preload("res://scenes/equipment/EquipmentFormat.gd")
 
 var audio_manager: Node
 
@@ -135,10 +136,7 @@ func _append_item_rewards(item_rewards: Array) -> void:
 	else:
 		var lines: PackedStringArray = ["Item Rewards:"]
 		for item in item_rewards:
-			var iname := str(item.get("name", item.get("template_id", "?")))
-			var slot := str(item.get("slot_id", ""))
-			var rarity := str(item.get("rarity", ""))
-			lines.append("  + %s  [%s / %s]" % [iname, slot, rarity])
+			lines.append("  + %s" % EquipmentFormat.item_display_line(item))
 		lbl.text = "\n".join(lines)
 		lbl.modulate = UIStateColors.positive_color()
 
