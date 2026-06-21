@@ -1429,3 +1429,54 @@ Items appear in **Training → Equipment** after the run. They are not auto-equi
 - Yandex SDK integration will be added later through a wrapper.
 - Ads, payments, monetization, leaderboards, saves, and meta-progression are not implemented yet.
 - Localhost SDK unavailability during development is acceptable.
+
+## Equipment Rarity / Stat Presentation (EquipmentFormat)
+
+`scenes/equipment/EquipmentFormat.gd` (`extends RefCounted`) is the single source of truth for all equipment display formatting. All methods are static.
+
+- `rarity_display_name(rarity)` → "Common" … "Mythic"
+- `rarity_short(rarity)` → "Cmn" / "Unc" / "Rar" / "Epc" / "Lgd" / "Mth"
+- `rarity_color(rarity)` → Color per rarity tier (common=gray, uncommon=green, rare=blue, epic=purple, legendary=gold, mythic=pink)
+- `rarity_order(rarity)` → int (mythic=5 … common=0)
+- `slot_display_name(slot_id)` → "Core" / "Suit" / "Emblem" / "Gauntlets" / "Boots" / "Artifact"
+- `stat_display_name(stat_bonus_type)` → human-readable stat name
+- `stat_value_text(stat_bonus_type, value)` → "+5 Attack Damage" or "+10% Ability Damage" or "-15% Cooldown"
+- `stat_total_text(stat_bonus_type, per_level, level)` and `stat_next_text(...)` → total / next-level previews
+- `item_display_line(item_or_template)` → "Name  —  Slot  —  Rarity"
+
+MetaUpgradeShop uses EquipmentFormat for: inventory cell rarity short names and rarity-colored tints, equipped slot button rarity tags, sort modes Rar High / Rar Low, Starter Pack popup item list. VictoryScreen and GameOverScreen item reward lines use `item_display_line`. `_format_stat_type_name` and `_format_slot_name` in MetaUpgradeShop delegate to EquipmentFormat.
+
+## Inventory Management QoL (Lock / Favorite / Sell)
+
+MetaProgressionManager constants:
+- `INVENTORY_CAPACITY = 60` — soft display limit; never blocks grants.
+- `_RARITY_SELL_BASE` — sell base by rarity: common=5, uncommon=10, rare=20, epic=40, legendary=80, mythic=160.
+
+Item instance schema additions: `favorite: bool`, `created_index: int` (equals `instance_id_counter` at creation).
+
+New MetaProgressionManager API:
+- `get_inventory_item_count() -> int`, `get_inventory_capacity() -> int`
+- `is_inventory_item_locked/toggle_inventory_item_locked/set_inventory_item_locked`
+- `is_inventory_item_favorite/toggle_inventory_item_favorite/set_inventory_item_favorite`
+- `get_inventory_item_sell_value(instance_id) -> int` — base + level × 2
+- `get_inventory_item_sell_block_reason(instance_id) -> String` — "" if sellable; "locked" / "equipped" otherwise
+- `can_sell_inventory_item(instance_id) -> bool`
+- `sell_inventory_item(instance_id) -> Dictionary` — removes item, adds currency, emits `inventory_changed` + `currency_changed`, saves
+
+New inventory sort modes: **Fav First** (favorites sorted to top) and **Newest** (higher `created_index` first).
+
+Cell markers: `[E]` equipped, `[L]` locked, `[*]` favorite — shown in cell text. Cells tinted by rarity for unselected unequipped items.
+
+## Inventory Actions Popup UI Rework
+
+Main Inventory panel (right side of Equipment tab) is now clean: header row shows title + capacity label + hint text; body has filter row (Slot / State / Sort) and the inventory grid only. No action buttons or detail text in the main panel.
+
+**Item action popup** (`PopupPanel`, assigned to `_item_action_popup`):
+- Opens when clicking an occupied inventory cell; does not re-center if already visible.
+- Closes when clicking an empty cell or pressing Close.
+- Contains: item title label, scrollable detail text (slot, rarity, level, status, locked, favorite, gameplay note, stat, next-level stat, sell value, compare), action rows (Equip + Upgrade / Lock + Favorite + Sell + Close).
+- Sell flow: Sell button → `ConfirmationDialog` → sell confirmed → popup hidden → signals refresh grid.
+- Lock/Favorite buttons show toggle state: "Unlock"/"Lock", "[*]Off"/"[*]On".
+- Sell button disabled with muted color when item is locked or equipped.
+
+Capacity label shows `(X / 60)` and turns warning color when over capacity. The equipped slot popup (for clicking filled equipment slots on the left panel) remains a separate `PopupPanel` and is not mixed with the item action popup.

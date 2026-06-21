@@ -58,6 +58,10 @@ var _inventory_capacity_label: Label
 var _selected_inventory_instance_id: String = ""
 var _training_hero_label: Label
 
+# Item action popup
+var _item_action_popup: PopupPanel = null
+var _item_action_title_label: Label = null
+
 var _inventory_slot_filter: String = "all"
 var _inventory_state_filter: String = "all"
 var _inventory_sort_mode: String = "default"
@@ -231,6 +235,7 @@ func _build_ui() -> void:
 	_build_starter_pack_popup()
 	_build_slot_popup()
 	_build_sell_confirm_popup()
+	_build_item_action_popup()
 	_update_tab_state()
 
 func _build_training_panel() -> Control:
@@ -384,11 +389,13 @@ func _build_equipment_panel() -> Control:
 func _build_inventory_panel() -> Control:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
 	panel.add_child(vbox)
 
+	# ── header: title + capacity only ─────────────────────────────────────────
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 8)
 	vbox.add_child(header)
@@ -399,53 +406,25 @@ func _build_inventory_panel() -> Control:
 	header.add_child(title)
 
 	_inventory_capacity_label = Label.new()
-	_inventory_capacity_label.text = "0 / 60"
+	_inventory_capacity_label.text = "(0 / 60)"
 	_inventory_capacity_label.add_theme_font_size_override("font_size", 12)
 	_inventory_capacity_label.modulate = Color(0.72, 0.78, 0.88, 1.0)
-	_inventory_capacity_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_inventory_capacity_label)
 
-	_inventory_equip_button = Button.new()
-	_inventory_equip_button.text = "Equip"
-	_inventory_equip_button.disabled = true
-	_inventory_equip_button.custom_minimum_size = Vector2(100, 32)
-	_inventory_equip_button.pressed.connect(_on_inventory_equip_pressed)
-	header.add_child(_inventory_equip_button)
+	var header_hint := Label.new()
+	header_hint.text = "  Click item to manage"
+	header_hint.add_theme_font_size_override("font_size", 10)
+	header_hint.modulate = Color(0.5, 0.55, 0.62, 1.0)
+	header_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(header_hint)
 
-	_inventory_upgrade_button = Button.new()
-	_inventory_upgrade_button.text = "Upgrade"
-	_inventory_upgrade_button.disabled = true
-	_inventory_upgrade_button.custom_minimum_size = Vector2(100, 32)
-	_inventory_upgrade_button.pressed.connect(_on_inventory_upgrade_pressed)
-	header.add_child(_inventory_upgrade_button)
-
-	_inventory_lock_button = Button.new()
-	_inventory_lock_button.text = "Lock"
-	_inventory_lock_button.disabled = true
-	_inventory_lock_button.custom_minimum_size = Vector2(80, 32)
-	_inventory_lock_button.pressed.connect(_on_inventory_lock_pressed)
-	header.add_child(_inventory_lock_button)
-
-	_inventory_favorite_button = Button.new()
-	_inventory_favorite_button.text = "[*]"
-	_inventory_favorite_button.disabled = true
-	_inventory_favorite_button.custom_minimum_size = Vector2(50, 32)
-	_inventory_favorite_button.pressed.connect(_on_inventory_favorite_pressed)
-	header.add_child(_inventory_favorite_button)
-
-	_inventory_sell_button = Button.new()
-	_inventory_sell_button.text = "Sell"
-	_inventory_sell_button.disabled = true
-	_inventory_sell_button.custom_minimum_size = Vector2(80, 32)
-	_inventory_sell_button.pressed.connect(_on_inventory_sell_pressed)
-	header.add_child(_inventory_sell_button)
-
+	# ── body: filters + grid (fills remaining space) ──────────────────────────
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 8)
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(body)
 
-	# ── filter / sort row ─────────────────────────────────────────────────────
 	var filter_row := HBoxContainer.new()
 	filter_row.add_theme_constant_override("separation", 6)
 	body.add_child(filter_row)
@@ -489,20 +468,9 @@ func _build_inventory_panel() -> Control:
 	sort_option.item_selected.connect(_on_inventory_sort_mode_changed)
 	filter_row.add_child(sort_option)
 
-	body.add_child(_build_inventory_grid())
-
-	var detail_scroll := ScrollContainer.new()
-	detail_scroll.custom_minimum_size = Vector2(0, 130)
-	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(detail_scroll)
-
-	_inventory_detail_label = Label.new()
-	_inventory_detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_inventory_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_inventory_detail_label.add_theme_font_size_override("font_size", 11)
-	_inventory_detail_label.modulate = Color(0.82, 0.86, 0.92, 1.0)
-	detail_scroll.add_child(_inventory_detail_label)
+	var grid_scroll := _build_inventory_grid()
+	grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(grid_scroll)
 
 	return panel
 
@@ -754,6 +722,13 @@ func _select_inventory_cell(index: int) -> void:
 			# Empty cell: muted gray
 			button.modulate = Color(0.48, 0.52, 0.58, 1.0)
 	_update_inventory_detail(selected_cell)
+	# Open item action popup for occupied cells; close for empty
+	if _item_action_popup != null:
+		if bool(selected_cell.get("occupied", false)):
+			if not _item_action_popup.visible:
+				_item_action_popup.popup_centered()
+		else:
+			_item_action_popup.hide()
 
 
 func _update_inventory_detail(cell_data: Dictionary) -> void:
@@ -806,11 +781,14 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 		return
 
 	if not is_occupied or instance_id.is_empty():
-		var filter_active := (_inventory_slot_filter != "all" or _inventory_state_filter != "all")
-		if filter_active and _get_filtered_sorted_items().is_empty():
-			_inventory_detail_label.text = "No items match current filters.\nTry changing Slot or State filter."
-		else:
-			_inventory_detail_label.text = "[Empty Slot]\nNo item selected.\nFuture items will appear here."
+		if _item_action_title_label != null:
+			_item_action_title_label.text = "Empty Slot"
+		if _inventory_detail_label != null:
+			var filter_active := (_inventory_slot_filter != "all" or _inventory_state_filter != "all")
+			if filter_active and _get_filtered_sorted_items().is_empty():
+				_inventory_detail_label.text = "No items match current filters.\nTry changing Slot or State filter."
+			else:
+				_inventory_detail_label.text = "No item in this slot."
 		_refresh_management_buttons("", false, false, "")
 		return
 
@@ -828,6 +806,8 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	var is_equipped := _is_item_equipped(instance_id)
 
 	var display_name := _get_item_display_name(instance_id)
+	if _item_action_title_label != null:
+		_item_action_title_label.text = display_name
 	var slot_display := _format_slot_name(slot_id)
 	var rarity := str(tmpl.get("rarity", "common")) if not tmpl.is_empty() else "common"
 	var is_locked := bool(item.get("locked", false))
@@ -1886,6 +1866,9 @@ func _on_sell_confirmed() -> void:
 	if not _meta_manager.has_method("sell_inventory_item"):
 		return
 	_meta_manager.sell_inventory_item(instance_id)
+	# Close item action popup — item no longer exists
+	if _item_action_popup != null:
+		_item_action_popup.hide()
 	# UI refreshes via inventory_changed + currency_changed signals
 
 
@@ -1896,6 +1879,96 @@ func _build_sell_confirm_popup() -> void:
 	_sell_confirm_popup.get_ok_button().text = "Sell"
 	_sell_confirm_popup.confirmed.connect(_on_sell_confirmed)
 	add_child(_sell_confirm_popup)
+
+
+func _build_item_action_popup() -> void:
+	_item_action_popup = PopupPanel.new()
+	_item_action_popup.min_size = Vector2i(380, 320)
+	add_child(_item_action_popup)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	_item_action_popup.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+
+	_item_action_title_label = Label.new()
+	_item_action_title_label.text = "Item"
+	_item_action_title_label.add_theme_font_size_override("font_size", 16)
+	_item_action_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_item_action_title_label)
+
+	vbox.add_child(HSeparator.new())
+
+	var detail_scroll := ScrollContainer.new()
+	detail_scroll.custom_minimum_size = Vector2(0, 160)
+	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(detail_scroll)
+
+	_inventory_detail_label = Label.new()
+	_inventory_detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_inventory_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_inventory_detail_label.add_theme_font_size_override("font_size", 11)
+	_inventory_detail_label.modulate = Color(0.82, 0.86, 0.92, 1.0)
+	detail_scroll.add_child(_inventory_detail_label)
+
+	vbox.add_child(HSeparator.new())
+
+	var row1 := HBoxContainer.new()
+	row1.add_theme_constant_override("separation", 8)
+	row1.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(row1)
+
+	_inventory_equip_button = Button.new()
+	_inventory_equip_button.text = "Equip"
+	_inventory_equip_button.disabled = true
+	_inventory_equip_button.custom_minimum_size = Vector2(100, 36)
+	_inventory_equip_button.pressed.connect(_on_inventory_equip_pressed)
+	row1.add_child(_inventory_equip_button)
+
+	_inventory_upgrade_button = Button.new()
+	_inventory_upgrade_button.text = "Upgrade"
+	_inventory_upgrade_button.disabled = true
+	_inventory_upgrade_button.custom_minimum_size = Vector2(110, 36)
+	_inventory_upgrade_button.pressed.connect(_on_inventory_upgrade_pressed)
+	row1.add_child(_inventory_upgrade_button)
+
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 8)
+	row2.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(row2)
+
+	_inventory_lock_button = Button.new()
+	_inventory_lock_button.text = "Lock"
+	_inventory_lock_button.disabled = true
+	_inventory_lock_button.custom_minimum_size = Vector2(90, 36)
+	_inventory_lock_button.pressed.connect(_on_inventory_lock_pressed)
+	row2.add_child(_inventory_lock_button)
+
+	_inventory_favorite_button = Button.new()
+	_inventory_favorite_button.text = "[*]On"
+	_inventory_favorite_button.disabled = true
+	_inventory_favorite_button.custom_minimum_size = Vector2(70, 36)
+	_inventory_favorite_button.pressed.connect(_on_inventory_favorite_pressed)
+	row2.add_child(_inventory_favorite_button)
+
+	_inventory_sell_button = Button.new()
+	_inventory_sell_button.text = "Sell"
+	_inventory_sell_button.disabled = true
+	_inventory_sell_button.custom_minimum_size = Vector2(80, 36)
+	_inventory_sell_button.pressed.connect(_on_inventory_sell_pressed)
+	row2.add_child(_inventory_sell_button)
+
+	var close_btn := Button.new()
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(80, 36)
+	close_btn.pressed.connect(func(): _item_action_popup.hide())
+	row2.add_child(close_btn)
 
 
 func _on_equipment_slot_panel_clicked(event: InputEvent, slot_id: String) -> void:

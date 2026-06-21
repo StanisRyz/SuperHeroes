@@ -1711,9 +1711,64 @@ Do not add arena hazards in this project. Disruptor, Exploder, and Support creat
 
 - `UIFormat` contains display formatting only — no gameplay logic, no signals, no state. Preload with `const UIFormat = preload("res://scenes/ui/UIFormat.gd")` and call static methods directly.
 - `UIStateColors` contains color helpers only — no gameplay logic. Preload the same way. Colors are built-in Color values only; never require external assets or theme resources.
+- `EquipmentFormat` (`scenes/equipment/EquipmentFormat.gd`, `extends RefCounted`) contains all equipment display formatting — rarity names/colors/order, slot names, stat display names/values, and `item_display_line`. All methods are static. Any new UI showing equipment items must use EquipmentFormat rather than hardcoding strings or colors. Preload with `const EquipmentFormat = preload("res://scenes/equipment/EquipmentFormat.gd")`.
 - UI scripts should not mutate gameplay balance. HUD, result screens, and reward screens are display-only.
 - `GameHUD` displays state from Player, RunManager, AbilityManager, BuffManager, UpgradeManager, and EvolutionManager — it does not own any of that state.
 - `GameHUD.show_final_boss_info(boss_name)` and `show_final_boss_defeated()` are called from Arena when the final boss spawns/dies.
+
+## Equipment Inventory UI Architecture (MetaUpgradeShop)
+
+### Inventory Panel Rule
+The main Inventory panel (right side of Equipment tab) must contain only:
+- Header: "Inventory" label + capacity label + hint text.
+- Filter row: Slot / State / Sort OptionButtons.
+- Inventory grid (GridContainer, 5 columns, SIZE_EXPAND_FILL vertically).
+
+Do not add action buttons, detail text, or per-item controls to the main inventory panel. All per-item actions live in the item action popup.
+
+### Item Action Popup (`_item_action_popup: PopupPanel`)
+- Opened via `popup_centered()` when the player clicks an occupied inventory cell, but only if `not _item_action_popup.visible` to prevent re-centering on refresh.
+- Hidden (`.hide()`) when the player clicks an empty cell or presses the Close button.
+- Contains: `_item_action_title_label` (item name), scrollable `_inventory_detail_label`, `_inventory_equip_button`, `_inventory_upgrade_button`, `_inventory_lock_button`, `_inventory_favorite_button`, `_inventory_sell_button`, and a Close button.
+- All of these button/label vars are assigned inside `_build_item_action_popup()`, NOT inside `_build_inventory_panel()`. They are null until `_build_item_action_popup()` runs. Guard all reads of `_inventory_detail_label` with `if _inventory_detail_label == null: return`.
+- Lock button text: "Unlock" when item is locked, "Lock" otherwise.
+- Favorite button text: "[*]Off" when item is favorite (clicking turns it off), "[*]On" otherwise.
+- Sell button is disabled with muted color when sell_block_reason is non-empty.
+
+### Sell Confirmation Flow
+1. Sell button → `_on_inventory_sell_pressed()` → validates sellable → fills `_sell_confirm_instance_id` → opens `_sell_confirm_popup` (ConfirmationDialog).
+2. Confirmed → `_on_sell_confirmed()` → `_meta_manager.sell_inventory_item(instance_id)` → hides `_item_action_popup`.
+3. `inventory_changed` signal fires → grid refreshes automatically.
+Do not sell without confirmation. Do not skip the ConfirmationDialog.
+
+### Equipped Slot Popup (separate)
+`_slot_popup: PopupPanel` is a separate popup for clicking already-equipped slot buttons on the left Equipped Gear panel. It shows item name, level, stat bonus, and an Unequip button. It is NOT the item action popup and must not be merged with it.
+
+### Cell Markers
+Inventory cell text format: `"ABBR [E][L][*]\nSlot Rar\nLv X/Y"` where `[E]` = equipped, `[L]` = locked, `[*]` = favorite. Unselected occupied cells are tinted by `EquipmentFormat.rarity_color(rarity)`.
+
+### Capacity Label
+`_inventory_capacity_label` shows `"(X / 60)"` and turns warning color when count > capacity. Updated in `_update_capacity_label()` called at the start of `_refresh_inventory_grid()`.
+
+### Inventory Management Rules
+- Lock: locked items cannot be sold. `toggle_inventory_item_locked` / `set_inventory_item_locked` emit `inventory_changed` and save.
+- Favorite: `toggle_inventory_item_favorite` / `set_inventory_item_favorite` emit `inventory_changed` and save.
+- Sell value: `_RARITY_SELL_BASE[rarity] + level * 2`. Never sell without confirmation. Never sell locked or equipped items.
+- Sort modes: Default, Slot, Lvl High, Lvl Low, Name, Rar High, Rar Low, Fav First (favorites first), Newest (higher `created_index` first).
+- `INVENTORY_CAPACITY = 60` is a soft display limit only. Never block item grants due to capacity.
+- Do not add gacha, enemy drops, random affixes, crafting, fusion, multi-sell, auto-sell, hard capacity blocking, or dismantle.
+
+### Rarity Display in MetaUpgradeShop
+- Inventory cells: short rarity via `EquipmentFormat.rarity_short(rarity)`.
+- Inventory cell tint: `EquipmentFormat.rarity_color(rarity)` for unselected unequipped cells.
+- Inventory detail label: "Rarity: Common" line via `EquipmentFormat.rarity_display_name(rarity)`.
+- Equipped slot buttons: `"Lv N Rar"` with `EquipmentFormat.rarity_short(rarity)`.
+- Sort modes Rar High / Rar Low use `_get_item_rarity_order(item)` → `EquipmentFormat.rarity_order(rarity)`.
+- `_format_stat_type_name(stat_type)` delegates to `EquipmentFormat.stat_display_name(stat_type)`.
+- `_format_slot_name(slot_id)` delegates to `EquipmentFormat.slot_display_name(slot_id)`.
+
+### VictoryScreen / GameOverScreen Item Reward Lines
+`_append_item_rewards` in both screens uses `EquipmentFormat.item_display_line(item)` → `"Name  —  Slot  —  Rarity"`. Do not hardcode rarity or slot strings in result screen reward lines.
 
 ## Development Rules
 

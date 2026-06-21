@@ -2307,6 +2307,139 @@ Equipment / Inventory horizontal layout validation:
 
 ---
 
+## Equipment Rarity / Stat Presentation (EquipmentFormat)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Inspect an inventory cell with a common item | Cell shows "Cmn" rarity short tag; unselected cell has a subtle gray-white tint |
+| 2 | Inspect an inventory cell with an uncommon item | Cell shows "Unc" and has a green tint |
+| 3 | Inspect an inventory cell with a rare item | Cell shows "Rar" and has a blue tint |
+| 4 | Click an occupied inventory cell | Item action popup title shows the item display name; detail shows "Rarity: Common/Uncommon/Rare" line |
+| 5 | Inspect an equipped slot button | Shows "Lv N Cmn" (or the appropriate rarity short tag) |
+| 6 | Inventory detail — stat line | Shows "+5 Attack Damage" for attack_damage; "+10% Ability Damage" for ability_damage; "-8% Ability Cooldown" for cooldown |
+| 7 | Inventory detail — Next Level line | Shows "Next Level: +X.XX StatType" for items below max level; hidden at max level |
+| 8 | Starter Pack popup item list | Shows "Name  —  Slot  —  Rarity" format for all 6 starter items |
+| 9 | Victory/GameOver screen item rewards | Each item line shows "Name  —  Slot  —  Rarity" format |
+| 10 | Sort by Rar High | Items ordered mythic→legendary→epic→rare→uncommon→common; empty cells follow |
+| 11 | Sort by Rar Low | Items ordered common→uncommon→rare→epic→legendary→mythic; empty cells follow |
+| 12 | Inspect diff | No balance, stat values, reward chances, quantities, hero kits, or combat changes |
+
+---
+
+## Inventory Management QoL (Lock / Favorite / Sell)
+
+### Lock
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click an occupied inventory cell | Item action popup opens with Lock button enabled |
+| 2 | Press Lock on an unlocked item | Button text changes to "Unlock"; cell shows [L] marker; item detail shows "Locked: Yes" |
+| 3 | Press Unlock on a locked item | Button text changes to "Lock"; [L] marker removed; item detail shows "Locked: No" |
+| 4 | Lock an item, then press Sell | Sell button is disabled and muted |
+| 5 | Lock state persists across sessions | Reload game; locked item still shows [L] and Sell is still disabled |
+
+### Favorite
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click an occupied cell | [*]On button visible and enabled in popup |
+| 2 | Press [*]On to favorite an item | Button changes to "[*]Off"; cell shows [*] marker; item detail shows "Favorite: Yes" |
+| 3 | Press [*]Off to unfavorite | Button changes to "[*]On"; [*] marker removed; item detail shows "Favorite: No" |
+| 4 | Favorite state persists across sessions | Reload game; item still shows [*] marker |
+
+### Sell
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click an unequipped, unlocked item | Sell button is enabled in popup |
+| 2 | Press Sell | Confirmation dialog opens: "Sell <Name> for <N> currency?" |
+| 3 | Cancel sell | Dialog closes; item remains in inventory; popup stays open |
+| 4 | Confirm sell | Item removed from inventory; currency increases by sell value; popup closes; grid refreshes |
+| 5 | Sell value for common item at level 0 | 5 currency |
+| 6 | Sell value for common item at level 5 | 5 + 5×2 = 15 currency |
+| 7 | Sell value for rare item at level 0 | 20 currency |
+| 8 | Sell an equipped item | Sell button disabled and muted; item detail shows "Cannot sell: Item is equipped. Unequip first." |
+| 9 | Sell a locked item | Sell button disabled and muted; item detail shows "Cannot sell: Item is locked." |
+
+### Capacity Display
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training → Equipment tab | Inventory header shows "(N / 60)" capacity label |
+| 2 | Grant items to reach capacity | Label shows "(60 / 60)" in normal color |
+| 3 | Exceed soft capacity (debug or reward) | Label turns warning/amber color |
+| 4 | Capacity never blocks grants | Items above 60 are accepted; no error; just label color change |
+
+### Sort Modes
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Set Sort to "Fav First" | All favorited items appear before non-favorited items; within each group, order is by original Default sort |
+| 2 | Set Sort to "Newest" | Items ordered by created_index descending (most recently granted first) |
+| 3 | Set Sort to "Rar High" | Mythic → … → Common ordering |
+| 4 | Set Sort to "Rar Low" | Common → … → Mythic ordering |
+
+### Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Equip flow | Unaffected; equipping still free; Equip button still works |
+| 2 | Upgrade flow | Unaffected; upgrade cost/level unchanged |
+| 3 | Training tab | Entirely unaffected |
+| 4 | Item reward flow | Unaffected; item count/rarity unchanged |
+| 5 | In-run combat, abilities, evolutions | Entirely unaffected |
+| 6 | No gacha/drops/affixes/crafting/multi-sell/auto-sell/hard-cap added | Diff shows none of these |
+
+---
+
+## Inventory Actions Popup UI Rework
+
+### Main Inventory Panel
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training → Equipment tab | Main Inventory panel shows only: Inventory title + capacity label + hint text + filter row + grid |
+| 2 | Inspect main panel | No action buttons (Equip/Upgrade/Lock/Favorite/Sell) in the main panel; no detail text label in the main panel |
+| 3 | Inspect filter row | Slot / State / Sort OptionButtons are present and functional |
+| 4 | Inventory grid | 5-column grid fills the remaining height; items and empty cells render correctly |
+
+### Item Action Popup
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click an occupied inventory cell | Item action popup opens near center of screen; title shows item display name |
+| 2 | Popup content | Scrollable detail text: slot, rarity, level, status (EQUIPPED/In Inventory), Locked, Favorite, gameplay note, stat, next-level stat, sell value; action rows with Equip + Upgrade and Lock + Favorite + Sell + Close |
+| 3 | Click a different occupied cell while popup is open | Popup content updates to new item; popup does NOT re-center (stays in place) |
+| 4 | Click an empty cell while popup is open | Popup closes |
+| 5 | Press Close button in popup | Popup closes |
+| 6 | Lock/Favorite/Upgrade/Equip action from popup | Action applies; grid refreshes; popup stays open in place (no re-center) |
+| 7 | Sell action from popup | Confirmation dialog opens; on confirm, popup closes after sell; grid refreshes |
+| 8 | Equip action for item already equipped | Equip button shows "Equipped" and is disabled |
+| 9 | Lock button state | "Lock" when item is unlocked; "Unlock" when locked |
+| 10 | Favorite button state | "[*]On" when not favorited; "[*]Off" when favorited |
+| 11 | Sell button state | Disabled+muted when item is locked or equipped; enabled otherwise |
+
+### Equipped Slot Popup (regression)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click a filled slot button in the Equipped Gear panel | Equipped slot popup opens (separate from item action popup) showing item name, level, stat bonus |
+| 2 | Click Unequip in slot popup | Item moves back to inventory; slot shows empty; slot popup closes |
+| 3 | Click an empty slot button | Slot popup opens with "No item equipped" text; Unequip disabled |
+
+### Scope Regression
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Training upgrades | Unaffected |
+| 2 | Currency, mastery, goals | Unaffected |
+| 3 | In-run combat, abilities, evolutions | Entirely unaffected |
+| 4 | Item reward flow | Unaffected |
+| 5 | Starter pack flow | Unaffected |
+| 6 | No gacha/drops/affixes/crafting/fusion/multi-sell/auto-sell/hard-cap added | Diff shows none of these |
+
+---
+
 ## Starter Equipment Grant Flow
 
 ### Popup Trigger
