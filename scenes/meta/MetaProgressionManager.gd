@@ -8,6 +8,7 @@ signal equipment_changed(hero_id: String, slot_id: String, instance_id: String)
 signal hero_unlock_changed(hero_id: String, unlocked: bool)
 signal progress_loaded
 signal progress_saved
+signal inventory_item_upgraded(hero_id: String, instance_id: String, level: int)
 
 const SAVE_PATH := "user://superheroes_meta_progress.json"
 const SAVE_VERSION := 5
@@ -319,14 +320,120 @@ func purchase_equipment_upgrade(hero_id: String, equipment_id: String) -> bool:
 	var resolved_hero_id := _resolve_hero_id(hero_id)
 	if not can_purchase_equipment_upgrade(resolved_hero_id, equipment_id):
 		return false
+	# Route through upgrade_inventory_item when an equipped instance exists
+	var def := get_equipment_definition(resolved_hero_id, equipment_id)
+	if not def.is_empty():
+		var slot_id := str(def.get("slot_id", ""))
+		if not slot_id.is_empty():
+			var equipped_instance_id := get_equipped_instance_id_for_slot(resolved_hero_id, slot_id)
+			if not equipped_instance_id.is_empty():
+				return upgrade_inventory_item(resolved_hero_id, equipped_instance_id)
+	# Fallback: legacy path (no inventory instance found)
 	var cost := get_equipment_upgrade_cost(resolved_hero_id, equipment_id)
 	if not spend_currency(cost):
 		return false
 	var new_level := get_equipment_level(resolved_hero_id, equipment_id) + 1
-	# set_equipment_level also updates the equipped inventory instance level
 	set_equipment_level(resolved_hero_id, equipment_id, new_level)
 	save_progress()
 	return true
+
+
+func get_inventory_item_level(hero_id: String, instance_id: String) -> int:
+	var item := get_inventory_item(hero_id, instance_id)
+	return int(item.get("level", 0))
+
+
+func get_inventory_item_max_level(hero_id: String, instance_id: String) -> int:
+	var item := get_inventory_item(hero_id, instance_id)
+	if item.is_empty():
+		return 0
+	var template_id := str(item.get("template_id", ""))
+	var tmpl := _get_item_template(template_id, _resolve_hero_id(hero_id))
+	return int(tmpl.get("max_level", 0))
+
+
+func get_inventory_item_upgrade_cost(hero_id: String, instance_id: String) -> int:
+	var resolved := _resolve_hero_id(hero_id)
+	var item := get_inventory_item(resolved, instance_id)
+	if item.is_empty():
+		return 0
+	var template_id := str(item.get("template_id", ""))
+	var tmpl := _get_item_template(template_id, resolved)
+	if tmpl.is_empty():
+		return 0
+	var level := int(item.get("level", 0))
+	var max_level := int(tmpl.get("max_level", 0))
+	if level >= max_level:
+		return 0
+	return _calculate_upgrade_cost(tmpl, level)
+
+
+func can_upgrade_inventory_item(hero_id: String, instance_id: String) -> bool:
+	var resolved := _resolve_hero_id(hero_id)
+	var item := get_inventory_item(resolved, instance_id)
+	if item.is_empty():
+		return false
+	var max_level := get_inventory_item_max_level(resolved, instance_id)
+	var level := int(item.get("level", 0))
+	if level >= max_level:
+		return false
+	var cost := get_inventory_item_upgrade_cost(resolved, instance_id)
+	return get_currency() >= cost
+
+
+func upgrade_inventory_item(hero_id: String, instance_id: String) -> bool:
+	var resolved := _resolve_hero_id(hero_id)
+	var item := get_inventory_item(resolved, instance_id)
+	if item.is_empty():
+		return false
+	var max_level := get_inventory_item_max_level(resolved, instance_id)
+	var level := int(item.get("level", 0))
+	if level >= max_level:
+		return false
+	var cost := get_inventory_item_upgrade_cost(resolved, instance_id)
+	if not spend_currency(cost):
+		return false
+	var new_level := level + 1
+	_set_inventory_item_level(resolved, instance_id, new_level)
+	# Keep legacy equipment_by_hero in sync if this item is equipped in its slot
+	var slot_id := str(item.get("slot_id", ""))
+	var equipped_instance_id := get_equipped_instance_id_for_slot(resolved, slot_id)
+	if equipped_instance_id == instance_id:
+		var template_id := str(item.get("template_id", ""))
+		ensure_equipment_data_for_hero(resolved)
+		var equipment_by_hero: Dictionary = _data.get("equipment_by_hero", {})
+		var hero_equipment: Dictionary = equipment_by_hero.get(resolved, {})
+		hero_equipment[template_id] = new_level
+		equipment_by_hero[resolved] = hero_equipment
+		_data["equipment_by_hero"] = equipment_by_hero
+		equipment_upgrade_changed.emit(resolved, template_id, new_level)
+	inventory_item_upgraded.emit(resolved, instance_id, new_level)
+	inventory_changed.emit(resolved)
+	save_progress()
+	return true
+
+
+func set_inventory_item_level(hero_id: String, instance_id: String, level: int) -> void:
+	var resolved := _resolve_hero_id(hero_id)
+	var max_level := get_inventory_item_max_level(resolved, instance_id)
+	var clamped := clampi(level, 0, max_level)
+	_set_inventory_item_level(resolved, instance_id, clamped)
+	# Keep legacy in sync if this item is the currently equipped one
+	var item := get_inventory_item(resolved, instance_id)
+	var slot_id := str(item.get("slot_id", ""))
+	var equipped_instance_id := get_equipped_instance_id_for_slot(resolved, slot_id)
+	if equipped_instance_id == instance_id:
+		var template_id := str(item.get("template_id", ""))
+		ensure_equipment_data_for_hero(resolved)
+		var equipment_by_hero: Dictionary = _data.get("equipment_by_hero", {})
+		var hero_eq: Dictionary = equipment_by_hero.get(resolved, {})
+		hero_eq[template_id] = clamped
+		equipment_by_hero[resolved] = hero_eq
+		_data["equipment_by_hero"] = equipment_by_hero
+		equipment_upgrade_changed.emit(resolved, template_id, clamped)
+	inventory_item_upgraded.emit(resolved, instance_id, clamped)
+	inventory_changed.emit(resolved)
+	save_progress()
 
 
 func get_debug_training_summary() -> Dictionary:

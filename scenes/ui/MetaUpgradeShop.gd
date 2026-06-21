@@ -35,6 +35,7 @@ var _inventory_grid: GridContainer
 var _inventory_detail_label: Label
 var _inventory_buttons: Dictionary = {}
 var _inventory_equip_button: Button
+var _inventory_upgrade_button: Button
 var _selected_inventory_instance_id: String = ""
 var _training_hero_label: Label
 
@@ -62,6 +63,8 @@ func setup(meta_progression_manager: Node, hero_data_provider: Node = null) -> v
 		_meta_manager.inventory_changed.connect(_on_inventory_changed)
 	if _meta_manager.has_signal("equipment_changed") and not _meta_manager.equipment_changed.is_connected(_on_equipment_slot_changed):
 		_meta_manager.equipment_changed.connect(_on_equipment_slot_changed)
+	if _meta_manager.has_signal("inventory_item_upgraded") and not _meta_manager.inventory_item_upgraded.is_connected(_on_inventory_item_upgraded):
+		_meta_manager.inventory_item_upgraded.connect(_on_inventory_item_upgraded)
 	if _meta_manager.has_method("ensure_training_data_for_all_heroes"):
 		_meta_manager.ensure_training_data_for_all_heroes(_get_hero_ids())
 	if _meta_manager.has_method("ensure_equipment_data_for_all_heroes"):
@@ -344,6 +347,13 @@ func _build_inventory_panel() -> Control:
 	_inventory_equip_button.custom_minimum_size = Vector2(120, 32)
 	_inventory_equip_button.pressed.connect(_on_inventory_equip_pressed)
 	header.add_child(_inventory_equip_button)
+
+	_inventory_upgrade_button = Button.new()
+	_inventory_upgrade_button.text = "Upgrade"
+	_inventory_upgrade_button.disabled = true
+	_inventory_upgrade_button.custom_minimum_size = Vector2(120, 32)
+	_inventory_upgrade_button.pressed.connect(_on_inventory_upgrade_pressed)
+	header.add_child(_inventory_upgrade_button)
 
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 8)
@@ -651,6 +661,33 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 			_inventory_equip_button.disabled = false
 			_inventory_equip_button.modulate = UIStateColors.positive_color()
 
+	# Update upgrade button
+	if _inventory_upgrade_button != null:
+		if not is_occupied or instance_id.is_empty():
+			_inventory_upgrade_button.text = "Upgrade"
+			_inventory_upgrade_button.disabled = true
+			_inventory_upgrade_button.modulate = UIStateColors.muted_color()
+		elif _meta_manager != null and _meta_manager.has_method("get_inventory_item_max_level"):
+			var item_level: int = int(_meta_manager.get_inventory_item_level(_selected_hero_id, instance_id))
+			var max_level_val: int = int(_meta_manager.get_inventory_item_max_level(_selected_hero_id, instance_id))
+			var upgrade_cost: int = int(_meta_manager.get_inventory_item_upgrade_cost(_selected_hero_id, instance_id))
+			if item_level >= max_level_val:
+				_inventory_upgrade_button.text = "MAX"
+				_inventory_upgrade_button.disabled = true
+				_inventory_upgrade_button.modulate = UIStateColors.muted_color()
+			elif _meta_manager.get_currency() < upgrade_cost:
+				_inventory_upgrade_button.text = "Need %d" % upgrade_cost
+				_inventory_upgrade_button.disabled = true
+				_inventory_upgrade_button.modulate = UIStateColors.muted_color()
+			else:
+				_inventory_upgrade_button.text = "Upgrade %d" % upgrade_cost
+				_inventory_upgrade_button.disabled = false
+				_inventory_upgrade_button.modulate = UIStateColors.positive_color()
+		else:
+			_inventory_upgrade_button.text = "Upgrade"
+			_inventory_upgrade_button.disabled = true
+			_inventory_upgrade_button.modulate = UIStateColors.muted_color()
+
 	if _inventory_detail_label == null:
 		return
 
@@ -681,14 +718,32 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	if not slot_id.is_empty() and _meta_manager != null:
 		compare_str = _format_compare_section(instance_id, slot_id)
 
+	# Build next-level stat preview
+	var next_level_str := ""
+	if _meta_manager != null and _meta_manager.has_method("get_inventory_item_max_level"):
+		var cur_level: int = level
+		var max_lv: int = int(_meta_manager.get_inventory_item_max_level(_selected_hero_id, instance_id))
+		if cur_level < max_lv and not tmpl.is_empty():
+			var per_level := float(tmpl.get("stat_bonus_per_level", 0.0))
+			var stat_type_str := str(tmpl.get("stat_bonus_type", ""))
+			if per_level > 0.0 and not stat_type_str.is_empty():
+				var next_total := per_level * float(cur_level + 1)
+				next_level_str = "Next Level: +%.2f %s" % [next_total, _format_stat_type_name(stat_type_str)]
+
+	# Gameplay effect note
+	var gameplay_note := "Affects gameplay: YES" if is_equipped else "Affects gameplay: NO (equip to apply)"
+
 	var lines := PackedStringArray()
 	lines.append("=== %s ===" % display_name)
 	lines.append("Slot: %s" % slot_display)
 	lines.append("Level: %d / %d" % [level, max_level])
 	lines.append("Status: %s" % status_str)
+	lines.append(gameplay_note)
 	if not stat_str.is_empty():
 		lines.append("")
 		lines.append(stat_str)
+	if not next_level_str.is_empty():
+		lines.append(next_level_str)
 	if not desc.is_empty():
 		lines.append("")
 		lines.append(desc)
@@ -1360,6 +1415,15 @@ func _on_inventory_equip_pressed() -> void:
 		_meta_manager.equip_inventory_item(_selected_hero_id, _selected_inventory_instance_id, slot_id)
 
 
+func _on_inventory_upgrade_pressed() -> void:
+	if _selected_inventory_instance_id.is_empty() or _selected_hero_id.is_empty():
+		return
+	if _meta_manager == null or not _meta_manager.has_method("upgrade_inventory_item"):
+		return
+	_meta_manager.upgrade_inventory_item(_selected_hero_id, _selected_inventory_instance_id)
+	# UI refreshes via inventory_item_upgraded / inventory_changed / currency_changed signals
+
+
 func _on_equipment_slot_panel_clicked(event: InputEvent, slot_id: String) -> void:
 	if not event is InputEventMouseButton:
 		return
@@ -1393,3 +1457,10 @@ func _on_equipment_slot_changed(hero_id: String, _slot_id: String, _instance_id:
 	if visible and hero_id == _selected_hero_id:
 		_update_equipment_slots()
 		_refresh_inventory_shell()
+
+
+func _on_inventory_item_upgraded(hero_id: String, _instance_id: String, _level: int) -> void:
+	if visible and hero_id == _selected_hero_id:
+		_update_equipment_slots()
+		_refresh_inventory_shell()
+		_select_inventory_cell(_selected_inventory_cell_index)

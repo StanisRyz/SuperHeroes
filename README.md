@@ -1004,12 +1004,32 @@ An evolution becomes **ready** only when:
 - The nine attack evolution definitions are implemented and offerable through Overdrive. Passive evolution definitions remain placeholders and are not offered to players.
 - Evolution state is runtime-only: no save/meta persistence.
 
-## Architecture Principles
+## Equipment Item Progression Rework
 
-- Separate runtime state, config data, UI, gameplay formulas, and Yandex SDK calls.
-- Keep patches small and focused.
-- Avoid broad rewrites unless explicitly requested.
-- Keep the superhero theme original. Do not use copyrighted superhero names, brands, logos, or specific existing characters.
+Equipment levels now belong to individual inventory item instances, not abstract hero slots. Every item in `inventory_by_hero` has its own `level` field that can be independently upgraded.
+
+### What changed
+
+- **Instance-level upgrading** — Each inventory item instance (equipped or unequipped) can be upgraded independently using shared currency. Upgrading an item increments its `level` field directly on the instance.
+- **Two upgrade entry points**:
+  1. **Equipped Gear slot** — The existing "Upgrade" button on each equipped slot still works. It now routes through `upgrade_inventory_item` internally so there is no double currency spend.
+  2. **Inventory details panel** — Selecting any inventory item now shows an "Upgrade N" button in the inventory panel header. This upgrades the item regardless of whether it is currently equipped.
+- **Gameplay modifiers** — Only equipped items affect gameplay. Unequipped items can be upgraded freely, but their stat bonuses do not apply until the item is equipped. The details panel shows "Affects gameplay: YES / NO" accordingly.
+- **Legacy compatibility** — `purchase_equipment_upgrade(hero_id, equipment_id)` routes through `upgrade_inventory_item` when an equipped instance is found, so all existing callers (including Main.gd's `equipment_buy_requested` handler) work without changes. The `equipment_by_hero` legacy dictionary is kept in sync automatically.
+- **No gacha, random loot, item drops, random affixes, crafting, or fusion.** Item levels are the only progression dimension.
+
+### Detail panel additions
+
+The inventory detail label now shows:
+- **"Affects gameplay: YES / NO"** — whether this item is currently equipped and contributing to run stats.
+- **"Next Level: +X.XX StatName"** — projected total stat at the next level (hidden at max level).
+- **Upgrade button states**: "Upgrade N" (affordable), "Need N" (insufficient currency), "MAX" (at max level).
+
+### No change to
+
+- `MetaApplier` — still calls `get_equipment_stat_modifiers_for_hero`, which already reads only equipped instances.
+- `Arena.gd` — not touched.
+- Combat, hero kits, evolutions, rewards, stages, boss flow, in-run 4/4/4 rules.
 
 ## Validation
 

@@ -2078,3 +2078,74 @@ Equipment / Inventory horizontal layout validation:
 | 4 | Training tab unchanged | Training upgrades, buy flow, and per-hero levels work as before |
 | 5 | Combat unchanged | Hero kits, evolutions, upgrade pool, boss flow, and 4/4/4 slot rules are unaffected |
 | 6 | Inspect diff | No random item stats, item drops, inventory, gacha, swapping, Training cost changes, reward changes, or slot rule changes |
+
+---
+
+## Equipment Item Progression Rework
+
+### Upgrade from Equipped Gear Panel (slot button)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Equipment tab; find a slot with a level < max item | Upgrade button shows "Upgrade N" where N is the cost |
+| 2 | Click Upgrade on an affordable slot | Currency decreases by cost; slot level increments; button text/state updates |
+| 3 | Currency label and slot level update immediately | No page reload; live refresh via signal |
+| 4 | Upgrade the same slot again until max | Button changes to "MAX" and is disabled when level = max_level |
+| 5 | Slot upgrade when currency insufficient | Button shows "Need N" and is disabled |
+
+### Upgrade from Inventory Panel (instance upgrade button)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Click an occupied inventory cell | Inventory detail shows item name, level/max, stat bonus, and an Upgrade button in the panel header |
+| 2 | Upgrade button when item level < max and currency sufficient | Button shows "Upgrade N" in positive (green) color and is enabled |
+| 3 | Click Upgrade button | Currency decreases; item level increments; detail panel and equipped gear panel both refresh |
+| 4 | Upgrade button when currency insufficient | Button shows "Need N" in muted color and is disabled |
+| 5 | Upgrade button when item is at max level | Button shows "MAX" in muted color and is disabled |
+| 6 | Click an empty inventory cell | Upgrade button shows "Upgrade" and is disabled (muted) |
+
+### Next-Level Stat Preview and Gameplay Note
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Select an item below max level in inventory detail | Detail panel shows "Next Level: +X.XX stat_type" preview line |
+| 2 | Select an item at max level | No "Next Level" preview line is shown |
+| 3 | Select an equipped item | Detail panel shows "Affects gameplay: YES" |
+| 4 | Select an unequipped item | Detail panel shows "Affects gameplay: NO (equip to apply)" |
+
+### Currency Consistency
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Upgrade same item via slot button vs. via inventory Upgrade button | Currency is spent exactly once; no double spend |
+| 2 | Upgrade through slot button while item is equipped | `purchase_equipment_upgrade` routes to `upgrade_inventory_item`; no separate `spend_currency` call |
+| 3 | Upgrade through inventory Upgrade button while item is equipped | `upgrade_inventory_item` spends currency and syncs `equipment_by_hero` |
+
+### Stat Modifier Correctness
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Upgrade an unequipped alternative item, start a run | The unequipped item's level does NOT apply to gameplay; only the equipped item's level applies |
+| 2 | Equip the upgraded alternative, start a run | The newly equipped (upgraded) item's level now applies; `get_equipment_stat_modifiers_for_hero` reflects it |
+| 3 | Upgrade the equipped item, start a run | Stat bonus reflects the new level |
+| 4 | `debug_get_equipment_modifiers_for_hero(hero_id)` after upgrades | Returns bonuses from equipped instances only; unequipped item levels are absent from the result |
+
+### UI Auto-Refresh After Upgrade
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Upgrade any item via any path | Equipped gear panel updates slot level; inventory grid [E] status unchanged; detail panel updates level/cost/button |
+| 2 | `inventory_item_upgraded` signal fires | `_on_inventory_item_upgraded` calls `_update_equipment_slots`, `_refresh_inventory_shell`, and `_select_inventory_cell` when screen is visible |
+| 3 | Currency label updates | `currency_changed` signal triggers currency label refresh after any upgrade |
+
+### Regression — Unchanged Systems
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Training tab purchases | Unaffected; buy flow, per-hero levels, currency handling unchanged |
+| 2 | Equipment swapping (Equip button) | Equipping is still free; swapping is not blocked by any upgrade state |
+| 3 | Hero unlock, goals, mastery | All unaffected |
+| 4 | In-run combat, abilities, evolutions | Entirely unaffected; no upgrade, drop, or ability system changed |
+| 5 | No gacha, random loot, item drops, affixes, or crafting added | Diff shows none of these; only deterministic per-level upgrades added |
+| 6 | 4/4/4 in-run slot rules | Unchanged |
+| 7 | Stage flow, boss flow, rewards | Unchanged |
