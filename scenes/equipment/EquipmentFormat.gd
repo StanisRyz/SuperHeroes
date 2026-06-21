@@ -2,7 +2,6 @@ extends RefCounted
 
 const PERCENT_STATS = [
 	"ability_cooldown", "ability_damage", "xp_gain", "low_health_damage",
-	"mark_damage", "support_damage", "rage_gain", "impact_damage", "knockback_resist",
 ]
 
 

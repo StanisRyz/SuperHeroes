@@ -229,27 +229,27 @@ func _build_templates() -> Array[Dictionary]:
 	return [
 		#                  id                         name                   slot         rarity      set_id          stat_bonus_type      per_lvl  cost  growth  tags
 		_t("power_core_common",       "Power Core",         "core",      "common",   "fury_set",     "attack_damage",    1.0,   50,  1.35, ["offense"]),
-		_t("cooldown_core_uncommon",  "Cooldown Core",      "core",      "uncommon", "storm_set",    "ability_cooldown", 0.008, 65,  1.37, ["ability"]),
+		_t("cooldown_core_uncommon",  "Cooldown Core",      "core",      "uncommon", "storm_set",    "support_damage",   2.0,   65,  1.37, ["ability"]),
 		_t("reinforced_suit_common",  "Reinforced Suit",    "suit",      "common",   "titan_set",    "max_health",       5.0,   50,  1.34, ["defense"]),
 		_t("vitality_suit_uncommon",  "Vitality Suit",      "suit",      "uncommon", "titan_set",    "max_health",       7.0,   65,  1.36, ["defense"]),
-		_t("awareness_emblem_common", "Awareness Emblem",   "emblem",    "common",   "storm_set",    "xp_gain",          0.01,  45,  1.33, ["utility"]),
+		_t("awareness_emblem_common", "Awareness Emblem",   "emblem",    "common",   "storm_set",    "mark_damage",      1.0,   45,  1.33, ["utility"]),
 		_t("battle_emblem_uncommon",  "Battle Emblem",      "emblem",    "uncommon", "tactical_set", "attack_damage",    1.5,   60,  1.35, ["offense"]),
 		_t("striker_gauntlets_common","Striker Gauntlets",  "gauntlets", "common",   "fury_set",     "attack_damage",    1.0,   55,  1.35, ["offense"]),
-		_t("force_gauntlets_uncommon","Force Gauntlets",    "gauntlets", "uncommon", "solar_set",    "ability_damage",   0.015, 70,  1.37, ["ability"]),
-		_t("runner_boots_common",     "Runner Boots",       "boots",     "common",   "storm_set",    "move_speed",       3.0,   45,  1.32, ["mobility"]),
-		_t("momentum_boots_uncommon", "Momentum Boots",     "boots",     "uncommon", "storm_set",    "move_speed",       4.0,   60,  1.34, ["mobility"]),
+		_t("force_gauntlets_uncommon","Force Gauntlets",    "gauntlets", "uncommon", "solar_set",    "impact_damage",    1.2,   70,  1.37, ["ability"]),
+		_t("runner_boots_common",     "Runner Boots",       "boots",     "common",   "storm_set",    "max_health",       5.0,   45,  1.32, ["defense"]),
+		_t("momentum_boots_uncommon", "Momentum Boots",     "boots",     "uncommon", "storm_set",    "shield_capacity",  1.0,   60,  1.34, ["defense"]),
 		_t("shield_artifact_common",  "Shield Artifact",    "artifact",  "common",   "solar_set",    "shield_capacity",  1.0,   70,  1.40, ["support"]),
-		_t("fury_artifact_uncommon",  "Fury Artifact",      "artifact",  "uncommon", "fury_set",     "low_health_damage",0.02,  85,  1.40, ["offense"]),
-		_t("apex_artifact_rare",      "Apex Artifact",      "artifact",  "rare",     "solar_set",    "ability_damage",   0.025, 110, 1.45, ["ability"]),
+		_t("fury_artifact_uncommon",  "Fury Artifact",      "artifact",  "uncommon", "fury_set",     "rage_gain",        1.0,   85,  1.40, ["offense"]),
+		_t("apex_artifact_rare",      "Apex Artifact",      "artifact",  "rare",     "solar_set",    "support_damage",   2.5,   110, 1.45, ["ability"]),
 	]
 
 
 func _build_sets() -> Array[Dictionary]:
 	return [
-		_s("storm_set",    "Storm Set",    "speed / cooldown / ability flow",   Color(0.30, 0.70, 1.00, 1.0), ["speed", "ability", "cooldown"], [
-			_b(2, {"move_speed": 0.05}),
+		_s("storm_set",    "Storm Set",    "cooldown / ability flow / xp",      Color(0.30, 0.70, 1.00, 1.0), ["ability", "cooldown", "xp"], [
+			_b(2, {"ability_cooldown": 0.05}),
 			_b(4, {"ability_cooldown": 0.08}),
-			_b(6, {"ability_damage": 0.10, "move_speed": 0.05}),
+			_b(6, {"ability_damage": 0.10, "xp_gain": 0.05}),
 		]),
 		_s("titan_set",    "Titan Set",    "health / resist / heavy impact",     Color(0.50, 0.75, 0.40, 1.0), ["defense", "health"], [
 			_b(2, {"max_health": 15.0}),

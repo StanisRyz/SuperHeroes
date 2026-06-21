@@ -2512,6 +2512,24 @@ Equipment / Inventory horizontal layout validation:
 
 ## Loadout Power Summary + Item Power
 
+### Power Visibility in Inventory Grid
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training → Equipment tab, look at inventory grid | Each occupied cell shows 4 lines: name / slot+rarity / Lv N/10 / PWR X |
+| 2 | Item at level 0 | Cell shows "PWR 0" |
+| 3 | Upgrade an item | Cell PWR X updates immediately after upgrade |
+| 4 | Open inventory with no items | Empty cells show "+  Empty"; no PWR line on empty cells |
+
+### Power Visibility: Loadout Button
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training → Equipment tab, no items equipped | Equipped Gear header shows "Loadout: 0" button |
+| 2 | Equip an item at level 5 (attack_damage) | Button updates to "Loadout: 50" (1.0 × 5 × 10) |
+| 3 | Equip/unequip items | Button score updates each time |
+| 4 | Upgrade an equipped item | Button score increases |
+
 ### Item Power in Popups
 
 | # | Test | Expected |
@@ -2523,33 +2541,48 @@ Equipment / Inventory horizontal layout validation:
 | 5 | Click an occupied equipped slot button | Equipped slot popup shows "Power: N" after the Level line |
 | 6 | Click an empty equipped slot button | Slot popup shows; no power line needed (item is absent) |
 
-### Loadout Button and Popup Open/Close
+### Loadout Summary Popup Open/Close
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Open Training → Equipment tab | Equipped Gear header shows "Loadout" button alongside the "Equipped Gear" title |
-| 2 | Click "Loadout" button with no gear equipped | Loadout Summary popup opens; shows Power: 0, 0 / 6 slots, all 6 empty slots listed, no stats, no sets, no items |
-| 3 | Click "Loadout" button with some gear equipped | Popup opens and shows power score, equipped count, stats, active sets, strongest/weakest items |
-| 4 | Click X / Close button in popup | Popup closes; Equipment UI remains usable |
-| 5 | Open popup, then equip an item | Popup content updates without re-centering |
-| 6 | Open popup, then unequip an item | Popup content updates in-place |
-| 7 | Open popup, then upgrade an item | Popup power score increases in-place |
-| 8 | Open popup, then dismantle an item | Popup updates to reflect removed item |
-| 9 | Main Equipment panel with popup closed | No loadout power block is visible in the main panel; panel is clean |
+| 1 | Click "Loadout: X" button with no gear equipped | Popup opens; shows Power: 0, 0 / 6 slots, all 6 empty slots, no stats, no sets, no items |
+| 2 | Click "Loadout: X" with some gear equipped | Popup shows power score, equipped count, stats, active sets, strongest/weakest items |
+| 3 | Click X / Close button in popup | Popup closes; Equipment UI remains usable |
+| 4 | Open popup, then equip an item | Popup content updates without re-centering |
+| 5 | Open popup, then upgrade an item | Popup power score increases in-place |
 
 ### Power Score Correctness
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Equip one item at level 5 with stat `attack_damage`, `per_level = 1.0` | Item power = 1.0 × 5 × 10 = 50; Loadout Power = 50 + set bonus power |
-| 2 | Equip one item at level 3 with stat `ability_cooldown`, `per_level = 0.008` | Item power = round(0.008 × 3 × 1000) = 24 |
-| 3 | Equip all 6 slots | Loadout Power = sum of all 6 item powers + set bonus power |
-| 4 | Active 2-piece Storm Set bonus (`move_speed: 0.05`) | Set bonus power includes round(0.05 × 4) = 0 (≈0 for move_speed weight=4 × 0.05=0.2, rounds to 0); check actual bonus math |
-| 5 | Active 2-piece Fury Set bonus (`attack_damage: 3`) | Set bonus power includes round(3 × 10) = 30 |
-| 6 | Highest/Weakest item display | Strongest shows highest-power item; Weakest shows lowest; empty slots are excluded from comparison |
-| 7 | `MetaProgressionManager.get_loadout_power_score()` from remote console | Returns same value as popup title |
-| 8 | `MetaProgressionManager.debug_get_loadout_summary()` | Returns full details including item_power_details and set_bonus_details arrays |
-| 9 | `MetaProgressionManager.debug_get_item_power_summary()` | Returns one dict per slot with occupied, power, stat_type, stat_total, per_level, level, weight |
+| 1 | Equip Power Core (attack_damage +1/lv) at level 5 | Item power = 1.0 × 5 × 10 = 50 |
+| 2 | Equip Momentum Boots (shield_capacity +1/lv) at level 4 | Item power = 1.0 × 4 × 25 = 100 |
+| 3 | Equip Cooldown Core (support_damage +2/lv) at level 3 | Item power = 2.0 × 3 × 8 = 48 |
+| 4 | Equip all 6 slots | Loadout Power = sum of all 6 item powers + set bonus power |
+| 5 | Active 2-piece Storm Set bonus (ability_cooldown: 0.05) | Set bonus power = round(0.05 × 8) = 0; small contribution |
+| 6 | Active 2-piece Fury Set bonus (attack_damage: 3) | Set bonus power includes round(3 × 10) = 30 |
+| 7 | Strongest/Weakest item display | Strongest shows highest-power item; Weakest shows lowest; empty slots excluded |
+
+### Flat Stat Item Template Validation
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Cooldown Core popup (was ability_cooldown, now support_damage) | Shows "+2 Support Damage / level", not percent |
+| 2 | Open Awareness Emblem popup (was xp_gain, now mark_damage) | Shows "+1 Mark Damage / level" |
+| 3 | Open Force Gauntlets popup (was ability_damage, now impact_damage) | Shows "+1.2 Impact Damage / level" |
+| 4 | Open Runner Boots popup (was move_speed, now max_health) | Shows "+5 Max HP / level" |
+| 5 | Open Momentum Boots popup (was move_speed, now shield_capacity) | Shows "+1 Shield Capacity / level" |
+| 6 | Open Fury Artifact popup (was low_health_damage, now rage_gain) | Shows "+1 Rage Gain / level" |
+| 7 | Open Apex Artifact popup (was ability_damage, now support_damage) | Shows "+2.5 Support Damage / level" |
+| 8 | No item in any template shows move_speed bonus | Diff confirms no move_speed in item templates |
+
+### Storm Set Bonus Validation
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Equip 2 storm_set items | 2-piece bonus: "-5% Ability Cooldown" (not Move Speed) |
+| 2 | Equip 4 storm_set items | 4-piece bonus: "-8% Ability Cooldown" |
+| 3 | Equip all 6 storm_set slots (if possible) | 6-piece bonus: "+10% Ability Damage, +5% XP Gain" (not Move Speed) |
 
 ### Scope Regression
 

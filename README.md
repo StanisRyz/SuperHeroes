@@ -1343,21 +1343,23 @@ Fields **not** in the canonical schema: `hero_id`, `description`, `per-item max_
 
 ### Global Template Catalog (this patch)
 
+All item templates use **flat stat values only** — no percentage modifiers, no move_speed. Percentage modifiers only appear in set bonuses.
+
 | id | slot | rarity | stat |
 |----|------|--------|------|
 | `power_core_common` | core | common | attack_damage +1/lv |
-| `cooldown_core_uncommon` | core | uncommon | ability_cooldown +0.008/lv |
+| `cooldown_core_uncommon` | core | uncommon | support_damage +2/lv |
 | `reinforced_suit_common` | suit | common | max_health +5/lv |
 | `vitality_suit_uncommon` | suit | uncommon | max_health +7/lv |
-| `awareness_emblem_common` | emblem | common | xp_gain +0.01/lv |
+| `awareness_emblem_common` | emblem | common | mark_damage +1/lv |
 | `battle_emblem_uncommon` | emblem | uncommon | attack_damage +1.5/lv |
 | `striker_gauntlets_common` | gauntlets | common | attack_damage +1/lv |
-| `force_gauntlets_uncommon` | gauntlets | uncommon | ability_damage +0.015/lv |
-| `runner_boots_common` | boots | common | move_speed +3/lv |
-| `momentum_boots_uncommon` | boots | uncommon | move_speed +4/lv |
+| `force_gauntlets_uncommon` | gauntlets | uncommon | impact_damage +1.2/lv |
+| `runner_boots_common` | boots | common | max_health +5/lv |
+| `momentum_boots_uncommon` | boots | uncommon | shield_capacity +1/lv |
 | `shield_artifact_common` | artifact | common | shield_capacity +1/lv |
-| `fury_artifact_uncommon` | artifact | uncommon | low_health_damage +0.02/lv |
-| `apex_artifact_rare` | artifact | rare | ability_damage +0.025/lv |
+| `fury_artifact_uncommon` | artifact | uncommon | rage_gain +1/lv |
+| `apex_artifact_rare` | artifact | rare | support_damage +2.5/lv |
 
 ### Equip Compatibility Rule
 
@@ -1469,7 +1471,7 @@ Every item template now belongs to an optional named equipment set. Set bonuses 
 
 | Set ID | Display Name | Theme | Color |
 |--------|-------------|-------|-------|
-| `storm_set` | Storm Set | Speed / cooldown / ability flow | Blue |
+| `storm_set` | Storm Set | Cooldown / ability flow / XP | Blue |
 | `titan_set` | Titan Set | Health / resist / heavy impact | Green |
 | `solar_set` | Solar Set | Ability damage / shield / radiance | Gold |
 | `tactical_set` | Tactical Set | Mark damage / support / precision | Purple |
@@ -1479,7 +1481,7 @@ Every item template now belongs to an optional named equipment set. Set bonuses 
 
 | Set | 2 pieces | 4 pieces | 6 pieces |
 |-----|----------|----------|----------|
-| Storm Set | +5% Move Speed | -8% Ability Cooldown | +10% Ability Damage, +5% Move Speed |
+| Storm Set | -5% Ability Cooldown | -8% Ability Cooldown | +10% Ability Damage, +5% XP Gain |
 | Titan Set | +15 Max HP | +10% Knockback Resist | +25 Max HP, +2 Shield Capacity |
 | Solar Set | +6% Ability Damage | +2 Shield Capacity | +12% Ability Damage, +8% Low Health Damage |
 | Tactical Set | +5% XP Gain | +10% Mark Damage | +12% Support Damage, -5% Ability Cooldown |
@@ -1643,23 +1645,22 @@ Every equipped or inventory item has an **Item Power** score shown in the item a
 - Stat weights are UI-only tuning constants. They do not feed into any gameplay formula.
 - At level 0, Item Power is 0 (no stat contribution yet).
 
-**Stat Power Weight Table:**
+**Stat Power Weight Table (all item templates use flat stats):**
 
 | Stat | Weight | Rationale |
 |------|--------|-----------|
-| `attack_damage` | 10 | Flat value |
-| `ability_damage` | 1000 | Decimal (percent-style) |
-| `ability_cooldown` | 1000 | Decimal |
-| `xp_gain` | 600 | Decimal |
-| `max_health` | 2 | Flat value |
-| `move_speed` | 4 | Flat value |
-| `shield_capacity` | 25 | Flat value |
-| `low_health_damage` | 900 | Decimal |
-| `mark_damage` | 900 | Decimal |
-| `support_damage` | 900 | Decimal |
-| `rage_gain` | 800 | Decimal |
-| `impact_damage` | 800 | Decimal |
-| `knockback_resist` | 500 | Decimal |
+| `attack_damage` | 10 | Flat — direct DPS |
+| `max_health` | 2 | Flat — large values per level |
+| `shield_capacity` | 25 | Flat — high impact per point |
+| `impact_damage` | 8 | Flat |
+| `mark_damage` | 8 | Flat |
+| `support_damage` | 8 | Flat |
+| `rage_gain` | 8 | Flat |
+| `low_health_damage` | 8 | Flat |
+| `ability_damage` | 8 | Flat (set bonus: percent) |
+| `ability_cooldown` | 8 | Percent (set bonus only) |
+| `xp_gain` | 6 | Percent (set bonus only) |
+| `knockback_resist` | 6 | Flat |
 
 ### Loadout Power Score
 
@@ -1667,9 +1668,15 @@ Every equipped or inventory item has an **Item Power** score shown in the item a
 
 Set Bonus Power is calculated from active set bonus modifier values using the same stat weight table.
 
+### Power Visibility
+
+- Inventory cells show **PWR X** as the 4th line (below Lv N/10).
+- The **Loadout** button in the Equipped Gear header shows the current total score: **"Loadout: X"**.
+- Item action popup and equipped slot popup show `Power: N` after the Level line.
+
 ### Loadout Summary Popup
 
-A compact **"Loadout"** button appears in the Equipped Gear panel header. Clicking it opens the **Loadout Summary** popup — a popup-only view, never a permanent on-screen panel.
+A compact **"Loadout: X"** button appears in the Equipped Gear panel header. Clicking it opens the **Loadout Summary** popup — a popup-only view, never a permanent on-screen panel.
 
 **Popup contents:**
 - Loadout Power (total score)

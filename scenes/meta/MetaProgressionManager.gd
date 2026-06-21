@@ -2322,22 +2322,21 @@ func _sync_legacy_meta_upgrades() -> void:
 
 
 # ─── Item & Loadout Power ──────────────────────────────────────────────────────
-# Percent-style stats (decimals) use high weights; flat stats use lower weights.
+# All item templates use flat stats; weights reflect per-point impact.
 # These weights affect only the UI power score — never gameplay.
 const STAT_POWER_WEIGHTS := {
 	"attack_damage": 10,
-	"ability_damage": 1000,
-	"ability_cooldown": 1000,
-	"xp_gain": 600,
 	"max_health": 2,
-	"move_speed": 4,
 	"shield_capacity": 25,
-	"low_health_damage": 900,
-	"mark_damage": 900,
-	"support_damage": 900,
-	"rage_gain": 800,
-	"impact_damage": 800,
-	"knockback_resist": 500,
+	"impact_damage": 8,
+	"mark_damage": 8,
+	"support_damage": 8,
+	"rage_gain": 8,
+	"low_health_damage": 8,
+	"ability_damage": 8,
+	"ability_cooldown": 8,
+	"xp_gain": 6,
+	"knockback_resist": 6,
 }
 
 

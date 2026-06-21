@@ -606,6 +606,9 @@ func _get_inventory_cell_data() -> Array:
 			var max_level := int(def.get("max_level", 10)) if not def.is_empty() else 10
 			var is_equipped := str(equipped.get(slot_id, "")) == instance_id
 			var cell_set_id := str(def.get("set_id", "")) if not def.is_empty() else ""
+			var item_power := 0
+			if _meta_manager != null and _meta_manager.has_method("get_inventory_item_power") and not instance_id.is_empty():
+				item_power = int(_meta_manager.get_inventory_item_power(instance_id))
 			cells.append({
 				"occupied": true,
 				"instance_id": instance_id,
@@ -622,6 +625,7 @@ func _get_inventory_cell_data() -> Array:
 				"locked": bool(item.get("locked", false)),
 				"favorite": bool(item.get("favorite", false)),
 				"created_index": int(item.get("created_index", 0)),
+				"item_power": item_power,
 			})
 	else:
 		# Fallback: show primary equipment definitions as preview cells
@@ -699,7 +703,7 @@ func _refresh_inventory_grid() -> void:
 
 func _build_inventory_cell(cell_data: Dictionary, index: int) -> Control:
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(72, 72)
+	button.custom_minimum_size = Vector2(72, 88)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.add_theme_font_size_override("font_size", 9)
@@ -720,13 +724,15 @@ func _build_inventory_cell(cell_data: Dictionary, index: int) -> Control:
 		if is_locked: markers += "[L]"
 		if is_fav: markers += "[*]"
 		var marker_tag := (" " + markers) if not markers.is_empty() else ""
-		button.text = "%s%s\n%s %s\nLv %d/%d" % [
+		var item_power := int(cell_data.get("item_power", 0))
+		button.text = "%s%s\n%s %s\nLv %d/%d\nPWR %d" % [
 			_get_short_item_name(display_name),
 			marker_tag,
 			slot_label,
 			EquipmentFormat.rarity_short(rarity),
 			level,
 			max_level,
+			item_power,
 		]
 		if is_equipped:
 			button.modulate = UIStateColors.positive_color()
@@ -1129,6 +1135,8 @@ func _get_selected_hero_data() -> Dictionary:
 
 
 func _update_equipment_slots() -> void:
+	if _loadout_summary_button != null and _meta_manager != null and _meta_manager.has_method("get_loadout_power_score"):
+		_loadout_summary_button.text = "Loadout: %d" % int(_meta_manager.get_loadout_power_score())
 	var equipped_instances: Dictionary = {}
 	if _meta_manager != null and _meta_manager.has_method("get_equipped_items_for_hero"):
 		equipped_instances = _meta_manager.get_equipped_items_for_hero(_selected_hero_id)

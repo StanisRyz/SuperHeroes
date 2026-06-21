@@ -1703,21 +1703,22 @@ Do not add arena hazards in this project. Disruptor, Exploder, and Support creat
 
 ### Stat Power Weights
 
+All item templates use **flat stat values only**. `move_speed` is not used in any item template or set bonus; it has no weight entry. Weights are calibrated for flat values; set bonuses with percent values (< 1.0) auto-detect as percent in display but contribute small power numbers (intended).
+
 | Stat | Weight | Rationale |
 |------|--------|-----------|
-| `attack_damage` | 10 | Flat |
-| `ability_damage` | 1000 | Decimal (percent-style) |
-| `ability_cooldown` | 1000 | Decimal |
-| `xp_gain` | 600 | Decimal |
-| `max_health` | 2 | Flat |
-| `move_speed` | 4 | Flat |
-| `shield_capacity` | 25 | Flat |
-| `low_health_damage` | 900 | Decimal |
-| `mark_damage` | 900 | Decimal |
-| `support_damage` | 900 | Decimal |
-| `rage_gain` | 800 | Decimal |
-| `impact_damage` | 800 | Decimal |
-| `knockback_resist` | 500 | Decimal |
+| `attack_damage` | 10 | Flat — direct DPS |
+| `max_health` | 2 | Flat — large values per level |
+| `shield_capacity` | 25 | Flat — high impact per point |
+| `impact_damage` | 8 | Flat |
+| `mark_damage` | 8 | Flat |
+| `support_damage` | 8 | Flat |
+| `rage_gain` | 8 | Flat |
+| `low_health_damage` | 8 | Flat |
+| `ability_damage` | 8 | Flat in items; set bonus uses percent (auto-detected) |
+| `ability_cooldown` | 8 | Set bonus only (percent) |
+| `xp_gain` | 6 | Set bonus only (percent) |
+| `knockback_resist` | 6 | Flat |
 
 ### Loadout Power Score
 
@@ -1745,16 +1746,23 @@ Set bonus power sums each active set modifier value × its weight across all act
 
 ### MetaUpgradeShop Loadout UI
 
-- A compact `"Loadout"` button is placed in the Equipped Gear panel header (HBox alongside the "Equipped Gear" title label). The button opens the Loadout Summary popup via `_show_loadout_summary_popup()`.
+- The **"Loadout: X"** button in the Equipped Gear panel header shows the current total power score and opens the Loadout Summary popup via `_show_loadout_summary_popup()`. The button text is updated in `_update_equipment_slots()`.
 - The Loadout Summary is a `PopupPanel` (min 400×340). It is never a permanent on-screen panel.
 - Popup content: Loadout Power score, equipped count / slot count, empty slots, total stat modifiers, active sets, strongest equipped item (by power), weakest equipped item (by power), set bonus power.
 - Popup refreshes in-place via `_update_loadout_summary_popup()` when `_on_inventory_changed`, `_on_equipment_slot_changed`, or `_on_inventory_item_upgraded` fires while the popup is visible.
-- `"Item Power: N"` line is shown in both the item action popup and the equipped slot popup, inserted after the Level line.
+- **Inventory cells** show `PWR X` as the 4th line (name / slot+rarity / Lv N/10 / PWR X). The power is read from `item_power` in the cell_data dict, set in `_get_inventory_cell_data()`.
+- `"Power: N"` line is shown in both the item action popup and the equipped slot popup, inserted after the Level line.
+
+### Item Template Rules
+
+- All item templates in `EquipmentDataProvider._build_templates()` must use **flat stat values** (≥ 1.0 per level). No percent-style values (< 1.0) in templates.
+- `move_speed` must **not** appear in any item template or set bonus. It has no entry in `STAT_POWER_WEIGHTS`.
+- Percentage-style modifiers (ability_cooldown, ability_damage, xp_gain, etc.) are allowed in **set bonuses only**. The `stat_value_text` auto-detection (value < 1.0 → percent display) handles set bonus display correctly without listing these in `PERCENT_STATS`.
+- `EquipmentFormat.PERCENT_STATS` should contain only stats that are **always** percent regardless of value: `ability_cooldown`, `ability_damage`, `xp_gain`, `low_health_damage`.
 
 ### Power UI Rules
 
 - Power is display-only. It does not affect combat stats, hero kits, evolutions, upgrade costs, dismantle rewards, item reward chances, set bonus values, or any in-run mechanic.
-- The main Equipment UI must remain clean. Do not add a persistent loadout power block to the Equipment tab; the summary lives in the popup only.
 - Rarity must not directly increase power. The weight table and formula above are the single source of truth.
 - Empty slots are omitted from the highest/lowest item comparison (no empty slot is treated as the lowest).
 - `highest_item` and `lowest_item` in `get_loadout_summary()` are selected by `item_power` comparison, not rarity order.
