@@ -29,12 +29,13 @@ The project is currently in the balance, cleanup, and production-readiness stage
 
 Equipment disposal is now handled through **Dismantle** only. The player-facing Sell action has been removed from the Training -> Equipment item popup.
 
-- Gold is a new separate save-backed currency. Existing Training/progression currency remains unchanged and still pays current Training and equipment upgrade costs.
+- Gold is a separate save-backed currency for equipment upgrades and Dismantle rewards. Existing Training/progression currency remains for Training/meta upgrades only.
 - Dismantling an unequipped, unlocked item removes it from `inventory_items` after confirmation and awards both Gold and a material matching the item's own rarity.
-- Materials are saved for future upgrade-economy work but are not spent by upgrades in this patch.
+- Item upgrades now cost Gold plus a material matching the item's own rarity.
 - Material mapping: common -> Common Dust, uncommon -> Uncommon Dust, rare -> Rare Dust, epic -> Epic Core, legendary -> Legendary Core, mythic -> Mythic Core.
 - Equipped items cannot be dismantled. Locked items cannot be dismantled. Favorite items can be dismantled, but the confirmation dialog warns the player.
-- This patch does not add crafting, fusion, gacha, random affixes, enemy item drops, hard inventory capacity, multi-dismantle, reward chance changes, set bonus changes, or upgrade cost changes.
+- Upgrade cost scaling uses rarity Gold bases (20/35/60/100/160/250) times next item level, plus material base 2 and +1 material per 2 current levels.
+- This patch does not add crafting, fusion, gacha, random affixes, enemy item drops, hard inventory capacity, multi-dismantle, reward chance changes, set bonus changes, or item stat changes.
 
 ### Gameplay Validation / Debug Pass
 
@@ -715,7 +716,7 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - **Save migration** - save version 3 adds `hero_mastery`, `stage_mastery`, and `goals` with defaults while preserving existing currency, per-hero Training, unlocked heroes, and lifetime totals.
 - **Training Goals snapshot** - MetaUpgradeShop shows a compact read-only goals progress line above Training rows. It does not claim rewards or mutate goals.
 - **Character Equipment Foundation** - save version 4 adds `equipment_by_hero`, a per-hero dictionary of fixed equipment levels. Existing currency, per-hero Training, hero mastery, stage mastery, goals, unlocked heroes, rewards, and lifetime totals are preserved during migration.
-- **Equipment Upgrade Integration** - fixed hero equipment can now be upgraded with shared currency. Equipment levels are per-hero, emit `equipment_upgrade_changed`, and save after each successful purchase.
+- **Equipment Upgrade Integration** - older fixed hero equipment upgrade hooks now route through inventory item upgrades when an equipped instance exists. Current item upgrades spend Gold plus rarity-matching materials.
 
 ### Inventory Data & Equipment Swapping Foundation
 
@@ -1038,31 +1039,56 @@ An evolution becomes **ready** only when:
 
 ## Equipment Item Progression Rework
 
-Equipment levels now belong to individual inventory item instances, not abstract hero slots. Every item in `inventory_by_hero` has its own `level` field that can be independently upgraded.
+Equipment levels belong to individual global inventory item instances, not abstract hero slots. Every item in `inventory_items` has its own `level` field that can be independently upgraded.
 
 ### What changed
 
-- **Instance-level upgrading** — Each inventory item instance (equipped or unequipped) can be upgraded independently using shared currency. Upgrading an item increments its `level` field directly on the instance.
+- **Instance-level upgrading** - Each inventory item instance can be upgraded independently with Gold plus a material matching the item's rarity. Old Training/progression currency is no longer spent on item upgrades.
+- **Training currency boundary** - Training tab upgrades still use the existing Training/progression currency. Equipment item upgrades use only Gold/materials.
 - **Two upgrade entry points**:
-  1. **Equipped Gear slot** — The existing "Upgrade" button on each equipped slot still works. It now routes through `upgrade_inventory_item` internally so there is no double currency spend.
-  2. **Inventory details panel** — Selecting any inventory item now shows an "Upgrade N" button in the inventory panel header. This upgrades the item regardless of whether it is currently equipped.
-- **Gameplay modifiers** — Only equipped items affect gameplay. Unequipped items can be upgraded freely, but their stat bonuses do not apply until the item is equipped. The details panel shows "Affects gameplay: YES / NO" accordingly.
-- **Legacy compatibility** — `purchase_equipment_upgrade(hero_id, equipment_id)` routes through `upgrade_inventory_item` when an equipped instance is found, so all existing callers (including Main.gd's `equipment_buy_requested` handler) work without changes. The `equipment_by_hero` legacy dictionary is kept in sync automatically.
-- **No gacha, random loot, item drops, random affixes, crafting, or fusion.** Item levels are the only progression dimension.
+  1. **Equipped Gear slot** - Existing equipped-slot upgrade requests route through `upgrade_inventory_item` for the equipped instance and use Gold/materials.
+  2. **Inventory item popup** - Selecting an inventory item shows upgrade cost, owned resources, missing resources, and an Upgrade button.
+- **Gameplay modifiers** - Only equipped items affect gameplay. Unequipped items can be upgraded, but their stat bonuses do not apply until equipped.
+- **Atomic spending** - Upgrade checks item existence, max level, Gold, and material balance before mutating. Failed upgrades spend nothing and do not change item level.
+- **No gacha, random loot, item drops, random affixes, crafting, fusion, reward chance changes, or item stat changes.** Item levels remain the only equipment progression dimension.
+
+### Upgrade Cost Formula
+
+Required material always matches item rarity:
+- common -> Common Dust
+- uncommon -> Uncommon Dust
+- rare -> Rare Dust
+- epic -> Epic Core
+- legendary -> Legendary Core
+- mythic -> Mythic Core
+
+Gold bases by rarity: common 20, uncommon 35, rare 60, epic 100, legendary 160, mythic 250.
+
+Formula:
+- `next_level = current_level + 1`
+- `gold = gold_base * next_level`
+- `material_amount = 2 + floor(current_level / 2)`
+
+Examples:
+- Common Lv 0 -> 1: 20 Gold + 2 Common Dust
+- Common Lv 4 -> 5: 100 Gold + 4 Common Dust
+- Rare Lv 0 -> 1: 60 Gold + 2 Rare Dust
 
 ### Detail panel additions
 
-The inventory detail label now shows:
-- **"Affects gameplay: YES / NO"** — whether this item is currently equipped and contributing to run stats.
-- **"Next Level: +X.XX StatName"** — projected total stat at the next level (hidden at max level).
-- **Upgrade button states**: "Upgrade N" (affordable), "Need N" (insufficient currency), "MAX" (at max level).
+The item popup detail now shows:
+- **Upgrade Cost** - Gold and material requirement.
+- **Owned** - current Gold/material amount against the requirement.
+- **Missing** - shown only for insufficient Gold/materials.
+- **Next Level** - projected stat at the next level, hidden at max level.
+- **Affects gameplay: YES / NO** - whether this item is currently equipped and contributing to run stats.
+- **Upgrade button states**: `Upgrade` when affordable, `Need Resources` when Gold/materials are insufficient, `MAX` at max level.
 
 ### No change to
 
-- `MetaApplier` — still calls `get_equipment_stat_modifiers_for_hero`, which already reads only equipped instances.
-- `Arena.gd` — not touched.
-- Combat, hero kits, evolutions, rewards, stages, boss flow, in-run 4/4/4 rules.
-
+- `MetaApplier` - still calls `get_equipment_stat_modifiers_for_hero`, which reads only equipped instances.
+- `Arena.gd` - not touched.
+- Combat, hero kits, evolutions, rewards, stages, boss flow, set bonus values, in-run 4/4/4 rules, or Training upgrade costs.
 ## Validation
 
 Run the Godot editor validation from the repository root:
@@ -1584,7 +1610,7 @@ New MetaProgressionManager API:
 - `can_dismantle_inventory_item(instance_id) -> bool`
 - `dismantle_inventory_item(instance_id) -> Dictionary` - removes item, adds Gold/materials, emits `inventory_changed`, `gold_changed`, and `equipment_materials_changed`, saves.
 
-Gold is separate from the old Training/progression currency. Current Training and equipment upgrade costs still spend only old currency; Gold/material spending is intentionally not implemented yet.
+Gold is separate from the old Training/progression currency. Training upgrades still spend old currency; item upgrades spend Gold plus rarity-matching equipment materials.
 
 New inventory sort modes: **Fav First** (favorites sorted to top) and **Newest** (higher `created_index` first).
 

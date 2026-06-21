@@ -652,7 +652,7 @@ Passive evolution state is runtime-only in `PassiveAbilityManager`: `_selected_p
 - `MetaApplier` applies supported equipment stats at run start: `max_health`, `move_speed`, `xp_gain`, `attack_damage`, `ability_damage`, `ability_cooldown`, `shield_capacity`, `mark_damage`, and `rage_gain`. These bonuses apply identically for all heroes because equipped slots are global.
 - `low_health_damage` and other future-facing stats are stored in aggregated modifiers but do not mutate gameplay until an explicit safe system exists.
 - Equipment does not change Training costs, rewards, hero unlocks, gacha, item drops, stage objectives, boss flow, evolutions, or in-run 4/4/4 slot rules.
-- Gold is separate from the existing Training/progression currency. Current Training and equipment upgrade costs still spend only the old currency until a later upgrade-economy patch.
+- Gold is separate from the existing Training/progression currency. Training upgrades still spend the old currency; item upgrades spend Gold plus rarity-matching equipment materials.
 - Equipment materials are saved under `_data["equipment_materials"]` with ids `common_dust`, `uncommon_dust`, `rare_dust`, `epic_core`, `legendary_core`, and `mythic_core`.
 - Material mapping is fixed by item rarity: common -> common_dust, uncommon -> uncommon_dust, rare -> rare_dust, epic -> epic_core, legendary -> legendary_core, mythic -> mythic_core.
 - Player-facing item disposal is Dismantle only. Sell may remain as compatibility/debug API, but it must not be exposed in MetaUpgradeShop UI.
@@ -744,6 +744,8 @@ The previously equipped item stays in inventory — only the pointer changes. He
 - `debug_get_inventory_summary() -> Dictionary` — global item_count, equipped_slots, items, equipment_grants.
 - Gold API: `get_gold()`, `add_gold(amount)`, `spend_gold(amount)`, `set_gold(amount)`; emits `gold_changed(value)`.
 - Material API: `get_material_ids()`, `get_material_for_rarity(rarity)`, `get_material_display_name(material_id)`, `is_valid_material_id(material_id)`, `get_equipment_materials()`, `get_equipment_material_amount(material_id)`, `add_equipment_material(material_id, amount)`, `set_equipment_material_amount(material_id, amount)`; emits `equipment_materials_changed(materials)`.
+- Material spending API: `can_spend_equipment_materials(material_cost)` and `spend_equipment_materials(material_cost)` accept `material_id -> amount`, validate ids, never allow negative totals, and must be all-or-nothing.
+- Item upgrade cost config: common 20 Gold base, uncommon 35, rare 60, epic 100, legendary 160, mythic 250. Material base is 2 for every rarity. Formula is `gold_base * (current_level + 1)` and `material_base + floor(current_level / 2)`.
 - Dismantle API: `get_inventory_item_dismantle_result(instance_id)`, `can_dismantle_inventory_item(instance_id)`, `get_inventory_item_dismantle_block_reason(instance_id)`, and `dismantle_inventory_item(instance_id)`.
 - Dismantle rules: item must exist, equipped items are blocked, locked items are blocked, favorite items are allowed but UI confirmation must warn. A successful dismantle removes the item, adds Gold, adds the matching rarity material, emits `inventory_changed`, `gold_changed`, and `equipment_materials_changed`, then saves.
 
@@ -771,9 +773,12 @@ Equipment levels belong to individual inventory item instances in the global sto
 
 ### Item-Instance Upgrade API (MetaProgressionManager)
 
-- `upgrade_inventory_item(hero_id, instance_id) -> bool` — spends shared currency, increments the instance level in global `inventory_items`, keeps `equipment_by_hero` in sync (legacy compat), emits `inventory_item_upgraded`, `inventory_changed`, and (if equipped) `equipment_upgrade_changed`. Returns `false` if not found, at max level, or insufficient currency.
-- `get_inventory_item_upgrade_cost(hero_id, instance_id) -> int` — read-only; `0` if at max level or not found.
-- `can_upgrade_inventory_item(hero_id, instance_id) -> bool` — item exists, level < max_level, currency sufficient.
+- `get_inventory_item_upgrade_cost_data(instance_id) -> Dictionary` — read-only Gold/material cost data, shaped as `{ "gold": int, "materials": { material_id: amount } }`; empty/zero for invalid or maxed items.
+- `get_inventory_item_upgrade_block_reason(instance_id) -> String` — empty only when the item can be upgraded with current Gold/material balances.
+- `can_upgrade_inventory_item(instance_id) -> bool` — item exists, level < max_level, Gold sufficient, rarity-matching material sufficient.
+- `upgrade_inventory_item(instance_id) -> Dictionary` — atomically spends Gold plus matching material, increments the instance level in global `inventory_items`, keeps `equipment_by_hero` in sync (legacy compat), emits `inventory_item_upgraded`, `inventory_changed`, `gold_changed`, `equipment_materials_changed`, and (if equipped) `equipment_upgrade_changed`. Returns `{success, reason, new_level, cost}`.
+- Compatibility wrappers may accept the older `(hero_id, instance_id)` call shape, but item upgrades must not call `spend_currency()`.
+- `get_inventory_item_upgrade_cost(hero_id, instance_id) -> int` may remain for old display paths, but new UI must use `get_inventory_item_upgrade_cost_data()`.
 - `get_inventory_item_level(hero_id, instance_id) -> int` — reads global `inventory_items`.
 - `get_inventory_item_max_level(hero_id, instance_id) -> int` — reads `_equipment_provider.MAX_ITEM_LEVEL`.
 - `set_inventory_item_level(hero_id, instance_id, level) -> void` — debug/tooling setter; does not spend currency.
@@ -784,7 +789,7 @@ Equipment levels belong to individual inventory item instances in the global sto
 
 ### purchase_equipment_upgrade Routing
 
-`purchase_equipment_upgrade(hero_id, equipment_id)` resolves the slot, finds the globally equipped instance via `get_equipped_instance_id_for_slot`, and routes through `upgrade_inventory_item` when a match exists. Legacy spend + `set_equipment_level` path runs as fallback if no equipped instance.
+`purchase_equipment_upgrade(hero_id, equipment_id)` resolves the slot, finds the globally equipped instance via `get_equipped_instance_id_for_slot`, and routes through `upgrade_inventory_item` when a match exists. If no equipped inventory instance exists, it returns `false`; it must not spend old Training/progression currency as a fallback.
 
 ### Stat Modifier Rule
 
@@ -794,11 +799,12 @@ Equipment levels belong to individual inventory item instances in the global sto
 
 - `_inventory_upgrade_button` is in the inventory panel header alongside `_inventory_equip_button`.
 - `_on_inventory_upgrade_pressed()` calls `upgrade_inventory_item(_selected_hero_id, _selected_inventory_instance_id)`.
-- `_update_inventory_detail()` sets button: "MAX" + disabled at max level; "Need N" + disabled when currency is short; "Upgrade N" + enabled when affordable.
+- `_update_inventory_detail()` sets button: "MAX" + disabled at max level; "Need Resources" + disabled when Gold/materials are short; "Upgrade" + enabled when affordable. Full cost/owned/missing resource details live in popup text.
+- Popup upgrade text must show `Upgrade Cost`, owned Gold/material amounts, and missing Gold/material amounts when insufficient. Use material display names such as `Common Dust` and `Epic Core`, not raw ids, where possible.
 
 ### Unchanged Systems
 
-Training tab, currency flow, hero unlock, main menu, goals, stage flow, evolutions, in-run 4/4/4 upgrade rules, boss flow, enemy behavior, and all combat systems are unaffected.
+Training tab old-currency flow, hero unlock, main menu, goals, stage flow, evolutions, in-run 4/4/4 upgrade rules, boss flow, enemy behavior, and all combat systems are unaffected.
 
 ## Item Rewards After Run
 
@@ -879,7 +885,7 @@ No gacha, no enemy item drops, no random affixes, no crafting/fusion, no player-
 
 - **Slot grid layout**: left column holds Core/Suit/Emblem; right column holds Gauntlets/Boots/Artifact. Each slot is a `PanelContainer` with slot name, hero-specific display name, `Level current / max`, bonus per level, current total, next total, and an Upgrade/Need/MAX button.
 - **Hero preview** updates via `_refresh_equipment_panel()` on every `refresh()` call and on hero switch. It reads `display_name`, `subtitle`/`playstyle`, and `color` from `_get_selected_hero_data()`.
-- **Equipment rules**: fixed equipment can be upgraded with shared currency; the inventory shell is read-only UI foundation only; no item drops, no swapping, no random item stats, no gacha.
+- **Equipment rules**: item upgrades cost Gold plus rarity-matching equipment materials; Training upgrades use old currency. No item drops, swapping side effects, random item stats, or gacha.
 - `_get_selected_hero_data()` returns the selected hero dict from `_heroes` (already loaded via `HeroDataProvider`), with fallback to `_hero_data_provider.get_hero()`.
 - `_update_equipment_slots()` reads `MetaProgressionManager.get_equipment_definitions(_selected_hero_id)`, levels, costs, and affordability. Missing equipment data falls back to safe placeholder text.
 - `_on_equipment_buy_pressed(slot_id)` resolves the current slot's equipment id and emits `equipment_buy_requested`; it does not mutate meta state directly.

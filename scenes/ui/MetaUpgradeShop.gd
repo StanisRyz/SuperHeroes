@@ -59,6 +59,7 @@ var _selected_inventory_instance_id: String = ""
 var _training_hero_label: Label
 var _gold_label: Label
 var _materials_label: Label
+var _last_upgrade_message: String = ""
 
 # Item action popup
 var _item_action_popup: PopupPanel = null
@@ -727,7 +728,10 @@ func _select_inventory_cell(index: int, open_popup: bool = false) -> void:
 		return
 	_selected_inventory_cell_index = clampi(index, 0, cells.size() - 1)
 	var selected_cell: Dictionary = cells[_selected_inventory_cell_index]
+	var previous_instance_id := _selected_inventory_instance_id
 	_selected_inventory_instance_id = str(selected_cell.get("instance_id", "")) if bool(selected_cell.get("occupied", false)) else ""
+	if previous_instance_id != _selected_inventory_instance_id:
+		_last_upgrade_message = ""
 	for cell_index in _inventory_buttons:
 		var button := _inventory_buttons[cell_index] as Button
 		if button == null:
@@ -789,20 +793,19 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 			_inventory_upgrade_button.text = "Upgrade"
 			_inventory_upgrade_button.disabled = true
 			_inventory_upgrade_button.modulate = UIStateColors.muted_color()
-		elif _meta_manager != null and _meta_manager.has_method("get_inventory_item_max_level"):
+		elif _meta_manager != null and _meta_manager.has_method("get_inventory_item_upgrade_cost_data"):
 			var item_level: int = int(_meta_manager.get_inventory_item_level(_selected_hero_id, instance_id))
 			var max_level_val: int = int(_meta_manager.get_inventory_item_max_level(_selected_hero_id, instance_id))
-			var upgrade_cost: int = int(_meta_manager.get_inventory_item_upgrade_cost(_selected_hero_id, instance_id))
 			if item_level >= max_level_val:
 				_inventory_upgrade_button.text = "MAX"
 				_inventory_upgrade_button.disabled = true
 				_inventory_upgrade_button.modulate = UIStateColors.muted_color()
-			elif _meta_manager.get_currency() < upgrade_cost:
-				_inventory_upgrade_button.text = "Need %d" % upgrade_cost
+			elif _meta_manager.has_method("can_upgrade_inventory_item") and not _meta_manager.can_upgrade_inventory_item(instance_id):
+				_inventory_upgrade_button.text = "Need Resources"
 				_inventory_upgrade_button.disabled = true
 				_inventory_upgrade_button.modulate = UIStateColors.muted_color()
 			else:
-				_inventory_upgrade_button.text = "Upgrade %d" % upgrade_cost
+				_inventory_upgrade_button.text = "Upgrade"
 				_inventory_upgrade_button.disabled = false
 				_inventory_upgrade_button.modulate = UIStateColors.positive_color()
 		else:
@@ -867,8 +870,15 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	# Gameplay effect note
 	var gameplay_note := "Affects gameplay: YES" if is_equipped else "Affects gameplay: NO (equip to apply)"
 
+	var upgrade_cost: Dictionary = {}
+	var upgrade_block := ""
+	if _meta_manager != null and _meta_manager.has_method("get_inventory_item_upgrade_cost_data"):
+		upgrade_cost = _meta_manager.get_inventory_item_upgrade_cost_data(instance_id)
+		if _meta_manager.has_method("get_inventory_item_upgrade_block_reason"):
+			upgrade_block = str(_meta_manager.get_inventory_item_upgrade_block_reason(instance_id))
+
 	# Dismantle info
-	var dismantle_result := {}
+	var dismantle_result: Dictionary = {}
 	var dismantle_block := ""
 	if _meta_manager != null and _meta_manager.has_method("get_inventory_item_dismantle_result"):
 		dismantle_result = _meta_manager.get_inventory_item_dismantle_result(instance_id)
@@ -891,6 +901,13 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 		lines.append(stat_str)
 	if not next_level_str.is_empty():
 		lines.append(next_level_str)
+	lines.append("")
+	for resource_line in _get_upgrade_resource_lines(upgrade_cost):
+		lines.append(resource_line)
+	if not upgrade_block.is_empty():
+		lines.append("Cannot upgrade: %s" % upgrade_block)
+	if not _last_upgrade_message.is_empty() and _selected_inventory_instance_id == instance_id:
+		lines.append("Last upgrade: %s" % _last_upgrade_message)
 	lines.append("")
 	lines.append("Dismantle reward: %s" % _format_dismantle_result(dismantle_result))
 	if not dismantle_block.is_empty():
@@ -1027,6 +1044,56 @@ func _format_dismantle_result(result: Dictionary) -> String:
 			display = str(_meta_manager.get_material_display_name(str(material_id)))
 		parts.append("%d %s" % [amount, display])
 	return "none" if parts.is_empty() else ", ".join(parts)
+
+
+func _format_material_name(material_id: String) -> String:
+	if _meta_manager != null and _meta_manager.has_method("get_material_display_name"):
+		return str(_meta_manager.get_material_display_name(material_id))
+	return material_id.replace("_", " ").capitalize()
+
+
+func _format_upgrade_cost(cost: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	var gold := int(cost.get("gold", 0))
+	if gold > 0:
+		parts.append("%d Gold" % gold)
+	var materials: Dictionary = cost.get("materials", {}) if cost.get("materials", {}) is Dictionary else {}
+	var material_ids := materials.keys()
+	material_ids.sort()
+	for material_id in material_ids:
+		var amount := int(materials.get(material_id, 0))
+		if amount <= 0:
+			continue
+		parts.append("%d %s" % [amount, _format_material_name(str(material_id))])
+	return "none" if parts.is_empty() else ", ".join(parts)
+
+
+func _get_upgrade_resource_lines(cost: Dictionary) -> PackedStringArray:
+	var lines := PackedStringArray()
+	var gold_required := int(cost.get("gold", 0))
+	var gold_owned := 0
+	if _meta_manager != null and _meta_manager.has_method("get_gold"):
+		gold_owned = int(_meta_manager.get_gold())
+	lines.append("Upgrade Cost: %s" % _format_upgrade_cost(cost))
+	lines.append("Owned Gold: %d / %d" % [gold_owned, gold_required])
+	if gold_owned < gold_required:
+		lines.append("Missing Gold: %d" % (gold_required - gold_owned))
+	var materials: Dictionary = cost.get("materials", {}) if cost.get("materials", {}) is Dictionary else {}
+	var material_ids := materials.keys()
+	material_ids.sort()
+	for material_id in material_ids:
+		var key := str(material_id)
+		var required := int(materials.get(material_id, 0))
+		if required <= 0:
+			continue
+		var owned := 0
+		if _meta_manager != null and _meta_manager.has_method("get_equipment_material_amount"):
+			owned = int(_meta_manager.get_equipment_material_amount(key))
+		var display := _format_material_name(key)
+		lines.append("Owned %s: %d / %d" % [display, owned, required])
+		if owned < required:
+			lines.append("Missing %s: %d" % [display, required - owned])
+	return lines
 
 
 func _get_selected_hero_data() -> Dictionary:
@@ -1927,8 +1994,19 @@ func _on_inventory_upgrade_pressed() -> void:
 		return
 	if _meta_manager == null or not _meta_manager.has_method("upgrade_inventory_item"):
 		return
-	_meta_manager.upgrade_inventory_item(_selected_hero_id, _selected_inventory_instance_id)
-	# UI refreshes via inventory_item_upgraded / inventory_changed / currency_changed signals
+	var result: Dictionary = _meta_manager.upgrade_inventory_item(_selected_hero_id, _selected_inventory_instance_id)
+	if bool(result.get("success", false)):
+		_last_upgrade_message = ""
+		_update_equipment_slots()
+		_refresh_inventory_shell()
+		_select_inventory_cell(_selected_inventory_cell_index, _item_action_popup != null and _item_action_popup.visible)
+		if _gold_label != null and _meta_manager.has_method("get_gold"):
+			_gold_label.text = "Gold: %d" % int(_meta_manager.get_gold())
+		_update_materials_label()
+	else:
+		_last_upgrade_message = str(result.get("reason", "Upgrade failed."))
+		_select_inventory_cell(_selected_inventory_cell_index, _item_action_popup != null and _item_action_popup.visible)
+	# UI also refreshes via inventory_item_upgraded / inventory_changed / gold/material signals
 
 
 func _refresh_management_buttons(instance_id: String, is_locked: bool, is_fav: bool, dismantle_block: String) -> void:

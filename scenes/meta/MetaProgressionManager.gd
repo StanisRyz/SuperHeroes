@@ -37,6 +37,14 @@ const _RARITY_MATERIAL_BASE := {
 	"legendary": 2,
 	"mythic": 1,
 }
+const _RARITY_UPGRADE_COST_CONFIG := {
+	"common": {"gold_base": 20, "material_base": 2},
+	"uncommon": {"gold_base": 35, "material_base": 2},
+	"rare": {"gold_base": 60, "material_base": 2},
+	"epic": {"gold_base": 100, "material_base": 2},
+	"legendary": {"gold_base": 160, "material_base": 2},
+	"mythic": {"gold_base": 250, "material_base": 2},
+}
 const STARTER_PACK_TEMPLATES: Array[String] = [
 	"power_core_common", "reinforced_suit_common", "awareness_emblem_common",
 	"striker_gauntlets_common", "runner_boots_common", "shield_artifact_common",
@@ -216,6 +224,38 @@ func add_equipment_material(material_id: String, amount: int) -> void:
 	_data["equipment_materials"] = materials
 	equipment_materials_changed.emit(materials.duplicate(true))
 	save_progress()
+
+
+func can_spend_equipment_materials(material_cost: Dictionary) -> bool:
+	_ensure_equipment_material_defaults()
+	var materials: Dictionary = _data.get("equipment_materials", {})
+	for material_id in material_cost:
+		var key := str(material_id)
+		var amount := int(material_cost.get(material_id, 0))
+		if amount <= 0:
+			continue
+		if not is_valid_material_id(key):
+			return false
+		if int(materials.get(key, 0)) < amount:
+			return false
+	return true
+
+
+func spend_equipment_materials(material_cost: Dictionary) -> bool:
+	if not can_spend_equipment_materials(material_cost):
+		return false
+	_ensure_equipment_material_defaults()
+	var materials: Dictionary = _data.get("equipment_materials", {})
+	for material_id in material_cost:
+		var key := str(material_id)
+		var amount := int(material_cost.get(material_id, 0))
+		if amount <= 0:
+			continue
+		materials[key] = maxi(int(materials.get(key, 0)) - amount, 0)
+	_data["equipment_materials"] = materials
+	equipment_materials_changed.emit(materials.duplicate(true))
+	save_progress()
+	return true
 
 
 func get_training_level(hero_id: String, upgrade_id: String) -> int:
@@ -453,32 +493,26 @@ func can_purchase_equipment_upgrade(hero_id: String, equipment_id: String) -> bo
 		return false
 	if not is_hero_unlocked(resolved_hero_id):
 		return false
-	if get_equipment_level(resolved_hero_id, equipment_id) >= int(def.get("max_level", 0)):
+	var slot_id := str(def.get("slot_id", ""))
+	var equipped_instance_id := get_equipped_instance_id_for_slot(resolved_hero_id, slot_id)
+	if equipped_instance_id.is_empty():
 		return false
-	var cost := get_equipment_upgrade_cost(resolved_hero_id, equipment_id)
-	return cost > 0 and get_currency() >= cost
+	return can_upgrade_inventory_item(equipped_instance_id)
 
 
 func purchase_equipment_upgrade(hero_id: String, equipment_id: String) -> bool:
 	var resolved_hero_id := _resolve_hero_id(hero_id)
 	if not can_purchase_equipment_upgrade(resolved_hero_id, equipment_id):
 		return false
-	# Route through upgrade_inventory_item when an equipped instance exists
 	var def := get_equipment_definition(resolved_hero_id, equipment_id)
 	if not def.is_empty():
 		var slot_id := str(def.get("slot_id", ""))
 		if not slot_id.is_empty():
 			var equipped_instance_id := get_equipped_instance_id_for_slot(resolved_hero_id, slot_id)
 			if not equipped_instance_id.is_empty():
-				return upgrade_inventory_item(resolved_hero_id, equipped_instance_id)
-	# Fallback: legacy path (no inventory instance found)
-	var cost := get_equipment_upgrade_cost(resolved_hero_id, equipment_id)
-	if not spend_currency(cost):
-		return false
-	var new_level := get_equipment_level(resolved_hero_id, equipment_id) + 1
-	set_equipment_level(resolved_hero_id, equipment_id, new_level)
-	save_progress()
-	return true
+				var result := upgrade_inventory_item(resolved_hero_id, equipped_instance_id)
+				return bool(result.get("success", false))
+	return false
 
 
 func get_inventory_item_level(hero_id: String, instance_id: String) -> int:
@@ -498,64 +532,119 @@ func get_inventory_item_max_level(hero_id: String, instance_id: String) -> int:
 
 
 func get_inventory_item_upgrade_cost(hero_id: String, instance_id: String) -> int:
-	var resolved := _resolve_hero_id(hero_id)
-	var item := get_inventory_item(resolved, instance_id)
+	var cost_data := get_inventory_item_upgrade_cost_data(instance_id)
+	return int(cost_data.get("gold", 0))
+
+
+func get_inventory_item_upgrade_cost_data(instance_id: String) -> Dictionary:
+	var item := get_inventory_item("", instance_id)
 	if item.is_empty():
-		return 0
+		return {"gold": 0, "materials": {}}
 	var template_id := str(item.get("template_id", ""))
-	var tmpl := _get_item_template(template_id, resolved)
+	var tmpl := _get_item_template(template_id)
 	if tmpl.is_empty():
-		return 0
+		return {"gold": 0, "materials": {}}
 	var level := int(item.get("level", 0))
-	var max_level := int(tmpl.get("max_level", 0))
+	var max_level := get_inventory_item_max_level("", instance_id)
 	if level >= max_level:
-		return 0
-	return _calculate_upgrade_cost(tmpl, level)
+		return {"gold": 0, "materials": {}}
+	var rarity := str(tmpl.get("rarity", "common"))
+	var config: Dictionary = _RARITY_UPGRADE_COST_CONFIG.get(rarity, _RARITY_UPGRADE_COST_CONFIG["common"])
+	var next_level := level + 1
+	var gold_cost := int(config.get("gold_base", 20)) * next_level
+	var material_id := get_material_for_rarity(rarity)
+	var material_cost := int(config.get("material_base", 2)) + int(floor(float(level) / 2.0))
+	return {
+		"gold": gold_cost,
+		"materials": {
+			material_id: material_cost,
+		},
+	}
 
 
-func can_upgrade_inventory_item(hero_id: String, instance_id: String) -> bool:
-	var resolved := _resolve_hero_id(hero_id)
-	var item := get_inventory_item(resolved, instance_id)
+func get_inventory_item_upgrade_block_reason(instance_id: String) -> String:
+	var item := get_inventory_item("", instance_id)
 	if item.is_empty():
-		return false
-	var max_level := get_inventory_item_max_level(resolved, instance_id)
+		return "Item not found."
+	var template_id := str(item.get("template_id", ""))
+	var tmpl := _get_item_template(template_id)
+	if tmpl.is_empty():
+		return "Item template not found."
 	var level := int(item.get("level", 0))
+	var max_level := get_inventory_item_max_level("", instance_id)
 	if level >= max_level:
-		return false
-	var cost := get_inventory_item_upgrade_cost(resolved, instance_id)
-	return get_currency() >= cost
+		return "Item is already at max level."
+	var cost := get_inventory_item_upgrade_cost_data(instance_id)
+	var gold_cost := int(cost.get("gold", 0))
+	if gold_cost <= 0:
+		return "Upgrade cost unavailable."
+	if get_gold() < gold_cost:
+		return "Not enough Gold."
+	var material_cost: Dictionary = cost.get("materials", {}) if cost.get("materials", {}) is Dictionary else {}
+	if not can_spend_equipment_materials(material_cost):
+		return "Not enough materials."
+	return ""
 
 
-func upgrade_inventory_item(hero_id: String, instance_id: String) -> bool:
-	var resolved := _resolve_hero_id(hero_id)
-	var item := get_inventory_item(resolved, instance_id)
+func can_upgrade_inventory_item(instance_id: String, maybe_instance_id: String = "") -> bool:
+	var resolved_instance_id := maybe_instance_id if not maybe_instance_id.is_empty() else instance_id
+	return get_inventory_item_upgrade_block_reason(resolved_instance_id).is_empty()
+
+
+func upgrade_inventory_item(instance_id: String, maybe_instance_id: String = "") -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(instance_id) if not maybe_instance_id.is_empty() else DEFAULT_HERO_ID
+	var resolved_instance_id := maybe_instance_id if not maybe_instance_id.is_empty() else instance_id
+	var item := get_inventory_item("", resolved_instance_id)
 	if item.is_empty():
-		return false
-	var max_level := get_inventory_item_max_level(resolved, instance_id)
+		return {"success": false, "reason": "Item not found.", "new_level": 0, "cost": {"gold": 0, "materials": {}}}
+	var cost := get_inventory_item_upgrade_cost_data(resolved_instance_id)
+	var reason := get_inventory_item_upgrade_block_reason(resolved_instance_id)
+	if not reason.is_empty():
+		return {"success": false, "reason": reason, "new_level": int(item.get("level", 0)), "cost": cost}
+	var gold_cost := int(cost.get("gold", 0))
+	var material_cost: Dictionary = cost.get("materials", {}) if cost.get("materials", {}) is Dictionary else {}
+	if get_gold() < gold_cost or not can_spend_equipment_materials(material_cost):
+		return {"success": false, "reason": "Not enough resources.", "new_level": int(item.get("level", 0)), "cost": cost}
+	_ensure_equipment_material_defaults()
+	var materials: Dictionary = _data.get("equipment_materials", {})
+	for material_id in material_cost:
+		var key := str(material_id)
+		var amount := int(material_cost.get(material_id, 0))
+		if amount <= 0:
+			continue
+		if not is_valid_material_id(key) or int(materials.get(key, 0)) < amount:
+			return {"success": false, "reason": "Not enough resources.", "new_level": int(item.get("level", 0)), "cost": cost}
 	var level := int(item.get("level", 0))
+	var max_level := get_inventory_item_max_level("", resolved_instance_id)
 	if level >= max_level:
-		return false
-	var cost := get_inventory_item_upgrade_cost(resolved, instance_id)
-	if not spend_currency(cost):
-		return false
+		return {"success": false, "reason": "Item is already at max level.", "new_level": level, "cost": cost}
+	_data["gold"] = get_gold() - gold_cost
+	for material_id in material_cost:
+		var key := str(material_id)
+		var amount := int(material_cost.get(material_id, 0))
+		if amount > 0:
+			materials[key] = maxi(int(materials.get(key, 0)) - amount, 0)
+	_data["equipment_materials"] = materials
 	var new_level := level + 1
-	_set_inventory_item_level(resolved, instance_id, new_level)
+	_set_inventory_item_level(resolved_hero_id, resolved_instance_id, new_level)
 	# Keep legacy equipment_by_hero in sync if this item is equipped in its slot
 	var slot_id := str(item.get("slot_id", ""))
-	var equipped_instance_id := get_equipped_instance_id_for_slot(resolved, slot_id)
-	if equipped_instance_id == instance_id:
+	var equipped_instance_id := get_equipped_instance_id_for_slot(resolved_hero_id, slot_id)
+	if equipped_instance_id == resolved_instance_id:
 		var template_id := str(item.get("template_id", ""))
-		ensure_equipment_data_for_hero(resolved)
+		ensure_equipment_data_for_hero(resolved_hero_id)
 		var equipment_by_hero: Dictionary = _data.get("equipment_by_hero", {})
-		var hero_equipment: Dictionary = equipment_by_hero.get(resolved, {})
+		var hero_equipment: Dictionary = equipment_by_hero.get(resolved_hero_id, {})
 		hero_equipment[template_id] = new_level
-		equipment_by_hero[resolved] = hero_equipment
+		equipment_by_hero[resolved_hero_id] = hero_equipment
 		_data["equipment_by_hero"] = equipment_by_hero
-		equipment_upgrade_changed.emit(resolved, template_id, new_level)
-	inventory_item_upgraded.emit(resolved, instance_id, new_level)
-	inventory_changed.emit(resolved)
+		equipment_upgrade_changed.emit(resolved_hero_id, template_id, new_level)
+	inventory_item_upgraded.emit(resolved_hero_id, resolved_instance_id, new_level)
+	inventory_changed.emit(resolved_hero_id)
+	gold_changed.emit(get_gold())
+	equipment_materials_changed.emit(materials.duplicate(true))
 	save_progress()
-	return true
+	return {"success": true, "reason": "", "new_level": new_level, "cost": cost}
 
 
 func set_inventory_item_level(hero_id: String, instance_id: String, level: int) -> void:
