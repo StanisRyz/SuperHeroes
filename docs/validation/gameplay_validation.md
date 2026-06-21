@@ -1841,6 +1841,7 @@ git diff --stat
 | 4 | Detail panel — owned status | OWNED label in green |
 | 5 | Detail panel — mastery | Mastery Lv.N  \|  Runs: N  \|  Victories: N (reads MetaProgressionManager live) |
 | 6 | Detail panel — color swatch | Colored strip matches hero color |
+| 7 | Detail panel — equipment summary | Shows compact read-only equipment progress, e.g. Equipment: 0 / 6 upgraded |
 
 ### Collection Screen — Open / Close / ESC
 
@@ -1864,7 +1865,7 @@ git diff --stat
 | 5 | Quit to menu after run | Main menu returns; Collection hidden |
 | 6 | Gameplay, combat, saves, rewards, meta Training | Entirely unchanged |
 | 7 | Gacha pulls | Not present (future work) |
-| 8 | Equipment | Not present (future work) |
+| 8 | Equipment controls | No equipment grid, inventory, swapping, or upgrade controls are present in Collection |
 | 9 | hero_selected signal connected to CharacterSelect | Not connected (future work) |
 | 8 | Inspect diff | No hero kits, evolutions, 4/4/4 slots, stage objectives, rewards, saves, meta progression, or arena hazards changed |
 
@@ -1891,14 +1892,16 @@ git diff --stat
 | 5 | Footer | "Back" button present and accessible |
 | 6 | Layout fits screen | Both panels visible in landscape at 16:9 without cutting off the Back button |
 
-### Equipment Panel — Slot Placeholders
+### Equipment Panel — Fixed Equipment Foundation
 
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Count equipment slots | Exactly 6 slots visible: Core, Suit, Emblem on left; Gauntlets, Boots, Artifact on right |
-| 2 | Each slot content | Shows slot name, "Lv 0", and "Coming next" |
-| 3 | No buy buttons on slots | Slot placeholders have no purchase interaction |
-| 4 | Slots remain static when hero changes | Slot names and content do not change on hero switch |
+| 2 | Open Training for Solar Guardian | Slots show Solar Core, Radiant Suit, Sun Emblem, Power Gauntlets, Flight Boots, and Aegis Artifact |
+| 3 | Switch to Night Tactician | Slots update to Tactical Core, Shadow Suit, Signal Emblem, Gadget Gauntlets, Grapnel Boots, and Drone Artifact |
+| 4 | Switch to Fury Vanguard | Slots update to Rage Core, Titan Suit, War Emblem, Impact Gauntlets, Heavy Boots, and Fury Artifact |
+| 5 | Inspect each slot | Shows slot name, equipment display name, "Level 0 / 10", future stat bonus text, and disabled "Upgrade coming next" button |
+| 6 | No equipment purchase interaction | Disabled slot buttons do not emit Training buy intent and no equipment level can be increased |
 
 ### Equipment Panel — Hero Preview
 
@@ -1915,7 +1918,7 @@ git diff --stat
 | # | Test | Expected |
 |---|------|----------|
 | 1 | Click Guardian, Blaster, Vanguard buttons | Selected hero button turns green and is disabled; other buttons are white |
-| 2 | Switch from Guardian to Blaster | Training upgrade rows update; equipment hero preview name/subtitle/color update |
+| 2 | Switch from Guardian to Blaster | Training upgrade rows update; equipment hero preview name/subtitle/color and all 6 equipment names/levels update |
 | 3 | Switch from Blaster to Vanguard | Same as above for Vanguard |
 | 4 | Goals label after switch | Goals label still shows correct totals |
 | 5 | Currency after switch | Currency label unchanged (global shared currency) |
@@ -1936,16 +1939,25 @@ git diff --stat
 |---|------|----------|
 | 1 | Click Back | Training closes; main menu reappears |
 | 2 | Press ESC | Training closes; main menu reappears |
-| 3 | Collection still opens from main menu | Collection screen opens normally |
+| 3 | Collection still opens from main menu | Collection screen opens normally and selected hero details show a compact equipment summary |
 | 4 | Select Hero still opens CharacterSelect | CharacterSelect opens normally |
 | 5 | No gameplay, saves, or rewards changed | Opening/closing Training has no gameplay side effects |
+
+### Save Migration / Data Foundation
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Load an old save without `equipment_by_hero` | Save loads without errors and equipment defaults are created for Guardian, Blaster, and Vanguard |
+| 2 | Inspect `debug_get_equipment_summary()` | Each hero has 6 equipment entries, upgraded count 0, and total equipment levels 0 |
+| 3 | Check existing save fields after migration | Currency, `training_by_hero`, `hero_mastery`, `stage_mastery`, `goals`, and `unlocked_heroes` are preserved |
+| 4 | Start gameplay after migration | Arena starts normally; equipment levels do not affect hero stats, rewards, combat, evolutions, or 4/4/4 slot rules |
 
 ### Scope Confirmation
 
 | # | Test | Expected |
 |---|------|----------|
-| 1 | Equipment slots store no data | No new save keys, no new meta fields |
+| 1 | Equipment levels are foundation-only | `equipment_by_hero` exists, defaults to level 0, and cannot be upgraded from UI |
 | 2 | No inventory added | No item inventory screen or node present |
 | 3 | No gacha added | No banner, pull button, or shard system present |
-| 4 | No equipment progression | Slot levels cannot be increased; no stats affected |
-| 5 | Inspect diff | No changes to Training costs, save format, rewards, gameplay, combat, evolutions, or 4/4/4 in-run slot rules |
+| 4 | No equipment stat application | Equipment levels do not change gameplay stats, rewards, Training costs, combat, evolutions, or run slot rules |
+| 5 | Inspect diff | No changes to Training upgrade costs, rewards, combat, evolutions, item drops, inventory, gacha, or 4/4/4 in-run slot rules |

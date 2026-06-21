@@ -703,6 +703,7 @@ Not included in this patch: Boss Encounter 2.0, Stage Objectives Pack, arena haz
 - **Goal rewards** - goal rewards are auto-claimed on the run that completes them and are added to the post-run currency total once. `claim_goal_reward(goal_id)` remains available as a safe manual API for future non-auto-claim UI.
 - **Save migration** - save version 3 adds `hero_mastery`, `stage_mastery`, and `goals` with defaults while preserving existing currency, per-hero Training, unlocked heroes, and lifetime totals.
 - **Training Goals snapshot** - MetaUpgradeShop shows a compact read-only goals progress line above Training rows. It does not claim rewards or mutate goals.
+- **Character Equipment Foundation** - save version 4 adds `equipment_by_hero`, a per-hero dictionary of fixed equipment levels. Existing currency, per-hero Training, hero mastery, stage mastery, goals, unlocked heroes, rewards, and lifetime totals are preserved during migration.
 
 ### Training Screen Layout Rework
 
@@ -715,15 +716,21 @@ The Training screen (`MetaUpgradeShop`) now uses a two-panel layout:
 - **Right panel — Training Upgrades**: The existing scrollable list of Training upgrades with buy buttons, level display, and currency gating. Behavior is identical to the previous single-panel layout.
 - **Header**: Title, currency label, hero selector, and goals label remain above both panels.
 
-Equipment slots are **visual placeholders only**. Each slot shows the slot name, "Lv 0", and "Coming next". No equipment levels are stored, no stats are affected, and no purchase buttons exist on slots.
+Equipment slots are now backed by read-only fixed hero equipment definitions:
 
-The equipment panel hero preview updates when the hero selector changes. Slot placeholders remain static.
+- **Solar Guardian**: Solar Core, Radiant Suit, Sun Emblem, Power Gauntlets, Flight Boots, Aegis Artifact.
+- **Night Tactician**: Tactical Core, Shadow Suit, Signal Emblem, Gadget Gauntlets, Grapnel Boots, Drone Artifact.
+- **Fury Vanguard**: Rage Core, Titan Suit, War Emblem, Impact Gauntlets, Heavy Boots, Fury Artifact.
+
+Each definition includes `equipment_id`, `hero_id`, `slot_id`, `slot_name`, `display_name`, `description`, `max_level`, `base_cost`, `cost_growth`, `stat_bonus_type`, `stat_bonus_per_level`, and `tier`. Levels persist in `equipment_by_hero` and default to `0`.
+
+The equipment panel hero preview updates when the hero selector changes. Each slot shows hero-specific equipment name, `Level 0 / max_level`, a short future stat bonus line, and a disabled "Upgrade coming next" button. The Collection detail panel also shows a compact read-only equipment summary.
 
 Not implemented yet (equipment):
-- Equipment progression or stat bonuses.
 - Equipment purchase or upgrade flow.
+- Equipment stat application to gameplay.
 - Inventory.
-- Item drops or gacha pulls.
+- Item drops, equipment swapping, or gacha pulls.
 
 Not implemented yet (meta):
 - Gacha pulls, shards, and banner system (collection screen foundation exists).

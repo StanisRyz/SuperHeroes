@@ -24,6 +24,7 @@ var _equip_hero_name_label: Label
 var _equip_hero_subtitle_label: Label
 var _equip_hero_swatch: ColorRect
 var _equip_hero_status_label: Label
+var _equipment_slot_rows: Dictionary = {}
 
 
 func _ready() -> void:
@@ -45,6 +46,8 @@ func setup(meta_progression_manager: Node, hero_data_provider: Node = null) -> v
 		_meta_manager.meta_upgrade_changed.connect(_on_meta_upgrade_changed)
 	if _meta_manager.has_method("ensure_training_data_for_all_heroes"):
 		_meta_manager.ensure_training_data_for_all_heroes(_get_hero_ids())
+	if _meta_manager.has_method("ensure_equipment_data_for_all_heroes"):
+		_meta_manager.ensure_equipment_data_for_all_heroes(_get_hero_ids())
 
 
 func open(hero_id: String = "") -> void:
@@ -81,6 +84,8 @@ func set_selected_hero(hero_id: String) -> void:
 	_selected_hero_id = resolved
 	if _meta_manager != null and _meta_manager.has_method("ensure_training_data_for_hero"):
 		_meta_manager.ensure_training_data_for_hero(_selected_hero_id)
+	if _meta_manager != null and _meta_manager.has_method("ensure_equipment_data_for_hero"):
+		_meta_manager.ensure_equipment_data_for_hero(_selected_hero_id)
 	if visible:
 		refresh()
 
@@ -242,9 +247,9 @@ func _build_equipment_panel() -> Control:
 	left_col.add_theme_constant_override("separation", 6)
 	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slot_hbox.add_child(left_col)
-	left_col.add_child(_build_equipment_slot("Core"))
-	left_col.add_child(_build_equipment_slot("Suit"))
-	left_col.add_child(_build_equipment_slot("Emblem"))
+	left_col.add_child(_build_equipment_slot("core", "Core"))
+	left_col.add_child(_build_equipment_slot("suit", "Suit"))
+	left_col.add_child(_build_equipment_slot("emblem", "Emblem"))
 
 	var center_spacer := Control.new()
 	center_spacer.custom_minimum_size = Vector2(32, 0)
@@ -255,9 +260,9 @@ func _build_equipment_panel() -> Control:
 	right_col.add_theme_constant_override("separation", 6)
 	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slot_hbox.add_child(right_col)
-	right_col.add_child(_build_equipment_slot("Gauntlets"))
-	right_col.add_child(_build_equipment_slot("Boots"))
-	right_col.add_child(_build_equipment_slot("Artifact"))
+	right_col.add_child(_build_equipment_slot("gauntlets", "Gauntlets"))
+	right_col.add_child(_build_equipment_slot("boots", "Boots"))
+	right_col.add_child(_build_equipment_slot("artifact", "Artifact"))
 
 	var note := Label.new()
 	note.text = "Fixed hero gear. Upgrades coming next."
@@ -270,7 +275,7 @@ func _build_equipment_panel() -> Control:
 	return outer_vbox
 
 
-func _build_equipment_slot(slot_name: String) -> PanelContainer:
+func _build_equipment_slot(slot_id: String, slot_name: String) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -284,20 +289,42 @@ func _build_equipment_slot(slot_name: String) -> PanelContainer:
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(name_lbl)
 
+	var item_lbl := Label.new()
+	item_lbl.text = "Upgrade coming next"
+	item_lbl.add_theme_font_size_override("font_size", 10)
+	item_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	item_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(item_lbl)
+
 	var level_lbl := Label.new()
-	level_lbl.text = "Lv 0"
+	level_lbl.text = "Level 0 / 0"
 	level_lbl.add_theme_font_size_override("font_size", 10)
 	level_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	level_lbl.modulate = Color(0.7, 0.7, 0.7, 1.0)
 	vbox.add_child(level_lbl)
 
 	var hint_lbl := Label.new()
-	hint_lbl.text = "Coming next"
+	hint_lbl.text = ""
 	hint_lbl.add_theme_font_size_override("font_size", 9)
 	hint_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint_lbl.modulate = Color(0.5, 0.55, 0.6, 1.0)
 	vbox.add_child(hint_lbl)
 
+	var disabled_btn := Button.new()
+	disabled_btn.text = "Upgrade coming next"
+	disabled_btn.disabled = true
+	disabled_btn.custom_minimum_size = Vector2(0, 28)
+	disabled_btn.add_theme_font_size_override("font_size", 9)
+	vbox.add_child(disabled_btn)
+
+	_equipment_slot_rows[slot_id] = {
+		"slot_name": name_lbl,
+		"display_name": item_lbl,
+		"level": level_lbl,
+		"bonus": hint_lbl,
+		"button": disabled_btn,
+	}
 	return panel
 
 
@@ -317,6 +344,7 @@ func _refresh_equipment_panel() -> void:
 	if _equip_hero_status_label != null:
 		_equip_hero_status_label.text = "Owned" if unlocked else "Locked"
 		_equip_hero_status_label.modulate = Color(0.6, 0.9, 0.6, 1.0) if unlocked else Color(0.8, 0.5, 0.3, 1.0)
+	_update_equipment_slots()
 
 
 func _get_selected_hero_data() -> Dictionary:
@@ -328,6 +356,123 @@ func _get_selected_hero_data() -> Dictionary:
 		if not d.is_empty():
 			return d
 	return {}
+
+
+func _update_equipment_slots() -> void:
+	var defs_by_slot := _get_equipment_definitions_by_slot()
+	for slot_id in _equipment_slot_rows:
+		var row: Dictionary = _equipment_slot_rows.get(slot_id, {})
+		var def: Dictionary = defs_by_slot.get(slot_id, {})
+		var slot_name_lbl := row.get("slot_name") as Label
+		var display_name_lbl := row.get("display_name") as Label
+		var level_lbl := row.get("level") as Label
+		var bonus_lbl := row.get("bonus") as Label
+		var button := row.get("button") as Button
+
+		var slot_name := _format_slot_name(str(slot_id))
+		var display_name := "Upgrade coming next"
+		var level_text := "Level 0 / 0"
+		var bonus_text := "No equipment data"
+		if not def.is_empty():
+			slot_name = str(def.get("slot_name", slot_name))
+			display_name = str(def.get("display_name", display_name))
+			var equipment_id := str(def.get("equipment_id", ""))
+			var level := _get_equipment_level(equipment_id)
+			level_text = "Level %d / %d" % [level, int(def.get("max_level", 0))]
+			bonus_text = _format_equipment_bonus(def)
+
+		if slot_name_lbl != null:
+			slot_name_lbl.text = slot_name
+		if display_name_lbl != null:
+			display_name_lbl.text = display_name
+		if level_lbl != null:
+			level_lbl.text = level_text
+		if bonus_lbl != null:
+			bonus_lbl.text = bonus_text
+		if button != null:
+			button.text = "Upgrade coming next"
+			button.disabled = true
+
+
+func _get_equipment_definitions_by_slot() -> Dictionary:
+	var result := {}
+	if _meta_manager == null or not _meta_manager.has_method("get_equipment_definitions"):
+		return result
+	var defs: Array = _meta_manager.get_equipment_definitions(_selected_hero_id)
+	for def in defs:
+		if not def is Dictionary:
+			continue
+		var slot_id := str(def.get("slot_id", ""))
+		if not slot_id.is_empty():
+			result[slot_id] = def
+	return result
+
+
+func _get_equipment_level(equipment_id: String) -> int:
+	if equipment_id.is_empty():
+		return 0
+	if _meta_manager != null and _meta_manager.has_method("get_equipment_level"):
+		return int(_meta_manager.get_equipment_level(_selected_hero_id, equipment_id))
+	return 0
+
+
+func _format_equipment_bonus(def: Dictionary) -> String:
+	var bonus_type := str(def.get("stat_bonus_type", ""))
+	var value = def.get("stat_bonus_per_level", 0)
+	var label := _format_bonus_type(bonus_type)
+	if value is float and abs(float(value)) < 1.0:
+		return "+%d%% %s / level" % [int(round(float(value) * 100.0)), label]
+	return "+%s %s / level" % [str(value), label]
+
+
+func _format_bonus_type(bonus_type: String) -> String:
+	match bonus_type:
+		"ability_damage":
+			return "ability damage"
+		"max_health":
+			return "max HP"
+		"xp_gain":
+			return "XP gain"
+		"attack_damage":
+			return "attack damage"
+		"move_speed":
+			return "move speed"
+		"shield_capacity":
+			return "shield capacity"
+		"ability_cooldown":
+			return "ability cooldown"
+		"mark_damage":
+			return "marked damage"
+		"support_damage":
+			return "support damage"
+		"rage_gain":
+			return "Rage gain"
+		"impact_damage":
+			return "impact damage"
+		"knockback_resist":
+			return "knockback resist"
+		"low_health_damage":
+			return "low-health damage"
+		_:
+			return bonus_type.replace("_", " ")
+
+
+func _format_slot_name(slot_id: String) -> String:
+	match slot_id:
+		"core":
+			return "Core"
+		"suit":
+			return "Suit"
+		"emblem":
+			return "Emblem"
+		"gauntlets":
+			return "Gauntlets"
+		"boots":
+			return "Boots"
+		"artifact":
+			return "Artifact"
+		_:
+			return slot_id.capitalize()
 
 
 # ─── Training rows ────────────────────────────────────────────────────────────

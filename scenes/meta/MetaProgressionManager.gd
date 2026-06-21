@@ -7,10 +7,11 @@ signal progress_loaded
 signal progress_saved
 
 const SAVE_PATH := "user://superheroes_meta_progress.json"
-const SAVE_VERSION := 3
+const SAVE_VERSION := 4
 const DEFAULT_HERO_ID := "guardian"
 const DEFAULT_HERO_IDS: Array[String] = ["guardian", "blaster", "vanguard"]
 const DEFAULT_STAGE_IDS: Array[String] = ["city_rooftop", "neon_lab", "wasteland_gate"]
+const EQUIPMENT_SLOT_IDS: Array[String] = ["core", "suit", "emblem", "gauntlets", "boots", "artifact"]
 
 var _data: Dictionary = {}
 var _newly_completed_goals: Array[Dictionary] = []
@@ -120,7 +121,81 @@ func get_training_summary_for_hero(hero_id: String) -> Dictionary:
 		"hero_id": resolved_hero_id,
 		"currency": get_currency(),
 		"levels": get_training_levels_for_hero(resolved_hero_id),
+		"equipment": get_equipment_summary_for_hero(resolved_hero_id),
 	}
+
+
+func get_equipment_definitions(hero_id: String = "") -> Array[Dictionary]:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var result: Array[Dictionary] = []
+	for def in _get_all_equipment_definitions():
+		if hero_id.is_empty() or str(def.get("hero_id", "")) == resolved_hero_id:
+			result.append(def.duplicate(true))
+	return result
+
+
+func get_equipment_definition(hero_id: String, equipment_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	for def in _get_all_equipment_definitions():
+		if str(def.get("hero_id", "")) == resolved_hero_id and str(def.get("equipment_id", "")) == equipment_id:
+			return def.duplicate(true)
+	return {}
+
+
+func get_equipment_level(hero_id: String, equipment_id: String) -> int:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_equipment_data_for_hero(resolved_hero_id)
+	var equipment_by_hero: Dictionary = _data.get("equipment_by_hero", {})
+	var hero_equipment: Dictionary = equipment_by_hero.get(resolved_hero_id, {})
+	return int(hero_equipment.get(equipment_id, 0))
+
+
+func get_equipment_levels_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_equipment_data_for_hero(resolved_hero_id)
+	var equipment_by_hero: Dictionary = _data.get("equipment_by_hero", {})
+	var hero_equipment: Dictionary = equipment_by_hero.get(resolved_hero_id, {})
+	return hero_equipment.duplicate()
+
+
+func get_equipment_summary_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_equipment_data_for_hero(resolved_hero_id)
+	var defs := get_equipment_definitions(resolved_hero_id)
+	var levels := get_equipment_levels_for_hero(resolved_hero_id)
+	var upgraded_count := 0
+	var total_levels := 0
+	var max_total_levels := 0
+	for def in defs:
+		var equipment_id := str(def.get("equipment_id", ""))
+		var level := int(levels.get(equipment_id, 0))
+		if level > 0:
+			upgraded_count += 1
+		total_levels += level
+		max_total_levels += int(def.get("max_level", 0))
+	return {
+		"hero_id": resolved_hero_id,
+		"equipment_count": defs.size(),
+		"upgraded_count": upgraded_count,
+		"total_levels": total_levels,
+		"max_total_levels": max_total_levels,
+		"levels": levels,
+	}
+
+
+func debug_get_equipment_summary() -> Dictionary:
+	var result := {}
+	for hero_id in DEFAULT_HERO_IDS:
+		result[hero_id] = get_equipment_summary_for_hero(hero_id)
+	return result
+
+
+func can_purchase_equipment_upgrade(_hero_id: String, _equipment_id: String) -> bool:
+	return false
+
+
+func purchase_equipment_upgrade(_hero_id: String, _equipment_id: String) -> bool:
+	return false
 
 
 func get_debug_training_summary() -> Dictionary:
@@ -170,6 +245,25 @@ func ensure_training_data_for_hero(hero_id: String) -> void:
 func ensure_training_data_for_all_heroes(hero_ids: Array) -> void:
 	for hero_id in hero_ids:
 		ensure_training_data_for_hero(str(hero_id))
+
+
+func ensure_equipment_data_for_hero(hero_id: String) -> void:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var equipment_by_hero: Dictionary = _data.get("equipment_by_hero", {})
+	var hero_equipment: Dictionary = equipment_by_hero.get(resolved_hero_id, {}) if equipment_by_hero.get(resolved_hero_id, {}) is Dictionary else {}
+	for def in get_equipment_definitions(resolved_hero_id):
+		var equipment_id := str(def.get("equipment_id", ""))
+		if equipment_id.is_empty():
+			continue
+		var current := int(hero_equipment.get(equipment_id, 0))
+		hero_equipment[equipment_id] = clampi(current, 0, int(def.get("max_level", 0)))
+	equipment_by_hero[resolved_hero_id] = hero_equipment
+	_data["equipment_by_hero"] = equipment_by_hero
+
+
+func ensure_equipment_data_for_all_heroes(hero_ids: Array) -> void:
+	for hero_id in hero_ids:
+		ensure_equipment_data_for_hero(str(hero_id))
 
 
 func get_training_upgrade_cost(hero_id: String, upgrade_id: String) -> int:
@@ -295,6 +389,7 @@ func get_progress_summary() -> Dictionary:
 		"total_elite_kills": int(_data.get("total_elite_kills", 0)),
 		"total_miniboss_kills": int(_data.get("total_miniboss_kills", 0)),
 		"training_by_hero": _data.get("training_by_hero", {}).duplicate(true),
+		"equipment_by_hero": _data.get("equipment_by_hero", {}).duplicate(true),
 		"meta_upgrades": get_training_levels_for_hero(DEFAULT_HERO_ID),
 		"unlocked_heroes": _data.get("unlocked_heroes", []).duplicate(),
 		"hero_mastery": get_hero_mastery_summary(),
@@ -543,6 +638,7 @@ func _get_defaults() -> Dictionary:
 		"currency": 0,
 		"meta_upgrades": {},
 		"training_by_hero": _get_default_training_by_hero(),
+		"equipment_by_hero": _get_default_equipment_by_hero(),
 		"unlocked_heroes": ["guardian", "blaster", "vanguard"],
 		"total_runs": 0,
 		"total_victories": 0,
@@ -564,8 +660,11 @@ func _merge_with_defaults(parsed: Dictionary) -> void:
 		_data["meta_upgrades"] = {}
 	if not _data.get("training_by_hero") is Dictionary:
 		_data["training_by_hero"] = {}
+	if not _data.get("equipment_by_hero") is Dictionary:
+		_data["equipment_by_hero"] = {}
 	_migrate_global_training_if_needed(parsed)
 	ensure_training_data_for_all_heroes(DEFAULT_HERO_IDS)
+	ensure_equipment_data_for_all_heroes(DEFAULT_HERO_IDS)
 	_data["version"] = SAVE_VERSION
 	if not _data.get("unlocked_heroes") is Array:
 		_data["unlocked_heroes"] = ["guardian", "blaster", "vanguard"]
@@ -581,6 +680,56 @@ func _get_default_training_by_hero() -> Dictionary:
 	for hero_id in DEFAULT_HERO_IDS:
 		result[hero_id] = {}
 	return result
+
+
+func _get_default_equipment_by_hero() -> Dictionary:
+	var result := {}
+	for hero_id in DEFAULT_HERO_IDS:
+		var hero_equipment := {}
+		for def in get_equipment_definitions(hero_id):
+			hero_equipment[str(def.get("equipment_id", ""))] = 0
+		result[hero_id] = hero_equipment
+	return result
+
+
+func _get_all_equipment_definitions() -> Array[Dictionary]:
+	return [
+		_make_equipment_definition("guardian", "solar_core", "core", "Core", "Solar Core", "A radiant reactor that will strengthen Solar Guardian's core power.", "ability_damage", 0.02, 60, 1.35),
+		_make_equipment_definition("guardian", "radiant_suit", "suit", "Suit", "Radiant Suit", "Layered solar armor reserved for future durability upgrades.", "max_health", 5, 55, 1.34),
+		_make_equipment_definition("guardian", "sun_emblem", "emblem", "Emblem", "Sun Emblem", "A bright insignia prepared for future mastery scaling.", "xp_gain", 0.01, 50, 1.33),
+		_make_equipment_definition("guardian", "power_gauntlets", "gauntlets", "Gauntlets", "Power Gauntlets", "Solar-charged gauntlets for future attack upgrades.", "attack_damage", 1, 60, 1.36),
+		_make_equipment_definition("guardian", "flight_boots", "boots", "Boots", "Flight Boots", "Stabilized boots reserved for future movement upgrades.", "move_speed", 3, 45, 1.32),
+		_make_equipment_definition("guardian", "aegis_artifact", "artifact", "Artifact", "Aegis Artifact", "A protective relic prepared for future shield upgrades.", "shield_capacity", 1, 75, 1.4),
+		_make_equipment_definition("blaster", "tactical_core", "core", "Core", "Tactical Core", "A compact command module for future ability cooldown upgrades.", "ability_cooldown", 0.01, 60, 1.35),
+		_make_equipment_definition("blaster", "shadow_suit", "suit", "Suit", "Shadow Suit", "Stealth-lined armor reserved for future survivability upgrades.", "max_health", 4, 55, 1.34),
+		_make_equipment_definition("blaster", "signal_emblem", "emblem", "Emblem", "Signal Emblem", "A targeting badge prepared for future mark upgrades.", "mark_damage", 0.02, 50, 1.33),
+		_make_equipment_definition("blaster", "gadget_gauntlets", "gauntlets", "Gauntlets", "Gadget Gauntlets", "Utility gauntlets reserved for future rocket damage upgrades.", "attack_damage", 1, 60, 1.36),
+		_make_equipment_definition("blaster", "grapnel_boots", "boots", "Boots", "Grapnel Boots", "Anchored boots prepared for future repositioning upgrades.", "move_speed", 3, 45, 1.32),
+		_make_equipment_definition("blaster", "drone_artifact", "artifact", "Artifact", "Drone Artifact", "A mini-drone relay reserved for future tactical support upgrades.", "support_damage", 0.02, 75, 1.4),
+		_make_equipment_definition("vanguard", "rage_core", "core", "Core", "Rage Core", "A volatile core prepared for future Rage scaling.", "rage_gain", 0.02, 60, 1.35),
+		_make_equipment_definition("vanguard", "titan_suit", "suit", "Suit", "Titan Suit", "Heavy reinforced armor reserved for future health upgrades.", "max_health", 6, 55, 1.34),
+		_make_equipment_definition("vanguard", "war_emblem", "emblem", "Emblem", "War Emblem", "A battle crest prepared for future impact upgrades.", "impact_damage", 0.02, 50, 1.33),
+		_make_equipment_definition("vanguard", "impact_gauntlets", "gauntlets", "Gauntlets", "Impact Gauntlets", "Weighted gauntlets reserved for future melee upgrades.", "attack_damage", 1, 60, 1.36),
+		_make_equipment_definition("vanguard", "heavy_boots", "boots", "Boots", "Heavy Boots", "Grounded boots prepared for future knockback resistance upgrades.", "knockback_resist", 0.03, 45, 1.32),
+		_make_equipment_definition("vanguard", "fury_artifact", "artifact", "Artifact", "Fury Artifact", "A charged relic prepared for future enrage upgrades.", "low_health_damage", 0.02, 75, 1.4),
+	]
+
+
+func _make_equipment_definition(hero_id: String, equipment_id: String, slot_id: String, slot_name: String, display_name: String, description: String, stat_bonus_type: String, stat_bonus_per_level, base_cost: int, cost_growth: float) -> Dictionary:
+	return {
+		"equipment_id": equipment_id,
+		"hero_id": hero_id,
+		"slot_id": slot_id,
+		"slot_name": slot_name,
+		"display_name": display_name,
+		"description": description,
+		"max_level": 10,
+		"base_cost": base_cost,
+		"cost_growth": cost_growth,
+		"stat_bonus_type": stat_bonus_type,
+		"stat_bonus_per_level": stat_bonus_per_level,
+		"tier": "signature",
+	}
 
 
 func _get_default_hero_mastery() -> Dictionary:

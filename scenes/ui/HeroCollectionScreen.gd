@@ -20,6 +20,7 @@ var _detail_passive: Label
 var _detail_weapon: Label
 var _detail_abilities: Label
 var _detail_mastery: Label
+var _detail_equipment: Label
 var _detail_description: Label
 var _back_button: Button
 
@@ -193,6 +194,10 @@ func _build_detail_panel(parent: Control) -> void:
 	_detail_mastery.add_theme_color_override("font_color", Color(0.7, 0.8, 0.7, 1.0))
 	dv.add_child(_detail_mastery)
 
+	_detail_equipment = Label.new()
+	_detail_equipment.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9, 1.0))
+	dv.add_child(_detail_equipment)
+
 	_detail_description = Label.new()
 	_detail_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_description.add_theme_color_override("font_color", Color(0.65, 0.65, 0.65, 1.0))
@@ -330,6 +335,7 @@ func _update_detail_panel(hero: Dictionary, is_owned: bool) -> void:
 	_detail_weapon.text = "Weapon: %s" % weapon_name
 	_detail_abilities.text = "Abilities\n%s" % "\n".join(ability_lines)
 	_detail_mastery.text = _build_mastery_text(hero_id)
+	_detail_equipment.text = _build_equipment_text(hero_id)
 	_detail_description.text = description
 
 
@@ -345,6 +351,7 @@ func _clear_detail_panel() -> void:
 	_detail_weapon.text = ""
 	_detail_abilities.text = ""
 	_detail_mastery.text = ""
+	_detail_equipment.text = ""
 	_detail_description.text = ""
 
 
@@ -388,6 +395,16 @@ func _build_mastery_text(hero_id: String) -> String:
 	var runs := int(entry.get("runs_played", 0))
 	var wins := int(entry.get("victories", 0))
 	return "Mastery Lv.%d  |  Runs: %d  |  Victories: %d" % [level, runs, wins]
+
+
+func _build_equipment_text(hero_id: String) -> String:
+	if _meta_manager == null or not _meta_manager.has_method("get_equipment_summary_for_hero"):
+		return ""
+	var summary: Dictionary = _meta_manager.get_equipment_summary_for_hero(hero_id)
+	var upgraded := int(summary.get("upgraded_count", 0))
+	var count := int(summary.get("equipment_count", 0))
+	var total_levels := int(summary.get("total_levels", 0))
+	return "Equipment: %d / %d upgraded  |  Total levels: %d" % [upgraded, count, total_levels]
 
 
 func _update_summary_label() -> void:
