@@ -950,6 +950,84 @@ Each item template has exactly these fields (no `hero_id`, no `description`, no 
 | `fury_artifact_uncommon` | artifact | uncommon | low_health_damage | 0.02 |
 | `apex_artifact_rare` | artifact | rare | ability_damage | 0.025 |
 
+## Equipment Set Data Foundation
+
+### Overview
+
+Every item template now has a `set_id: String` field. Sets are **data and display only** — no bonus gameplay effects are applied. The set identity lives exclusively on the template; item instances and save data do not store `set_id`.
+
+### Template Schema Addition
+
+```gdscript
+"set_id": String,  # e.g. "fury_set", "" means no set
+```
+
+`set_id` propagates automatically through `_adapt_template_to_definition()` (which uses `tmpl.duplicate(true)`). No save migration is needed.
+
+### Set Catalog (EquipmentDataProvider)
+
+New constant: `SET_IDS: Array[String]`
+
+| Set ID | Display Name | Theme |
+|--------|-------------|-------|
+| `storm_set` | Storm Set | Speed / cooldown / ability flow |
+| `titan_set` | Titan Set | Health / resist / heavy impact |
+| `solar_set` | Solar Set | Ability damage / shield / radiance |
+| `tactical_set` | Tactical Set | Mark damage / support / precision |
+| `fury_set` | Fury Set | Rage / low-health damage / impact |
+
+Each set dict: `{ "id", "name", "theme", "color": Color, "tags": Array }`.
+
+### EquipmentDataProvider Set API
+
+| Method | Returns |
+|---|---|
+| `get_all_equipment_sets()` | `Array[Dictionary]` — all sets, deep-copied |
+| `get_equipment_set(set_id)` | `Dictionary` — empty if not found |
+| `get_equipment_set_display_name(set_id)` | `String` |
+| `get_equipment_set_color(set_id)` | `Color` |
+| `is_valid_set_id(set_id)` | `bool` |
+| `get_templates_for_set(set_id)` | `Array[Dictionary]` |
+
+`debug_get_item_template_summary()` now includes a `by_set` key.
+
+### EquipmentFormat Set Helpers
+
+Two new static methods (both on the preloaded `EquipmentFormat` constant):
+
+- `set_display_name(set_id: String) -> String` — "Storm Set" … "No Set"
+- `set_color(set_id: String) -> Color` — per-set theme Color
+
+Use these everywhere set names or colors are displayed. Do not hardcode set strings in UI code.
+
+### MetaProgressionManager Set Helpers
+
+```gdscript
+func get_equipment_sets() -> Array[Dictionary]          # delegates to _equipment_provider
+func get_equipment_set(set_id: String) -> Dictionary
+func get_item_set_id(instance_id: String) -> String     # item → template → set_id
+func get_equipped_set_counts() -> Dictionary            # {set_id: count} equipped items only
+func get_equipped_set_summary() -> Array[Dictionary]    # UI rows: set_id, name, count, max_count(6), color, theme
+```
+
+### UI Set Display Rules
+
+- **Item action popup** (`_update_inventory_detail`): show "Set: <name>" after Rarity; show "Set Progress: N / 6 equipped" when `set_id` is non-empty.
+- **Equipped slot popup** (`_update_slot_popup_content`): show "Set: <name>" after Rarity.
+- **Set summary bar** (`_set_summary_label`) in Equipped Gear panel: refreshed by `_refresh_set_summary()` on every equip/unequip. Format: `Sets:  Storm Set 2/6  |  Fury Set 1/6`; "Sets: none" when nothing equipped.
+- **Cell data** (`_get_inventory_cell_data`): cell dicts include `"set_id"` and `"set_name"` for downstream use.
+
+### Set Bonus Rules
+
+- **No set bonuses are applied in this patch.** No gameplay effects, no stat multipliers, no threshold checks.
+- Future work: activate bonuses at 2 / 4 / 6 equipped pieces from the same set.
+
+### What NOT to Change
+
+- Do not add set bonuses, unlock flows, or reward logic without an explicit request.
+- Do not store `set_id` on item instances or in save data — resolve it at runtime via template lookup.
+- Do not add a set filter dropdown to the inventory panel without an explicit request.
+
 ## Inventory Filters & Sorting Architecture
 
 - `_inventory_slot_filter: String` (default `"all"`), `_inventory_state_filter: String` (default `"all"`), `_inventory_sort_mode: String` (default `"default"`) — state vars in MetaUpgradeShop.

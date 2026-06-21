@@ -1424,6 +1424,94 @@ Items appear in **Training → Equipment** after the run. They are not auto-equi
 - Duplicate template rewards are allowed (two of the same item possible).
 - No gacha, no enemy item drops, no random affixes, no crafting, no fusion, no selling, no inventory cap.
 
+## Equipment Set Data Foundation
+
+Every item template now belongs to an optional named equipment set. Sets are data and display only — no bonus gameplay effects are applied in this patch.
+
+### Equipment Sets
+
+| Set ID | Display Name | Theme | Color |
+|--------|-------------|-------|-------|
+| `storm_set` | Storm Set | Speed / cooldown / ability flow | Blue |
+| `titan_set` | Titan Set | Health / resist / heavy impact | Green |
+| `solar_set` | Solar Set | Ability damage / shield / radiance | Gold |
+| `tactical_set` | Tactical Set | Mark damage / support / precision | Purple |
+| `fury_set` | Fury Set | Rage / low-health damage / impact | Orange |
+
+### Template Set Assignments
+
+| Template ID | Set |
+|-------------|-----|
+| `power_core_common` | fury_set |
+| `cooldown_core_uncommon` | storm_set |
+| `reinforced_suit_common` | titan_set |
+| `vitality_suit_uncommon` | titan_set |
+| `awareness_emblem_common` | storm_set |
+| `battle_emblem_uncommon` | tactical_set |
+| `striker_gauntlets_common` | fury_set |
+| `force_gauntlets_uncommon` | solar_set |
+| `runner_boots_common` | storm_set |
+| `momentum_boots_uncommon` | storm_set |
+| `shield_artifact_common` | solar_set |
+| `fury_artifact_uncommon` | fury_set |
+| `apex_artifact_rare` | solar_set |
+
+### Template Schema Addition
+
+`set_id: String` — added to every item template. Empty string means the item belongs to no set. All existing templates now carry a non-empty `set_id`.
+
+`EquipmentDataProvider._adapt_template_to_definition()` uses `tmpl.duplicate(true)`, so `set_id` propagates automatically to all definition dicts. No item instances store `set_id` directly; they resolve it at runtime via `template_id → template → set_id`.
+
+### EquipmentDataProvider Set API
+
+New constant: `SET_IDS: Array[String]`
+
+New methods:
+- `get_all_equipment_sets() -> Array[Dictionary]`
+- `get_equipment_set(set_id) -> Dictionary`
+- `get_equipment_set_display_name(set_id) -> String`
+- `get_equipment_set_color(set_id) -> Color`
+- `is_valid_set_id(set_id) -> bool`
+- `get_templates_for_set(set_id) -> Array[Dictionary]`
+
+`debug_get_item_template_summary()` now includes a `by_set` breakdown.
+
+### EquipmentFormat Set Helpers
+
+Two new static methods added to `EquipmentFormat`:
+- `set_display_name(set_id) -> String` — "Storm Set" … "No Set"
+- `set_color(set_id) -> Color` — per-set theme Color
+
+### MetaProgressionManager Set Helpers
+
+New methods (delegate to `_equipment_provider` where needed):
+- `get_equipment_sets() -> Array[Dictionary]`
+- `get_equipment_set(set_id) -> Dictionary`
+- `get_item_set_id(instance_id) -> String`
+- `get_equipped_set_counts() -> Dictionary` — `{set_id: int}` for currently equipped items only
+- `get_equipped_set_summary() -> Array[Dictionary]` — UI rows: `set_id, name, count, max_count (6), color, theme`
+
+### UI: Set Name in Popups
+
+- **Item action popup** (`_update_inventory_detail`) — shows "Set: <name>" after Rarity, plus "Set Progress: N / 6 equipped" when the item belongs to a set and `get_equipped_set_counts` is available.
+- **Equipped slot popup** (`_update_slot_popup_content`) — shows "Set: <name>" after Rarity.
+
+### UI: Set Summary Bar
+
+A compact set summary `Label` (`_set_summary_label`) is shown in the Equipped Gear panel below the slot buttons. It is refreshed by `_refresh_set_summary()` whenever equipped items change. Format: `Sets:  Storm Set 2/6  |  Fury Set 1/6`. Shows "Sets: none" when nothing is equipped.
+
+### UI: Cell Data
+
+Inventory cell dicts now include `set_id` and `set_name` for downstream use (tooltips, future set filters).
+
+### Rules
+
+- No set bonus gameplay effects are applied in this patch.
+- No reward or economy changes.
+- No new items are added.
+- No save format changes — `set_id` lives on templates only (no instance migration needed).
+- Future work: set bonus activation at 2/4/6 equipped pieces.
+
 ## Yandex Games Notes
 
 - Yandex SDK integration will be added later through a wrapper.

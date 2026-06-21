@@ -1394,6 +1394,7 @@ func calculate_item_rewards(summary: Dictionary) -> Array[Dictionary]:
 			"name": str(tmpl.get("name", template_id)),
 			"slot_id": str(tmpl.get("slot_id", "")),
 			"rarity": str(tmpl.get("rarity", "common")),
+			"set_id": str(tmpl.get("set_id", "")),
 			"stat_bonus_type": str(tmpl.get("stat_bonus_type", "")),
 			"stat_bonus_per_level": float(tmpl.get("stat_bonus_per_level", 0.0)),
 			"level": 0,
@@ -1420,6 +1421,7 @@ func grant_item_rewards(summary: Dictionary) -> Array[Dictionary]:
 		var display := instance.duplicate(true)
 		display["name"] = str(tmpl.get("name", template_id))
 		display["rarity"] = str(tmpl.get("rarity", "common"))
+		display["set_id"] = str(tmpl.get("set_id", ""))
 		display["stat_bonus_type"] = str(tmpl.get("stat_bonus_type", ""))
 		display["stat_bonus_per_level"] = float(tmpl.get("stat_bonus_per_level", 0.0))
 		items.append(instance)
@@ -1858,6 +1860,64 @@ func _calculate_upgrade_cost(def: Dictionary, level: int) -> int:
 
 func _resolve_hero_id(hero_id: String) -> String:
 	return hero_id if not hero_id.is_empty() else DEFAULT_HERO_ID
+
+
+# ─── Equipment Set helpers ────────────────────────────────────────────────────
+
+func get_equipment_sets() -> Array[Dictionary]:
+	if _equipment_provider != null and _equipment_provider.has_method("get_all_equipment_sets"):
+		return _equipment_provider.get_all_equipment_sets()
+	return []
+
+
+func get_equipment_set(set_id: String) -> Dictionary:
+	if _equipment_provider != null and _equipment_provider.has_method("get_equipment_set"):
+		return _equipment_provider.get_equipment_set(set_id)
+	return {}
+
+
+func get_item_set_id(instance_id: String) -> String:
+	var item := get_inventory_item("", instance_id)
+	if item.is_empty():
+		return ""
+	var template_id := str(item.get("template_id", ""))
+	if template_id.is_empty() or _equipment_provider == null:
+		return ""
+	var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
+	return str(tmpl.get("set_id", ""))
+
+
+func get_equipped_set_counts() -> Dictionary:
+	var result := {}
+	var equipped := get_equipped_slots()
+	for slot_id in EQUIPMENT_SLOT_IDS:
+		var instance_id := str(equipped.get(slot_id, ""))
+		if instance_id.is_empty():
+			continue
+		var set_id := get_item_set_id(instance_id)
+		if set_id.is_empty():
+			continue
+		result[set_id] = int(result.get(set_id, 0)) + 1
+	return result
+
+
+func get_equipped_set_summary() -> Array[Dictionary]:
+	var counts := get_equipped_set_counts()
+	var result: Array[Dictionary] = []
+	for s in get_equipment_sets():
+		var set_id := str(s.get("id", ""))
+		var count := int(counts.get(set_id, 0))
+		if count <= 0:
+			continue
+		result.append({
+			"set_id": set_id,
+			"name": str(s.get("name", set_id)),
+			"count": count,
+			"max_count": EQUIPMENT_SLOT_IDS.size(),
+			"color": s.get("color", Color.WHITE),
+			"theme": str(s.get("theme", "")),
+		})
+	return result
 
 
 # ─── Inventory read-only helpers ─────────────────────────────────────────────

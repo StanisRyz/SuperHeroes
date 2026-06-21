@@ -62,6 +62,9 @@ var _training_hero_label: Label
 var _item_action_popup: PopupPanel = null
 var _item_action_title_label: Label = null
 
+# Set summary
+var _set_summary_label: Label = null
+
 var _inventory_slot_filter: String = "all"
 var _inventory_state_filter: String = "all"
 var _inventory_sort_mode: String = "default"
@@ -376,6 +379,14 @@ func _build_equipment_panel() -> Control:
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	equipped_vbox.add_child(note)
 
+	_set_summary_label = Label.new()
+	_set_summary_label.text = "Sets: none"
+	_set_summary_label.add_theme_font_size_override("font_size", 10)
+	_set_summary_label.modulate = Color(0.55, 0.6, 0.68, 1.0)
+	_set_summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_set_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	equipped_vbox.add_child(_set_summary_label)
+
 	# ── Inventory panel ───────────────────────────────────────────────────────
 	var inventory_panel := _build_inventory_panel()
 	inventory_panel.custom_minimum_size = Vector2(410, 0)
@@ -559,6 +570,7 @@ func _get_inventory_cell_data() -> Array:
 			var display_name := str(def.get("display_name", template_id)) if not def.is_empty() else template_id
 			var max_level := int(def.get("max_level", 10)) if not def.is_empty() else 10
 			var is_equipped := str(equipped.get(slot_id, "")) == instance_id
+			var cell_set_id := str(def.get("set_id", "")) if not def.is_empty() else ""
 			cells.append({
 				"occupied": true,
 				"instance_id": instance_id,
@@ -570,6 +582,8 @@ func _get_inventory_cell_data() -> Array:
 				"is_equipped": is_equipped,
 				"definition": def,
 				"rarity": str(def.get("rarity", "common")) if not def.is_empty() else "common",
+				"set_id": cell_set_id,
+				"set_name": EquipmentFormat.set_display_name(cell_set_id),
 				"locked": bool(item.get("locked", false)),
 				"favorite": bool(item.get("favorite", false)),
 				"created_index": int(item.get("created_index", 0)),
@@ -845,6 +859,11 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	lines.append("=== %s ===" % display_name)
 	lines.append("Slot: %s" % slot_display)
 	lines.append("Rarity: %s" % EquipmentFormat.rarity_display_name(rarity))
+	var popup_set_id := str(tmpl.get("set_id", "")) if not tmpl.is_empty() else ""
+	lines.append("Set: %s" % EquipmentFormat.set_display_name(popup_set_id))
+	if not popup_set_id.is_empty() and _meta_manager != null and _meta_manager.has_method("get_equipped_set_counts"):
+		var set_counts: Dictionary = _meta_manager.get_equipped_set_counts()
+		lines.append("Set Progress: %d / 6 equipped" % int(set_counts.get(popup_set_id, 0)))
 	lines.append("Level: %d / %d" % [level, max_level])
 	lines.append("Status: %s" % status_str)
 	lines.append("Locked: %s" % ("Yes" if is_locked else "No"))
@@ -1017,6 +1036,26 @@ func _update_equipment_slots() -> void:
 		# Refresh open popup if it's showing this slot
 		if _slot_popup != null and _slot_popup.visible and _slot_popup_slot_id == slot_id:
 			_update_slot_popup_content(slot_id)
+
+	_refresh_set_summary()
+
+
+func _refresh_set_summary() -> void:
+	if _set_summary_label == null or _meta_manager == null:
+		return
+	if not _meta_manager.has_method("get_equipped_set_summary"):
+		_set_summary_label.text = ""
+		return
+	var summary: Array = _meta_manager.get_equipped_set_summary()
+	if summary.is_empty():
+		_set_summary_label.text = "Sets: none"
+		_set_summary_label.modulate = Color(0.55, 0.6, 0.68, 1.0)
+		return
+	var parts: PackedStringArray = []
+	for entry in summary:
+		parts.append("%s %d/%d" % [str(entry.get("name", "?")), int(entry.get("count", 0)), int(entry.get("max_count", 6))])
+	_set_summary_label.text = "Sets:  " + "  |  ".join(parts)
+	_set_summary_label.modulate = Color(0.75, 0.82, 0.92, 1.0)
 
 
 func _get_equipment_definitions_by_slot() -> Dictionary:
@@ -1544,6 +1583,8 @@ func _update_slot_popup_content(slot_id: String) -> void:
 	var lines := PackedStringArray()
 	lines.append(display_name)
 	lines.append("Rarity: %s" % EquipmentFormat.rarity_display_name(popup_rarity))
+	var slot_set_id := str(tmpl.get("set_id", "")) if not tmpl.is_empty() else ""
+	lines.append("Set: %s" % EquipmentFormat.set_display_name(slot_set_id))
 	lines.append("Level: %d / %d" % [level, max_level_val])
 	lines.append("Status: EQUIPPED")
 	if not stat_str.is_empty():

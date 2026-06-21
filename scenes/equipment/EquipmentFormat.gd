@@ -108,6 +108,27 @@ static func stat_next_text(stat_bonus_type: String, value_per_level: float, leve
 	return stat_value_text(stat_bonus_type, value_per_level * float(level + 1))
 
 
+static func set_display_name(set_id: String) -> String:
+	match set_id:
+		"storm_set":    return "Storm Set"
+		"titan_set":    return "Titan Set"
+		"solar_set":    return "Solar Set"
+		"tactical_set": return "Tactical Set"
+		"fury_set":     return "Fury Set"
+		"":             return "No Set"
+		_:              return set_id.replace("_", " ").capitalize()
+
+
+static func set_color(set_id: String) -> Color:
+	match set_id:
+		"storm_set":    return Color(0.30, 0.70, 1.00, 1.0)
+		"titan_set":    return Color(0.50, 0.75, 0.40, 1.0)
+		"solar_set":    return Color(1.00, 0.82, 0.20, 1.0)
+		"tactical_set": return Color(0.70, 0.45, 1.00, 1.0)
+		"fury_set":     return Color(1.00, 0.45, 0.20, 1.0)
+		_:              return Color(0.70, 0.75, 0.80, 1.0)
+
+
 static func item_display_line(item_or_template: Dictionary) -> String:
 	var iname := str(item_or_template.get("name",
 		item_or_template.get("display_name",
