@@ -51,12 +51,20 @@ var _inventory_detail_label: Label
 var _inventory_buttons: Dictionary = {}
 var _inventory_equip_button: Button
 var _inventory_upgrade_button: Button
+var _inventory_lock_button: Button
+var _inventory_favorite_button: Button
+var _inventory_sell_button: Button
+var _inventory_capacity_label: Label
 var _selected_inventory_instance_id: String = ""
 var _training_hero_label: Label
 
 var _inventory_slot_filter: String = "all"
 var _inventory_state_filter: String = "all"
 var _inventory_sort_mode: String = "default"
+
+# Sell confirmation popup
+var _sell_confirm_popup: ConfirmationDialog = null
+var _sell_confirm_instance_id: String = ""
 
 
 func _ready() -> void:
@@ -222,6 +230,7 @@ func _build_ui() -> void:
 
 	_build_starter_pack_popup()
 	_build_slot_popup()
+	_build_sell_confirm_popup()
 	_update_tab_state()
 
 func _build_training_panel() -> Control:
@@ -387,22 +396,49 @@ func _build_inventory_panel() -> Control:
 	var title := Label.new()
 	title.text = "Inventory"
 	title.add_theme_font_size_override("font_size", 15)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
+
+	_inventory_capacity_label = Label.new()
+	_inventory_capacity_label.text = "0 / 60"
+	_inventory_capacity_label.add_theme_font_size_override("font_size", 12)
+	_inventory_capacity_label.modulate = Color(0.72, 0.78, 0.88, 1.0)
+	_inventory_capacity_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_inventory_capacity_label)
 
 	_inventory_equip_button = Button.new()
 	_inventory_equip_button.text = "Equip"
 	_inventory_equip_button.disabled = true
-	_inventory_equip_button.custom_minimum_size = Vector2(120, 32)
+	_inventory_equip_button.custom_minimum_size = Vector2(100, 32)
 	_inventory_equip_button.pressed.connect(_on_inventory_equip_pressed)
 	header.add_child(_inventory_equip_button)
 
 	_inventory_upgrade_button = Button.new()
 	_inventory_upgrade_button.text = "Upgrade"
 	_inventory_upgrade_button.disabled = true
-	_inventory_upgrade_button.custom_minimum_size = Vector2(120, 32)
+	_inventory_upgrade_button.custom_minimum_size = Vector2(100, 32)
 	_inventory_upgrade_button.pressed.connect(_on_inventory_upgrade_pressed)
 	header.add_child(_inventory_upgrade_button)
+
+	_inventory_lock_button = Button.new()
+	_inventory_lock_button.text = "Lock"
+	_inventory_lock_button.disabled = true
+	_inventory_lock_button.custom_minimum_size = Vector2(80, 32)
+	_inventory_lock_button.pressed.connect(_on_inventory_lock_pressed)
+	header.add_child(_inventory_lock_button)
+
+	_inventory_favorite_button = Button.new()
+	_inventory_favorite_button.text = "[*]"
+	_inventory_favorite_button.disabled = true
+	_inventory_favorite_button.custom_minimum_size = Vector2(50, 32)
+	_inventory_favorite_button.pressed.connect(_on_inventory_favorite_pressed)
+	header.add_child(_inventory_favorite_button)
+
+	_inventory_sell_button = Button.new()
+	_inventory_sell_button.text = "Sell"
+	_inventory_sell_button.disabled = true
+	_inventory_sell_button.custom_minimum_size = Vector2(80, 32)
+	_inventory_sell_button.pressed.connect(_on_inventory_sell_pressed)
+	header.add_child(_inventory_sell_button)
 
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 8)
@@ -448,7 +484,7 @@ func _build_inventory_panel() -> Control:
 	var sort_option := OptionButton.new()
 	sort_option.custom_minimum_size = Vector2(100, 28)
 	sort_option.add_theme_font_size_override("font_size", 11)
-	for sort_entry in [["Default", "default"], ["Slot", "slot"], ["Lvl High", "level_high"], ["Lvl Low", "level_low"], ["Name", "name"], ["Rar High", "rarity_high"], ["Rar Low", "rarity_low"]]:
+	for sort_entry in [["Default", "default"], ["Slot", "slot"], ["Lvl High", "level_high"], ["Lvl Low", "level_low"], ["Name", "name"], ["Rar High", "rarity_high"], ["Rar Low", "rarity_low"], ["Fav First", "favorite_first"], ["Newest", "newest"]]:
 		sort_option.add_item(sort_entry[0])
 	sort_option.item_selected.connect(_on_inventory_sort_mode_changed)
 	filter_row.add_child(sort_option)
@@ -566,6 +602,9 @@ func _get_inventory_cell_data() -> Array:
 				"is_equipped": is_equipped,
 				"definition": def,
 				"rarity": str(def.get("rarity", "common")) if not def.is_empty() else "common",
+				"locked": bool(item.get("locked", false)),
+				"favorite": bool(item.get("favorite", false)),
+				"created_index": int(item.get("created_index", 0)),
 			})
 	else:
 		# Fallback: show primary equipment definitions as preview cells
@@ -616,6 +655,7 @@ func _refresh_inventory_shell() -> void:
 func _refresh_inventory_grid() -> void:
 	if _inventory_grid == null:
 		return
+	_update_capacity_label()
 	for child in _inventory_grid.get_children():
 		child.queue_free()
 	_inventory_buttons.clear()
@@ -654,12 +694,18 @@ func _build_inventory_cell(cell_data: Dictionary, index: int) -> Control:
 		var level := int(cell_data.get("level", 0))
 		var max_level := int(cell_data.get("max_level", 0))
 		var is_equipped := bool(cell_data.get("is_equipped", false))
+		var is_locked := bool(cell_data.get("locked", false))
+		var is_fav := bool(cell_data.get("favorite", false))
 		var rarity := str(cell_data.get("rarity", "common"))
 		var slot_label := _format_slot_name(slot_id)
-		var equipped_tag := " [E]" if is_equipped else ""
+		var markers := ""
+		if is_equipped: markers += "[E]"
+		if is_locked: markers += "[L]"
+		if is_fav: markers += "[*]"
+		var marker_tag := (" " + markers) if not markers.is_empty() else ""
 		button.text = "%s%s\n%s %s\nLv %d/%d" % [
 			_get_short_item_name(display_name),
-			equipped_tag,
+			marker_tag,
 			slot_label,
 			EquipmentFormat.rarity_short(rarity),
 			level,
@@ -765,6 +811,7 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 			_inventory_detail_label.text = "No items match current filters.\nTry changing Slot or State filter."
 		else:
 			_inventory_detail_label.text = "[Empty Slot]\nNo item selected.\nFuture items will appear here."
+		_refresh_management_buttons("", false, false, "")
 		return
 
 	# Gather data
@@ -783,6 +830,8 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	var display_name := _get_item_display_name(instance_id)
 	var slot_display := _format_slot_name(slot_id)
 	var rarity := str(tmpl.get("rarity", "common")) if not tmpl.is_empty() else "common"
+	var is_locked := bool(item.get("locked", false))
+	var is_fav := bool(item.get("favorite", false))
 	var status_str := "EQUIPPED" if is_equipped else "In Inventory"
 	var stat_str := _format_stat_line(stat_info)
 	var desc := str(tmpl.get("description", ""))
@@ -805,18 +854,31 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 	# Gameplay effect note
 	var gameplay_note := "Affects gameplay: YES" if is_equipped else "Affects gameplay: NO (equip to apply)"
 
+	# Sell info
+	var sell_value := 0
+	var sell_block := ""
+	if _meta_manager != null and _meta_manager.has_method("get_inventory_item_sell_value"):
+		sell_value = int(_meta_manager.get_inventory_item_sell_value(instance_id))
+		sell_block = str(_meta_manager.get_inventory_item_sell_block_reason(instance_id))
+
 	var lines := PackedStringArray()
 	lines.append("=== %s ===" % display_name)
 	lines.append("Slot: %s" % slot_display)
 	lines.append("Rarity: %s" % EquipmentFormat.rarity_display_name(rarity))
 	lines.append("Level: %d / %d" % [level, max_level])
 	lines.append("Status: %s" % status_str)
+	lines.append("Locked: %s" % ("Yes" if is_locked else "No"))
+	lines.append("Favorite: %s" % ("Yes" if is_fav else "No"))
 	lines.append(gameplay_note)
 	if not stat_str.is_empty():
 		lines.append("")
 		lines.append(stat_str)
 	if not next_level_str.is_empty():
 		lines.append(next_level_str)
+	lines.append("")
+	lines.append("Sell value: %d" % sell_value)
+	if not sell_block.is_empty():
+		lines.append("Cannot sell: %s" % sell_block)
 	if not desc.is_empty():
 		lines.append("")
 		lines.append(desc)
@@ -824,6 +886,7 @@ func _update_inventory_detail(cell_data: Dictionary) -> void:
 		lines.append("")
 		lines.append(compare_str)
 	_inventory_detail_label.text = "\n".join(lines)
+	_refresh_management_buttons(instance_id, is_locked, is_fav, sell_block)
 
 
 func _get_short_item_name(display_name: String) -> String:
@@ -1614,7 +1677,7 @@ func _on_inventory_state_filter_changed(index: int) -> void:
 
 
 func _on_inventory_sort_mode_changed(index: int) -> void:
-	var sort_values := ["default", "slot", "level_high", "level_low", "name", "rarity_high", "rarity_low"]
+	var sort_values := ["default", "slot", "level_high", "level_low", "name", "rarity_high", "rarity_low", "favorite_first", "newest"]
 	if index >= 0 and index < sort_values.size():
 		_inventory_sort_mode = sort_values[index]
 	_refresh_inventory_grid_with_selection_preserve()
@@ -1702,6 +1765,18 @@ func _get_filtered_sorted_items() -> Array:
 			filtered.sort_custom(func(a, b):
 				return _get_item_rarity_order(a) < _get_item_rarity_order(b)
 			)
+		"favorite_first":
+			filtered.sort_custom(func(a, b):
+				var af := bool(a.get("favorite", false))
+				var bf := bool(b.get("favorite", false))
+				if af != bf:
+					return af
+				return false
+			)
+		"newest":
+			filtered.sort_custom(func(a, b):
+				return int(a.get("created_index", 0)) > int(b.get("created_index", 0))
+			)
 		# "default": keep inventory order
 
 	return filtered
@@ -1736,6 +1811,91 @@ func _on_inventory_upgrade_pressed() -> void:
 		return
 	_meta_manager.upgrade_inventory_item(_selected_hero_id, _selected_inventory_instance_id)
 	# UI refreshes via inventory_item_upgraded / inventory_changed / currency_changed signals
+
+
+func _refresh_management_buttons(instance_id: String, is_locked: bool, is_fav: bool, sell_block: String) -> void:
+	var has_item := not instance_id.is_empty()
+	if _inventory_lock_button != null:
+		_inventory_lock_button.disabled = not has_item
+		_inventory_lock_button.text = "Unlock" if (has_item and is_locked) else "Lock"
+	if _inventory_favorite_button != null:
+		_inventory_favorite_button.disabled = not has_item
+		_inventory_favorite_button.text = "[*]Off" if (has_item and is_fav) else "[*]On"
+	if _inventory_sell_button != null:
+		_inventory_sell_button.disabled = not has_item or not sell_block.is_empty()
+		if has_item and not sell_block.is_empty():
+			_inventory_sell_button.modulate = UIStateColors.muted_color()
+		else:
+			_inventory_sell_button.modulate = Color.WHITE
+
+
+func _update_capacity_label() -> void:
+	if _inventory_capacity_label == null or _meta_manager == null:
+		return
+	var count := 0
+	if _meta_manager.has_method("get_inventory_item_count"):
+		count = int(_meta_manager.get_inventory_item_count())
+	var capacity: int = 60
+	if _meta_manager.has_method("get_inventory_capacity"):
+		capacity = int(_meta_manager.get_inventory_capacity())
+	_inventory_capacity_label.text = "(%d / %d)" % [count, capacity]
+	if count > capacity:
+		_inventory_capacity_label.modulate = UIStateColors.warning_color()
+	else:
+		_inventory_capacity_label.modulate = Color(0.72, 0.78, 0.88, 1.0)
+
+
+func _on_inventory_lock_pressed() -> void:
+	if _selected_inventory_instance_id.is_empty() or _meta_manager == null:
+		return
+	if not _meta_manager.has_method("toggle_inventory_item_locked"):
+		return
+	_meta_manager.toggle_inventory_item_locked(_selected_inventory_instance_id)
+
+
+func _on_inventory_favorite_pressed() -> void:
+	if _selected_inventory_instance_id.is_empty() or _meta_manager == null:
+		return
+	if not _meta_manager.has_method("toggle_inventory_item_favorite"):
+		return
+	_meta_manager.toggle_inventory_item_favorite(_selected_inventory_instance_id)
+
+
+func _on_inventory_sell_pressed() -> void:
+	if _selected_inventory_instance_id.is_empty() or _meta_manager == null:
+		return
+	if not _meta_manager.has_method("can_sell_inventory_item"):
+		return
+	if not _meta_manager.can_sell_inventory_item(_selected_inventory_instance_id):
+		return
+	var sell_value := 0
+	if _meta_manager.has_method("get_inventory_item_sell_value"):
+		sell_value = int(_meta_manager.get_inventory_item_sell_value(_selected_inventory_instance_id))
+	var item_name := _get_item_display_name(_selected_inventory_instance_id)
+	_sell_confirm_instance_id = _selected_inventory_instance_id
+	if _sell_confirm_popup != null:
+		_sell_confirm_popup.dialog_text = "Sell %s for %d currency?" % [item_name, sell_value]
+		_sell_confirm_popup.popup_centered()
+
+
+func _on_sell_confirmed() -> void:
+	var instance_id := _sell_confirm_instance_id
+	_sell_confirm_instance_id = ""
+	if instance_id.is_empty() or _meta_manager == null:
+		return
+	if not _meta_manager.has_method("sell_inventory_item"):
+		return
+	_meta_manager.sell_inventory_item(instance_id)
+	# UI refreshes via inventory_changed + currency_changed signals
+
+
+func _build_sell_confirm_popup() -> void:
+	_sell_confirm_popup = ConfirmationDialog.new()
+	_sell_confirm_popup.title = "Sell Item"
+	_sell_confirm_popup.min_size = Vector2i(320, 100)
+	_sell_confirm_popup.get_ok_button().text = "Sell"
+	_sell_confirm_popup.confirmed.connect(_on_sell_confirmed)
+	add_child(_sell_confirm_popup)
 
 
 func _on_equipment_slot_panel_clicked(event: InputEvent, slot_id: String) -> void:

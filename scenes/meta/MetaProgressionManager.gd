@@ -17,6 +17,16 @@ const DEFAULT_HERO_IDS: Array[String] = ["guardian", "blaster", "vanguard"]
 const DEFAULT_STAGE_IDS: Array[String] = ["city_rooftop", "neon_lab", "wasteland_gate"]
 const EQUIPMENT_SLOT_IDS: Array[String] = ["core", "suit", "emblem", "gauntlets", "boots", "artifact"]
 const STARTER_PACK_ID := "starter_pack_v1"
+const INVENTORY_CAPACITY := 60
+
+const _RARITY_SELL_BASE := {
+	"common": 5,
+	"uncommon": 10,
+	"rare": 20,
+	"epic": 40,
+	"legendary": 80,
+	"mythic": 160,
+}
 const STARTER_PACK_TEMPLATES: Array[String] = [
 	"power_core_common", "reinforced_suit_common", "awareness_emblem_common",
 	"striker_gauntlets_common", "runner_boots_common", "shield_artifact_common",
@@ -1303,6 +1313,8 @@ func create_inventory_item_instance(template_id: String, source: String = "") ->
 		"slot_id": slot_id,
 		"level": 0,
 		"locked": false,
+		"favorite": false,
+		"created_index": counter,
 		"source": source,
 	}
 
@@ -1420,6 +1432,118 @@ func grant_item_rewards(summary: Dictionary) -> Array[Dictionary]:
 
 func debug_get_item_reward_preview(summary: Dictionary) -> Array[Dictionary]:
 	return calculate_item_rewards(summary)
+
+
+# ─── Inventory Management ─────────────────────────────────────────────────────
+
+func get_inventory_item_count() -> int:
+	var items = _data.get("inventory_items", [])
+	return items.size() if items is Array else 0
+
+
+func get_inventory_capacity() -> int:
+	return INVENTORY_CAPACITY
+
+
+func _set_inventory_item_field(instance_id: String, field: String, value) -> bool:
+	var items: Array = _data.get("inventory_items", [])
+	if not items is Array:
+		return false
+	for i in range(items.size()):
+		var item = items[i]
+		if item is Dictionary and str(item.get("instance_id", "")) == instance_id:
+			item[field] = value
+			items[i] = item
+			_data["inventory_items"] = items
+			return true
+	return false
+
+
+func is_inventory_item_locked(instance_id: String) -> bool:
+	var item := get_inventory_item("", instance_id)
+	return bool(item.get("locked", false))
+
+
+func set_inventory_item_locked(instance_id: String, locked: bool) -> bool:
+	if not _set_inventory_item_field(instance_id, "locked", locked):
+		return false
+	inventory_changed.emit("")
+	save_progress()
+	return true
+
+
+func toggle_inventory_item_locked(instance_id: String) -> bool:
+	return set_inventory_item_locked(instance_id, not is_inventory_item_locked(instance_id))
+
+
+func is_inventory_item_favorite(instance_id: String) -> bool:
+	var item := get_inventory_item("", instance_id)
+	return bool(item.get("favorite", false))
+
+
+func set_inventory_item_favorite(instance_id: String, favorite: bool) -> bool:
+	if not _set_inventory_item_field(instance_id, "favorite", favorite):
+		return false
+	inventory_changed.emit("")
+	save_progress()
+	return true
+
+
+func toggle_inventory_item_favorite(instance_id: String) -> bool:
+	return set_inventory_item_favorite(instance_id, not is_inventory_item_favorite(instance_id))
+
+
+func get_inventory_item_sell_value(instance_id: String) -> int:
+	var item := get_inventory_item("", instance_id)
+	if item.is_empty():
+		return 0
+	var template_id := str(item.get("template_id", ""))
+	var rarity := "common"
+	if _equipment_provider != null and not template_id.is_empty():
+		var tmpl: Dictionary = _equipment_provider.get_item_template(template_id)
+		if not tmpl.is_empty():
+			rarity = str(tmpl.get("rarity", "common"))
+	var base := int(_RARITY_SELL_BASE.get(rarity, 5))
+	var level := int(item.get("level", 0))
+	return base + level * 2
+
+
+func get_inventory_item_sell_block_reason(instance_id: String) -> String:
+	var item := get_inventory_item("", instance_id)
+	if item.is_empty():
+		return "Item not found."
+	if bool(item.get("locked", false)):
+		return "Item is locked."
+	var equipped := get_equipped_slots()
+	for slot in equipped:
+		if str(equipped[slot]) == instance_id:
+			return "Item is equipped. Unequip first."
+	return ""
+
+
+func can_sell_inventory_item(instance_id: String) -> bool:
+	return get_inventory_item_sell_block_reason(instance_id).is_empty()
+
+
+func sell_inventory_item(instance_id: String) -> Dictionary:
+	var reason := get_inventory_item_sell_block_reason(instance_id)
+	if not reason.is_empty():
+		return {"success": false, "currency_added": 0, "reason": reason, "sold_item": {}}
+	var sold_item := get_inventory_item("", instance_id)
+	var sell_value := get_inventory_item_sell_value(instance_id)
+	var items: Array = _data.get("inventory_items", [])
+	if not items is Array:
+		return {"success": false, "currency_added": 0, "reason": "Inventory not initialized.", "sold_item": {}}
+	for i in range(items.size()):
+		var it = items[i]
+		if it is Dictionary and str(it.get("instance_id", "")) == instance_id:
+			items.remove_at(i)
+			break
+	_data["inventory_items"] = items
+	add_currency(sell_value)
+	inventory_changed.emit("")
+	save_progress()
+	return {"success": true, "currency_added": sell_value, "reason": "", "sold_item": sold_item}
 
 
 func _get_item_template(template_id: String, _hero_id: String = "") -> Dictionary:
