@@ -38,6 +38,9 @@ var _equip_hero_subtitle_label: Label
 var _equip_hero_swatch: ColorRect
 var _equip_hero_status_label: Label
 var _equipment_slot_rows: Dictionary = {}
+var _char_holder_panel: PanelContainer
+var _char_holder_name: Label
+var _char_holder_subtitle: Label
 var _inventory_grid: GridContainer
 var _inventory_detail_label: Label
 var _inventory_buttons: Dictionary = {}
@@ -243,23 +246,22 @@ func _build_training_panel() -> Control:
 
 
 func _build_equipment_panel() -> Control:
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
+	# Root is a plain HBoxContainer — fills height via SIZE_EXPAND_FILL set by caller.
 	var content_row := HBoxContainer.new()
 	content_row.add_theme_constant_override("separation", 12)
 	content_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(content_row)
+	content_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
+	# ── Equipped Gear panel ───────────────────────────────────────────────────
 	var equipped_panel := PanelContainer.new()
-	equipped_panel.custom_minimum_size = Vector2(580, 0)
 	equipped_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equipped_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_row.add_child(equipped_panel)
 
 	var equipped_vbox := VBoxContainer.new()
 	equipped_vbox.add_theme_constant_override("separation", 8)
 	equipped_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equipped_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	equipped_panel.add_child(equipped_vbox)
 
 	var section_title := Label.new()
@@ -268,85 +270,99 @@ func _build_equipment_panel() -> Control:
 	section_title.modulate = Color(0.7, 0.85, 1.0, 1.0)
 	equipped_vbox.add_child(section_title)
 
-	# ── hero preview ──────────────────────────────────────────────────────────
-	var hero_panel := PanelContainer.new()
-	hero_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipped_vbox.add_child(hero_panel)
+	# ── slot columns + central character holder ───────────────────────────────
+	var slot_hbox := HBoxContainer.new()
+	slot_hbox.add_theme_constant_override("separation", 8)
+	slot_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slot_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	equipped_vbox.add_child(slot_hbox)
 
-	var hero_vbox := VBoxContainer.new()
-	hero_vbox.add_theme_constant_override("separation", 4)
-	hero_panel.add_child(hero_vbox)
+	var left_col := VBoxContainer.new()
+	left_col.add_theme_constant_override("separation", 6)
+	left_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	slot_hbox.add_child(left_col)
+	left_col.add_child(_build_equipment_slot("core", "Core"))
+	left_col.add_child(_build_equipment_slot("suit", "Suit"))
+	left_col.add_child(_build_equipment_slot("emblem", "Emblem"))
+
+	# Central character image holder
+	_char_holder_panel = PanelContainer.new()
+	_char_holder_panel.custom_minimum_size = Vector2(160, 0)
+	_char_holder_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_char_holder_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	slot_hbox.add_child(_char_holder_panel)
+
+	var holder_vbox := VBoxContainer.new()
+	holder_vbox.add_theme_constant_override("separation", 6)
+	holder_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	holder_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_char_holder_panel.add_child(holder_vbox)
 
 	_equip_hero_swatch = ColorRect.new()
 	_equip_hero_swatch.custom_minimum_size = Vector2(0, 6)
 	_equip_hero_swatch.color = Color(0.5, 0.5, 0.5, 1.0)
-	hero_vbox.add_child(_equip_hero_swatch)
+	holder_vbox.add_child(_equip_hero_swatch)
 
-	_equip_hero_name_label = Label.new()
-	_equip_hero_name_label.text = "—"
-	_equip_hero_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_equip_hero_name_label.add_theme_font_size_override("font_size", 15)
-	hero_vbox.add_child(_equip_hero_name_label)
+	var holder_spacer_top := Control.new()
+	holder_spacer_top.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	holder_vbox.add_child(holder_spacer_top)
 
-	_equip_hero_subtitle_label = Label.new()
-	_equip_hero_subtitle_label.text = ""
-	_equip_hero_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_equip_hero_subtitle_label.add_theme_font_size_override("font_size", 11)
-	_equip_hero_subtitle_label.modulate = Color(0.75, 0.82, 0.92, 1.0)
-	hero_vbox.add_child(_equip_hero_subtitle_label)
+	var char_img_lbl := Label.new()
+	char_img_lbl.text = "[ Character\n  Image ]"
+	char_img_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	char_img_lbl.add_theme_font_size_override("font_size", 11)
+	char_img_lbl.modulate = Color(0.4, 0.45, 0.55, 1.0)
+	holder_vbox.add_child(char_img_lbl)
+
+	_char_holder_name = Label.new()
+	_char_holder_name.text = "—"
+	_char_holder_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_char_holder_name.add_theme_font_size_override("font_size", 14)
+	holder_vbox.add_child(_char_holder_name)
+
+	_char_holder_subtitle = Label.new()
+	_char_holder_subtitle.text = ""
+	_char_holder_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_char_holder_subtitle.add_theme_font_size_override("font_size", 10)
+	_char_holder_subtitle.modulate = Color(0.7, 0.78, 0.9, 1.0)
+	_char_holder_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	holder_vbox.add_child(_char_holder_subtitle)
 
 	_equip_hero_status_label = Label.new()
 	_equip_hero_status_label.text = ""
 	_equip_hero_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_equip_hero_status_label.add_theme_font_size_override("font_size", 10)
 	_equip_hero_status_label.modulate = Color(0.6, 0.9, 0.6, 1.0)
-	hero_vbox.add_child(_equip_hero_status_label)
+	holder_vbox.add_child(_equip_hero_status_label)
 
-	# ── slot grid ─────────────────────────────────────────────────────────────
-	# Layout:
-	#   [Core]          [Gauntlets]
-	#   [Suit]   HERO   [Boots]
-	#   [Emblem]        [Artifact]
-	var slot_hbox := HBoxContainer.new()
-	slot_hbox.add_theme_constant_override("separation", 8)
-	slot_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipped_vbox.add_child(slot_hbox)
-
-	var left_col := VBoxContainer.new()
-	left_col.add_theme_constant_override("separation", 6)
-	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slot_hbox.add_child(left_col)
-	left_col.add_child(_build_equipment_slot("core", "Core"))
-	left_col.add_child(_build_equipment_slot("suit", "Suit"))
-	left_col.add_child(_build_equipment_slot("emblem", "Emblem"))
-
-	var center_spacer := Control.new()
-	center_spacer.custom_minimum_size = Vector2(32, 0)
-	center_spacer.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	slot_hbox.add_child(center_spacer)
+	var holder_spacer_bot := Control.new()
+	holder_spacer_bot.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	holder_vbox.add_child(holder_spacer_bot)
 
 	var right_col := VBoxContainer.new()
 	right_col.add_theme_constant_override("separation", 6)
-	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	slot_hbox.add_child(right_col)
 	right_col.add_child(_build_equipment_slot("gauntlets", "Gauntlets"))
 	right_col.add_child(_build_equipment_slot("boots", "Boots"))
 	right_col.add_child(_build_equipment_slot("artifact", "Artifact"))
 
 	var note := Label.new()
-	note.text = "Equipped gear uses shared currency. Select an inventory item to equip it."
+	note.text = "Click a slot to view details. Select inventory item then Equip."
 	note.add_theme_font_size_override("font_size", 10)
 	note.modulate = Color(0.55, 0.6, 0.65, 1.0)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	equipped_vbox.add_child(note)
 
+	# ── Inventory panel ───────────────────────────────────────────────────────
 	var inventory_panel := _build_inventory_panel()
 	inventory_panel.custom_minimum_size = Vector2(410, 0)
 	inventory_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	inventory_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_row.add_child(inventory_panel)
 
-	return scroll
+	return content_row
 
 
 func _build_inventory_panel() -> Control:
@@ -448,83 +464,55 @@ func _build_inventory_panel() -> Control:
 	return panel
 
 
-func _build_equipment_slot(slot_id: String, slot_name: String) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 1)
-	panel.add_child(vbox)
-
-	var name_lbl := Label.new()
-	name_lbl.text = slot_name
-	name_lbl.add_theme_font_size_override("font_size", 11)
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(name_lbl)
-
-	var item_lbl := Label.new()
-	item_lbl.text = "Equipment"
-	item_lbl.add_theme_font_size_override("font_size", 10)
-	item_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	item_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(item_lbl)
-
-	var level_lbl := Label.new()
-	level_lbl.text = "Level 0 / 0"
-	level_lbl.add_theme_font_size_override("font_size", 10)
-	level_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	level_lbl.modulate = Color(0.7, 0.7, 0.7, 1.0)
-	vbox.add_child(level_lbl)
-
-	var hint_lbl := Label.new()
-	hint_lbl.text = ""
-	hint_lbl.add_theme_font_size_override("font_size", 9)
-	hint_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint_lbl.modulate = Color(0.5, 0.55, 0.6, 1.0)
-	vbox.add_child(hint_lbl)
-
-	var buy_btn := Button.new()
-	buy_btn.text = "Upgrade"
-	buy_btn.disabled = true
-	buy_btn.custom_minimum_size = Vector2(0, 28)
-	buy_btn.add_theme_font_size_override("font_size", 9)
-	buy_btn.pressed.connect(_on_equipment_buy_pressed.bind(slot_id))
-	vbox.add_child(buy_btn)
+func _build_equipment_slot(slot_id: String, slot_name: String) -> Button:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(110, 110)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	btn.text = "%s\n+\nEmpty" % slot_name
+	btn.add_theme_font_size_override("font_size", 11)
+	btn.pressed.connect(_on_equipped_slot_pressed.bind(slot_id))
 
 	_equipment_slot_rows[slot_id] = {
-		"slot_name": name_lbl,
-		"display_name": item_lbl,
-		"level": level_lbl,
-		"bonus": hint_lbl,
-		"button": buy_btn,
-		"panel": panel,
+		"slot_button": btn,
+		# Legacy keys set to null so old code paths skip safely
+		"slot_name": null,
+		"display_name": null,
+		"level": null,
+		"bonus": null,
+		"button": null,
+		"panel": btn,
 	}
-	# Allow clicking the slot panel to view detail of the equipped item
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.gui_input.connect(_on_equipment_slot_panel_clicked.bind(slot_id))
-	return panel
+	return btn
 
 
 func _refresh_equipment_panel() -> void:
 	var hero := _get_selected_hero_data()
-	if _equip_hero_name_label == null:
-		return
 	var display_name := str(hero.get("display_name", _selected_hero_id.capitalize()))
 	var subtitle := str(hero.get("subtitle", str(hero.get("playstyle", ""))))
 	var color: Color = hero.get("color", Color(0.5, 0.5, 0.5, 1.0))
 	var unlocked: bool = hero.get("unlocked_by_default", true)
 
-	_equip_hero_name_label.text = display_name
-	_equip_hero_subtitle_label.text = subtitle
-	if _training_hero_label != null:
-		_training_hero_label.text = "Hero: %s" % display_name
+	# Legacy hero name/subtitle labels (kept for any remaining references)
+	if _equip_hero_name_label != null:
+		_equip_hero_name_label.text = display_name
+	if _equip_hero_subtitle_label != null:
+		_equip_hero_subtitle_label.text = subtitle
+	# Central character holder
+	if _char_holder_name != null:
+		_char_holder_name.text = display_name
+	if _char_holder_subtitle != null:
+		_char_holder_subtitle.text = subtitle
+	if _char_holder_panel != null:
+		_char_holder_panel.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	if _equip_hero_swatch != null:
 		_equip_hero_swatch.color = color
+	if _training_hero_label != null:
+		_training_hero_label.text = "Hero: %s" % display_name
 	if _equip_hero_status_label != null:
 		_equip_hero_status_label.text = "Owned" if unlocked else "Locked"
 		_equip_hero_status_label.modulate = Color(0.6, 0.9, 0.6, 1.0) if unlocked else Color(0.8, 0.5, 0.3, 1.0)
-		_update_equipment_slots()
+	_update_equipment_slots()
 
 
 func _build_inventory_grid() -> Control:
@@ -960,32 +948,17 @@ func _get_selected_hero_data() -> Dictionary:
 
 
 func _update_equipment_slots() -> void:
-	var defs_by_slot := _get_equipment_definitions_by_slot()
-	# Get currently equipped instance per slot for name/level display
 	var equipped_instances: Dictionary = {}
 	if _meta_manager != null and _meta_manager.has_method("get_equipped_items_for_hero"):
 		equipped_instances = _meta_manager.get_equipped_items_for_hero(_selected_hero_id)
 
 	for slot_id in _equipment_slot_rows:
 		var row: Dictionary = _equipment_slot_rows.get(slot_id, {})
-		var def: Dictionary = defs_by_slot.get(slot_id, {})
-		var slot_name_lbl := row.get("slot_name") as Label
-		var display_name_lbl := row.get("display_name") as Label
-		var level_lbl := row.get("level") as Label
-		var bonus_lbl := row.get("bonus") as Label
-		var button := row.get("button") as Button
+		var slot_btn := row.get("slot_button") as Button
+		if slot_btn == null:
+			continue
 
 		var slot_name := _format_slot_name(str(slot_id))
-		var display_name := "Equipment"
-		var level_text := "Level 0 / 0"
-		var bonus_text := "No equipment data"
-		var _equipment_id := ""
-		var level := 0
-		var max_level := 0
-		var cost := 0
-		var can_buy := false
-
-		# Resolve display from equipped inventory item if available
 		var equipped_instance_id := str(equipped_instances.get(slot_id, ""))
 		var equipped_item: Dictionary = {}
 		if not equipped_instance_id.is_empty() and _meta_manager != null and _meta_manager.has_method("get_inventory_item"):
@@ -994,58 +967,17 @@ func _update_equipment_slots() -> void:
 		if not equipped_item.is_empty():
 			var template_id := str(equipped_item.get("template_id", ""))
 			var item_def := _resolve_item_template(template_id)
-			display_name = str(item_def.get("display_name", template_id)) if not item_def.is_empty() else template_id
-			level = int(equipped_item.get("level", 0))
-			max_level = int(item_def.get("max_level", 10)) if not item_def.is_empty() else 10
-			_equipment_id = template_id
-			cost = 0
-			can_buy = false
-			if _meta_manager != null and _meta_manager.has_method("get_inventory_item_upgrade_cost"):
-				var inst_id := str(equipped_instances.get(slot_id, ""))
-				if not inst_id.is_empty():
-					cost = _meta_manager.get_inventory_item_upgrade_cost(_selected_hero_id, inst_id)
-					can_buy = _meta_manager.get_currency() >= cost and level < max_level
-			level_text = "Level %d / %d" % [level, max_level]
-			if not item_def.is_empty():
-				bonus_text = "%s\nCurrent: %s\nNext: %s" % [
-					_format_equipment_bonus(item_def),
-					_format_equipment_total_bonus(item_def, level),
-					_format_equipment_total_bonus(item_def, level + 1) if level < max_level else "MAX",
-				]
-			else:
-				bonus_text = ""
+			var display_name := str(item_def.get("display_name", template_id)) if not item_def.is_empty() else template_id
+			var level := int(equipped_item.get("level", 0))
+			slot_btn.text = "%s\n%s\nLv %d" % [slot_name, _get_short_item_name(display_name), level]
+			slot_btn.modulate = UIStateColors.positive_color()
 		else:
-			# No item equipped — show empty state; do NOT fall back to equipment definitions
-			display_name = "Empty"
-			level_text = ""
-			bonus_text = "No item equipped"
-			can_buy = false
+			slot_btn.text = "%s\n+\nEmpty" % slot_name
+			slot_btn.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
-		if slot_name_lbl != null:
-			slot_name_lbl.text = slot_name
-		if display_name_lbl != null:
-			display_name_lbl.text = display_name
-		if level_lbl != null:
-			level_lbl.text = level_text
-		if bonus_lbl != null:
-			bonus_lbl.text = bonus_text
-		if button != null:
-			if def.is_empty() and equipped_item.is_empty():
-				button.text = "Unavailable"
-				button.disabled = true
-				button.modulate = UIStateColors.muted_color()
-			elif level >= max_level:
-				button.text = "MAX"
-				button.disabled = true
-				button.modulate = UIStateColors.muted_color()
-			elif can_buy:
-				button.text = "Upgrade %d" % cost
-				button.disabled = false
-				button.modulate = UIStateColors.positive_color()
-			else:
-				button.text = "Need %d" % cost
-				button.disabled = true
-				button.modulate = UIStateColors.muted_color()
+		# Refresh open popup if it's showing this slot
+		if _slot_popup != null and _slot_popup.visible and _slot_popup_slot_id == slot_id:
+			_update_slot_popup_content(slot_id)
 
 
 func _get_equipment_definitions_by_slot() -> Dictionary:
