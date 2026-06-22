@@ -131,13 +131,13 @@ The game is an original superhero survivors-like: the player moves around an are
 - `scenes/ui/MetaUpgradeShop.gd` - tabbed character progression UI opened by the MainMenu Training button. Persistent top navigation contains Equipment tab, Training tab, hero OptionButton dropdown, compact currency label, and always-visible Main Menu button. **Hero dropdown** (`_hero_dropdown: OptionButton`) sits between the Training tab button and the nav spacer; `_on_hero_dropdown_changed(index)` calls `set_selected_hero()` on change; `_rebuild_hero_dropdown()` populates it from `_heroes` and selects the current hero — called from `refresh()` and `open()`. Old `_hero_selector` HBoxContainer and `_hero_buttons` dict removed. Equipment tab owns hero preview, six fixed equipment upgrade slots, and read-only inventory shell with item detail and comparison panel. Equipped Gear panel min width 580 px; Inventory panel min width 410 px. Training tab owns existing Training upgrade rows. Emits `buy_requested(hero_id, upgrade_id)` and `equipment_buy_requested(hero_id, equipment_id)` only; Main handles purchases. **Slot popup**: clicking any equipped slot panel opens a `PopupPanel` (`_slot_popup`) via `_on_equipped_slot_pressed(slot_id)` → `popup_centered()`. Popup shows slot name, item name, level, stat bonus, description, an Unequip button (calls `_meta_manager.unequip_slot()`), and a Close button. If slot is empty, Unequip is disabled. `_on_equipment_slot_changed` refreshes the popup content if it is open for the same slot. Inventory Compare UI: selecting an inventory cell shows name/slot/level/status/stat bonus and a comparison against the currently equipped item in the same slot (stat delta better/worse/equal). Cell visual states: equipped=green, selected+equipped=bright green, selected+unequipped=yellow-white, empty=muted gray. Equip button: "Equip" (enabled) for unequipped items, "Equipped" (disabled) if already equipped or nothing selected. Detail label is inside a ScrollContainer. Inventory grid 5 columns. No gacha, item drops, random loot, random affixes, or full swapping.
 - `docs/validation/gameplay_validation.md` - manual test checklist for all gameplay systems (debug keys, powerups, abilities, weapon upgrades, build archetypes, miniboss, run flow, run victory, meta progression/rewards, expected console log patterns).
 - `scenes/stages/StageDataProvider.tscn` - runtime stage definition provider scene.
-- `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Returns stage dicts with id, display_name, difficulty_label, display-only identity metadata, background_colors, run_settings, event_profile, final_boss_id, `objective_type` ("survival"/"defense"/"destroy_structures"), and `objective_data` (per-type parameters).
+- `scenes/stages/StageDataProvider.gd` - dictionary-backed City Rooftop / Neon Lab / Wasteland Gate stage presets. Owns all static stage data and level preview formulas. Each stage now carries `unlock_requirement` (empty for city_rooftop; `{required_stage_id, required_level}` for neon_lab and wasteland_gate), `base_recommended_power`, `recommended_power_growth`, `enemy_strength_growth`, `loot_value_growth`, `max_preview_level`. City Rooftop has `unlocked_by_default: true`; Neon Lab and Wasteland Gate have `unlocked_by_default: false`. Level preview API: `get_stage_level_preview(stage_id, level) -> Dictionary` returns `{stage_id, level, recommended_power, enemy_strength, loot_value}`. `get_stage_unlock_requirement(stage_id) -> Dictionary`. Do NOT add a duplicate ZoneDataProvider.
 - `scenes/objectives/StageObjectiveManager.gd` - central objective controller; instantiated at runtime by Arena; reads stage_data.objective_type and .objective_data; spawns DefenseObjective or PortalObjective × N; tracks progress; emits `objective_completed`, `objective_failed`, `objective_state_changed`.
 - `scenes/objectives/DefenseObjective.gd` - Node2D Lab Reactor structure for "defense" stages; has a Polygon2D visual and HP label; Area2D (collision_mask=2) accumulates contact damage from nearby enemies at `damage_per_enemy_per_second`; emits `health_changed` and `objective_destroyed`.
 - `scenes/objectives/PortalObjective.gd` - StaticBody2D Dark Portal for "destroy_structures" stages; collision_layer=2 (enemy layer) so existing player projectiles and autoattack Area2Ds detect it naturally; added to "enemies" group; implements `take_damage(amount)`; emits `portal_destroyed` and `health_changed`.
 - `scenes/stages/StageApplier.gd` - static helper; applies selected stage to Arena at startup: background colors, run settings, event/spawn profiles. Called by Arena._ready() when stage_data is non-empty.
 - `scenes/ui/StageSelect.tscn` - stage selection screen CanvasLayer scene (child of Main).
-- `scenes/ui/StageSelect.gd` - display-only stage list + bounded scrollable detail panel UI. Emits the original stage_confirmed(stage_id) and back_requested.
+- `scenes/ui/StageSelect.gd` - horizontal zone card UI with in-screen level selection modal. Emits `stage_confirmed(stage_id: String, stage_level: int)` and `back_requested`. `setup(stage_data_provider, user_preferences_manager = null, meta_progression_manager = null)`. `get_selected_stage_id() -> String`, `get_selected_stage_level() -> int`, `is_modal_open() -> bool`, `close_modal()`. Do NOT create ZoneSelect.gd/ZoneSelect.tscn or ZoneDataProvider — all zone/stage selection lives here.
 - `scenes/enemies/FinalBossController.tscn` - final boss combat brain scene (Node root).
 - `scenes/enemies/FinalBossController.gd` - owns final boss encounter state machine (intro/phase_1/phase_2/phase_3/defeated), 4-phase logic, 4 new attack patterns (aimed_barrage/ring_barrage/double_charge/pulse_nova), boss_id variant stat tuning, phase_changed signal, and `debug_get_boss_state()`. Attached dynamically as child of boss enemy on spawn. `stop()` halts all attack loops safely.
 - `scenes/ui/BossHealthBar.tscn` - final boss health bar overlay scene (CanvasLayer layer=9).
@@ -2087,4 +2087,52 @@ Manual playtest checklist:
 - Help / Controls opens from MainMenu, PauseMenu, and H/F11 during allowed states.
 - Remembered hero/stage preselect correctly in CharacterSelect and StageSelect.
 - Restart button reloads the current run.
+
+## StageSelect Cards & Level Modal
+
+### Ownership rules
+- `StageSelect.gd` is the only stage/zone selection screen. Do NOT create `ZoneSelect.gd`, `ZoneSelect.tscn`, or `ZoneDataProvider.gd`.
+- `StageDataProvider.gd` owns all static stage data and level preview formulas.
+- `MetaProgressionManager.gd` owns all runtime stage progress (cleared levels, unlock state).
+
+### Stage level preview API (StageDataProvider)
+- `get_stage_level_preview(stage_id: String, level: int) -> Dictionary` — returns `{stage_id, level, recommended_power, enemy_strength, loot_value}`.
+- `get_stage_unlock_requirement(stage_id: String) -> Dictionary` — returns `{}` for always-unlocked stages, or `{required_stage_id, required_level}`.
+
+### Stage progress API (MetaProgressionManager)
+- `get_stage_progress(stage_id) -> Dictionary` — `{highest_cleared_level, runs, wins}`.
+- `get_highest_cleared_stage_level(stage_id) -> int`.
+- `is_stage_unlocked(stage_id) -> bool` — city_rooftop always true; neon_lab requires city_rooftop >= 3; wasteland_gate requires neon_lab >= 3.
+- `get_next_available_stage_level(stage_id) -> int` — highest_cleared_level + 1, minimum 1.
+
+### Main.gd selected_stage_level flow
+- `Main.selected_stage_level: int = 1` carries the chosen level through the full run flow.
+- `stage_confirmed(stage_id, stage_level)` is the two-argument signal emitted by StageSelect.
+- Before RunBriefingScreen and Arena, `selected_stage["selected_level"]` and `selected_stage["level_preview"]` are injected by `_show_run_briefing_or_start` and `_start_run_with_hero_and_stage`.
+- Restart run preserves both `selected_stage_id` and `selected_stage_level`. Quit-to-menu resets `selected_stage_level` to 1.
+- If `stage_level` arg is missing or < 1, default to 1.
+
+### Unlock chain
+- City Rooftop — unlocked by default.
+- Neon Lab — clears of City Rooftop Level 3 required (`highest_cleared_level >= 3`).
+- Wasteland Gate — clears of Neon Lab Level 3 required (`highest_cleared_level >= 3`).
+
+### Not implemented (reserved for future patches)
+- Full enemy scaling per level, loot scaling, first-clear rewards, reward multipliers, win recording into stage_progress.
+
+### StageSelect manual validation checklist
+- Start from Main Menu → Start Run → select a hero → StageSelect opens.
+- Three zone cards visible left-to-right: City Rooftop, Neon Lab, Wasteland Gate.
+- City Rooftop shows UNLOCKED; Neon Lab and Wasteland Gate show LOCKED with lock reason.
+- Locked zones are visible but their Select button is disabled.
+- Click City Rooftop → level modal opens on the same screen.
+- Level selector defaults to 1 (or next available level).
+- `<` / `>` buttons change level; preview data (Recommended Power, Enemy Strength, Loot Value) updates.
+- Start Run in modal → RunBriefingScreen shows zone name, selected level, and preview data.
+- Start Run from briefing → Arena receives `stage_data["selected_level"]` and `stage_data["level_preview"]`.
+- Back in modal → returns to zone cards (StageSelect stays open).
+- Escape while modal is open → modal closes, zone cards remain visible.
+- Escape / Back from zone cards → returns to CharacterSelect.
+- Restart → same stage_id and stage_level reused.
+- No ZoneSelect or ZoneDataProvider was created.
 - No script errors appear.

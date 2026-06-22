@@ -1808,4 +1808,54 @@ When no equipment is equipped the popup shows Power 0, 0 / 6 slots, all empty sl
 
 - Power is UI-only. It does not affect combat stats, hero kits, evolutions, upgrade costs, dismantle rewards, item reward chances, set bonus values, or any in-run mechanic.
 - Rarity has no direct role in the power formula. Visual rarity display is unchanged.
+
+### StageSelect Cards & Level Modal Rework
+
+StageSelect has been redesigned from a vertical list/details panel into a horizontal zone card layout with an in-screen level selection modal.
+
+**Zone cards (horizontal):**
+- Three zone cards are shown left-to-right: City Rooftop, Neon Lab, Wasteland Gate.
+- Each card shows: zone image placeholder (color swatch), display name, subtitle, difficulty, locked/unlocked status, highest cleared level, next available level, and a lock reason if locked.
+- Locked zones remain fully visible but their Select button is disabled.
+- Clicking an unlocked zone opens the level modal; no screen transition occurs.
+
+**Unlock chain:**
+- City Rooftop — unlocked by default.
+- Neon Lab — unlocks only after City Rooftop `highest_cleared_level >= 3`.
+- Wasteland Gate — unlocks only after Neon Lab `highest_cleared_level >= 3`.
+
+**Level modal:**
+- Opens on the same screen over the cards (dimmed overlay).
+- Shows zone name, a `< Level N >` selector, and a preview panel with Recommended Power, Enemy Strength, and Loot Value for the chosen level.
+- Available levels: 1 through `min(highest_cleared_level + 1, max_preview_level)` (currently 5).
+- Defaults to `get_next_available_stage_level(stage_id)` (highest_cleared_level + 1, minimum 1).
+- Start Run emits `stage_confirmed(stage_id, stage_level)` and proceeds to RunBriefingScreen.
+- Back/Close returns to the zone cards without leaving StageSelect.
+- Escape / Back button while modal is open closes the modal, not the screen.
+
+**selected_stage_id + selected_stage_level flow:**
+- `Main.selected_stage_level: int` carries the chosen level through the full run flow.
+- `stage_confirmed(stage_id, stage_level)` is the new two-argument signal.
+- `stage_data_provider.get_stage_level_preview(stage_id, level)` is injected into `selected_stage` as `selected_stage["selected_level"]` and `selected_stage["level_preview"]` before RunBriefingScreen and Arena receive it.
+- Restart run preserves `selected_stage_id` and `selected_stage_level`.
+- Quit-to-menu resets `selected_stage_level` to 1.
+
+**StageDataProvider level preview fields (per stage):**
+- `unlock_requirement` — `{}` for city_rooftop; `{required_stage_id, required_level}` for neon_lab and wasteland_gate.
+- `base_recommended_power` — base power at Level 1.
+- `recommended_power_growth` — power added per level above 1.
+- `enemy_strength_growth` — enemy strength multiplier growth per level (e.g. 0.15 = +15% per level).
+- `loot_value_growth` — loot value multiplier growth per level.
+- `max_preview_level` — maximum selectable level (currently 5).
+
+**MetaProgressionManager stage_progress:**
+- New save key `stage_progress` (safe default: `{city_rooftop: {highest_cleared_level: 0, runs: 0, wins: 0}}`).
+- Merged on load without resetting old saves.
+- Public helpers: `get_stage_progress(stage_id)`, `get_highest_cleared_stage_level(stage_id)`, `is_stage_unlocked(stage_id)`, `get_next_available_stage_level(stage_id)`.
+
+**RunBriefingScreen:**
+- Shows selected zone level, recommended power, enemy strength preview, and loot value preview.
+- Does not block Start Run based on recommended power.
+
+**Not implemented in this patch:** full enemy scaling, loot scaling, first-clear rewards, reward multipliers, win recording into stage_progress. These are reserved for future patches.
 - No economy, reward, stage, or gameplay changes were added in this patch.

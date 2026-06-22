@@ -1,31 +1,31 @@
 extends CanvasLayer
 
-signal stage_confirmed(stage_id: String)
+signal stage_confirmed(stage_id: String, stage_level: int)
 signal back_requested
 
 const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
 
 var _stage_data_provider: Node = null
 var _user_preferences_manager: Node = null
+var _meta_progression_manager: Node = null
 var _stages: Array[Dictionary] = []
 var _selected_stage_id: String = ""
+var _selected_stage_level: int = 1
 var _preferred_stage_id: String = ""
-var _stage_buttons: Dictionary = {}
 
-var _cards_box: VBoxContainer
-var _name_label: Label
-var _subtitle_label: Label
-var _last_selected_label: Label
-var _description_label: Label
-var _difficulty_label: Label
-var _threat_label: Label
-var _goal_label: Label
-var _playstyle_label: Label
-var _final_boss_label: Label
-var _start_button: Button
-var _back_button: Button
-var _color_swatch: ColorRect
-var _details_scroll: ScrollContainer
+var _cards_container: HBoxContainer = null
+var _back_button: Button = null
+
+# Level modal elements
+var _modal_root: Control = null
+var _modal_zone_label: Label = null
+var _modal_level_label: Label = null
+var _modal_power_label: Label = null
+var _modal_enemy_label: Label = null
+var _modal_loot_label: Label = null
+var _modal_start_button: Button = null
+var _modal_stage_id: String = ""
+var _modal_level: int = 1
 
 
 func _ready() -> void:
@@ -34,9 +34,10 @@ func _ready() -> void:
 	hide()
 
 
-func setup(stage_data_provider: Node, user_preferences_manager: Node = null) -> void:
+func setup(stage_data_provider: Node, user_preferences_manager: Node = null, meta_progression_manager: Node = null) -> void:
 	_stage_data_provider = stage_data_provider
 	_user_preferences_manager = user_preferences_manager
+	_meta_progression_manager = meta_progression_manager
 	if _user_preferences_manager != null and _user_preferences_manager.has_method("get_last_stage_id"):
 		set_preferred_stage_id(_user_preferences_manager.get_last_stage_id())
 	_reload_stages()
@@ -44,12 +45,14 @@ func setup(stage_data_provider: Node, user_preferences_manager: Node = null) -> 
 
 func open() -> void:
 	_reload_stages()
+	_hide_modal()
 	show()
-	if _start_button != null:
-		_start_button.grab_focus()
+	if _back_button != null:
+		_back_button.grab_focus()
 
 
 func close() -> void:
+	_hide_modal()
 	hide()
 
 
@@ -57,8 +60,20 @@ func get_selected_stage_id() -> String:
 	return _selected_stage_id
 
 
+func get_selected_stage_level() -> int:
+	return _selected_stage_level
+
+
 func set_preferred_stage_id(stage_id: String) -> void:
 	_preferred_stage_id = stage_id
+
+
+func is_modal_open() -> bool:
+	return _modal_root != null and _modal_root.visible
+
+
+func close_modal() -> void:
+	_hide_modal()
 
 
 func _build_ui() -> void:
@@ -84,7 +99,7 @@ func _build_ui() -> void:
 
 	var main := VBoxContainer.new()
 	main.name = "Main"
-	main.add_theme_constant_override("separation", 18)
+	main.add_theme_constant_override("separation", 20)
 	margin.add_child(main)
 
 	var title := Label.new()
@@ -93,94 +108,12 @@ func _build_ui() -> void:
 	title.add_theme_font_size_override("font_size", 30)
 	main.add_child(title)
 
-	var content := HBoxContainer.new()
-	content.name = "Content"
-	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 20)
-	main.add_child(content)
-
-	var stage_list_panel := PanelContainer.new()
-	stage_list_panel.name = "StageListPanel"
-	stage_list_panel.custom_minimum_size = Vector2(380, 0)
-	stage_list_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(stage_list_panel)
-
-	var stage_list_margin := MarginContainer.new()
-	stage_list_margin.name = "StageListMargin"
-	stage_list_margin.add_theme_constant_override("margin_left", 12)
-	stage_list_margin.add_theme_constant_override("margin_top", 12)
-	stage_list_margin.add_theme_constant_override("margin_right", 12)
-	stage_list_margin.add_theme_constant_override("margin_bottom", 12)
-	stage_list_panel.add_child(stage_list_margin)
-
-	_cards_box = VBoxContainer.new()
-	_cards_box.name = "StageList"
-	_cards_box.add_theme_constant_override("separation", 12)
-	stage_list_margin.add_child(_cards_box)
-
-	var details_panel := PanelContainer.new()
-	details_panel.name = "DetailsPanel"
-	details_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	details_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(details_panel)
-
-	_details_scroll = ScrollContainer.new()
-	_details_scroll.name = "DetailsScroll"
-	_details_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_details_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_details_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	details_panel.add_child(_details_scroll)
-
-	var details_margin := MarginContainer.new()
-	details_margin.name = "DetailsMargin"
-	details_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	details_margin.add_theme_constant_override("margin_left", 16)
-	details_margin.add_theme_constant_override("margin_top", 16)
-	details_margin.add_theme_constant_override("margin_right", 16)
-	details_margin.add_theme_constant_override("margin_bottom", 16)
-	_details_scroll.add_child(details_margin)
-
-	var details := VBoxContainer.new()
-	details.name = "Details"
-	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	details.add_theme_constant_override("separation", 12)
-	details_margin.add_child(details)
-
-	_color_swatch = ColorRect.new()
-	_color_swatch.custom_minimum_size = Vector2(0, 18)
-	details.add_child(_color_swatch)
-
-	_name_label = Label.new()
-	_name_label.add_theme_font_size_override("font_size", 24)
-	details.add_child(_name_label)
-
-	_subtitle_label = Label.new()
-	details.add_child(_subtitle_label)
-
-	_last_selected_label = Label.new()
-	_last_selected_label.text = "Last selected"
-	_last_selected_label.visible = false
-	details.add_child(_last_selected_label)
-
-	_difficulty_label = Label.new()
-	details.add_child(_difficulty_label)
-
-	_description_label = Label.new()
-	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	details.add_child(_description_label)
-
-	_threat_label = _create_detail_label()
-	details.add_child(_threat_label)
-
-	_goal_label = _create_detail_label()
-	details.add_child(_goal_label)
-
-	_playstyle_label = _create_detail_label()
-	details.add_child(_playstyle_label)
-
-	_final_boss_label = Label.new()
-	_final_boss_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	details.add_child(_final_boss_label)
+	_cards_container = HBoxContainer.new()
+	_cards_container.name = "CardsContainer"
+	_cards_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cards_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_cards_container.add_theme_constant_override("separation", 20)
+	main.add_child(_cards_container)
 
 	var buttons := HBoxContainer.new()
 	buttons.name = "Buttons"
@@ -193,183 +126,356 @@ func _build_ui() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
 	buttons.add_child(_back_button)
 
-	var button_spacer := Control.new()
-	button_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	buttons.add_child(button_spacer)
+	_build_modal(root)
 
-	_start_button = Button.new()
-	_start_button.custom_minimum_size = Vector2(220, 52)
-	_start_button.text = "Start Run"
-	_start_button.pressed.connect(_on_start_pressed)
-	buttons.add_child(_start_button)
+
+func _build_modal(root: Control) -> void:
+	_modal_root = Control.new()
+	_modal_root.name = "ModalRoot"
+	_modal_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_modal_root.visible = false
+	root.add_child(_modal_root)
+
+	var dim := ColorRect.new()
+	dim.name = "ModalDim"
+	dim.color = Color(0.0, 0.0, 0.0, 0.65)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_modal_root.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_modal_root.add_child(center)
+
+	var modal_panel := PanelContainer.new()
+	modal_panel.name = "ModalPanel"
+	modal_panel.custom_minimum_size = Vector2(480, 0)
+	center.add_child(modal_panel)
+
+	var modal_margin := MarginContainer.new()
+	modal_margin.add_theme_constant_override("margin_left", 28)
+	modal_margin.add_theme_constant_override("margin_top", 28)
+	modal_margin.add_theme_constant_override("margin_right", 28)
+	modal_margin.add_theme_constant_override("margin_bottom", 28)
+	modal_panel.add_child(modal_margin)
+
+	var modal_vbox := VBoxContainer.new()
+	modal_vbox.add_theme_constant_override("separation", 16)
+	modal_margin.add_child(modal_vbox)
+
+	_modal_zone_label = Label.new()
+	_modal_zone_label.name = "ModalZoneLabel"
+	_modal_zone_label.add_theme_font_size_override("font_size", 22)
+	_modal_zone_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	modal_vbox.add_child(_modal_zone_label)
+
+	modal_vbox.add_child(HSeparator.new())
+
+	var level_row := HBoxContainer.new()
+	level_row.add_theme_constant_override("separation", 8)
+	level_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	modal_vbox.add_child(level_row)
+
+	var lvl_title := Label.new()
+	lvl_title.text = "Level:"
+	lvl_title.add_theme_font_size_override("font_size", 18)
+	level_row.add_child(lvl_title)
+
+	var btn_prev := Button.new()
+	btn_prev.text = "<"
+	btn_prev.custom_minimum_size = Vector2(44, 44)
+	btn_prev.pressed.connect(_modal_prev_level)
+	level_row.add_child(btn_prev)
+
+	_modal_level_label = Label.new()
+	_modal_level_label.custom_minimum_size = Vector2(52, 0)
+	_modal_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_modal_level_label.add_theme_font_size_override("font_size", 24)
+	level_row.add_child(_modal_level_label)
+
+	var btn_next := Button.new()
+	btn_next.text = ">"
+	btn_next.custom_minimum_size = Vector2(44, 44)
+	btn_next.pressed.connect(_modal_next_level)
+	level_row.add_child(btn_next)
+
+	var preview_panel := PanelContainer.new()
+	modal_vbox.add_child(preview_panel)
+
+	var preview_margin := MarginContainer.new()
+	preview_margin.add_theme_constant_override("margin_left", 16)
+	preview_margin.add_theme_constant_override("margin_top", 14)
+	preview_margin.add_theme_constant_override("margin_right", 16)
+	preview_margin.add_theme_constant_override("margin_bottom", 14)
+	preview_panel.add_child(preview_margin)
+
+	var preview_vbox := VBoxContainer.new()
+	preview_vbox.add_theme_constant_override("separation", 8)
+	preview_margin.add_child(preview_vbox)
+
+	_modal_power_label = Label.new()
+	_modal_power_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preview_vbox.add_child(_modal_power_label)
+
+	_modal_enemy_label = Label.new()
+	_modal_enemy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preview_vbox.add_child(_modal_enemy_label)
+
+	_modal_loot_label = Label.new()
+	_modal_loot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preview_vbox.add_child(_modal_loot_label)
+
+	var modal_buttons := HBoxContainer.new()
+	modal_buttons.add_theme_constant_override("separation", 12)
+	modal_vbox.add_child(modal_buttons)
+
+	var close_btn := Button.new()
+	close_btn.text = "Back"
+	close_btn.custom_minimum_size = Vector2(150, 50)
+	close_btn.pressed.connect(_hide_modal)
+	modal_buttons.add_child(close_btn)
+
+	var btn_spacer := Control.new()
+	btn_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	modal_buttons.add_child(btn_spacer)
+
+	_modal_start_button = Button.new()
+	_modal_start_button.text = "Start Run"
+	_modal_start_button.custom_minimum_size = Vector2(170, 50)
+	_modal_start_button.pressed.connect(_on_modal_start_pressed)
+	modal_buttons.add_child(_modal_start_button)
 
 
 func _reload_stages() -> void:
-	if _cards_box == null:
+	if _cards_container == null:
 		return
-
-	for child in _cards_box.get_children():
+	for child in _cards_container.get_children():
 		child.queue_free()
-	_stage_buttons.clear()
 	_stages.clear()
 
 	if _stage_data_provider != null and _stage_data_provider.has_method("get_all_stages"):
 		_stages = _stage_data_provider.get_all_stages()
 
 	for stage in _stages:
-		var button := Button.new()
-		var stage_id := str(stage.get("id", ""))
-		var diff: String = str(stage.get("difficulty_label", "Normal"))
-		var threat_line: String = str(stage.get("enemy_pressure", stage.get("subtitle", "")))
-		var markers: Array[String] = []
-		if not _preferred_stage_id.is_empty() and stage_id == _preferred_stage_id:
-			markers.append("Last")
-		if _is_stage_locked(stage):
-			markers.append("Locked")
-		var marker_text: String = ""
-		if not markers.is_empty():
-			marker_text = "  [%s]" % ", ".join(markers)
-		button.custom_minimum_size = Vector2(320, 72)
-		button.text = "%s%s\n%s - %s" % [stage.get("display_name", "Stage"), marker_text, diff, threat_line]
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.pressed.connect(_select_stage.bind(stage_id))
-		_cards_box.add_child(button)
-		_stage_buttons[stage_id] = button
-
-	_selected_stage_id = _get_initial_stage_id()
-
-	_select_stage(_selected_stage_id)
+		var card := _build_zone_card(stage)
+		_cards_container.add_child(card)
 
 
-func _select_stage(stage_id: String) -> void:
-	if not _has_stage(stage_id):
-		return
-	_selected_stage_id = stage_id
-	_refresh_details()
-
-
-func _refresh_details() -> void:
-	var stage := _get_selected_stage()
-	if stage.is_empty():
-		return
-
-	_name_label.text = str(stage.get("display_name", "Stage"))
-	_subtitle_label.text = str(stage.get("subtitle", ""))
-	if _last_selected_label != null:
-		_last_selected_label.visible = not _preferred_stage_id.is_empty() and _selected_stage_id == _preferred_stage_id
-	_difficulty_label.text = "Difficulty: %s" % stage.get("difficulty_label", "Normal")
-	_description_label.text = str(stage.get("description", ""))
-	_threat_label.text = "Threats\n%s\nPressure: %s" % [
-		str(stage.get("threat_summary", "Stage pressure follows its selected event profile.")),
-		str(stage.get("enemy_pressure", "Standard")),
-	]
-	var _obj_type_raw := str(stage.get("objective_type", "survival"))
-	_goal_label.text = "Run Objective  [%s]\n%s" % [_format_objective_type(_obj_type_raw), str(stage.get("stage_goal", _build_default_stage_goal(stage)))]
-	_playstyle_label.text = "Recommended\n%s" % str(stage.get("recommended_playstyle", "Use the build that fits your selected hero."))
-
-	var boss_id := str(stage.get("final_boss_id", ""))
-	var boss_name: String = _format_boss_name(boss_id)
-	_final_boss_label.text = "Final Boss\n%s\n%s" % [
-		boss_name,
-		str(stage.get("boss_preview", "%s waits at the end of the run." % boss_name)),
-	]
-
+func _build_zone_card(stage: Dictionary) -> Control:
+	var stage_id := str(stage.get("id", ""))
+	var is_locked := _is_zone_locked(stage_id)
 	var bg_colors: Dictionary = stage.get("background_colors", {})
 	var ground_color: Color = bg_colors.get("ground", Color(0.08, 0.10, 0.14, 1.0))
-	_color_swatch.color = ground_color
+	var highest := _get_highest_cleared_level(stage_id)
+	var next_level := _get_next_level(stage_id)
 
-	for sid in _stage_buttons:
-		var btn := _stage_buttons[sid] as Button
-		var is_selected: bool = sid == _selected_stage_id
-		btn.disabled = is_selected
-		btn.modulate = UIStateColors.positive_color() if is_selected else Color.WHITE
+	var card_panel := PanelContainer.new()
+	card_panel.name = "Card_%s" % stage_id
+	card_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	var card_margin := MarginContainer.new()
+	card_margin.add_theme_constant_override("margin_left", 14)
+	card_margin.add_theme_constant_override("margin_top", 14)
+	card_margin.add_theme_constant_override("margin_right", 14)
+	card_margin.add_theme_constant_override("margin_bottom", 14)
+	card_panel.add_child(card_margin)
+
+	var card_vbox := VBoxContainer.new()
+	card_vbox.add_theme_constant_override("separation", 8)
+	card_margin.add_child(card_vbox)
+
+	var image_rect := ColorRect.new()
+	image_rect.color = ground_color
+	image_rect.custom_minimum_size = Vector2(0, 110)
+	image_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if is_locked:
+		image_rect.modulate = Color(0.45, 0.45, 0.45, 1.0)
+	card_vbox.add_child(image_rect)
+
+	var name_label := Label.new()
+	name_label.text = str(stage.get("display_name", "Stage"))
+	name_label.add_theme_font_size_override("font_size", 20)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_vbox.add_child(name_label)
+
+	var subtitle_label := Label.new()
+	subtitle_label.text = str(stage.get("subtitle", ""))
+	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75, 1.0))
+	card_vbox.add_child(subtitle_label)
+
+	var difficulty_label := Label.new()
+	difficulty_label.text = "Difficulty: %s" % str(stage.get("difficulty_label", "Normal"))
+	difficulty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	difficulty_label.add_theme_font_size_override("font_size", 13)
+	card_vbox.add_child(difficulty_label)
+
+	card_vbox.add_child(HSeparator.new())
+
+	var status_label := Label.new()
+	if is_locked:
+		status_label.text = "LOCKED"
+		status_label.add_theme_color_override("font_color", Color(0.85, 0.30, 0.30, 1.0))
+	else:
+		status_label.text = "UNLOCKED"
+		status_label.add_theme_color_override("font_color", Color(0.30, 0.85, 0.40, 1.0))
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_label.add_theme_font_size_override("font_size", 14)
+	card_vbox.add_child(status_label)
+
+	var level_info_label := Label.new()
+	if is_locked:
+		level_info_label.text = ""
+	elif highest > 0:
+		level_info_label.text = "Best Clear: Level %d\nNext: Level %d" % [highest, next_level]
+	else:
+		level_info_label.text = "No clears yet\nStart at Level 1"
+	level_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_info_label.add_theme_font_size_override("font_size", 13)
+	card_vbox.add_child(level_info_label)
+
+	if is_locked:
+		var lock_reason := _get_lock_reason(stage_id)
+		if not lock_reason.is_empty():
+			var lock_label := Label.new()
+			lock_label.text = lock_reason
+			lock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lock_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			lock_label.add_theme_color_override("font_color", Color(0.85, 0.65, 0.30, 1.0))
+			lock_label.add_theme_font_size_override("font_size", 12)
+			card_vbox.add_child(lock_label)
+
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card_vbox.add_child(spacer)
+
+	var select_btn := Button.new()
+	select_btn.text = "Select" if not is_locked else "Locked"
+	select_btn.disabled = is_locked
+	select_btn.custom_minimum_size = Vector2(0, 50)
+	select_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if not is_locked:
+		select_btn.pressed.connect(_open_level_modal.bind(stage_id))
+	card_vbox.add_child(select_btn)
+
+	return card_panel
 
 
-func _format_boss_name(boss_id: String) -> String:
-	match boss_id:
-		"titan_guardian": return "Titan Guardian"
-		"prism_overlord": return "Prism Overlord"
-		"molten_colossus": return "Molten Colossus"
-		_:
-			if boss_id.is_empty():
-				return "Unknown"
-			return boss_id.capitalize()
-
-
-func _create_detail_label() -> Label:
-	var label := Label.new()
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	return label
-
-
-func _format_objective_type(objective_type: String) -> String:
-	match objective_type:
-		"survival": return "Survival"
-		"defense": return "Defense"
-		"destroy_structures": return "Destroy Structures"
-		_: return objective_type.capitalize()
-
-
-func _build_default_stage_goal(stage: Dictionary) -> String:
-	var settings: Dictionary = stage.get("run_settings", {})
-	var target_seconds: float = float(settings.get("target_run_time", 600.0))
-	var minutes: int = int(round(target_seconds / 60.0))
-	return "Survive %d:00, then defeat the final boss." % minutes
-
-
-func _get_selected_stage() -> Dictionary:
-	for stage in _stages:
-		if str(stage.get("id", "")) == _selected_stage_id:
-			return stage
-	return {}
-
-
-func _has_stage(stage_id: String) -> bool:
+func _is_zone_locked(stage_id: String) -> bool:
+	if _meta_progression_manager != null and _meta_progression_manager.has_method("is_stage_unlocked"):
+		return not _meta_progression_manager.is_stage_unlocked(stage_id)
 	for stage in _stages:
 		if str(stage.get("id", "")) == stage_id:
-			return true
-	return false
+			return not bool(stage.get("unlocked_by_default", true))
+	return true
 
 
-func _get_initial_stage_id() -> String:
-	if _is_stage_playable_id(_preferred_stage_id):
-		return _preferred_stage_id
-
-	if _stage_data_provider != null and _stage_data_provider.has_method("get_default_stage"):
-		var default_stage: Dictionary = _stage_data_provider.get_default_stage()
-		var default_id := str(default_stage.get("id", ""))
-		if _is_stage_playable_id(default_id):
-			return default_id
-
-	for stage: Dictionary in _stages:
-		var stage_id := str(stage.get("id", ""))
-		if _is_stage_playable_id(stage_id):
-			return stage_id
-	return ""
+func _get_highest_cleared_level(stage_id: String) -> int:
+	if _meta_progression_manager != null and _meta_progression_manager.has_method("get_highest_cleared_stage_level"):
+		return _meta_progression_manager.get_highest_cleared_stage_level(stage_id)
+	return 0
 
 
-func _is_stage_playable_id(stage_id: String) -> bool:
-	if stage_id.is_empty():
-		return false
-	for stage: Dictionary in _stages:
+func _get_next_level(stage_id: String) -> int:
+	if _meta_progression_manager != null and _meta_progression_manager.has_method("get_next_available_stage_level"):
+		return _meta_progression_manager.get_next_available_stage_level(stage_id)
+	return 1
+
+
+func _get_lock_reason(stage_id: String) -> String:
+	if _stage_data_provider != null and _stage_data_provider.has_method("get_stage_unlock_requirement"):
+		var req: Dictionary = _stage_data_provider.get_stage_unlock_requirement(stage_id)
+		if req.is_empty():
+			return ""
+		var req_stage_id := str(req.get("required_stage_id", ""))
+		var req_level := int(req.get("required_level", 1))
+		if req_stage_id.is_empty():
+			return ""
+		var req_name := _get_stage_display_name(req_stage_id)
+		return "Clear %s Level %d to unlock" % [req_name, req_level]
+	return "Locked"
+
+
+func _get_stage_display_name(stage_id: String) -> String:
+	for stage in _stages:
 		if str(stage.get("id", "")) == stage_id:
-			return not _is_stage_locked(stage)
-	return false
+			return str(stage.get("display_name", stage_id.capitalize()))
+	return stage_id.capitalize()
 
 
-func _is_stage_locked(stage: Dictionary) -> bool:
-	if bool(stage.get("unlocked_by_default", true)):
-		return false
-	if _stage_data_provider != null and _stage_data_provider.has_method("is_stage_unlocked"):
-		return not _stage_data_provider.is_stage_unlocked(str(stage.get("id", "")))
-	return false
+func _open_level_modal(stage_id: String) -> void:
+	_modal_stage_id = stage_id
+	_modal_level = _get_next_level(stage_id)
+	for stage in _stages:
+		if str(stage.get("id", "")) == stage_id:
+			if _modal_zone_label != null:
+				_modal_zone_label.text = str(stage.get("display_name", stage_id))
+			break
+	_refresh_modal_preview()
+	if _modal_root != null:
+		_modal_root.visible = true
+	if _modal_start_button != null:
+		_modal_start_button.grab_focus()
 
 
-func _on_start_pressed() -> void:
-	if _selected_stage_id.is_empty():
+func _hide_modal() -> void:
+	if _modal_root != null:
+		_modal_root.visible = false
+	_modal_stage_id = ""
+
+
+func _modal_prev_level() -> void:
+	if _modal_level > 1:
+		_modal_level -= 1
+		_refresh_modal_preview()
+
+
+func _modal_next_level() -> void:
+	if _modal_level < _get_modal_max_level():
+		_modal_level += 1
+		_refresh_modal_preview()
+
+
+func _get_modal_max_level() -> int:
+	if _modal_stage_id.is_empty():
+		return 5
+	for stage in _stages:
+		if str(stage.get("id", "")) == _modal_stage_id:
+			var max_preview := int(stage.get("max_preview_level", 5))
+			var highest := _get_highest_cleared_level(_modal_stage_id)
+			return mini(maxi(highest + 1, 1), max_preview)
+	return 5
+
+
+func _refresh_modal_preview() -> void:
+	if _modal_level_label == null:
 		return
-	stage_confirmed.emit(_selected_stage_id)
+	_modal_level_label.text = str(_modal_level)
+
+	var preview: Dictionary = {}
+	if _stage_data_provider != null and _stage_data_provider.has_method("get_stage_level_preview"):
+		preview = _stage_data_provider.get_stage_level_preview(_modal_stage_id, _modal_level)
+
+	var power := int(preview.get("recommended_power", 100))
+	var enemy := float(preview.get("enemy_strength", 1.0))
+	var loot := float(preview.get("loot_value", 1.0))
+
+	if _modal_power_label != null:
+		_modal_power_label.text = "Recommended Power:  %d" % power
+	if _modal_enemy_label != null:
+		var enemy_pct := int(round((enemy - 1.0) * 100.0))
+		_modal_enemy_label.text = "Enemy Strength:  %s" % ("Standard" if enemy_pct <= 0 else "+%d%% stronger" % enemy_pct)
+	if _modal_loot_label != null:
+		var loot_pct := int(round((loot - 1.0) * 100.0))
+		_modal_loot_label.text = "Loot Value:  %s" % ("Standard" if loot_pct <= 0 else "+%d%% better" % loot_pct)
+
+
+func _on_modal_start_pressed() -> void:
+	if _modal_stage_id.is_empty():
+		return
+	_selected_stage_id = _modal_stage_id
+	_selected_stage_level = _modal_level
+	stage_confirmed.emit(_selected_stage_id, _selected_stage_level)
 
 
 func _on_back_pressed() -> void:

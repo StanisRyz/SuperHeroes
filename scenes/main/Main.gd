@@ -19,6 +19,7 @@ var meta_upgrade_shop: Node
 var hero_collection_screen: Node
 var selected_hero_id: String = ""
 var selected_stage_id: String = ""
+var selected_stage_level: int = 1
 
 var _last_reward_data: Dictionary = {}
 var _rewards_shown: bool = true
@@ -77,7 +78,7 @@ func _ready() -> void:
 
 	if stage_select != null:
 		if stage_select.has_method("setup"):
-			stage_select.setup(stage_data_provider, user_preferences_manager)
+			stage_select.setup(stage_data_provider, user_preferences_manager, meta_progression_manager)
 		if stage_select.has_signal("stage_confirmed") and not stage_select.stage_confirmed.is_connected(_on_stage_confirmed):
 			stage_select.stage_confirmed.connect(_on_stage_confirmed)
 		if stage_select.has_signal("back_requested") and not stage_select.back_requested.is_connected(_on_stage_select_back_requested):
@@ -252,11 +253,12 @@ func _show_stage_select() -> void:
 		_show_run_briefing_or_start()
 
 
-func _on_stage_confirmed(stage_id: String) -> void:
+func _on_stage_confirmed(stage_id: String, stage_level: int = 1) -> void:
 	if _selection_transition_in_progress:
 		return
 	_selection_transition_in_progress = true
 	selected_stage_id = stage_id
+	selected_stage_level = maxi(stage_level, 1)
 	if user_preferences_manager != null and user_preferences_manager.has_method("set_last_stage_id"):
 		user_preferences_manager.set_last_stage_id(stage_id)
 	if stage_select != null and stage_select.has_method("close"):
@@ -273,6 +275,9 @@ func _show_run_briefing_or_start() -> void:
 	selected_hero_id = str(selected_hero.get("id", selected_hero_id))
 	var selected_stage := _get_stage_data(selected_stage_id)
 	selected_stage_id = str(selected_stage.get("id", selected_stage_id))
+	selected_stage["selected_level"] = selected_stage_level
+	if stage_data_provider != null and stage_data_provider.has_method("get_stage_level_preview"):
+		selected_stage["level_preview"] = stage_data_provider.get_stage_level_preview(selected_stage_id, selected_stage_level)
 	run_briefing_screen.setup(selected_hero, selected_stage, meta_progression_manager)
 	run_briefing_screen.open()
 
@@ -325,6 +330,9 @@ func _start_run_with_hero_and_stage(hero_id: String, stage_id: String) -> void:
 
 	var selected_stage := _get_stage_data(stage_id)
 	selected_stage_id = str(selected_stage.get("id", stage_id))
+	selected_stage["selected_level"] = selected_stage_level
+	if stage_data_provider != null and stage_data_provider.has_method("get_stage_level_preview"):
+		selected_stage["level_preview"] = stage_data_provider.get_stage_level_preview(selected_stage_id, selected_stage_level)
 
 	current_run = arena_scene.instantiate()
 	if current_run.has_method("setup"):
@@ -425,6 +433,7 @@ func _do_quit_to_menu() -> void:
 	_close_settings_menu_if_open()
 	_clear_current_run()
 	selected_stage_id = ""
+	selected_stage_level = 1
 	_show_main_menu()
 
 
@@ -486,6 +495,10 @@ func _handle_menu_back_requested() -> void:
 		_on_run_briefing_back_requested()
 		return
 	if stage_select != null and stage_select.visible:
+		if stage_select.has_method("is_modal_open") and stage_select.is_modal_open():
+			if stage_select.has_method("close_modal"):
+				stage_select.close_modal()
+			return
 		_on_stage_select_back_requested()
 		return
 	if character_select != null and character_select.visible:

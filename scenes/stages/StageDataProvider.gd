@@ -26,6 +26,12 @@ var _stages: Array[Dictionary] = [
 		"event_profile": "balanced",
 		"final_boss_id": "titan_guardian",
 		"unlocked_by_default": true,
+		"unlock_requirement": {},
+		"base_recommended_power": 100,
+		"recommended_power_growth": 25,
+		"enemy_strength_growth": 0.15,
+		"loot_value_growth": 0.10,
+		"max_preview_level": 5,
 	},
 	{
 		"id": "neon_lab",
@@ -55,7 +61,16 @@ var _stages: Array[Dictionary] = [
 		},
 		"event_profile": "ranged_support",
 		"final_boss_id": "prism_overlord",
-		"unlocked_by_default": true,
+		"unlocked_by_default": false,
+		"unlock_requirement": {
+			"required_stage_id": "city_rooftop",
+			"required_level": 3,
+		},
+		"base_recommended_power": 200,
+		"recommended_power_growth": 30,
+		"enemy_strength_growth": 0.18,
+		"loot_value_growth": 0.12,
+		"max_preview_level": 5,
 	},
 	{
 		"id": "wasteland_gate",
@@ -85,7 +100,16 @@ var _stages: Array[Dictionary] = [
 		},
 		"event_profile": "swarm_exploder",
 		"final_boss_id": "molten_colossus",
-		"unlocked_by_default": true,
+		"unlocked_by_default": false,
+		"unlock_requirement": {
+			"required_stage_id": "neon_lab",
+			"required_level": 3,
+		},
+		"base_recommended_power": 350,
+		"recommended_power_growth": 40,
+		"enemy_strength_growth": 0.20,
+		"loot_value_growth": 0.15,
+		"max_preview_level": 5,
 	},
 ]
 
@@ -112,3 +136,29 @@ func get_default_stage() -> Dictionary:
 
 func is_valid_stage(stage_id: String) -> bool:
 	return not get_stage(stage_id).is_empty()
+
+
+func get_stage_unlock_requirement(stage_id: String) -> Dictionary:
+	var stage := get_stage(stage_id)
+	var req = stage.get("unlock_requirement", {})
+	if req is Dictionary:
+		return req.duplicate(true)
+	return {}
+
+
+func get_stage_level_preview(stage_id: String, level: int) -> Dictionary:
+	var stage := get_stage(stage_id)
+	if stage.is_empty():
+		return {}
+	var safe_level := maxi(level, 1)
+	var base_power := int(stage.get("base_recommended_power", 100))
+	var power_growth := int(stage.get("recommended_power_growth", 25))
+	var enemy_growth := float(stage.get("enemy_strength_growth", 0.15))
+	var loot_growth := float(stage.get("loot_value_growth", 0.10))
+	return {
+		"stage_id": stage_id,
+		"level": safe_level,
+		"recommended_power": base_power + (safe_level - 1) * power_growth,
+		"enemy_strength": 1.0 + float(safe_level - 1) * enemy_growth,
+		"loot_value": 1.0 + float(safe_level - 1) * loot_growth,
+	}

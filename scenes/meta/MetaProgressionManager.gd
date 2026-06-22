@@ -1541,6 +1541,7 @@ func _get_defaults() -> Dictionary:
 		"total_miniboss_kills": 0,
 		"hero_mastery": _get_default_hero_mastery(),
 		"stage_mastery": _get_default_stage_mastery(),
+		"stage_progress": _get_default_stage_progress(),
 		"goals": _get_default_goals(),
 	}
 
@@ -1579,6 +1580,7 @@ func _merge_with_defaults(parsed: Dictionary) -> void:
 	if "guardian" not in unlocked:
 		unlocked.append("guardian")
 	_ensure_mastery_defaults()
+	_ensure_stage_progress_defaults()
 	_ensure_goal_defaults()
 
 
@@ -2315,6 +2317,62 @@ func _get_default_stage_mastery_entry() -> Dictionary:
 		"best_grade": "",
 		"best_time": 0.0,
 	}
+
+
+func _get_default_stage_progress() -> Dictionary:
+	var result := {}
+	result["city_rooftop"] = _get_default_stage_progress_entry()
+	return result
+
+
+func _get_default_stage_progress_entry() -> Dictionary:
+	return {
+		"highest_cleared_level": 0,
+		"runs": 0,
+		"wins": 0,
+	}
+
+
+func _ensure_stage_progress_defaults() -> void:
+	if not _data.get("stage_progress") is Dictionary:
+		_data["stage_progress"] = {}
+	var progress: Dictionary = _data.get("stage_progress", {})
+	if not progress.has("city_rooftop") or not progress.get("city_rooftop") is Dictionary:
+		progress["city_rooftop"] = _get_default_stage_progress_entry()
+	else:
+		progress["city_rooftop"] = _merge_entry_defaults(
+			progress.get("city_rooftop", {}), _get_default_stage_progress_entry()
+		)
+	_data["stage_progress"] = progress
+
+
+func get_stage_progress(stage_id: String) -> Dictionary:
+	_ensure_stage_progress_defaults()
+	var progress: Dictionary = _data.get("stage_progress", {})
+	var entry = progress.get(stage_id, {})
+	if entry is Dictionary:
+		return entry.duplicate(true)
+	return _get_default_stage_progress_entry()
+
+
+func get_highest_cleared_stage_level(stage_id: String) -> int:
+	return int(get_stage_progress(stage_id).get("highest_cleared_level", 0))
+
+
+func is_stage_unlocked(stage_id: String) -> bool:
+	match stage_id:
+		"city_rooftop":
+			return true
+		"neon_lab":
+			return get_highest_cleared_stage_level("city_rooftop") >= 3
+		"wasteland_gate":
+			return get_highest_cleared_stage_level("neon_lab") >= 3
+		_:
+			return false
+
+
+func get_next_available_stage_level(stage_id: String) -> int:
+	return maxi(get_highest_cleared_stage_level(stage_id) + 1, 1)
 
 
 func _get_default_goals() -> Dictionary:

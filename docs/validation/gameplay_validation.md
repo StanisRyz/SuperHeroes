@@ -2704,3 +2704,30 @@ Equipment / Inventory horizontal layout validation:
 | 7 | Hero kits, evolutions, boss flow, in-run 4/4/4 rules | Entirely unaffected |
 | 8 | No gacha, crafting, new items/materials/sets, auto-equip, stages/zones added | Diff shows none of these |
 
+---
+
+## StageSelect Cards & Level Modal
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Start from Main Menu → Start Run → select a hero | StageSelect opens showing three zone cards horizontally |
+| 2 | Inspect zone cards | City Rooftop, Neon Lab, Wasteland Gate each have image placeholder, name, subtitle, difficulty, status label |
+| 3 | City Rooftop status | Shows UNLOCKED (green), no lock reason |
+| 4 | Neon Lab status | Shows LOCKED (red), lock reason "Clear City Rooftop Level 3 to unlock" |
+| 5 | Wasteland Gate status | Shows LOCKED (red), lock reason "Clear Neon Lab Level 3 to unlock" |
+| 6 | Click Neon Lab or Wasteland Gate Select button | Button is disabled — no modal opens |
+| 7 | Click City Rooftop Select | Level modal opens over the cards; zone name shown at top |
+| 8 | Modal level selector defaults to 1 | Level label shows "1"; Recommended Power 100, Enemy Strength "Standard", Loot Value "Standard" |
+| 9 | Press > in modal to advance to Level 2 | Level shows 2; Recommended Power 125, Enemy Strength "+15% stronger", Loot Value "+10% better" |
+| 10 | Press > to Level 5 (max_preview_level) | Level shows 5; further > press does nothing |
+| 11 | Press < back to Level 1 | Level shows 1; preview resets |
+| 12 | Press Back in modal | Modal closes; zone cards reappear; StageSelect still visible |
+| 13 | Press Escape while modal is open | Modal closes; zone cards remain; StageSelect stays |
+| 14 | Press Escape from zone cards (no modal) | Returns to CharacterSelect |
+| 15 | Select Level 1 in modal → Start Run | RunBriefingScreen opens showing "Level\n1\nRecommended Power: 100\nEnemy Strength: Standard\nLoot Value: Standard" in Level section |
+| 16 | Press Start Run in briefing | Arena starts; `stage_data["selected_level"]` == 1 and `stage_data["level_preview"]` dict is present |
+| 17 | In Arena, restart run | Stage ID and level are preserved (same stage and level re-used) |
+| 18 | Quit to menu from Arena | Returns to Main Menu; selected_stage_level resets to 1 |
+| 19 | Regression: hero kit, evolutions, abilities, boss flow, training, equipment, inventory | All continue to work unchanged |
+| 20 | Inspect scope | No ZoneSelect.gd, ZoneSelect.tscn, or ZoneDataProvider created; no enemy/loot scaling applied |
+

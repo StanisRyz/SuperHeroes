@@ -19,6 +19,7 @@ var _hero_label: Label
 var _abilities_label: Label
 var _training_label: Label
 var _stage_label: Label
+var _level_preview_label: Label
 var _objective_label: Label
 var _boss_label: Label
 var _start_button: Button
@@ -113,6 +114,7 @@ func _build_ui() -> void:
 	_abilities_label = _create_section_label(content, "Abilities")
 	_training_label = _create_section_label(content, "Training")
 	_stage_label = _create_section_label(content, "Stage")
+	_level_preview_label = _create_section_label(content, "Level")
 	_objective_label = _create_section_label(content, "Objective")
 	_boss_label = _create_section_label(content, "Final Boss")
 
@@ -169,6 +171,23 @@ func _refresh_content() -> void:
 		str(_stage.get("display_name", "Stage")),
 		str(_stage.get("difficulty_label", "Normal")),
 	]
+
+	var selected_level := int(_stage.get("selected_level", 1))
+	var level_preview: Dictionary = _stage.get("level_preview", {})
+	if level_preview.is_empty() and selected_level > 0:
+		_level_preview_label.text = "Level\n%d" % selected_level
+	else:
+		var power := int(level_preview.get("recommended_power", 0))
+		var enemy := float(level_preview.get("enemy_strength", 1.0))
+		var loot := float(level_preview.get("loot_value", 1.0))
+		var enemy_pct := int(round((enemy - 1.0) * 100.0))
+		var loot_pct := int(round((loot - 1.0) * 100.0))
+		_level_preview_label.text = "Level\n%d\nRecommended Power: %d\nEnemy Strength: %s\nLoot Value: %s" % [
+			selected_level,
+			power,
+			"Standard" if enemy_pct <= 0 else "+%d%% stronger" % enemy_pct,
+			"Standard" if loot_pct <= 0 else "+%d%% better" % loot_pct,
+		]
 
 	var _obj_type_raw := str(_stage.get("objective_type", "survival"))
 	_objective_label.text = "Objective  [%s]\n%s" % [_format_objective_type(_obj_type_raw), str(_stage.get("stage_goal", _build_default_stage_goal(_stage)))]
