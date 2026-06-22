@@ -498,6 +498,69 @@ func debug_get_training_ability_summary(hero_id: String) -> Dictionary:
 	}
 
 
+func get_training_passive_modifiers_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var result := {}
+	for node in get_training_definitions_for_hero(resolved_hero_id):
+		if str(node.get("category", "")) != "passive":
+			continue
+		var node_id := str(node.get("id", ""))
+		var level := get_training_level(resolved_hero_id, node_id)
+		if level <= 0:
+			continue
+		var effect_type := str(node.get("effect_type", ""))
+		if effect_type.is_empty():
+			continue
+		var total := float(node.get("effect_per_level", 0.0)) * float(level)
+		result[effect_type] = float(result.get(effect_type, 0.0)) + total
+	return result
+
+
+func get_training_passive_summary_for_hero(hero_id: String) -> Array[Dictionary]:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var result: Array[Dictionary] = []
+	for node in get_training_definitions_for_hero(resolved_hero_id):
+		if str(node.get("category", "")) != "passive":
+			continue
+		var node_id := str(node.get("id", ""))
+		var level := get_training_level(resolved_hero_id, node_id)
+		if level <= 0:
+			continue
+		result.append({
+			"node_id": node_id,
+			"name": str(node.get("name", node_id)),
+			"category": "passive",
+			"target": str(node.get("target", "")),
+			"effect_type": str(node.get("effect_type", "")),
+			"level": level,
+			"total": float(node.get("effect_per_level", 0.0)) * float(level),
+		})
+	return result
+
+
+func debug_get_training_passive_summary(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var ignored_invalid: Array[String] = []
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {}) if training_by_hero.get(resolved_hero_id, {}) is Dictionary else {}
+	for node_id in hero_training:
+		var level := int(hero_training.get(node_id, 0))
+		if level <= 0:
+			continue
+		var node := get_training_definition(resolved_hero_id, str(node_id))
+		if node.is_empty():
+			ignored_invalid.append(str(node_id))
+	return {
+		"hero_id": resolved_hero_id,
+		"purchased_passive_nodes": get_training_passive_summary_for_hero(resolved_hero_id),
+		"aggregated_passive_modifiers": get_training_passive_modifiers_for_hero(resolved_hero_id),
+		"ignored_invalid_nodes": ignored_invalid,
+	}
+
+
 func format_training_modifier(effect_type: String, value: float) -> String:
 	match effect_type:
 		"max_health":
@@ -553,6 +616,15 @@ func format_training_node_modifier(node: Dictionary, value: float) -> String:
 	elif effect_type == "knockback_power":
 		if "mighty_clap" in tags:
 			return "+%d%% Power Clap Knockback" % int(round(value * 100.0))
+	elif effect_type == "passive_gain":
+		if "solar_energy" in tags:
+			return "+%d%% Solar Energy Gain" % int(round(value * 10.0))
+	elif effect_type == "mark_damage":
+		if "tactical_mark" in tags:
+			return "+%d Marked Target Damage" % int(round(value))
+	elif effect_type == "rage_gain":
+		if "rage" in tags:
+			return "+%d%% Rage Gain" % int(round(value * 10.0))
 	return format_training_modifier(effect_type, value)
 
 

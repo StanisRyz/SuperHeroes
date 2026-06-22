@@ -88,6 +88,29 @@ Active-ability Training nodes now affect in-run ability properties for the selec
 
 The Training tab shows current/next effect text per row using ability-specific labels (e.g. "Solar Beam Damage", "Ice Breath Slow") instead of generic effect-type names.
 
+### Character Passive / Signature Training
+
+Passive-category Training nodes now affect each hero's unique signature mechanic. Passive training is strictly hero-specific; no other hero is affected.
+
+- Training currency is the only currency spent. Gold and materials are not used.
+- Full Training UI rework, respec/reset, and Ultimate-specific training remain future patches.
+
+**Solar Guardian** — Solar Energy Flow (`guardian_solar_energy_flow`):
+- Each level adds +5% to Solar Energy gain rate.
+- `solar_energy_per_second` is multiplied by `(1 + level * 0.05)` at run start.
+- Example: Lv 2 → +10% Solar Energy Gain.
+
+**Night Tactician** — Mark Exploitation (`blaster_mark_exploitation`):
+- Each level adds +1 to marked-target bonus damage (displayed as Marked Target Damage).
+- `tactical_mark_autoattack_damage_multiplier` receives +0.10 per level of mark_damage.
+- Example: Lv 2 → +2 Marked Target Damage (+0.20 to the mark multiplier).
+- Unmarked target damage is not globally boosted.
+
+**Fury Vanguard** — Rage Control (`vanguard_rage_control`):
+- Each level adds +5% to all Rage gain sources.
+- `rage_per_damage_taken`, `rage_per_damage_dealt`, and `rage_per_hit` are each multiplied by `(1 + level * 0.05)`.
+- Example: Lv 2 → +10% Rage Gain.
+
 ### Gameplay Validation / Debug Pass
 
 A debug toolset has been added to help verify all gameplay systems quickly without waiting for natural game time:

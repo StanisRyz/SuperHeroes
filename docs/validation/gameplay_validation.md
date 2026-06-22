@@ -23,6 +23,27 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Character Passive / Signature Training
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training -> Training tab -> Solar Guardian | Passive row "Solar Energy Flow" shows "+5% Solar Energy Gain" at Lv 1, "+10% Solar Energy Gain" at Lv 2 |
+| 2 | Buy Solar Energy Flow (Lv 2) -> start Solar Guardian run | `solar_energy_per_second` increases by ~10%; Solar Guardian fills energy noticeably faster |
+| 3 | Start Night Tactician run after Solar Energy Flow purchase | Night Tactician does not receive Solar Energy training |
+| 4 | Buy Mark Exploitation (Lv 2) -> start Night Tactician | `tactical_mark_autoattack_damage_multiplier` increases by +0.20 (1.35 → 1.55); marked targets take more autoattack damage |
+| 5 | Unmarked enemy damage after Mark Exploitation | Unmarked enemy autoattack damage unchanged; only marked targets are affected |
+| 6 | Start Solar Guardian or Fury Vanguard after Mark Exploitation | Neither receives the mark bonus |
+| 7 | Buy Rage Control (Lv 2) -> start Fury Vanguard | `rage_per_damage_taken`, `rage_per_damage_dealt`, `rage_per_hit` each increase by ~10%; Rage fills faster |
+| 8 | Start Solar Guardian or Night Tactician after Rage Control | Neither receives Rage gain Training |
+| 9 | Call `debug_get_training_passive_summary("guardian")` | Reports purchased passive nodes, aggregated modifiers `{passive_gain: 1.0}`, no ignored invalid nodes |
+| 10 | Buy any passive Training node | Only Training currency changes; Gold and materials do not change |
+| 11 | Regression: ability Training rows still show correct effect text | Solar Beam Damage, Ice Breath Slow, etc. still displayed correctly |
+| 12 | Regression: base stat Training still works | Max HP, Base Damage, Damage Reduction bonuses still apply |
+| 13 | Regression: Equipment, inventory, set bonuses, item upgrades, dismantle, rewards | All continue to work unchanged |
+| 14 | Inspect scope | No new passive nodes added, no respec/reset, no new currencies, no gacha/crafting/fusion, no hero kit or boss flow changes |
+
+---
+
 ## Character Ability Training
 
 | # | Test | Expected |

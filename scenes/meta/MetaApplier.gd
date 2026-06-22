@@ -18,6 +18,7 @@ static func apply_meta_progression(meta_manager: Node, player: Node, auto_attack
 
 	_apply_training_stat_modifiers(meta_manager, resolved_hero_id, player, auto_attack, ability_manager)
 	_apply_training_ability_modifiers(meta_manager, resolved_hero_id, ability_manager)
+	_apply_training_passive_modifiers(meta_manager, resolved_hero_id, ability_manager)
 
 	if player != null and is_instance_valid(player):
 		var hp_level: int = _get_training_level(meta_manager, resolved_hero_id, "meta_max_health")
@@ -116,6 +117,54 @@ static func _apply_training_ability_modifiers(meta_manager: Node, hero_id: Strin
 					"multiply_by_factor":
 						var current := float(ability_manager.get(pname))
 						ability_manager.set(pname, current * (1.0 + value))
+
+
+static func _apply_training_passive_modifiers(meta_manager: Node, hero_id: String, ability_manager: Node) -> void:
+	if ability_manager == null or not is_instance_valid(ability_manager):
+		return
+	if not meta_manager.has_method("get_training_passive_modifiers_for_hero"):
+		return
+	var mods: Dictionary = meta_manager.get_training_passive_modifiers_for_hero(hero_id)
+	if mods.is_empty():
+		return
+	var prop_map := _get_passive_training_property_map(hero_id)
+	for effect_type in mods:
+		var value := float(mods.get(effect_type, 0.0))
+		if is_zero_approx(value):
+			continue
+		var key := "passive|%s" % effect_type
+		if not prop_map.has(key):
+			continue
+		var prop_entry: Dictionary = prop_map.get(key, {})
+		var mode := str(prop_entry.get("mode", "add_scaled"))
+		var scale := float(prop_entry.get("scale", 1.0))
+		for prop_name in prop_entry.get("properties", []):
+			var pname := str(prop_name)
+			if ability_manager.get(pname) == null:
+				continue
+			match mode:
+				"add_scaled":
+					_add_number(ability_manager, pname, value * scale)
+				"multiply_by_factor_scaled":
+					var current := float(ability_manager.get(pname))
+					ability_manager.set(pname, current * (1.0 + value * scale))
+
+
+static func _get_passive_training_property_map(hero_id: String) -> Dictionary:
+	match hero_id:
+		"guardian":
+			return {
+				"passive|passive_gain": {"mode": "multiply_by_factor_scaled", "scale": 0.10, "properties": ["solar_energy_per_second"]},
+			}
+		"blaster":
+			return {
+				"passive|mark_damage": {"mode": "add_scaled", "scale": 0.10, "properties": ["tactical_mark_autoattack_damage_multiplier"]},
+			}
+		"vanguard":
+			return {
+				"passive|rage_gain": {"mode": "multiply_by_factor_scaled", "scale": 0.10, "properties": ["rage_per_damage_taken", "rage_per_damage_dealt", "rage_per_hit"]},
+			}
+	return {}
 
 
 static func _get_ability_training_property_map(hero_id: String) -> Dictionary:
