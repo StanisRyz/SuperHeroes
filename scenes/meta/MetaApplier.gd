@@ -65,10 +65,9 @@ static func _apply_training_stat_modifiers(meta_manager: Node, hero_id: String, 
 			if player.has_signal("health_changed"):
 				player.health_changed.emit(new_max, new_max)
 
-		var damage_reduction := float(modifiers.get("damage_reduction", 0.0))
-		if damage_reduction > 0.0 and player.get("damage_reduction") != null:
-			var current_reduction := float(player.get("damage_reduction") or 0.0)
-			player.set("damage_reduction", clampf(current_reduction + damage_reduction, 0.0, 0.50))
+		var defense_bonus := int(round(float(modifiers.get("defense", 0.0))))
+		if defense_bonus > 0 and player.get("defense") != null:
+			player.set("defense", int(player.get("defense") or 0) + defense_bonus)
 
 	var base_damage := int(round(float(modifiers.get("base_damage", 0.0))))
 	if base_damage <= 0:

@@ -277,15 +277,13 @@ func set_training_level(hero_id: String, upgrade_id: String, level: int) -> void
 	if not _is_training_node_for_hero(upgrade_id, resolved_hero_id):
 		return
 	ensure_training_data_for_hero(resolved_hero_id)
-	var def := get_training_definition(resolved_hero_id, upgrade_id)
-	var max_level := int(def.get("max_level", 0))
-	var clamped_level := clampi(level, 0, max_level)
+	var safe_level := maxi(level, 0)
 	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
 	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {})
-	hero_training[upgrade_id] = clamped_level
+	hero_training[upgrade_id] = safe_level
 	training_by_hero[resolved_hero_id] = hero_training
 	_data["training_by_hero"] = training_by_hero
-	meta_upgrade_changed.emit(upgrade_id, clamped_level)
+	meta_upgrade_changed.emit(upgrade_id, safe_level)
 
 
 func get_training_levels_for_hero(hero_id: String) -> Dictionary:
@@ -321,6 +319,33 @@ func get_training_definitions_for_category(hero_id: String, category: String) ->
 		if str(node.get("category", "")) == category:
 			result.append(node)
 	return result
+
+
+func get_training_definitions_for_ui_tab(hero_id: String, tab_id: String) -> Array[Dictionary]:
+	var categories: Array[String] = []
+	match tab_id:
+		"stats":
+			categories = ["stats", "autoattack"]
+		"abilities":
+			categories = ["ability_1", "ability_2", "ability_3", "passive"]
+		_:
+			return []
+	var result: Array[Dictionary] = []
+	for node in get_training_definitions_for_hero(hero_id):
+		if str(node.get("category", "")) in categories:
+			result.append(node)
+	return result
+
+
+func get_character_training_stat_preview(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var modifiers := get_training_stat_modifiers_for_hero(resolved_hero_id)
+	return {
+		"hero_id": resolved_hero_id,
+		"max_health": int(round(float(modifiers.get("max_health", 0.0)))),
+		"attack_damage": int(round(float(modifiers.get("base_damage", 0.0)))),
+		"defense": int(round(float(modifiers.get("defense", 0.0)))),
+	}
 
 
 func get_training_progress_summary_for_hero(hero_id: String) -> Dictionary:
@@ -376,8 +401,6 @@ func get_training_effect_modifiers_for_hero(hero_id: String) -> Dictionary:
 			continue
 		var total := float(node.get("effect_per_level", 0.0)) * float(level)
 		result[effect_type] = float(result.get(effect_type, 0.0)) + total
-	if result.has("damage_reduction"):
-		result["damage_reduction"] = clampf(float(result.get("damage_reduction", 0.0)), 0.0, TRAINING_DAMAGE_REDUCTION_CAP)
 	return result
 
 
@@ -387,7 +410,7 @@ func get_training_stat_modifiers_for_hero(hero_id: String) -> Dictionary:
 	var result := {
 		"max_health": 0.0,
 		"base_damage": 0.0,
-		"damage_reduction": 0.0,
+		"defense": 0.0,
 	}
 	for node in get_training_definitions_for_hero(resolved_hero_id):
 		if str(node.get("target", "")) != "hero_stats":
@@ -399,7 +422,6 @@ func get_training_stat_modifiers_for_hero(hero_id: String) -> Dictionary:
 		if level <= 0:
 			continue
 		result[effect_type] = float(result.get(effect_type, 0.0)) + float(node.get("effect_per_level", 0.0)) * float(level)
-	result["damage_reduction"] = clampf(float(result.get("damage_reduction", 0.0)), 0.0, TRAINING_DAMAGE_REDUCTION_CAP)
 	return result
 
 
@@ -429,12 +451,6 @@ func get_training_effect_summary_for_hero(hero_id: String) -> Array[Dictionary]:
 		node_ids.append(node_id)
 		entry["node_ids"] = node_ids
 		grouped[key] = entry
-
-	for key in grouped:
-		var entry: Dictionary = grouped.get(key, {})
-		if str(entry.get("effect_type", "")) == "damage_reduction":
-			entry["total"] = clampf(float(entry.get("total", 0.0)), 0.0, TRAINING_DAMAGE_REDUCTION_CAP)
-			grouped[key] = entry
 
 	var result: Array[Dictionary] = []
 	for key in grouped:
@@ -599,22 +615,24 @@ func format_training_modifier(effect_type: String, value: float) -> String:
 			return "+%d Max HP" % int(round(value))
 		"base_damage":
 			return "+%d Base Damage" % int(round(value))
-		"damage_reduction":
-			return "-%d%% Damage Taken" % int(round(value * 100.0))
+		"defense":
+			return "+%d Defense" % int(round(value))
 		"autoattack_damage":
 			return "+%d Autoattack Damage" % int(round(value))
 		"ability_damage":
 			return "+%d Ability Damage" % int(round(value))
 		"passive_gain":
-			return "+%s Passive Gain" % _format_training_number(value)
+			return "+%s Passive Flow" % _format_training_number(value)
 		"rage_gain":
-			return "+%s Rage Gain" % _format_training_number(value)
+			return "+%s Rage Flow" % _format_training_number(value)
 		"mark_damage":
 			return "+%d Mark Damage" % int(round(value))
 		"slow_strength":
-			return "+%d%% Slow Strength" % int(round(value * 100.0))
+			return "+%s Control" % _format_training_number(value)
 		"knockback_power":
-			return "+%d%% Knockback Power" % int(round(value * 100.0))
+			return "+%s Knockback Force" % _format_training_number(value)
+		"ability_defense":
+			return "+%s Ability Shield" % _format_training_number(value)
 		_:
 			return "+%s %s" % [_format_training_number(value), effect_type.replace("_", " ").capitalize()]
 
@@ -639,24 +657,24 @@ func format_training_node_modifier(node: Dictionary, value: float) -> String:
 			return "+%d Clap Damage" % int(round(value))
 	elif effect_type == "slow_strength":
 		if "frost_breath" in tags:
-			return "+%d%% Ice Breath Slow" % int(round(value * 100.0))
+			return "+%s Ice Breath Control" % _format_training_number(value)
 		elif "rage_wave" in tags:
-			return "+%d%% Rage Wave Slow" % int(round(value * 100.0))
-	elif effect_type == "damage_reduction":
+			return "+%s Rage Wave Control" % _format_training_number(value)
+	elif effect_type == "ability_defense":
 		if "smoke_screen" in tags:
-			return "+%d%% Smoke Screen Defense" % int(round(value * 100.0))
+			return "+%s Smoke Shield" % _format_training_number(value)
 	elif effect_type == "knockback_power":
 		if "mighty_clap" in tags:
-			return "+%d%% Power Clap Knockback" % int(round(value * 100.0))
+			return "+%s Power Clap Force" % _format_training_number(value)
 	elif effect_type == "passive_gain":
 		if "solar_energy" in tags:
-			return "+%d%% Solar Energy Gain" % int(round(value * 10.0))
+			return "+%s Solar Energy Flow" % _format_training_number(value)
 	elif effect_type == "mark_damage":
 		if "tactical_mark" in tags:
 			return "+%d Marked Target Damage" % int(round(value))
 	elif effect_type == "rage_gain":
 		if "rage" in tags:
-			return "+%d%% Rage Gain" % int(round(value * 10.0))
+			return "+%s Rage Flow" % _format_training_number(value)
 	return format_training_modifier(effect_type, value)
 
 
@@ -1112,8 +1130,6 @@ func can_purchase_training_upgrade(hero_id: String, upgrade_id: String) -> bool:
 		return false
 	if not is_hero_unlocked(resolved_hero_id):
 		return false
-	if get_training_level(resolved_hero_id, upgrade_id) >= int(def.get("max_level", 1)):
-		return false
 	return get_currency() >= get_training_upgrade_cost(resolved_hero_id, upgrade_id)
 
 
@@ -1142,7 +1158,7 @@ func ensure_training_data_for_hero(hero_id: String) -> void:
 			continue
 		if not hero_training.has(node_id):
 			continue
-		hero_training[node_id] = clampi(int(hero_training.get(node_id, 0)), 0, int(node.get("max_level", 0)))
+		hero_training[node_id] = maxi(int(hero_training.get(node_id, 0)), 0)
 	training_by_hero[resolved_hero_id] = hero_training
 	_data["training_by_hero"] = training_by_hero
 
@@ -2555,7 +2571,8 @@ func _calculate_upgrade_cost(def: Dictionary, level: int) -> int:
 	var growth := float(def.get("cost_growth", 1.35))
 	if level <= 0:
 		return base_cost
-	return int(round(float(base_cost) * pow(growth, float(level))))
+	var cost := float(base_cost) * pow(growth, float(level))
+	return mini(int(round(cost)), 999_999_999)
 
 
 func _resolve_hero_id(hero_id: String) -> String:

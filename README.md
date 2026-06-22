@@ -53,14 +53,13 @@ Training definitions are now character-specific data. `scenes/training/Character
 
 Character Training now applies real base-stat modifiers to the hero selected for the run.
 
-- Supported base stat effects: `max_health`, `base_damage`, and `damage_reduction`.
-- Each hero has three `stats` nodes: one for Max HP, one for Base Damage, and one for Damage Taken reduction.
+- Supported base stat effects: `max_health`, `base_damage`, and `defense`.
+- Each hero has three `stats` nodes: one for Max HP, one for Base Damage, and one for Defense.
 - Max HP Training increases the selected hero's runtime max/current HP after hero base stats are applied.
 - Base Damage Training adds to the selected hero's autoattack and active ability damage values at run start.
-- Damage Reduction Training reduces incoming player damage and is capped at 50% total reduction for safety.
+- Defense Training adds flat Defense to the player; each Defense point reduces incoming enemy damage by 1 (minimum 1 damage dealt).
 - Equipment and set bonuses remain shared globally and continue to stack separately from per-character Training.
 - Training purchases still use only the existing Training/progression currency; Gold and equipment materials are not used.
-- Passive Training, respec/reset, and a full Training UI rework remain future patches.
 
 ### Character Ability Training
 
@@ -110,6 +109,29 @@ Passive-category Training nodes now affect each hero's unique signature mechanic
 - Each level adds +5% to all Rage gain sources.
 - `rage_per_damage_taken`, `rage_per_damage_dealt`, and `rage_per_hit` are each multiplied by `(1 + level * 0.05)`.
 - Example: Lv 2 → +10% Rage Gain.
+
+### Training Layout & Infinite Flat Stats Rework
+
+The Training screen and progression model have been fully redesigned.
+
+**Layout:** The Training tab is split horizontally into a left character panel and a right training panel.
+- Left panel: hero color swatch (character image placeholder), selected hero name, Training Bonus summary (HP / Attack / Defense), and Training Level summary.
+- Right panel: two tab buttons (Stats and Abilities), a tab header, and scrollable node cards with category subheaders.
+
+**Two-tab grouping:**
+- Stats tab: shows `stats` and `autoattack` category nodes (Base Stats and Autoattack subheaders).
+- Abilities tab: shows `ability_1`, `ability_2`, `ability_3`, and `passive` category nodes (per-ability subheaders).
+
+**Infinite levels:** Training upgrades have no maximum level. Nodes can be upgraded indefinitely. The UI shows `Lv X` only; there is no MAX state. Cost scales per the formula `round(cost_base * pow(cost_growth, current_level))` and is capped at 999,999,999 for display safety.
+
+**Flat stats only:** All Training effects are now flat values. No Training effect displays a percentage.
+- `defense` (was `damage_reduction`): each level gives +1 Defense (flat integer).
+- Ability damage, autoattack damage, HP, and base damage are all displayed as flat integers.
+- Control, knockback force, passive flow, and rage flow effects are displayed as flat values without percent signs.
+
+**Player Defense mechanic:** `Player.defense: int` reduces incoming enemy damage by its value before any other reduction. Formula: `final_damage = max(incoming_damage - defense, 1)`. Defense does not affect outgoing player damage, healing, or other systems. Defense 1 reduces damage by 1; Defense 5 reduces damage by 5.
+
+**Save compatibility:** No save reset. Existing `training_by_hero` data is preserved. The defense node IDs are unchanged (`guardian_sunforged_guard`, `blaster_smoke_discipline`, `vanguard_pain_tolerance`); only their `effect_type` changed from `damage_reduction` to `defense` and their `effect_per_level` increased from 0.01 to 1.0, so old levels convert naturally.
 
 ### Gameplay Validation / Debug Pass
 

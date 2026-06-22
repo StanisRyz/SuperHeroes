@@ -29,6 +29,7 @@ signal invulnerability_changed(is_invulnerable: bool)
 var _feedback_manager: Node = null
 
 var current_health: int
+var defense: int = 0
 var damage_reduction: float = 0.0
 var current_xp: int = 0
 var level: int = 1
@@ -97,6 +98,9 @@ func setup_feedback_manager(fm: Node) -> void:
 func take_damage(amount: int) -> void:
 	if amount <= 0 or is_dead() or is_invulnerable() or debug_invulnerable:
 		return
+
+	if defense > 0:
+		amount = maxi(amount - defense, 1)
 
 	if damage_reduction > 0.0:
 		var safe_reduction := clampf(damage_reduction, 0.0, 0.50)

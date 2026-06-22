@@ -14,7 +14,7 @@ Run these before adding new gameplay systems.
 | 3 | Start or switch to Night Tactician without Blaster HP Training | Night Tactician does not receive Guardian HP Training |
 | 4 | Buy `Tactical Precision`, then start Night Tactician | Night Tactician autoattack and active damage values increase by +1 per level |
 | 5 | Start Fury Vanguard after Blaster damage Training | Fury Vanguard does not receive Blaster Base Damage Training |
-| 6 | Buy `Pain Tolerance`, then start Fury Vanguard and take damage | Incoming player damage is reduced by 1% per level; total Training damage reduction is capped at 50% |
+| 6 | Buy `Pain Tolerance`, then start Fury Vanguard and take damage | Incoming player damage reduced by flat +1 Defense per level; no percent, no cap |
 | 7 | Call `MetaProgressionManager.debug_get_training_modifier_summary(hero_id)` | Reports purchased nodes, selected-hero aggregated modifiers, all effect modifiers, and ignored invalid saved ids |
 | 8 | Buy any Training stats node | Only existing Training/progression currency changes; Gold and equipment materials do not change |
 | 9 | Switch hero dropdown after purchases | Visible levels/effects update for the selected hero only |
@@ -38,7 +38,7 @@ Run these before adding new gameplay systems.
 | 9 | Call `debug_get_training_passive_summary("guardian")` | Reports purchased passive nodes, aggregated modifiers `{passive_gain: 1.0}`, no ignored invalid nodes |
 | 10 | Buy any passive Training node | Only Training currency changes; Gold and materials do not change |
 | 11 | Regression: ability Training rows still show correct effect text | Solar Beam Damage, Ice Breath Slow, etc. still displayed correctly |
-| 12 | Regression: base stat Training still works | Max HP, Base Damage, Damage Reduction bonuses still apply |
+| 12 | Regression: base stat Training still works | Max HP, Base Damage, Defense bonuses still apply |
 | 13 | Regression: Equipment, inventory, set bonuses, item upgrades, dismantle, rewards | All continue to work unchanged |
 | 14 | Inspect scope | No new passive nodes added, no respec/reset, no new currencies, no gacha/crafting/fusion, no hero kit or boss flow changes |
 
@@ -58,11 +58,38 @@ Run these before adding new gameplay systems.
 | 8 | Buy `Power Clap Impact` (level 1) -> start Fury Vanguard | `mighty_clap_knockback_force` increases by 1% (multiplied by 1.02); stays positive |
 | 9 | Buy `Rage Jump Landing` (level 1) -> start Fury Vanguard | `rage_leap_damage` increases by +1 |
 | 10 | Call `debug_get_training_ability_summary("guardian")` | Reports purchased ability nodes, aggregated modifiers by target, and no ignored invalid nodes |
-| 11 | Check base stat Training still works after buying ability Training | max_health, base_damage, damage_reduction bonuses still apply; no double-counting |
-| 12 | Training rows in UI for ability nodes | Show "Current: +2 Solar Beam Damage. Next: +3 Solar Beam Damage. Applies to selected hero only." |
+| 11 | Check base stat Training still works after buying ability Training | max_health, base_damage, defense bonuses still apply; no double-counting |
+| 12 | Training cards for ability nodes | Show flat effect text e.g. "Current: +2 Solar Beam Damage.  Next: +3 Solar Beam Damage." — no percent signs |
 | 13 | Purchase ability Training node | Only Training currency changes; Gold, materials, equipment do not change |
 | 14 | Regression: equipment tab, inventory, set bonuses, item upgrades, dismantle, post-run rewards | All continue to work unchanged |
 | 15 | Inspect scope | No passive Training, respec/reset, new currencies, gacha/crafting/fusion, hero kit changes, or full Training UI rework |
+
+---
+
+## Training Layout & Infinite Flat Stats Rework
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training screen | Screen has two panels: left panel (220px, hero swatch + stats) and right panel (2 tab buttons + cards) |
+| 2 | Left panel — hero swatch color | ColorRect displays the hero's HeroDataProvider color (e.g. gold-orange for Guardian, teal for Blaster, red for Vanguard) |
+| 3 | Left panel — stat preview | Label reads "Training Bonus: HP +N / Attack +N / Defense +N" showing only Training contributions; base hero stats not included |
+| 4 | Left panel — summary | Label reads "Training Level: N / Stats: N   Abilities: N" counting summed levels across tab groups |
+| 5 | Click "Stats" tab | Cards shown for categories `stats` and `autoattack` with subheaders "Base Stats" and "Autoattack"; Abilities cards hidden |
+| 6 | Click "Abilities" tab | Cards shown for categories `ability_1`, `ability_2`, `ability_3`, `passive` with subheaders "Ability 1", "Ability 2", "Ability 3", "Passive"; Stats cards hidden |
+| 7 | Card level display | Each card shows "Lv X" — no max level, no "MAX" label, no fraction display |
+| 8 | Card upgrade button | Upgrade button always labeled "Upgrade"; disabled only when currency is insufficient; never disabled due to level cap |
+| 9 | Buy a Training node | Left panel stat preview and summary update immediately; no page reload needed |
+| 10 | Buy Defense node (e.g. Sunforged Guard for Guardian) | Left panel Defense value increases by +1 per level; no percent sign anywhere |
+| 11 | Buy Defense node then start run and take damage | Incoming damage reduced by flat Defense value (e.g. +3 Defense → bullet dealing 10 deals 7); minimum 1 damage always |
+| 12 | Defense and damage_reduction stack correctly | Defense subtracted first, then damage_reduction (Smoke Screen etc.) applied to reduced amount; both minimums enforced |
+| 13 | Infinite level scaling — buy the same node 20+ times | Level increases each time; cost grows per `round(cost_base * pow(cost_growth, current_level))`; never capped at old max_level |
+| 14 | Cost cap | Cost never exceeds 999,999,999 regardless of level |
+| 15 | Flat-only display | No percent signs in any Training card, popup, or stat preview; effect text uses "+N" format throughout |
+| 16 | Popup details | Training node detail popup shows "Level: N" with no max denominator; Upgrade button always labeled "Upgrade (cost)" |
+| 17 | Stat preview defense type | "defense" nodes (stats category, target hero_stats) contribute to left panel Defense preview; `ability_defense` nodes (smoke_density) do not |
+| 18 | Save compatibility — old saves | Existing Training levels load correctly after rework; `damage_reduction` nodes now apply as `defense` flat int; no data reset |
+| 19 | Regression: Equipment tab | Unchanged — Equipment, Inventory, item upgrades, set bonuses, item rewards all work correctly |
+| 20 | Inspect scope | No gacha/crafting/fusion, no respec/reset, no new currencies, no new heroes, no new actives, no evolution changes |
 
 ---
 

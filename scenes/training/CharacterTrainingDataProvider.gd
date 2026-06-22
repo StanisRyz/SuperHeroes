@@ -115,7 +115,7 @@ func _build_nodes() -> void:
 	_training_nodes = [
 		_make_node("guardian_radiant_vitality", "guardian", "Radiant Vitality", "stats", "hero_stats", "max_health", 5.0, 60, 1.25, ["stats", "health", "guardian"], "Increases Solar Guardian max health.", 10),
 		_make_node("guardian_solar_might", "guardian", "Solar Might", "stats", "hero_stats", "base_damage", 1.0, 70, 1.25, ["stats", "damage", "guardian"], "Increases Solar Guardian base damage.", 11),
-		_make_node("guardian_sunforged_guard", "guardian", "Sunforged Guard", "stats", "hero_stats", "damage_reduction", 0.01, 80, 1.25, ["stats", "defense", "guardian"], "Reduces damage taken by Solar Guardian.", 12),
+		_make_node("guardian_sunforged_guard", "guardian", "Sunforged Guard", "stats", "hero_stats", "defense", 1.0, 80, 1.25, ["stats", "defense", "guardian"], "Increases Solar Guardian Defense.", 12),
 		_make_node("guardian_beam_focus", "guardian", "Beam Focus", "autoattack", "autoattack", "autoattack_damage", 1.0, 55, 1.25, ["autoattack", "solar_ray"], "Improves Solar Ray autoattack damage.", 20),
 		_make_node("guardian_solar_ray_intensity", "guardian", "Solar Ray Intensity", "ability_1", "ability_1", "ability_damage", 1.0, 60, 1.28, ["ability", "solar_beam"], "Improves Solar Beam damage.", 30),
 		_make_node("guardian_ice_breath_control", "guardian", "Ice Breath Control", "ability_2", "ability_2", "slow_strength", 0.02, 60, 1.28, ["ability", "frost_breath", "control"], "Improves Frost Breath slow strength.", 40),
@@ -124,16 +124,16 @@ func _build_nodes() -> void:
 
 		_make_node("blaster_field_conditioning", "blaster", "Field Conditioning", "stats", "hero_stats", "max_health", 5.0, 60, 1.25, ["stats", "health", "blaster"], "Increases Night Tactician max health.", 10),
 		_make_node("blaster_tactical_precision", "blaster", "Tactical Precision", "stats", "hero_stats", "base_damage", 1.0, 70, 1.25, ["stats", "damage", "blaster"], "Increases Night Tactician base damage.", 11),
-		_make_node("blaster_smoke_discipline", "blaster", "Smoke Discipline", "stats", "hero_stats", "damage_reduction", 0.01, 80, 1.25, ["stats", "defense", "blaster"], "Reduces damage taken by Night Tactician.", 12),
+		_make_node("blaster_smoke_discipline", "blaster", "Smoke Discipline", "stats", "hero_stats", "defense", 1.0, 80, 1.25, ["stats", "defense", "blaster"], "Increases Night Tactician Defense.", 12),
 		_make_node("blaster_rocket_calibration", "blaster", "Rocket Calibration", "autoattack", "autoattack", "autoattack_damage", 1.0, 55, 1.25, ["autoattack", "rocket"], "Improves homing rocket damage.", 20),
-		_make_node("blaster_smoke_density", "blaster", "Smoke Density", "ability_1", "ability_1", "damage_reduction", 0.01, 60, 1.28, ["ability", "smoke_screen", "defense"], "Improves Smoke Screen protection.", 30),
+		_make_node("blaster_smoke_density", "blaster", "Smoke Density", "ability_1", "ability_1", "ability_defense", 0.01, 60, 1.28, ["ability", "smoke_screen", "defense"], "Improves Smoke Screen protection.", 30),
 		_make_node("blaster_trap_engineering", "blaster", "Trap Engineering", "ability_2", "ability_2", "ability_damage", 1.0, 60, 1.28, ["ability", "trap"], "Improves Explosive Trap damage.", 40),
 		_make_node("blaster_hook_impact", "blaster", "Hook Impact", "ability_3", "ability_3", "ability_damage", 1.0, 65, 1.30, ["ability", "grappling_hook"], "Improves Grappling Hook damage.", 50),
 		_make_node("blaster_mark_exploitation", "blaster", "Mark Exploitation", "passive", "passive", "mark_damage", 1.0, 70, 1.30, ["passive", "tactical_mark"], "Improves Tactical Mark follow-up damage.", 60),
 
 		_make_node("vanguard_battle_conditioning", "vanguard", "Battle Conditioning", "stats", "hero_stats", "max_health", 5.0, 60, 1.25, ["stats", "health", "vanguard"], "Increases Fury Vanguard max health.", 10),
 		_make_node("vanguard_brutal_strength", "vanguard", "Brutal Strength", "stats", "hero_stats", "base_damage", 1.0, 70, 1.25, ["stats", "damage", "vanguard"], "Increases Fury Vanguard base damage.", 11),
-		_make_node("vanguard_pain_tolerance", "vanguard", "Pain Tolerance", "stats", "hero_stats", "damage_reduction", 0.01, 80, 1.25, ["stats", "defense", "vanguard"], "Reduces damage taken by Fury Vanguard.", 12),
+		_make_node("vanguard_pain_tolerance", "vanguard", "Pain Tolerance", "stats", "hero_stats", "defense", 1.0, 80, 1.25, ["stats", "defense", "vanguard"], "Increases Fury Vanguard Defense.", 12),
 		_make_node("vanguard_heavy_swing", "vanguard", "Heavy Swing", "autoattack", "autoattack", "autoattack_damage", 1.0, 55, 1.25, ["autoattack", "splash_melee"], "Improves Fury Strikes damage.", 20),
 		_make_node("vanguard_rage_wave_force", "vanguard", "Rage Wave Force", "ability_1", "ability_1", "ability_damage", 1.0, 60, 1.28, ["ability", "rage_wave"], "Improves Rage Wave damage.", 30),
 		_make_node("vanguard_power_clap_impact", "vanguard", "Power Clap Impact", "ability_2", "ability_2", "knockback_power", 0.02, 60, 1.28, ["ability", "mighty_clap", "control"], "Improves Mighty Clap impact.", 40),

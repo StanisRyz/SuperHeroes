@@ -55,11 +55,13 @@ var _inventory_dismantle_button: Button
 var _inventory_capacity_label: Label
 var _selected_inventory_instance_id: String = ""
 var _training_hero_label: Label
-var _selected_training_category: String = "stats"
+var _selected_training_tab: String = "stats"
 var _training_summary_label: Label = null
-var _training_category_buttons: Dictionary = {}
+var _training_tab_buttons: Dictionary = {}
 var _training_category_header: Label = null
 var _training_cards_vbox: VBoxContainer = null
+var _training_char_swatch: ColorRect = null
+var _training_stat_preview_label: Label = null
 var _training_node_popup: PopupPanel = null
 var _training_popup_title_label: Label = null
 var _training_popup_detail_label: Label = null
@@ -166,7 +168,7 @@ func set_selected_hero(hero_id: String) -> void:
 	_reload_heroes()
 	var resolved := _resolve_hero_id(hero_id)
 	if resolved != _selected_hero_id:
-		_selected_training_category = "stats"
+		_selected_training_tab = "stats"
 	_selected_hero_id = resolved
 	if _meta_manager != null and _meta_manager.has_method("ensure_training_data_for_hero"):
 		_meta_manager.ensure_training_data_for_hero(_selected_hero_id)
@@ -286,66 +288,88 @@ func _build_ui() -> void:
 	_update_tab_state()
 
 func _build_training_panel() -> Control:
-	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 8)
+	var root := HBoxContainer.new()
+	root.add_theme_constant_override("separation", 12)
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	# ── Hero Summary ──────────────────────────────────────────────────────────
-	var summary_panel := PanelContainer.new()
-	var summary_vbox := VBoxContainer.new()
-	summary_vbox.add_theme_constant_override("separation", 2)
-	summary_panel.add_child(summary_vbox)
+	# ── Left Panel — character + stat summary ─────────────────────────────────
+	var left_panel := PanelContainer.new()
+	left_panel.custom_minimum_size = Vector2(220, 0)
+	left_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	left_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(left_panel)
+
+	var left_vbox := VBoxContainer.new()
+	left_vbox.add_theme_constant_override("separation", 8)
+	left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_panel.add_child(left_vbox)
+
+	_training_char_swatch = ColorRect.new()
+	_training_char_swatch.color = Color(0.22, 0.26, 0.32, 1.0)
+	_training_char_swatch.custom_minimum_size = Vector2(204, 204)
+	_training_char_swatch.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	left_vbox.add_child(_training_char_swatch)
 
 	_training_hero_label = Label.new()
 	_training_hero_label.text = "—"
-	_training_hero_label.add_theme_font_size_override("font_size", 18)
+	_training_hero_label.add_theme_font_size_override("font_size", 16)
 	_training_hero_label.modulate = Color(0.92, 0.88, 1.0, 1.0)
-	summary_vbox.add_child(_training_hero_label)
+	_training_hero_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	left_vbox.add_child(_training_hero_label)
+
+	left_vbox.add_child(HSeparator.new())
+
+	_training_stat_preview_label = Label.new()
+	_training_stat_preview_label.text = "Training Bonus:\nHP  +0\nAttack  +0\nDefense  +0"
+	_training_stat_preview_label.add_theme_font_size_override("font_size", 12)
+	_training_stat_preview_label.modulate = Color(0.78, 0.88, 0.82, 1.0)
+	_training_stat_preview_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	left_vbox.add_child(_training_stat_preview_label)
+
+	left_vbox.add_child(HSeparator.new())
 
 	_training_summary_label = Label.new()
-	_training_summary_label.text = "Training: 0 / 0"
-	_training_summary_label.add_theme_font_size_override("font_size", 12)
-	_training_summary_label.modulate = Color(0.72, 0.8, 0.9, 1.0)
-	summary_vbox.add_child(_training_summary_label)
+	_training_summary_label.text = "Training Level: 0"
+	_training_summary_label.add_theme_font_size_override("font_size", 11)
+	_training_summary_label.modulate = Color(0.65, 0.72, 0.82, 1.0)
+	_training_summary_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	left_vbox.add_child(_training_summary_label)
 
-	root.add_child(summary_panel)
-	root.add_child(HSeparator.new())
+	# ── Right Panel — tabs + cards ────────────────────────────────────────────
+	var right_vbox := VBoxContainer.new()
+	right_vbox.add_theme_constant_override("separation", 6)
+	right_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(right_vbox)
 
-	# ── Category Selector ─────────────────────────────────────────────────────
-	var cat_hbox := HBoxContainer.new()
-	cat_hbox.add_theme_constant_override("separation", 6)
-	root.add_child(cat_hbox)
+	var tab_hbox := HBoxContainer.new()
+	tab_hbox.add_theme_constant_override("separation", 6)
+	right_vbox.add_child(tab_hbox)
 
-	var cat_order: Array[String] = ["stats", "autoattack", "ability_1", "ability_2", "ability_3", "passive"]
-	var cat_labels_map: Dictionary = {
-		"stats": "Stats", "autoattack": "Auto",
-		"ability_1": "Ability 1", "ability_2": "Ability 2",
-		"ability_3": "Ability 3", "passive": "Passive",
-	}
-	for cat in cat_order:
+	for tab_id in ["stats", "abilities"]:
 		var btn := Button.new()
-		btn.text = str(cat_labels_map.get(cat, cat.capitalize()))
-		btn.custom_minimum_size = Vector2(86, 36)
-		btn.add_theme_font_size_override("font_size", 11)
-		btn.pressed.connect(_on_training_category_selected.bind(cat))
-		cat_hbox.add_child(btn)
-		_training_category_buttons[cat] = btn
+		btn.text = tab_id.capitalize()
+		btn.custom_minimum_size = Vector2(110, 36)
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.pressed.connect(_on_training_category_selected.bind(tab_id))
+		tab_hbox.add_child(btn)
+		_training_tab_buttons[tab_id] = btn
 
-	# ── Category Header ───────────────────────────────────────────────────────
 	_training_category_header = Label.new()
 	_training_category_header.text = "Stats"
 	_training_category_header.add_theme_font_size_override("font_size", 14)
 	_training_category_header.modulate = Color(0.9, 0.9, 0.7, 1.0)
-	root.add_child(_training_category_header)
+	right_vbox.add_child(_training_category_header)
 
-	root.add_child(HSeparator.new())
+	right_vbox.add_child(HSeparator.new())
 
-	# ── Node Cards ────────────────────────────────────────────────────────────
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(scroll)
+	right_vbox.add_child(scroll)
 
 	_training_cards_vbox = VBoxContainer.new()
-	_training_cards_vbox.add_theme_constant_override("separation", 8)
+	_training_cards_vbox.add_theme_constant_override("separation", 6)
 	_training_cards_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_training_cards_vbox)
 
@@ -1401,38 +1425,59 @@ func _refresh_training_panel() -> void:
 func _refresh_training_hero_summary() -> void:
 	if _training_hero_label != null:
 		_training_hero_label.text = _get_selected_hero_display_name()
+
+	# Left panel hero swatch color
+	if _training_char_swatch != null and _hero_data_provider != null:
+		var hero_color := Color(0.22, 0.26, 0.32, 1.0)
+		if _hero_data_provider.has_method("get_hero"):
+			var h: Dictionary = _hero_data_provider.get_hero(_selected_hero_id)
+			if h.has("color"):
+				hero_color = h.get("color") as Color
+		elif _hero_data_provider.has_method("get_all_heroes"):
+			for h in _hero_data_provider.get_all_heroes():
+				if str(h.get("id", "")) == _selected_hero_id:
+					if h.has("color"):
+						hero_color = h.get("color") as Color
+					break
+		_training_char_swatch.color = hero_color
+
+	# Stat preview
+	if _training_stat_preview_label != null:
+		var preview: Dictionary = {}
+		if _meta_manager != null and _meta_manager.has_method("get_character_training_stat_preview"):
+			preview = _meta_manager.get_character_training_stat_preview(_selected_hero_id)
+		var hp := int(preview.get("max_health", 0))
+		var atk := int(preview.get("attack_damage", 0))
+		var def_val := int(preview.get("defense", 0))
+		_training_stat_preview_label.text = "Training Bonus:\nHP  +%d\nAttack  +%d\nDefense  +%d" % [hp, atk, def_val]
+
+	# Training level summary
 	if _training_summary_label != null:
 		var summary: Dictionary = {}
-		if _meta_manager.has_method("get_training_progress_summary_for_hero"):
+		if _meta_manager != null and _meta_manager.has_method("get_training_progress_summary_for_hero"):
 			summary = _meta_manager.get_training_progress_summary_for_hero(_selected_hero_id)
-		_training_summary_label.text = "Training: %d / %d" % [
-			int(summary.get("total_level", 0)),
-			int(summary.get("max_total_level", 0)),
-		]
+		var total := int(summary.get("total_level", 0))
+		var stats_lv := _sum_tab_levels(summary, "stats")
+		var abilities_lv := _sum_tab_levels(summary, "abilities")
+		_training_summary_label.text = "Training Level: %d\nStats: %d   Abilities: %d" % [total, stats_lv, abilities_lv]
+
+
+func _sum_tab_levels(summary: Dictionary, tab_id: String) -> int:
+	var cats: Dictionary = summary.get("categories", {})
+	var groups: Dictionary = {"stats": ["stats", "autoattack"], "abilities": ["ability_1", "ability_2", "ability_3", "passive"]}
+	var total := 0
+	for cat in groups.get(tab_id, []):
+		total += int((cats.get(cat, {}) as Dictionary).get("level", 0))
+	return total
 
 
 func _refresh_training_category_selector() -> void:
-	if _training_category_buttons.is_empty():
-		return
-	var summary: Dictionary = {}
-	if _meta_manager != null and _meta_manager.has_method("get_training_progress_summary_for_hero"):
-		summary = _meta_manager.get_training_progress_summary_for_hero(_selected_hero_id)
-	var cat_progress: Dictionary = summary.get("categories", {})
-	var cat_labels_map: Dictionary = {
-		"stats": "Stats", "autoattack": "Auto",
-		"ability_1": "Ability 1", "ability_2": "Ability 2",
-		"ability_3": "Ability 3", "passive": "Passive",
-	}
-	for cat in _training_category_buttons:
-		var btn := _training_category_buttons[cat] as Button
+	for tab_id in _training_tab_buttons:
+		var btn := _training_tab_buttons[tab_id] as Button
 		if btn == null:
 			continue
-		var cat_data: Dictionary = cat_progress.get(cat, {})
-		var lv := int(cat_data.get("level", 0))
-		var mx := int(cat_data.get("max", 0))
-		var label := str(cat_labels_map.get(cat, cat.capitalize()))
-		btn.text = "%s\n%d/%d" % [label, lv, mx] if mx > 0 else label
-		var selected: bool = cat == _selected_training_category
+		var selected: bool = tab_id == _selected_training_tab
+		btn.text = tab_id.capitalize()
 		btn.disabled = selected
 		btn.modulate = UIStateColors.positive_color() if selected else Color.WHITE
 
@@ -1446,39 +1491,48 @@ func _refresh_training_cards() -> void:
 		return
 
 	if _training_category_header != null:
-		var summary: Dictionary = {}
-		if _meta_manager.has_method("get_training_progress_summary_for_hero"):
-			summary = _meta_manager.get_training_progress_summary_for_hero(_selected_hero_id)
-		var cat_data: Dictionary = summary.get("categories", {}).get(_selected_training_category, {})
-		var lv := int(cat_data.get("level", 0))
-		var mx := int(cat_data.get("max", 0))
-		var cat_label := _selected_training_category.replace("_", " ").capitalize()
-		_training_category_header.text = "%s   %d / %d" % [cat_label, lv, mx] if mx > 0 else cat_label
+		_training_category_header.text = _selected_training_tab.capitalize()
 
 	var defs: Array[Dictionary] = []
-	if _meta_manager.has_method("get_training_definitions_for_category"):
-		defs = _meta_manager.get_training_definitions_for_category(_selected_hero_id, _selected_training_category)
+	if _meta_manager.has_method("get_training_definitions_for_ui_tab"):
+		defs = _meta_manager.get_training_definitions_for_ui_tab(_selected_hero_id, _selected_training_tab)
 	elif _meta_manager.has_method("get_training_definitions_for_hero"):
+		var tab_cats: Array[String] = ["stats", "autoattack"] if _selected_training_tab == "stats" \
+			else ["ability_1", "ability_2", "ability_3", "passive"]
 		for d in _meta_manager.get_training_definitions_for_hero(_selected_hero_id):
-			if str(d.get("category", "")) == _selected_training_category:
+			if str(d.get("category", "")) in tab_cats:
 				defs.append(d)
 
 	if defs.is_empty():
 		var empty_lbl := Label.new()
-		empty_lbl.text = "No training nodes in this category yet."
+		empty_lbl.text = "No training nodes in this tab yet."
 		empty_lbl.add_theme_font_size_override("font_size", 13)
 		empty_lbl.modulate = Color(0.5, 0.55, 0.6, 1.0)
 		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_training_cards_vbox.add_child(empty_lbl)
 		return
 
+	# Group by category for subheaders
+	var subheader_labels: Dictionary = {
+		"stats": "Base Stats", "autoattack": "Autoattack",
+		"ability_1": "Ability 1", "ability_2": "Ability 2",
+		"ability_3": "Ability 3", "passive": "Passive",
+	}
+	var last_cat := ""
 	for def in defs:
+		var cat := str(def.get("category", ""))
+		if cat != last_cat:
+			last_cat = cat
+			var sub_lbl := Label.new()
+			sub_lbl.text = str(subheader_labels.get(cat, cat.capitalize()))
+			sub_lbl.add_theme_font_size_override("font_size", 12)
+			sub_lbl.modulate = Color(0.62, 0.72, 0.88, 1.0)
+			_training_cards_vbox.add_child(sub_lbl)
 		_training_cards_vbox.add_child(_build_training_node_card(def))
 
 
 func _build_training_node_card(def: Dictionary) -> Control:
 	var node_id := str(def.get("id", ""))
-	var max_level := int(def.get("max_level", 1))
 	var level := 0
 	var cost := 0
 	var can_buy := false
@@ -1503,18 +1557,14 @@ func _build_training_node_card(def: Dictionary) -> Control:
 	name_row.add_child(name_lbl)
 
 	var level_lbl := Label.new()
+	level_lbl.text = "Lv %d" % level
 	level_lbl.add_theme_font_size_override("font_size", 12)
 	level_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if level >= max_level:
-		level_lbl.text = "MAX"
-		level_lbl.modulate = UIStateColors.positive_color()
-	else:
-		level_lbl.text = "Lv %d / %d" % [level, max_level]
-		level_lbl.modulate = Color(0.72, 0.8, 0.9, 1.0)
+	level_lbl.modulate = Color(0.72, 0.8, 0.9, 1.0)
 	name_row.add_child(level_lbl)
 
 	var effect_lbl := Label.new()
-	effect_lbl.text = _format_training_row_effect(def, level, max_level)
+	effect_lbl.text = _format_training_row_effect(def, level)
 	effect_lbl.add_theme_font_size_override("font_size", 11)
 	effect_lbl.modulate = Color(0.68, 0.82, 0.72, 1.0)
 	effect_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1528,9 +1578,7 @@ func _build_training_node_card(def: Dictionary) -> Control:
 	cost_lbl.add_theme_font_size_override("font_size", 11)
 	cost_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cost_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if level >= max_level:
-		cost_lbl.text = ""
-	elif can_buy:
+	if can_buy:
 		cost_lbl.text = "Cost: %d pts" % cost
 		cost_lbl.modulate = Color(0.78, 0.88, 1.0, 1.0)
 	else:
@@ -1544,21 +1592,12 @@ func _build_training_node_card(def: Dictionary) -> Control:
 	action_row.add_child(cost_lbl)
 
 	var upgrade_btn := Button.new()
+	upgrade_btn.text = "Upgrade"
 	upgrade_btn.custom_minimum_size = Vector2(96, 34)
 	upgrade_btn.add_theme_font_size_override("font_size", 12)
 	upgrade_btn.pressed.connect(_on_buy_pressed.bind(node_id))
-	if level >= max_level:
-		upgrade_btn.text = "MAX"
-		upgrade_btn.disabled = true
-		upgrade_btn.modulate = UIStateColors.muted_color()
-	elif can_buy:
-		upgrade_btn.text = "Upgrade"
-		upgrade_btn.disabled = false
-		upgrade_btn.modulate = UIStateColors.positive_color()
-	else:
-		upgrade_btn.text = "Upgrade"
-		upgrade_btn.disabled = true
-		upgrade_btn.modulate = UIStateColors.muted_color()
+	upgrade_btn.disabled = not can_buy
+	upgrade_btn.modulate = UIStateColors.positive_color() if can_buy else UIStateColors.muted_color()
 	action_row.add_child(upgrade_btn)
 
 	var details_btn := Button.new()
@@ -1636,7 +1675,6 @@ func _refresh_training_node_popup() -> void:
 	if def.is_empty():
 		return
 
-	var max_level := int(def.get("max_level", 1))
 	var level := 0
 	var cost := 0
 	var can_buy := false
@@ -1652,44 +1690,32 @@ func _refresh_training_node_popup() -> void:
 	var cat_label := str(def.get("category", "")).replace("_", " ").capitalize()
 	var per_level := float(def.get("effect_per_level", 0.0))
 	var current_effect := _format_training_node_effect(def, per_level * float(level))
-	var next_effect := _format_training_node_effect(def, per_level * float(mini(level + 1, max_level)))
+	var next_effect := _format_training_node_effect(def, per_level * float(level + 1))
 
 	var lines: PackedStringArray = []
 	lines.append("Hero: %s" % hero_name)
 	lines.append("Category: %s" % cat_label)
 	lines.append("")
-	lines.append("Level: %d / %d" % [level, max_level])
+	lines.append("Level: %d" % level)
 	lines.append("Current: %s" % current_effect)
-	lines.append("Next: %s" % ("MAX" if level >= max_level else next_effect))
+	lines.append("Next: %s" % next_effect)
 	lines.append("")
-	if level >= max_level:
-		lines.append("Fully upgraded.")
-	else:
-		var currency: int = _meta_manager.get_currency() if _meta_manager != null else 0
-		lines.append("Cost: %d pts  (you have %d)" % [cost, currency])
-		if cost > currency:
-			lines.append("Need %d more pts." % (cost - currency))
+	var currency: int = _meta_manager.get_currency() if _meta_manager != null else 0
+	lines.append("Cost: %d pts  (you have %d)" % [cost, currency])
+	if cost > currency:
+		lines.append("Need %d more pts." % (cost - currency))
 
 	if _training_popup_detail_label != null:
 		_training_popup_detail_label.text = "\n".join(lines)
 
 	if _training_popup_upgrade_btn != null:
-		if level >= max_level:
-			_training_popup_upgrade_btn.text = "MAX"
-			_training_popup_upgrade_btn.disabled = true
-			_training_popup_upgrade_btn.modulate = UIStateColors.muted_color()
-		elif can_buy:
-			_training_popup_upgrade_btn.text = "Upgrade (%d)" % cost
-			_training_popup_upgrade_btn.disabled = false
-			_training_popup_upgrade_btn.modulate = UIStateColors.positive_color()
-		else:
-			_training_popup_upgrade_btn.text = "Upgrade (%d)" % cost
-			_training_popup_upgrade_btn.disabled = true
-			_training_popup_upgrade_btn.modulate = UIStateColors.muted_color()
+		_training_popup_upgrade_btn.text = "Upgrade (%d)" % cost
+		_training_popup_upgrade_btn.disabled = not can_buy
+		_training_popup_upgrade_btn.modulate = UIStateColors.positive_color() if can_buy else UIStateColors.muted_color()
 
 
 func _on_training_category_selected(category: String) -> void:
-	_selected_training_category = category
+	_selected_training_tab = category
 	_refresh_training_category_selector()
 	_refresh_training_cards()
 
@@ -1704,16 +1730,13 @@ func _on_training_popup_close_pressed() -> void:
 		_training_node_popup.hide()
 
 
-func _format_training_row_effect(def: Dictionary, level: int, max_level: int) -> String:
+func _format_training_row_effect(def: Dictionary, level: int) -> String:
 	if def.is_empty():
 		return "Applies to selected hero only."
 	var per_level := float(def.get("effect_per_level", 0.0))
 	var current_text := _format_training_node_effect(def, per_level * float(level))
-	var next_level := mini(level + 1, max_level)
-	var next_text := _format_training_node_effect(def, per_level * float(next_level))
-	if level >= max_level:
-		return "Current: %s. Next: MAX. Applies to selected hero only." % current_text
-	return "Current: %s. Next: %s. Applies to selected hero only." % [current_text, next_text]
+	var next_text := _format_training_node_effect(def, per_level * float(level + 1))
+	return "Current: %s.  Next: %s." % [current_text, next_text]
 
 
 func _format_training_node_effect(def: Dictionary, value: float) -> String:
