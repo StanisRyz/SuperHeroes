@@ -20,11 +20,7 @@ var _equipment_tab_button: Button
 var _training_tab_button: Button
 var _equipment_content: Control
 var _training_content: Control
-var _list_vbox: VBoxContainer
-
 var _rows: Array[Dictionary] = []
-var _row_hero_id: String = ""
-var _row_ids: PackedStringArray = PackedStringArray()
 var _hero_dropdown: OptionButton
 
 # Starter pack popup
@@ -59,6 +55,18 @@ var _inventory_dismantle_button: Button
 var _inventory_capacity_label: Label
 var _selected_inventory_instance_id: String = ""
 var _training_hero_label: Label
+var _selected_training_category: String = "stats"
+var _training_summary_label: Label = null
+var _training_category_buttons: Dictionary = {}
+var _training_category_header: Label = null
+var _training_cards_vbox: VBoxContainer = null
+var _training_node_popup: PopupPanel = null
+var _training_popup_title_label: Label = null
+var _training_popup_detail_label: Label = null
+var _training_popup_upgrade_btn: Button = null
+var _training_popup_close_btn: Button = null
+var _training_popup_node_id: String = ""
+var _training_popup_def: Dictionary = {}
 var _gold_label: Label
 var _materials_label: Label
 var _last_upgrade_message: String = ""
@@ -145,6 +153,7 @@ func refresh() -> void:
 		_gold_label.text = "Gold: %d" % gold
 	_update_materials_label()
 	_update_goals_label()
+	_refresh_training_panel()
 	_rebuild_rows_if_needed()
 	_update_rows()
 	_refresh_equipment_panel()
@@ -156,6 +165,8 @@ func refresh() -> void:
 func set_selected_hero(hero_id: String) -> void:
 	_reload_heroes()
 	var resolved := _resolve_hero_id(hero_id)
+	if resolved != _selected_hero_id:
+		_selected_training_category = "stats"
 	_selected_hero_id = resolved
 	if _meta_manager != null and _meta_manager.has_method("ensure_training_data_for_hero"):
 		_meta_manager.ensure_training_data_for_hero(_selected_hero_id)
@@ -271,34 +282,74 @@ func _build_ui() -> void:
 	_build_dismantle_confirm_popup()
 	_build_item_action_popup()
 	_build_loadout_summary_popup()
+	_build_training_node_popup()
 	_update_tab_state()
 
 func _build_training_panel() -> Control:
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 8)
 
-	var section_title := Label.new()
-	section_title.text = "Training Upgrades"
-	section_title.add_theme_font_size_override("font_size", 16)
-	section_title.modulate = Color(0.9, 0.9, 0.7, 1.0)
-	vbox.add_child(section_title)
+	# ── Hero Summary ──────────────────────────────────────────────────────────
+	var summary_panel := PanelContainer.new()
+	var summary_vbox := VBoxContainer.new()
+	summary_vbox.add_theme_constant_override("separation", 2)
+	summary_panel.add_child(summary_vbox)
 
 	_training_hero_label = Label.new()
-	_training_hero_label.text = "Hero: -"
-	_training_hero_label.add_theme_font_size_override("font_size", 12)
-	_training_hero_label.modulate = Color(0.72, 0.8, 0.9, 1.0)
-	vbox.add_child(_training_hero_label)
+	_training_hero_label.text = "—"
+	_training_hero_label.add_theme_font_size_override("font_size", 18)
+	_training_hero_label.modulate = Color(0.92, 0.88, 1.0, 1.0)
+	summary_vbox.add_child(_training_hero_label)
 
+	_training_summary_label = Label.new()
+	_training_summary_label.text = "Training: 0 / 0"
+	_training_summary_label.add_theme_font_size_override("font_size", 12)
+	_training_summary_label.modulate = Color(0.72, 0.8, 0.9, 1.0)
+	summary_vbox.add_child(_training_summary_label)
+
+	root.add_child(summary_panel)
+	root.add_child(HSeparator.new())
+
+	# ── Category Selector ─────────────────────────────────────────────────────
+	var cat_hbox := HBoxContainer.new()
+	cat_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(cat_hbox)
+
+	var cat_order: Array[String] = ["stats", "autoattack", "ability_1", "ability_2", "ability_3", "passive"]
+	var cat_labels_map: Dictionary = {
+		"stats": "Stats", "autoattack": "Auto",
+		"ability_1": "Ability 1", "ability_2": "Ability 2",
+		"ability_3": "Ability 3", "passive": "Passive",
+	}
+	for cat in cat_order:
+		var btn := Button.new()
+		btn.text = str(cat_labels_map.get(cat, cat.capitalize()))
+		btn.custom_minimum_size = Vector2(86, 36)
+		btn.add_theme_font_size_override("font_size", 11)
+		btn.pressed.connect(_on_training_category_selected.bind(cat))
+		cat_hbox.add_child(btn)
+		_training_category_buttons[cat] = btn
+
+	# ── Category Header ───────────────────────────────────────────────────────
+	_training_category_header = Label.new()
+	_training_category_header.text = "Stats"
+	_training_category_header.add_theme_font_size_override("font_size", 14)
+	_training_category_header.modulate = Color(0.9, 0.9, 0.7, 1.0)
+	root.add_child(_training_category_header)
+
+	root.add_child(HSeparator.new())
+
+	# ── Node Cards ────────────────────────────────────────────────────────────
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(scroll)
+	root.add_child(scroll)
 
-	_list_vbox = VBoxContainer.new()
-	_list_vbox.add_theme_constant_override("separation", 8)
-	_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_list_vbox)
+	_training_cards_vbox = VBoxContainer.new()
+	_training_cards_vbox.add_theme_constant_override("separation", 8)
+	_training_cards_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_training_cards_vbox)
 
-	return vbox
+	return root
 
 
 func _build_equipment_panel() -> Control:
@@ -1327,124 +1378,330 @@ func _format_slot_name(slot_id: String) -> String:
 	return EquipmentFormat.slot_display_name(slot_id)
 
 
-# ─── Training rows ────────────────────────────────────────────────────────────
+# ─── Training panel ───────────────────────────────────────────────────────────
 
 func _rebuild_rows_if_needed() -> void:
-	if _meta_manager == null or _list_vbox == null:
-		return
-	var defs: Array[Dictionary] = []
-	if _meta_manager.has_method("get_training_definitions_for_hero"):
-		defs = _meta_manager.get_training_definitions_for_hero(_selected_hero_id)
-	else:
-		defs = _meta_manager.get_meta_upgrade_definitions()
-	var next_ids := PackedStringArray()
-	for def in defs:
-		next_ids.append(str(def.get("id", "")))
-	if _row_hero_id == _selected_hero_id and _row_ids == next_ids:
-		return
-
-	for child in _list_vbox.get_children():
-		child.queue_free()
-	_rows.clear()
-	_row_hero_id = _selected_hero_id
-	_row_ids = next_ids
-
-	for def in defs:
-		var upgrade_id := str(def.get("id", ""))
-		var row := _build_row(upgrade_id, def)
-		_list_vbox.add_child(row)
-
-
-func _build_row(upgrade_id: String, def: Dictionary) -> PanelContainer:
-	var panel := PanelContainer.new()
-
-	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 12)
-	panel.add_child(hbox)
-
-	var info := VBoxContainer.new()
-	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 3)
-	hbox.add_child(info)
-
-	var title_lbl := Label.new()
-	title_lbl.text = str(def.get("title", ""))
-	title_lbl.add_theme_font_size_override("font_size", 14)
-	info.add_child(title_lbl)
-
-	var category_lbl := Label.new()
-	category_lbl.text = str(def.get("category", "")).replace("_", " ").capitalize()
-	category_lbl.add_theme_font_size_override("font_size", 10)
-	category_lbl.modulate = Color(0.58, 0.72, 0.88, 1.0)
-	info.add_child(category_lbl)
-
-	var desc_lbl := Label.new()
-	desc_lbl.text = str(def.get("description", ""))
-	desc_lbl.add_theme_font_size_override("font_size", 11)
-	desc_lbl.modulate = Color(0.8, 0.8, 0.8, 1.0)
-	info.add_child(desc_lbl)
-
-	var level_lbl := Label.new()
-	level_lbl.add_theme_font_size_override("font_size", 11)
-	info.add_child(level_lbl)
-
-	var effect_lbl := Label.new()
-	effect_lbl.add_theme_font_size_override("font_size", 10)
-	effect_lbl.modulate = Color(0.68, 0.82, 0.72, 1.0)
-	effect_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.add_child(effect_lbl)
-
-	var buy_btn := Button.new()
-	buy_btn.custom_minimum_size = Vector2(110, 44)
-	buy_btn.pressed.connect(_on_buy_pressed.bind(upgrade_id))
-	hbox.add_child(buy_btn)
-
-	var row_data := {
-		"id": upgrade_id,
-		"max_level": int(def.get("max_level", 1)),
-		"def": def.duplicate(true),
-		"level_lbl": level_lbl,
-		"effect_lbl": effect_lbl,
-		"buy_btn": buy_btn,
-		"panel": panel,
-	}
-	_rows.append(row_data)
-	return panel
+	pass  # replaced by _refresh_training_panel
 
 
 func _update_rows() -> void:
+	pass  # replaced by _refresh_training_panel
+
+
+func _refresh_training_panel() -> void:
 	if _meta_manager == null:
 		return
-	for row in _rows:
-		var upgrade_id := str(row.get("id", ""))
-		var max_level := int(row.get("max_level", 1))
-		var level: int = _meta_manager.get_training_level(_selected_hero_id, upgrade_id) if _meta_manager.has_method("get_training_level") else _meta_manager.get_meta_upgrade_level(upgrade_id)
-		var cost: int = _meta_manager.get_training_upgrade_cost(_selected_hero_id, upgrade_id) if _meta_manager.has_method("get_training_upgrade_cost") else _meta_manager.get_meta_upgrade_cost(upgrade_id)
-		var can_buy: bool = _meta_manager.can_purchase_training_upgrade(_selected_hero_id, upgrade_id) if _meta_manager.has_method("can_purchase_training_upgrade") else _meta_manager.can_buy_meta_upgrade(upgrade_id)
+	_refresh_training_hero_summary()
+	_refresh_training_category_selector()
+	_refresh_training_cards()
+	if _training_node_popup != null and _training_node_popup.visible:
+		_refresh_training_node_popup()
 
-		var level_lbl := row.get("level_lbl") as Label
-		if level_lbl != null:
-			level_lbl.text = "Level %d / %d" % [level, max_level]
 
-		var effect_lbl := row.get("effect_lbl") as Label
-		if effect_lbl != null:
-			var def: Dictionary = row.get("def", {})
-			effect_lbl.text = _format_training_row_effect(def, level, max_level)
+func _refresh_training_hero_summary() -> void:
+	if _training_hero_label != null:
+		_training_hero_label.text = _get_selected_hero_display_name()
+	if _training_summary_label != null:
+		var summary: Dictionary = {}
+		if _meta_manager.has_method("get_training_progress_summary_for_hero"):
+			summary = _meta_manager.get_training_progress_summary_for_hero(_selected_hero_id)
+		_training_summary_label.text = "Training: %d / %d" % [
+			int(summary.get("total_level", 0)),
+			int(summary.get("max_total_level", 0)),
+		]
 
-		var buy_btn := row.get("buy_btn") as Button
-		if buy_btn != null:
-			if level >= max_level:
-				buy_btn.text = "MAX"
-				buy_btn.disabled = true
-				buy_btn.modulate = UIStateColors.muted_color()
-			elif can_buy:
-				buy_btn.text = "Buy  %d" % cost
-				buy_btn.disabled = false
-				buy_btn.modulate = UIStateColors.positive_color()
-			else:
-				buy_btn.text = "Buy  %d" % cost
-				buy_btn.disabled = true
-				buy_btn.modulate = UIStateColors.muted_color()
+
+func _refresh_training_category_selector() -> void:
+	if _training_category_buttons.is_empty():
+		return
+	var summary: Dictionary = {}
+	if _meta_manager != null and _meta_manager.has_method("get_training_progress_summary_for_hero"):
+		summary = _meta_manager.get_training_progress_summary_for_hero(_selected_hero_id)
+	var cat_progress: Dictionary = summary.get("categories", {})
+	var cat_labels_map: Dictionary = {
+		"stats": "Stats", "autoattack": "Auto",
+		"ability_1": "Ability 1", "ability_2": "Ability 2",
+		"ability_3": "Ability 3", "passive": "Passive",
+	}
+	for cat in _training_category_buttons:
+		var btn := _training_category_buttons[cat] as Button
+		if btn == null:
+			continue
+		var cat_data: Dictionary = cat_progress.get(cat, {})
+		var lv := int(cat_data.get("level", 0))
+		var mx := int(cat_data.get("max", 0))
+		var label := str(cat_labels_map.get(cat, cat.capitalize()))
+		btn.text = "%s\n%d/%d" % [label, lv, mx] if mx > 0 else label
+		var selected: bool = cat == _selected_training_category
+		btn.disabled = selected
+		btn.modulate = UIStateColors.positive_color() if selected else Color.WHITE
+
+
+func _refresh_training_cards() -> void:
+	if _training_cards_vbox == null:
+		return
+	for child in _training_cards_vbox.get_children():
+		child.queue_free()
+	if _meta_manager == null:
+		return
+
+	if _training_category_header != null:
+		var summary: Dictionary = {}
+		if _meta_manager.has_method("get_training_progress_summary_for_hero"):
+			summary = _meta_manager.get_training_progress_summary_for_hero(_selected_hero_id)
+		var cat_data: Dictionary = summary.get("categories", {}).get(_selected_training_category, {})
+		var lv := int(cat_data.get("level", 0))
+		var mx := int(cat_data.get("max", 0))
+		var cat_label := _selected_training_category.replace("_", " ").capitalize()
+		_training_category_header.text = "%s   %d / %d" % [cat_label, lv, mx] if mx > 0 else cat_label
+
+	var defs: Array[Dictionary] = []
+	if _meta_manager.has_method("get_training_definitions_for_category"):
+		defs = _meta_manager.get_training_definitions_for_category(_selected_hero_id, _selected_training_category)
+	elif _meta_manager.has_method("get_training_definitions_for_hero"):
+		for d in _meta_manager.get_training_definitions_for_hero(_selected_hero_id):
+			if str(d.get("category", "")) == _selected_training_category:
+				defs.append(d)
+
+	if defs.is_empty():
+		var empty_lbl := Label.new()
+		empty_lbl.text = "No training nodes in this category yet."
+		empty_lbl.add_theme_font_size_override("font_size", 13)
+		empty_lbl.modulate = Color(0.5, 0.55, 0.6, 1.0)
+		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_training_cards_vbox.add_child(empty_lbl)
+		return
+
+	for def in defs:
+		_training_cards_vbox.add_child(_build_training_node_card(def))
+
+
+func _build_training_node_card(def: Dictionary) -> Control:
+	var node_id := str(def.get("id", ""))
+	var max_level := int(def.get("max_level", 1))
+	var level := 0
+	var cost := 0
+	var can_buy := false
+	if _meta_manager != null:
+		level = _meta_manager.get_training_level(_selected_hero_id, node_id) if _meta_manager.has_method("get_training_level") else 0
+		cost = _meta_manager.get_training_upgrade_cost(_selected_hero_id, node_id) if _meta_manager.has_method("get_training_upgrade_cost") else 0
+		can_buy = _meta_manager.can_purchase_training_upgrade(_selected_hero_id, node_id) if _meta_manager.has_method("can_purchase_training_upgrade") else false
+
+	var panel := PanelContainer.new()
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	panel.add_child(vbox)
+
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(name_row)
+
+	var name_lbl := Label.new()
+	name_lbl.text = str(def.get("name", node_id))
+	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(name_lbl)
+
+	var level_lbl := Label.new()
+	level_lbl.add_theme_font_size_override("font_size", 12)
+	level_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if level >= max_level:
+		level_lbl.text = "MAX"
+		level_lbl.modulate = UIStateColors.positive_color()
+	else:
+		level_lbl.text = "Lv %d / %d" % [level, max_level]
+		level_lbl.modulate = Color(0.72, 0.8, 0.9, 1.0)
+	name_row.add_child(level_lbl)
+
+	var effect_lbl := Label.new()
+	effect_lbl.text = _format_training_row_effect(def, level, max_level)
+	effect_lbl.add_theme_font_size_override("font_size", 11)
+	effect_lbl.modulate = Color(0.68, 0.82, 0.72, 1.0)
+	effect_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(effect_lbl)
+
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(action_row)
+
+	var cost_lbl := Label.new()
+	cost_lbl.add_theme_font_size_override("font_size", 11)
+	cost_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cost_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if level >= max_level:
+		cost_lbl.text = ""
+	elif can_buy:
+		cost_lbl.text = "Cost: %d pts" % cost
+		cost_lbl.modulate = Color(0.78, 0.88, 1.0, 1.0)
+	else:
+		var currency: int = _meta_manager.get_currency() if _meta_manager != null else 0
+		if cost > currency:
+			cost_lbl.text = "Need %d pts  (have %d)" % [cost, currency]
+			cost_lbl.modulate = Color(0.82, 0.4, 0.4, 1.0)
+		else:
+			cost_lbl.text = "Cost: %d pts" % cost
+			cost_lbl.modulate = Color(0.72, 0.72, 0.72, 1.0)
+	action_row.add_child(cost_lbl)
+
+	var upgrade_btn := Button.new()
+	upgrade_btn.custom_minimum_size = Vector2(96, 34)
+	upgrade_btn.add_theme_font_size_override("font_size", 12)
+	upgrade_btn.pressed.connect(_on_buy_pressed.bind(node_id))
+	if level >= max_level:
+		upgrade_btn.text = "MAX"
+		upgrade_btn.disabled = true
+		upgrade_btn.modulate = UIStateColors.muted_color()
+	elif can_buy:
+		upgrade_btn.text = "Upgrade"
+		upgrade_btn.disabled = false
+		upgrade_btn.modulate = UIStateColors.positive_color()
+	else:
+		upgrade_btn.text = "Upgrade"
+		upgrade_btn.disabled = true
+		upgrade_btn.modulate = UIStateColors.muted_color()
+	action_row.add_child(upgrade_btn)
+
+	var details_btn := Button.new()
+	details_btn.text = "Details"
+	details_btn.custom_minimum_size = Vector2(72, 34)
+	details_btn.add_theme_font_size_override("font_size", 12)
+	details_btn.pressed.connect(_open_training_node_popup.bind(node_id, def.duplicate(true)))
+	action_row.add_child(details_btn)
+
+	return panel
+
+
+func _build_training_node_popup() -> void:
+	_training_node_popup = PopupPanel.new()
+	_training_node_popup.min_size = Vector2i(480, 360)
+	add_child(_training_node_popup)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	_training_node_popup.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	margin.add_child(vbox)
+
+	_training_popup_title_label = Label.new()
+	_training_popup_title_label.add_theme_font_size_override("font_size", 18)
+	_training_popup_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_training_popup_title_label)
+
+	vbox.add_child(HSeparator.new())
+
+	_training_popup_detail_label = Label.new()
+	_training_popup_detail_label.add_theme_font_size_override("font_size", 12)
+	_training_popup_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_training_popup_detail_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(_training_popup_detail_label)
+
+	vbox.add_child(HSeparator.new())
+
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 12)
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_row)
+
+	_training_popup_upgrade_btn = Button.new()
+	_training_popup_upgrade_btn.custom_minimum_size = Vector2(130, 40)
+	_training_popup_upgrade_btn.pressed.connect(_on_training_popup_upgrade_pressed)
+	btn_row.add_child(_training_popup_upgrade_btn)
+
+	_training_popup_close_btn = Button.new()
+	_training_popup_close_btn.text = "Close"
+	_training_popup_close_btn.custom_minimum_size = Vector2(100, 40)
+	_training_popup_close_btn.pressed.connect(_on_training_popup_close_pressed)
+	btn_row.add_child(_training_popup_close_btn)
+
+
+func _open_training_node_popup(node_id: String, def: Dictionary) -> void:
+	_training_popup_node_id = node_id
+	_training_popup_def = def
+	if _training_node_popup != null:
+		_training_node_popup.visible = true
+		_refresh_training_node_popup()
+		_training_node_popup.popup_centered()
+
+
+func _refresh_training_node_popup() -> void:
+	if _training_node_popup == null or not _training_node_popup.visible:
+		return
+	var node_id := _training_popup_node_id
+	var def := _training_popup_def
+	if def.is_empty():
+		return
+
+	var max_level := int(def.get("max_level", 1))
+	var level := 0
+	var cost := 0
+	var can_buy := false
+	if _meta_manager != null:
+		level = _meta_manager.get_training_level(_selected_hero_id, node_id) if _meta_manager.has_method("get_training_level") else 0
+		cost = _meta_manager.get_training_upgrade_cost(_selected_hero_id, node_id) if _meta_manager.has_method("get_training_upgrade_cost") else 0
+		can_buy = _meta_manager.can_purchase_training_upgrade(_selected_hero_id, node_id) if _meta_manager.has_method("can_purchase_training_upgrade") else false
+
+	if _training_popup_title_label != null:
+		_training_popup_title_label.text = str(def.get("name", node_id))
+
+	var hero_name := _get_selected_hero_display_name()
+	var cat_label := str(def.get("category", "")).replace("_", " ").capitalize()
+	var per_level := float(def.get("effect_per_level", 0.0))
+	var current_effect := _format_training_node_effect(def, per_level * float(level))
+	var next_effect := _format_training_node_effect(def, per_level * float(mini(level + 1, max_level)))
+
+	var lines: PackedStringArray = []
+	lines.append("Hero: %s" % hero_name)
+	lines.append("Category: %s" % cat_label)
+	lines.append("")
+	lines.append("Level: %d / %d" % [level, max_level])
+	lines.append("Current: %s" % current_effect)
+	lines.append("Next: %s" % ("MAX" if level >= max_level else next_effect))
+	lines.append("")
+	if level >= max_level:
+		lines.append("Fully upgraded.")
+	else:
+		var currency: int = _meta_manager.get_currency() if _meta_manager != null else 0
+		lines.append("Cost: %d pts  (you have %d)" % [cost, currency])
+		if cost > currency:
+			lines.append("Need %d more pts." % (cost - currency))
+
+	if _training_popup_detail_label != null:
+		_training_popup_detail_label.text = "\n".join(lines)
+
+	if _training_popup_upgrade_btn != null:
+		if level >= max_level:
+			_training_popup_upgrade_btn.text = "MAX"
+			_training_popup_upgrade_btn.disabled = true
+			_training_popup_upgrade_btn.modulate = UIStateColors.muted_color()
+		elif can_buy:
+			_training_popup_upgrade_btn.text = "Upgrade (%d)" % cost
+			_training_popup_upgrade_btn.disabled = false
+			_training_popup_upgrade_btn.modulate = UIStateColors.positive_color()
+		else:
+			_training_popup_upgrade_btn.text = "Upgrade (%d)" % cost
+			_training_popup_upgrade_btn.disabled = true
+			_training_popup_upgrade_btn.modulate = UIStateColors.muted_color()
+
+
+func _on_training_category_selected(category: String) -> void:
+	_selected_training_category = category
+	_refresh_training_category_selector()
+	_refresh_training_cards()
+
+
+func _on_training_popup_upgrade_pressed() -> void:
+	if not _training_popup_node_id.is_empty():
+		_on_buy_pressed(_training_popup_node_id)
+
+
+func _on_training_popup_close_pressed() -> void:
+	if _training_node_popup != null:
+		_training_node_popup.hide()
 
 
 func _format_training_row_effect(def: Dictionary, level: int, max_level: int) -> String:

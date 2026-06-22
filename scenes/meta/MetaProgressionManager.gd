@@ -315,6 +315,38 @@ func get_training_definitions_for_hero(hero_id: String) -> Array[Dictionary]:
 	return _training_provider.get_training_nodes_for_hero(_resolve_hero_id(hero_id))
 
 
+func get_training_definitions_for_category(hero_id: String, category: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for node in get_training_definitions_for_hero(hero_id):
+		if str(node.get("category", "")) == category:
+			result.append(node)
+	return result
+
+
+func get_training_progress_summary_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var defs := get_training_definitions_for_hero(resolved_hero_id)
+	var total_level := 0
+	var max_total_level := 0
+	var categories: Dictionary = {}
+	for node in defs:
+		var category := str(node.get("category", ""))
+		var max_level := int(node.get("max_level", 0))
+		var level := get_training_level(resolved_hero_id, str(node.get("id", "")))
+		total_level += level
+		max_total_level += max_level
+		if not categories.has(category):
+			categories[category] = {"level": 0, "max": 0}
+		categories[category]["level"] = int(categories[category]["level"]) + level
+		categories[category]["max"] = int(categories[category]["max"]) + max_level
+	return {
+		"hero_id": resolved_hero_id,
+		"total_level": total_level,
+		"max_total_level": max_total_level,
+		"categories": categories,
+	}
+
+
 func get_training_definition(hero_id: String, node_id: String) -> Dictionary:
 	if _training_provider == null:
 		return {}
