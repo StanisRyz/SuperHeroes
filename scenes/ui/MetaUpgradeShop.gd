@@ -1450,14 +1450,19 @@ func _update_rows() -> void:
 func _format_training_row_effect(def: Dictionary, level: int, max_level: int) -> String:
 	if def.is_empty():
 		return "Applies to selected hero only."
-	var effect_type := str(def.get("effect_type", ""))
 	var per_level := float(def.get("effect_per_level", 0.0))
-	var current_text := _format_training_effect(effect_type, per_level * float(level))
+	var current_text := _format_training_node_effect(def, per_level * float(level))
 	var next_level := mini(level + 1, max_level)
-	var next_text := _format_training_effect(effect_type, per_level * float(next_level))
+	var next_text := _format_training_node_effect(def, per_level * float(next_level))
 	if level >= max_level:
 		return "Current: %s. Next: MAX. Applies to selected hero only." % current_text
 	return "Current: %s. Next: %s. Applies to selected hero only." % [current_text, next_text]
+
+
+func _format_training_node_effect(def: Dictionary, value: float) -> String:
+	if _meta_manager != null and _meta_manager.has_method("format_training_node_modifier"):
+		return str(_meta_manager.format_training_node_modifier(def, value))
+	return _format_training_effect(str(def.get("effect_type", "")), value)
 
 
 func _format_training_effect(effect_type: String, value: float) -> String:

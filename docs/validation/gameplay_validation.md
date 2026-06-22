@@ -23,6 +23,28 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Character Ability Training
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training -> Training tab -> Solar Guardian | Ability rows show ability-specific effect text: "Solar Beam Damage", "Ice Breath Slow", "Death Dash Damage" |
+| 2 | Buy `Solar Ray Intensity` (e.g. level 2) -> start Solar Guardian run | `solar_beam_damage` in AbilityManager increases by +2; Frost Breath and Death Dash are unchanged |
+| 3 | Start Night Tactician run after Solar Guardian ability Training | Night Tactician does not receive Guardian ability Training |
+| 4 | Buy `Trap Engineering` (level 1) -> start Night Tactician | `explosive_trap_damage` increases by +1; Smoke Screen and Hook are unchanged |
+| 5 | Buy `Hook Impact` (level 1) -> start Night Tactician | `grappling_hook_damage` increases by +1 |
+| 6 | Buy `Smoke Density` (level 2) -> start Night Tactician | `smoke_screen_damage_reduction` increases by +0.02; capped at 0.75 |
+| 7 | Buy `Rage Wave Force` (level 1) -> start Fury Vanguard | `rage_wave_damage` increases by +1; Mighty Clap and Rage Leap unchanged |
+| 8 | Buy `Power Clap Impact` (level 1) -> start Fury Vanguard | `mighty_clap_knockback_force` increases by 1% (multiplied by 1.02); stays positive |
+| 9 | Buy `Rage Jump Landing` (level 1) -> start Fury Vanguard | `rage_leap_damage` increases by +1 |
+| 10 | Call `debug_get_training_ability_summary("guardian")` | Reports purchased ability nodes, aggregated modifiers by target, and no ignored invalid nodes |
+| 11 | Check base stat Training still works after buying ability Training | max_health, base_damage, damage_reduction bonuses still apply; no double-counting |
+| 12 | Training rows in UI for ability nodes | Show "Current: +2 Solar Beam Damage. Next: +3 Solar Beam Damage. Applies to selected hero only." |
+| 13 | Purchase ability Training node | Only Training currency changes; Gold, materials, equipment do not change |
+| 14 | Regression: equipment tab, inventory, set bonuses, item upgrades, dismantle, post-run rewards | All continue to work unchanged |
+| 15 | Inspect scope | No passive Training, respec/reset, new currencies, gacha/crafting/fusion, hero kit changes, or full Training UI rework |
+
+---
+
 ## Character Training Data Foundation
 
 | # | Test | Expected |

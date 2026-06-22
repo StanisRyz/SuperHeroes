@@ -17,6 +17,7 @@ static func apply_meta_progression(meta_manager: Node, player: Node, auto_attack
 		meta_manager.ensure_equipment_data_for_hero(resolved_hero_id)
 
 	_apply_training_stat_modifiers(meta_manager, resolved_hero_id, player, auto_attack, ability_manager)
+	_apply_training_ability_modifiers(meta_manager, resolved_hero_id, ability_manager)
 
 	if player != null and is_instance_valid(player):
 		var hp_level: int = _get_training_level(meta_manager, resolved_hero_id, "meta_max_health")
@@ -75,6 +76,69 @@ static func _apply_training_stat_modifiers(meta_manager: Node, hero_id: String, 
 		auto_attack.set("attack_damage", int(auto_attack.get("attack_damage") or 0) + base_damage)
 	if ability_manager != null and is_instance_valid(ability_manager):
 		_apply_base_damage_bonus(ability_manager, base_damage)
+
+
+static func _apply_training_ability_modifiers(meta_manager: Node, hero_id: String, ability_manager: Node) -> void:
+	if ability_manager == null or not is_instance_valid(ability_manager):
+		return
+	if not meta_manager.has_method("get_training_ability_modifiers_for_hero"):
+		return
+	var mods: Dictionary = meta_manager.get_training_ability_modifiers_for_hero(hero_id)
+	if mods.is_empty():
+		return
+	var prop_map := _get_ability_training_property_map(hero_id)
+	for target in mods:
+		var target_mods: Dictionary = mods.get(target, {})
+		for effect_type in target_mods:
+			var value := float(target_mods.get(effect_type, 0.0))
+			if is_zero_approx(value):
+				continue
+			var key := "%s|%s" % [target, effect_type]
+			if not prop_map.has(key):
+				continue
+			var prop_entry: Dictionary = prop_map.get(key, {})
+			var mode := str(prop_entry.get("mode", "add"))
+			for prop_name in prop_entry.get("properties", []):
+				var pname := str(prop_name)
+				if ability_manager.get(pname) == null:
+					continue
+				match mode:
+					"add":
+						_add_number(ability_manager, pname, value)
+					"subtract_clamped":
+						var current := float(ability_manager.get(pname))
+						var min_val := float(prop_entry.get("clamp_min", 0.0))
+						ability_manager.set(pname, maxf(current - value, min_val))
+					"add_clamped":
+						var current := float(ability_manager.get(pname))
+						var max_val := float(prop_entry.get("clamp_max", 1.0))
+						ability_manager.set(pname, minf(current + value, max_val))
+					"multiply_by_factor":
+						var current := float(ability_manager.get(pname))
+						ability_manager.set(pname, current * (1.0 + value))
+
+
+static func _get_ability_training_property_map(hero_id: String) -> Dictionary:
+	match hero_id:
+		"guardian":
+			return {
+				"ability_1|ability_damage": {"mode": "add", "properties": ["solar_beam_damage"]},
+				"ability_2|slow_strength": {"mode": "subtract_clamped", "properties": ["frost_breath_slow_multiplier"], "clamp_min": 0.1},
+				"ability_3|ability_damage": {"mode": "add", "properties": ["death_dash_damage"]},
+			}
+		"blaster":
+			return {
+				"ability_1|damage_reduction": {"mode": "add_clamped", "properties": ["smoke_screen_damage_reduction"], "clamp_max": 0.75},
+				"ability_2|ability_damage": {"mode": "add", "properties": ["explosive_trap_damage"]},
+				"ability_3|ability_damage": {"mode": "add", "properties": ["grappling_hook_damage"]},
+			}
+		"vanguard":
+			return {
+				"ability_1|ability_damage": {"mode": "add", "properties": ["rage_wave_damage"]},
+				"ability_2|knockback_power": {"mode": "multiply_by_factor", "properties": ["mighty_clap_knockback_force"]},
+				"ability_3|ability_damage": {"mode": "add", "properties": ["rage_leap_damage"]},
+			}
+	return {}
 
 
 static func _get_training_level(meta_manager: Node, hero_id: String, upgrade_id: String) -> int:

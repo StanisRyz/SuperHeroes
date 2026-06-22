@@ -60,7 +60,33 @@ Character Training now applies real base-stat modifiers to the hero selected for
 - Damage Reduction Training reduces incoming player damage and is capped at 50% total reduction for safety.
 - Equipment and set bonuses remain shared globally and continue to stack separately from per-character Training.
 - Training purchases still use only the existing Training/progression currency; Gold and equipment materials are not used.
-- Active-ability-specific Training, passive Training, respec/reset, and a full Training UI rework remain future patches.
+- Passive Training, respec/reset, and a full Training UI rework remain future patches.
+
+### Character Ability Training
+
+Active-ability Training nodes now affect in-run ability properties for the selected hero only.
+
+- Ability training is strictly hero-specific. Guardian Training does not affect Night Tactician or Fury Vanguard runs.
+- Only the selected hero's `ability_1`, `ability_2`, and `ability_3` nodes are applied per run.
+- Training currency is the only currency spent on ability training. Gold and equipment materials are not used.
+- Passive/ultimate training and a full Training UI rework remain future patches.
+
+**Solar Guardian** active ability targets:
+- Solar Ray Intensity (`guardian_solar_ray_intensity`): `+N Solar Beam Damage` flat to `solar_beam_damage`.
+- Ice Breath Control (`guardian_ice_breath_control`): `+N% Ice Breath Slow`, reduces `frost_breath_slow_multiplier` (clamped ≥ 0.10).
+- Deadly Dash Force (`guardian_deadly_dash_force`): `+N Death Dash Damage` flat to `death_dash_damage`.
+
+**Night Tactician** active ability targets:
+- Smoke Density (`blaster_smoke_density`): `+N% Smoke Screen Defense`, increases `smoke_screen_damage_reduction` (clamped ≤ 0.75).
+- Trap Engineering (`blaster_trap_engineering`): `+N Trap Damage` flat to `explosive_trap_damage`.
+- Hook Impact (`blaster_hook_impact`): `+N Hook Damage` flat to `grappling_hook_damage`.
+
+**Fury Vanguard** active ability targets:
+- Rage Wave Force (`vanguard_rage_wave_force`): `+N Rage Wave Damage` flat to `rage_wave_damage`.
+- Power Clap Impact (`vanguard_power_clap_impact`): `+N% Power Clap Knockback`, multiplies `mighty_clap_knockback_force` by `(1 + total)`.
+- Rage Jump Landing (`vanguard_rage_jump_landing`): `+N Rage Leap Damage` flat to `rage_leap_damage`.
+
+The Training tab shows current/next effect text per row using ability-specific labels (e.g. "Solar Beam Damage", "Ice Breath Slow") instead of generic effect-type names.
 
 ### Gameplay Validation / Debug Pass
 
