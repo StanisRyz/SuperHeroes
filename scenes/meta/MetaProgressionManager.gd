@@ -1284,6 +1284,7 @@ func apply_run_result(summary: Dictionary) -> Dictionary:
 
 	var mastery_changes := _apply_mastery_from_run(summary)
 	var stage_changes := _apply_stage_mastery_from_run(summary)
+	var stage_progress_changes := _apply_stage_progress_from_run(summary)
 	var completed_goals := evaluate_goals_from_run(summary)
 	var goal_reward := 0
 	for goal in completed_goals:
@@ -1293,6 +1294,7 @@ func apply_run_result(summary: Dictionary) -> Dictionary:
 	rewards["total_reward"] = int(rewards.get("total_reward", 0)) + goal_reward
 	rewards["mastery_changes"] = mastery_changes
 	rewards["stage_mastery_changes"] = stage_changes
+	rewards["stage_progress_changes"] = stage_progress_changes
 	rewards["newly_completed_goals"] = completed_goals
 	rewards["goal_rewards_auto_claimed"] = true
 
@@ -1321,6 +1323,7 @@ func get_progress_summary() -> Dictionary:
 		"unlocked_heroes": _data.get("unlocked_heroes", []).duplicate(),
 		"hero_mastery": get_hero_mastery_summary(),
 		"stage_mastery": get_stage_mastery_summary(),
+		"stage_progress": get_stage_progress_summary(),
 		"goals": get_goal_progress(),
 	}
 
@@ -2337,12 +2340,17 @@ func _ensure_stage_progress_defaults() -> void:
 	if not _data.get("stage_progress") is Dictionary:
 		_data["stage_progress"] = {}
 	var progress: Dictionary = _data.get("stage_progress", {})
-	if not progress.has("city_rooftop") or not progress.get("city_rooftop") is Dictionary:
-		progress["city_rooftop"] = _get_default_stage_progress_entry()
-	else:
-		progress["city_rooftop"] = _merge_entry_defaults(
-			progress.get("city_rooftop", {}), _get_default_stage_progress_entry()
-		)
+	for sid in DEFAULT_STAGE_IDS:
+		if not progress.has(sid) or not progress.get(sid) is Dictionary:
+			progress[sid] = _get_default_stage_progress_entry()
+		else:
+			var entry: Dictionary = _merge_entry_defaults(
+				progress.get(sid, {}), _get_default_stage_progress_entry()
+			)
+			entry["highest_cleared_level"] = maxi(int(entry.get("highest_cleared_level", 0)), 0)
+			entry["runs"] = maxi(int(entry.get("runs", 0)), 0)
+			entry["wins"] = maxi(int(entry.get("wins", 0)), 0)
+			progress[sid] = entry
 	_data["stage_progress"] = progress
 
 
@@ -2353,6 +2361,11 @@ func get_stage_progress(stage_id: String) -> Dictionary:
 	if entry is Dictionary:
 		return entry.duplicate(true)
 	return _get_default_stage_progress_entry()
+
+
+func get_stage_progress_summary() -> Dictionary:
+	_ensure_stage_progress_defaults()
+	return _data.get("stage_progress", {}).duplicate(true)
 
 
 func get_highest_cleared_stage_level(stage_id: String) -> int:
@@ -2373,6 +2386,53 @@ func is_stage_unlocked(stage_id: String) -> bool:
 
 func get_next_available_stage_level(stage_id: String) -> int:
 	return maxi(get_highest_cleared_stage_level(stage_id) + 1, 1)
+
+
+func _apply_stage_progress_from_run(summary: Dictionary) -> Dictionary:
+	_ensure_stage_progress_defaults()
+	var stage_id := str(summary.get("stage_id", ""))
+	var stage_level := maxi(int(summary.get("stage_level", 1)), 1)
+	var result := str(summary.get("result", "defeat"))
+
+	if stage_id.is_empty():
+		return {}
+
+	var was_neon_lab_unlocked := is_stage_unlocked("neon_lab")
+	var was_wasteland_unlocked := is_stage_unlocked("wasteland_gate")
+
+	var progress: Dictionary = _data.get("stage_progress", {})
+	if not progress.has(stage_id) or not progress.get(stage_id) is Dictionary:
+		progress[stage_id] = _get_default_stage_progress_entry()
+	var entry: Dictionary = progress.get(stage_id, {})
+	var previous_highest := maxi(int(entry.get("highest_cleared_level", 0)), 0)
+
+	entry["runs"] = int(entry.get("runs", 0)) + 1
+
+	var new_best := false
+	if result == "victory":
+		entry["wins"] = int(entry.get("wins", 0)) + 1
+		if stage_level > previous_highest:
+			entry["highest_cleared_level"] = stage_level
+			new_best = true
+
+	progress[stage_id] = entry
+	_data["stage_progress"] = progress
+
+	var unlocked_stages: Array = []
+	if not was_neon_lab_unlocked and is_stage_unlocked("neon_lab"):
+		unlocked_stages.append("neon_lab")
+	if not was_wasteland_unlocked and is_stage_unlocked("wasteland_gate"):
+		unlocked_stages.append("wasteland_gate")
+
+	return {
+		"stage_id": stage_id,
+		"stage_level": stage_level,
+		"result": result,
+		"previous_highest_cleared_level": previous_highest,
+		"highest_cleared_level": maxi(int(entry.get("highest_cleared_level", previous_highest)), 0),
+		"new_best": new_best,
+		"unlocked_stages": unlocked_stages,
+	}
 
 
 func _get_default_goals() -> Dictionary:

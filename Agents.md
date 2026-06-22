@@ -2100,10 +2100,14 @@ Manual playtest checklist:
 - `get_stage_unlock_requirement(stage_id: String) -> Dictionary` — returns `{}` for always-unlocked stages, or `{required_stage_id, required_level}`.
 
 ### Stage progress API (MetaProgressionManager)
-- `get_stage_progress(stage_id) -> Dictionary` — `{highest_cleared_level, runs, wins}`.
+- `get_stage_progress(stage_id) -> Dictionary` — `{highest_cleared_level, runs, wins}` — safe default if stage unknown.
+- `get_stage_progress_summary() -> Dictionary` — full `stage_progress` dict for all known stages.
 - `get_highest_cleared_stage_level(stage_id) -> int`.
-- `is_stage_unlocked(stage_id) -> bool` — city_rooftop always true; neon_lab requires city_rooftop >= 3; wasteland_gate requires neon_lab >= 3.
+- `is_stage_unlocked(stage_id) -> bool` — city_rooftop always true; neon_lab requires city_rooftop.highest_cleared_level >= 3; wasteland_gate requires neon_lab.highest_cleared_level >= 3. This is the runtime truth; `unlocked_by_default` is a hint only.
 - `get_next_available_stage_level(stage_id) -> int` — highest_cleared_level + 1, minimum 1.
+- `_apply_stage_progress_from_run(summary) -> Dictionary` — called by `apply_run_result`; always increments `runs`; on victory increments `wins` and updates `highest_cleared_level` only if stage_level > previous; defeat does not change `highest_cleared_level`. Returns `{stage_id, stage_level, result, previous_highest_cleared_level, highest_cleared_level, new_best, unlocked_stages[]}`.
+- `apply_run_result` returns `rewards["stage_progress_changes"]` with the above dict.
+- `get_progress_summary()` now includes `"stage_progress": get_stage_progress_summary()`.
 
 ### Main.gd selected_stage_level flow
 - `Main.selected_stage_level: int = 1` carries the chosen level through the full run flow.
@@ -2117,8 +2121,13 @@ Manual playtest checklist:
 - Neon Lab — clears of City Rooftop Level 3 required (`highest_cleared_level >= 3`).
 - Wasteland Gate — clears of Neon Lab Level 3 required (`highest_cleared_level >= 3`).
 
+### Arena run summary fields (stage)
+- `summary["stage_level"]` — selected level (int, minimum 1), populated from `stage_data["selected_level"]`.
+- `summary["stage_level_preview"]` — copy of `stage_data["level_preview"]` dict.
+- Do not apply enemy or reward scaling from these fields until a future scaling patch.
+
 ### Not implemented (reserved for future patches)
-- Full enemy scaling per level, loot scaling, first-clear rewards, reward multipliers, win recording into stage_progress.
+- Enemy scaling per level, reward scaling, loot scaling, first-clear rewards, new Zone Result Screen.
 
 ### StageSelect manual validation checklist
 - Start from Main Menu → Start Run → select a hero → StageSelect opens.

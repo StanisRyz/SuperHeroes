@@ -2731,3 +2731,30 @@ Equipment / Inventory horizontal layout validation:
 | 19 | Regression: hero kit, evolutions, abilities, boss flow, training, equipment, inventory | All continue to work unchanged |
 | 20 | Inspect scope | No ZoneSelect.gd, ZoneSelect.tscn, or ZoneDataProvider created; no enemy/loot scaling applied |
 
+---
+
+## Zone Progress & Unlock Rules
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Fresh save / reset progress | city_rooftop: {highest_cleared_level:0, runs:0, wins:0}; neon_lab and wasteland_gate same; Neon Lab and Wasteland Gate show LOCKED in StageSelect |
+| 2 | Win City Rooftop Level 1 | city_rooftop.runs == 1, wins == 1, highest_cleared_level == 1; Neon Lab remains locked |
+| 3 | Win City Rooftop Level 2 | city_rooftop.highest_cleared_level == 2; Neon Lab remains locked |
+| 4 | Win City Rooftop Level 3 | city_rooftop.highest_cleared_level == 3; Neon Lab becomes UNLOCKED in StageSelect |
+| 5 | Win Neon Lab Level 3 | neon_lab.highest_cleared_level == 3; Wasteland Gate becomes UNLOCKED in StageSelect |
+| 6 | Lose any run | runs increments by 1; wins unchanged; highest_cleared_level unchanged |
+| 7 | Win City Rooftop Level 1 after already having Level 3 | highest_cleared_level stays 3 (lower level win does not overwrite) |
+| 8 | `apply_run_result` return value on first Level 3 victory | `rewards["stage_progress_changes"]["new_best"] == true`; `["unlocked_stages"]` contains "neon_lab" |
+| 9 | `apply_run_result` on defeat | `rewards["stage_progress_changes"]["new_best"] == false`; `["unlocked_stages"]` is empty |
+| 10 | `get_stage_progress("city_rooftop")` after 2 runs, 1 win at Level 3 | `{highest_cleared_level:3, runs:2, wins:1}` |
+| 11 | `get_stage_progress("unknown_stage")` | Returns default entry `{highest_cleared_level:0, runs:0, wins:0}` — no crash |
+| 12 | `get_stage_progress_summary()` | Dict with city_rooftop, neon_lab, wasteland_gate keys |
+| 13 | `get_progress_summary()` | Contains `"stage_progress"` key with same structure |
+| 14 | Old save without stage_progress key | Loads safely; stage_progress initialized for all three stages without wiping other data |
+| 15 | Old save with stage_progress missing neon_lab entry | neon_lab entry added on load; city_rooftop and wasteland_gate preserved |
+| 16 | Negative value in saved stage_progress | Clamped to 0 on load |
+| 17 | Arena run summary after run | `summary["stage_level"]` is the chosen level (integer >= 1); `summary["stage_level_preview"]` is the preview dict |
+| 18 | Restart run | Same stage_id and stage_level re-used; run summary will record same level again |
+| 19 | Regression: hero mastery, stage mastery, goals, training, equipment, inventory, rewards | All continue to work unchanged |
+| 20 | Scope check | No enemy scaling, no reward scaling, no Zone Result Screen, no ZoneSelect or ZoneDataProvider |
+

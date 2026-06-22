@@ -874,6 +874,9 @@ func _build_run_summary(base_stats: Dictionary) -> Dictionary:
 	summary["hero_display_name"] = hero_display_name
 	summary["stage_id"] = stage_id
 	summary["stage_display_name"] = stage_display_name
+	summary["stage_level"] = maxi(int(stage_data.get("selected_level", 1)), 1)
+	var _lvl_preview = stage_data.get("level_preview", {})
+	summary["stage_level_preview"] = _lvl_preview.duplicate(true) if _lvl_preview is Dictionary else {}
 	summary["final_boss_id"] = final_boss_id
 	var objective_summary := _build_objective_summary(base_stats)
 	for key in objective_summary:

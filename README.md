@@ -1857,5 +1857,43 @@ StageSelect has been redesigned from a vertical list/details panel into a horizo
 - Shows selected zone level, recommended power, enemy strength preview, and loot value preview.
 - Does not block Start Run based on recommended power.
 
-**Not implemented in this patch:** full enemy scaling, loot scaling, first-clear rewards, reward multipliers, win recording into stage_progress. These are reserved for future patches.
+**Not implemented in this patch (StageSelect Cards):** full enemy scaling, loot scaling, first-clear rewards, reward multipliers. These are reserved for future patches.
+
+### Zone Progress & Unlock Rules
+
+Stage progress is now saved and drives zone unlock state.
+
+**Save-backed `stage_progress`:**
+- Each of the three stages has a saved entry: `{highest_cleared_level: 0, runs: 0, wins: 0}`.
+- Initialized safely for old saves without wiping existing data.
+- Unknown future stage ids are not erased.
+- Negative values are clamped to 0 on load.
+
+**Run result recording (`_apply_stage_progress_from_run`):**
+- `runs` always increments for a valid `stage_id` (victory or defeat).
+- On victory: `wins` increments; `highest_cleared_level` updates only if `stage_level > previous_highest`.
+- On defeat: `runs` increments; `highest_cleared_level` does not change.
+- `summary["stage_level"]` is read from Arena's run summary (populated from `stage_data["selected_level"]`).
+
+**Unlock chain:**
+- City Rooftop — always unlocked.
+- Neon Lab — unlocks when `city_rooftop.highest_cleared_level >= 3`.
+- Wasteland Gate — unlocks when `neon_lab.highest_cleared_level >= 3`.
+- `is_stage_unlocked(stage_id)` is the runtime truth; `unlocked_by_default` is a hint only.
+
+**Newly unlocked zone detection:**
+- `apply_run_result` returns `rewards["stage_progress_changes"]` with a `unlocked_stages` list of zones that became unlocked during that run.
+
+**API (MetaProgressionManager):**
+- `get_stage_progress(stage_id) -> Dictionary`
+- `get_stage_progress_summary() -> Dictionary`
+- `get_highest_cleared_stage_level(stage_id) -> int`
+- `get_next_available_stage_level(stage_id) -> int` — `highest_cleared_level + 1`, min 1
+- `is_stage_unlocked(stage_id) -> bool`
+
+**Arena run summary:**
+- `summary["stage_level"]` — selected level (integer, minimum 1).
+- `summary["stage_level_preview"]` — copy of the level preview dict from stage_data.
+
+**Not in this patch:** enemy scaling, reward scaling, loot scaling, first-clear rewards, new Zone Result Screen.
 - No economy, reward, stage, or gameplay changes were added in this patch.
