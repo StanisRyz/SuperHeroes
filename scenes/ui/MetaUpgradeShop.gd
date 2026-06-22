@@ -23,6 +23,8 @@ var _training_content: Control
 var _list_vbox: VBoxContainer
 
 var _rows: Array[Dictionary] = []
+var _row_hero_id: String = ""
+var _row_ids: PackedStringArray = PackedStringArray()
 var _hero_dropdown: OptionButton
 
 # Starter pack popup
@@ -1330,13 +1332,22 @@ func _format_slot_name(slot_id: String) -> String:
 func _rebuild_rows_if_needed() -> void:
 	if _meta_manager == null or _list_vbox == null:
 		return
-	var defs: Array[Dictionary] = _meta_manager.get_meta_upgrade_definitions()
-	if _rows.size() == defs.size():
+	var defs: Array[Dictionary] = []
+	if _meta_manager.has_method("get_training_definitions_for_hero"):
+		defs = _meta_manager.get_training_definitions_for_hero(_selected_hero_id)
+	else:
+		defs = _meta_manager.get_meta_upgrade_definitions()
+	var next_ids := PackedStringArray()
+	for def in defs:
+		next_ids.append(str(def.get("id", "")))
+	if _row_hero_id == _selected_hero_id and _row_ids == next_ids:
 		return
 
 	for child in _list_vbox.get_children():
 		child.queue_free()
 	_rows.clear()
+	_row_hero_id = _selected_hero_id
+	_row_ids = next_ids
 
 	for def in defs:
 		var upgrade_id := str(def.get("id", ""))
@@ -1360,6 +1371,12 @@ func _build_row(upgrade_id: String, def: Dictionary) -> PanelContainer:
 	title_lbl.text = str(def.get("title", ""))
 	title_lbl.add_theme_font_size_override("font_size", 14)
 	info.add_child(title_lbl)
+
+	var category_lbl := Label.new()
+	category_lbl.text = str(def.get("category", "")).replace("_", " ").capitalize()
+	category_lbl.add_theme_font_size_override("font_size", 10)
+	category_lbl.modulate = Color(0.58, 0.72, 0.88, 1.0)
+	info.add_child(category_lbl)
 
 	var desc_lbl := Label.new()
 	desc_lbl.text = str(def.get("description", ""))

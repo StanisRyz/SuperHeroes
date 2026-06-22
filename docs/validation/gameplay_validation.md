@@ -5,6 +5,25 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Character Training Data Foundation
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training screen -> Training tab | A flat list of Training nodes appears for the selected hero only |
+| 2 | Select Solar Guardian | Rows include Guardian nodes such as `guardian_radiant_vitality`, `guardian_beam_focus`, and `guardian_solar_energy_flow`; Blaster/Vanguard nodes do not appear |
+| 3 | Buy a Guardian node | Existing Training currency is spent; only that Guardian node level increases |
+| 4 | Switch to Night Tactician | Guardian nodes disappear; Blaster nodes such as `blaster_rocket_calibration` and `blaster_mark_exploitation` appear |
+| 5 | Buy a Blaster node | Only the Blaster node level increases; Guardian levels remain unchanged |
+| 6 | Switch back to Solar Guardian | Guardian progress is still preserved under Guardian |
+| 7 | Select Fury Vanguard | Vanguard nodes appear for all six categories: stats, autoattack, ability_1, ability_2, ability_3, passive |
+| 8 | Call `MetaProgressionManager.debug_get_character_training_summary()` | Reports 18 total nodes, nodes by hero/category, no duplicate ids, no missing hero ids, and saved levels by hero |
+| 9 | Load an old save with unknown Training ids | UI does not crash; unknown ids stay inert and do not appear in new purchase lists |
+| 10 | Try to buy a node owned by another hero through console | Purchase returns false and does not spend currency |
+| 11 | Equipment tab after Training purchases | Shared equipment, inventory, Gold/material upgrades, and set bonuses still work unchanged |
+| 12 | Inspect scope | No inventory, item upgrade economy, set bonus, combat balance, gacha/crafting/fusion/random affix, respec/reset, stage/zone, or deep ability-effect integration changes |
+
+---
+
 ## Equipment Set Bonus Effects
 
 | # | Test | Expected |

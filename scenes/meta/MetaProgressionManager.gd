@@ -53,9 +53,12 @@ const STARTER_PACK_TEMPLATES: Array[String] = [
 var _data: Dictionary = {}
 var _newly_completed_goals: Array[Dictionary] = []
 var _equipment_provider: Node = null
+var _training_provider: Node = null
 
 
 func _ready() -> void:
+	_training_provider = load("res://scenes/training/CharacterTrainingDataProvider.gd").new()
+	add_child(_training_provider)
 	_equipment_provider = load("res://scenes/equipment/EquipmentDataProvider.gd").new()
 	add_child(_equipment_provider)
 	load_progress()
@@ -260,6 +263,8 @@ func spend_equipment_materials(material_cost: Dictionary) -> bool:
 
 func get_training_level(hero_id: String, upgrade_id: String) -> int:
 	var resolved_hero_id := _resolve_hero_id(hero_id)
+	if not _is_training_node_for_hero(upgrade_id, resolved_hero_id):
+		return 0
 	ensure_training_data_for_hero(resolved_hero_id)
 	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
 	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {})
@@ -268,9 +273,11 @@ func get_training_level(hero_id: String, upgrade_id: String) -> int:
 
 func set_training_level(hero_id: String, upgrade_id: String, level: int) -> void:
 	var resolved_hero_id := _resolve_hero_id(hero_id)
+	if not _is_training_node_for_hero(upgrade_id, resolved_hero_id):
+		return
 	ensure_training_data_for_hero(resolved_hero_id)
-	var def := get_meta_upgrade_definition(upgrade_id)
-	var max_level := int(def.get("max_level", 99)) if not def.is_empty() else 99
+	var def := get_training_definition(resolved_hero_id, upgrade_id)
+	var max_level := int(def.get("max_level", 0))
 	var clamped_level := clampi(level, 0, max_level)
 	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
 	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {})
@@ -294,8 +301,89 @@ func get_training_summary_for_hero(hero_id: String) -> Dictionary:
 		"hero_id": resolved_hero_id,
 		"currency": get_currency(),
 		"levels": get_training_levels_for_hero(resolved_hero_id),
+		"definitions": get_training_definitions_for_hero(resolved_hero_id),
+		"effect_modifiers": get_training_effect_modifiers_for_hero(resolved_hero_id),
+		"effect_summary": get_training_effect_summary_for_hero(resolved_hero_id),
 		"equipment": get_equipment_summary_for_hero(resolved_hero_id),
 	}
+
+
+func get_training_definitions_for_hero(hero_id: String) -> Array[Dictionary]:
+	if _training_provider == null:
+		return []
+	return _training_provider.get_training_nodes_for_hero(_resolve_hero_id(hero_id))
+
+
+func get_training_definition(hero_id: String, node_id: String) -> Dictionary:
+	if _training_provider == null:
+		return {}
+	var def: Dictionary = _training_provider.get_training_node(node_id)
+	if def.is_empty() or str(def.get("hero_id", "")) != _resolve_hero_id(hero_id):
+		return {}
+	return def
+
+
+func get_training_categories() -> Array[String]:
+	if _training_provider != null:
+		return _training_provider.get_categories()
+	return []
+
+
+func get_training_effect_modifiers_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var result := {}
+	for node in get_training_definitions_for_hero(resolved_hero_id):
+		var node_id := str(node.get("id", ""))
+		var level := get_training_level(resolved_hero_id, node_id)
+		if level <= 0:
+			continue
+		var effect_type := str(node.get("effect_type", ""))
+		if effect_type.is_empty():
+			continue
+		var total := float(node.get("effect_per_level", 0.0)) * float(level)
+		result[effect_type] = float(result.get(effect_type, 0.0)) + total
+	return result
+
+
+func get_training_effect_summary_for_hero(hero_id: String) -> Array[Dictionary]:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var grouped := {}
+	for node in get_training_definitions_for_hero(resolved_hero_id):
+		var node_id := str(node.get("id", ""))
+		var level := get_training_level(resolved_hero_id, node_id)
+		if level <= 0:
+			continue
+		var effect_type := str(node.get("effect_type", ""))
+		var target := str(node.get("target", ""))
+		var key := "%s|%s" % [target, effect_type]
+		var entry: Dictionary = grouped.get(key, {
+			"hero_id": resolved_hero_id,
+			"target": target,
+			"effect_type": effect_type,
+			"total": 0.0,
+			"levels": 0,
+			"node_ids": [],
+		})
+		entry["total"] = float(entry.get("total", 0.0)) + float(node.get("effect_per_level", 0.0)) * float(level)
+		entry["levels"] = int(entry.get("levels", 0)) + level
+		var node_ids: Array = entry.get("node_ids", [])
+		node_ids.append(node_id)
+		entry["node_ids"] = node_ids
+		grouped[key] = entry
+
+	var result: Array[Dictionary] = []
+	for key in grouped:
+		result.append(grouped.get(key, {}).duplicate(true))
+	result.sort_custom(func(a, b):
+		var at := str(a.get("target", ""))
+		var bt := str(b.get("target", ""))
+		if at == bt:
+			return str(a.get("effect_type", "")) < str(b.get("effect_type", ""))
+		return at < bt
+	)
+	return result
 
 
 func get_equipment_definitions(hero_id: String = "") -> Array[Dictionary]:
@@ -684,13 +772,32 @@ func get_debug_training_summary() -> Dictionary:
 	return result
 
 
+func debug_get_character_training_summary() -> Dictionary:
+	var provider_summary := {}
+	if _training_provider != null and _training_provider.has_method("debug_get_training_node_summary"):
+		provider_summary = _training_provider.debug_get_training_node_summary()
+	var save_levels := {}
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	for hero_id in training_by_hero:
+		var hero_training: Dictionary = training_by_hero.get(hero_id, {}) if training_by_hero.get(hero_id, {}) is Dictionary else {}
+		save_levels[str(hero_id)] = hero_training.duplicate(true)
+	provider_summary["save_training_levels_by_hero"] = save_levels
+	provider_summary["effect_modifiers_by_hero"] = {}
+	for hero_id in DEFAULT_HERO_IDS:
+		provider_summary["effect_modifiers_by_hero"][hero_id] = get_training_effect_modifiers_for_hero(hero_id)
+	return provider_summary
+
+
 func can_purchase_training_upgrade(hero_id: String, upgrade_id: String) -> bool:
-	var def := get_meta_upgrade_definition(upgrade_id)
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var def := get_training_definition(resolved_hero_id, upgrade_id)
 	if def.is_empty():
 		return false
-	if get_training_level(hero_id, upgrade_id) >= int(def.get("max_level", 1)):
+	if not is_hero_unlocked(resolved_hero_id):
 		return false
-	return get_currency() >= get_training_upgrade_cost(hero_id, upgrade_id)
+	if get_training_level(resolved_hero_id, upgrade_id) >= int(def.get("max_level", 1)):
+		return false
+	return get_currency() >= get_training_upgrade_cost(resolved_hero_id, upgrade_id)
 
 
 func purchase_training_upgrade(hero_id: String, upgrade_id: String) -> bool:
@@ -711,7 +818,16 @@ func ensure_training_data_for_hero(hero_id: String) -> void:
 	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
 	if not training_by_hero.has(resolved_hero_id) or not training_by_hero.get(resolved_hero_id) is Dictionary:
 		training_by_hero[resolved_hero_id] = {}
-		_data["training_by_hero"] = training_by_hero
+	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {})
+	for node in get_training_definitions_for_hero(resolved_hero_id):
+		var node_id := str(node.get("id", ""))
+		if node_id.is_empty():
+			continue
+		if not hero_training.has(node_id):
+			continue
+		hero_training[node_id] = clampi(int(hero_training.get(node_id, 0)), 0, int(node.get("max_level", 0)))
+	training_by_hero[resolved_hero_id] = hero_training
+	_data["training_by_hero"] = training_by_hero
 
 
 func ensure_training_data_for_all_heroes(hero_ids: Array) -> void:
@@ -739,10 +855,11 @@ func ensure_equipment_data_for_all_heroes(hero_ids: Array) -> void:
 
 
 func get_training_upgrade_cost(hero_id: String, upgrade_id: String) -> int:
-	var def := get_meta_upgrade_definition(upgrade_id)
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	var def := get_training_definition(resolved_hero_id, upgrade_id)
 	if def.is_empty():
 		return 0
-	var level := get_training_level(hero_id, upgrade_id)
+	var level := get_training_level(resolved_hero_id, upgrade_id)
 	return _calculate_upgrade_cost(def, level)
 
 
@@ -876,54 +993,12 @@ func get_progress_summary() -> Dictionary:
 
 
 func get_meta_upgrade_definitions() -> Array[Dictionary]:
-	return [
-		{
-			"id": "meta_max_health",
-			"title": "Training: Vitality",
-			"description": "+5 starting max HP per level.",
-			"max_level": 10,
-			"base_cost": 25,
-			"cost_growth": 1.35,
-		},
-		{
-			"id": "meta_attack_damage",
-			"title": "Training: Power",
-			"description": "+1 starting attack damage per level.",
-			"max_level": 10,
-			"base_cost": 30,
-			"cost_growth": 1.4,
-		},
-		{
-			"id": "meta_pickup_radius",
-			"title": "Training: Awareness",
-			"description": "+8 XP pickup radius per level.",
-			"max_level": 8,
-			"base_cost": 20,
-			"cost_growth": 1.35,
-		},
-		{
-			"id": "meta_move_speed",
-			"title": "Training: Mobility",
-			"description": "+3 starting movement speed per level.",
-			"max_level": 8,
-			"base_cost": 20,
-			"cost_growth": 1.35,
-		},
-		{
-			"id": "meta_starting_currency_bonus",
-			"title": "Training: Rewards",
-			"description": "+2 currency after each run per level.",
-			"max_level": 5,
-			"base_cost": 40,
-			"cost_growth": 1.5,
-		},
-	]
+	return get_training_definitions_for_hero(DEFAULT_HERO_ID)
 
 
 func get_meta_upgrade_definition(upgrade_id: String) -> Dictionary:
-	for def in get_meta_upgrade_definitions():
-		if str(def.get("id", "")) == upgrade_id:
-			return def
+	if _training_provider != null:
+		return _training_provider.get_training_node(upgrade_id)
 	return {}
 
 
@@ -2159,7 +2234,7 @@ func _grade_value(grade: String) -> int:
 
 
 func _calculate_upgrade_cost(def: Dictionary, level: int) -> int:
-	var base_cost := int(def.get("base_cost", 25))
+	var base_cost := int(def.get("cost_base", def.get("base_cost", 25)))
 	var growth := float(def.get("cost_growth", 1.35))
 	if level <= 0:
 		return base_cost
@@ -2168,6 +2243,12 @@ func _calculate_upgrade_cost(def: Dictionary, level: int) -> int:
 
 func _resolve_hero_id(hero_id: String) -> String:
 	return hero_id if not hero_id.is_empty() else DEFAULT_HERO_ID
+
+
+func _is_training_node_for_hero(node_id: String, hero_id: String) -> bool:
+	if _training_provider == null:
+		return false
+	return _training_provider.is_training_node_for_hero(node_id, _resolve_hero_id(hero_id))
 
 
 # ─── Equipment Set helpers ────────────────────────────────────────────────────

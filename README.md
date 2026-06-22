@@ -37,6 +37,18 @@ Equipment disposal is now handled through **Dismantle** only. The player-facing 
 - Upgrade cost scaling uses rarity Gold bases (20/35/60/100/160/250) times next item level, plus material base 2 and +1 material per 2 current levels.
 - This patch does not add crafting, fusion, gacha, random affixes, enemy item drops, hard inventory capacity, multi-dismantle, reward chance changes, set bonus changes, or item stat changes.
 
+### Character Training Data Foundation
+
+Training definitions are now character-specific data. `scenes/training/CharacterTrainingDataProvider.gd` owns the canonical node list, while `MetaProgressionManager` stores only player-owned levels under `training_by_hero`.
+
+- Equipment remains a shared global loadout for all heroes.
+- Training belongs to exactly one hero per node; there are no global Training nodes.
+- Each hero has starter nodes in six categories: `stats`, `autoattack`, `ability_1`, `ability_2`, `ability_3`, and `passive`.
+- Similar upgrades on different heroes use separate node ids, such as `guardian_beam_focus`, `blaster_rocket_calibration`, and `vanguard_heavy_swing`.
+- Training purchases spend only the existing Training/progression currency and increase only the selected hero's node level.
+- Existing save data remains compatible: `training_by_hero` is preserved, missing hero dictionaries are initialized safely, and unknown old node ids do not crash the UI.
+- The current Training tab still shows a flat list for the selected hero. Full category UI rework and deeper gameplay integration are reserved for future patches.
+
 ### Gameplay Validation / Debug Pass
 
 A debug toolset has been added to help verify all gameplay systems quickly without waiting for natural game time:
