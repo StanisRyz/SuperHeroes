@@ -5,6 +5,24 @@ Run these before adding new gameplay systems.
 
 ---
 
+## Character Base Stat Training
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | Open Training screen -> Training tab -> Solar Guardian | Guardian list includes `Radiant Vitality`, `Solar Might`, and `Sunforged Guard`; rows show current/next readable effects |
+| 2 | Buy `Radiant Vitality`, then start a Solar Guardian run | Solar Guardian max/current HP increases by +5 per level after hero base stats apply |
+| 3 | Start or switch to Night Tactician without Blaster HP Training | Night Tactician does not receive Guardian HP Training |
+| 4 | Buy `Tactical Precision`, then start Night Tactician | Night Tactician autoattack and active damage values increase by +1 per level |
+| 5 | Start Fury Vanguard after Blaster damage Training | Fury Vanguard does not receive Blaster Base Damage Training |
+| 6 | Buy `Pain Tolerance`, then start Fury Vanguard and take damage | Incoming player damage is reduced by 1% per level; total Training damage reduction is capped at 50% |
+| 7 | Call `MetaProgressionManager.debug_get_training_modifier_summary(hero_id)` | Reports purchased nodes, selected-hero aggregated modifiers, all effect modifiers, and ignored invalid saved ids |
+| 8 | Buy any Training stats node | Only existing Training/progression currency changes; Gold and equipment materials do not change |
+| 9 | Switch hero dropdown after purchases | Visible levels/effects update for the selected hero only |
+| 10 | Regression: Equipment tab, inventory, item upgrades, Dismantle, set bonuses, Item/Loadout Power, starter pack, and post-run rewards | All continue to work unchanged |
+| 11 | Inspect scope | No global Training nodes, new currencies, respec/reset, gacha/crafting/fusion/random affixes, stage/zone, hero kit, evolution, boss-flow, reward, or in-run 4/4/4 changes |
+
+---
+
 ## Character Training Data Foundation
 
 | # | Test | Expected |
@@ -16,7 +34,7 @@ Run these before adding new gameplay systems.
 | 5 | Buy a Blaster node | Only the Blaster node level increases; Guardian levels remain unchanged |
 | 6 | Switch back to Solar Guardian | Guardian progress is still preserved under Guardian |
 | 7 | Select Fury Vanguard | Vanguard nodes appear for all six categories: stats, autoattack, ability_1, ability_2, ability_3, passive |
-| 8 | Call `MetaProgressionManager.debug_get_character_training_summary()` | Reports 18 total nodes, nodes by hero/category, no duplicate ids, no missing hero ids, and saved levels by hero |
+| 8 | Call `MetaProgressionManager.debug_get_character_training_summary()` | Reports 24 total nodes, nodes by hero/category, no duplicate ids, no missing hero ids, and saved levels by hero |
 | 9 | Load an old save with unknown Training ids | UI does not crash; unknown ids stay inert and do not appear in new purchase lists |
 | 10 | Try to buy a node owned by another hero through console | Purchase returns false and does not spend currency |
 | 11 | Equipment tab after Training purchases | Shared equipment, inventory, Gold/material upgrades, and set bonuses still work unchanged |

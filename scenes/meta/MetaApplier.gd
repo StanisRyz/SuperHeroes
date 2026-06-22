@@ -16,6 +16,8 @@ static func apply_meta_progression(meta_manager: Node, player: Node, auto_attack
 	if meta_manager.has_method("ensure_equipment_data_for_hero"):
 		meta_manager.ensure_equipment_data_for_hero(resolved_hero_id)
 
+	_apply_training_stat_modifiers(meta_manager, resolved_hero_id, player, auto_attack, ability_manager)
+
 	if player != null and is_instance_valid(player):
 		var hp_level: int = _get_training_level(meta_manager, resolved_hero_id, "meta_max_health")
 		if hp_level > 0:
@@ -43,6 +45,36 @@ static func apply_meta_progression(meta_manager: Node, player: Node, auto_attack
 			auto_attack.set("attack_damage", new_dmg)
 
 	_apply_equipment_modifiers(meta_manager, resolved_hero_id, player, auto_attack, ability_manager)
+
+
+static func _apply_training_stat_modifiers(meta_manager: Node, hero_id: String, player: Node, auto_attack: Node, ability_manager: Node) -> void:
+	if not meta_manager.has_method("get_training_stat_modifiers_for_hero"):
+		return
+	var modifiers: Dictionary = meta_manager.get_training_stat_modifiers_for_hero(hero_id)
+	if modifiers.is_empty():
+		return
+
+	if player != null and is_instance_valid(player):
+		var health_bonus := int(round(float(modifiers.get("max_health", 0.0))))
+		if health_bonus > 0 and player.get("max_health") != null:
+			var new_max := int(player.get("max_health") or 100) + health_bonus
+			player.set("max_health", new_max)
+			player.set("current_health", new_max)
+			if player.has_signal("health_changed"):
+				player.health_changed.emit(new_max, new_max)
+
+		var damage_reduction := float(modifiers.get("damage_reduction", 0.0))
+		if damage_reduction > 0.0 and player.get("damage_reduction") != null:
+			var current_reduction := float(player.get("damage_reduction") or 0.0)
+			player.set("damage_reduction", clampf(current_reduction + damage_reduction, 0.0, 0.50))
+
+	var base_damage := int(round(float(modifiers.get("base_damage", 0.0))))
+	if base_damage <= 0:
+		return
+	if auto_attack != null and is_instance_valid(auto_attack) and auto_attack.get("attack_damage") != null:
+		auto_attack.set("attack_damage", int(auto_attack.get("attack_damage") or 0) + base_damage)
+	if ability_manager != null and is_instance_valid(ability_manager):
+		_apply_base_damage_bonus(ability_manager, base_damage)
 
 
 static func _get_training_level(meta_manager: Node, hero_id: String, upgrade_id: String) -> int:
@@ -120,6 +152,16 @@ static func _apply_ability_damage_multiplier(ability_manager: Node, multiplier: 
 		"rage_wave_damage", "mighty_clap_damage", "rage_leap_damage",
 	]:
 		_multiply_number(ability_manager, property_name, multiplier)
+
+
+static func _apply_base_damage_bonus(ability_manager: Node, bonus: int) -> void:
+	for property_name in [
+		"nova_damage", "laser_damage", "slam_damage",
+		"solar_beam_damage", "frost_breath_damage", "death_dash_damage",
+		"explosive_trap_damage", "grappling_hook_damage",
+		"rage_wave_damage", "mighty_clap_damage", "rage_leap_damage",
+	]:
+		_add_number(ability_manager, property_name, bonus)
 
 
 static func _apply_all_cooldown_multiplier(ability_manager: Node, multiplier: float) -> void:

@@ -99,7 +99,8 @@ func take_damage(amount: int) -> void:
 		return
 
 	if damage_reduction > 0.0:
-		amount = maxi(roundi(float(amount) * maxf(1.0 - damage_reduction, 0.0)), 0)
+		var safe_reduction := clampf(damage_reduction, 0.0, 0.50)
+		amount = maxi(roundi(float(amount) * maxf(1.0 - safe_reduction, 0.0)), 1)
 		if amount <= 0:
 			return
 

@@ -1388,6 +1388,12 @@ func _build_row(upgrade_id: String, def: Dictionary) -> PanelContainer:
 	level_lbl.add_theme_font_size_override("font_size", 11)
 	info.add_child(level_lbl)
 
+	var effect_lbl := Label.new()
+	effect_lbl.add_theme_font_size_override("font_size", 10)
+	effect_lbl.modulate = Color(0.68, 0.82, 0.72, 1.0)
+	effect_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(effect_lbl)
+
 	var buy_btn := Button.new()
 	buy_btn.custom_minimum_size = Vector2(110, 44)
 	buy_btn.pressed.connect(_on_buy_pressed.bind(upgrade_id))
@@ -1396,7 +1402,9 @@ func _build_row(upgrade_id: String, def: Dictionary) -> PanelContainer:
 	var row_data := {
 		"id": upgrade_id,
 		"max_level": int(def.get("max_level", 1)),
+		"def": def.duplicate(true),
 		"level_lbl": level_lbl,
+		"effect_lbl": effect_lbl,
 		"buy_btn": buy_btn,
 		"panel": panel,
 	}
@@ -1418,6 +1426,11 @@ func _update_rows() -> void:
 		if level_lbl != null:
 			level_lbl.text = "Level %d / %d" % [level, max_level]
 
+		var effect_lbl := row.get("effect_lbl") as Label
+		if effect_lbl != null:
+			var def: Dictionary = row.get("def", {})
+			effect_lbl.text = _format_training_row_effect(def, level, max_level)
+
 		var buy_btn := row.get("buy_btn") as Button
 		if buy_btn != null:
 			if level >= max_level:
@@ -1432,6 +1445,33 @@ func _update_rows() -> void:
 				buy_btn.text = "Buy  %d" % cost
 				buy_btn.disabled = true
 				buy_btn.modulate = UIStateColors.muted_color()
+
+
+func _format_training_row_effect(def: Dictionary, level: int, max_level: int) -> String:
+	if def.is_empty():
+		return "Applies to selected hero only."
+	var effect_type := str(def.get("effect_type", ""))
+	var per_level := float(def.get("effect_per_level", 0.0))
+	var current_text := _format_training_effect(effect_type, per_level * float(level))
+	var next_level := mini(level + 1, max_level)
+	var next_text := _format_training_effect(effect_type, per_level * float(next_level))
+	if level >= max_level:
+		return "Current: %s. Next: MAX. Applies to selected hero only." % current_text
+	return "Current: %s. Next: %s. Applies to selected hero only." % [current_text, next_text]
+
+
+func _format_training_effect(effect_type: String, value: float) -> String:
+	if _meta_manager != null and _meta_manager.has_method("format_training_modifier"):
+		return str(_meta_manager.format_training_modifier(effect_type, value))
+	match effect_type:
+		"max_health":
+			return "+%d Max HP" % int(round(value))
+		"base_damage":
+			return "+%d Base Damage" % int(round(value))
+		"damage_reduction":
+			return "-%d%% Damage Taken" % int(round(value * 100.0))
+		_:
+			return "+%s %s" % [_format_number(value), effect_type.replace("_", " ").capitalize()]
 
 
 func _update_goals_label() -> void:

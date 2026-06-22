@@ -49,6 +49,19 @@ Training definitions are now character-specific data. `scenes/training/Character
 - Existing save data remains compatible: `training_by_hero` is preserved, missing hero dictionaries are initialized safely, and unknown old node ids do not crash the UI.
 - The current Training tab still shows a flat list for the selected hero. Full category UI rework and deeper gameplay integration are reserved for future patches.
 
+### Character Base Stat Training
+
+Character Training now applies real base-stat modifiers to the hero selected for the run.
+
+- Supported base stat effects: `max_health`, `base_damage`, and `damage_reduction`.
+- Each hero has three `stats` nodes: one for Max HP, one for Base Damage, and one for Damage Taken reduction.
+- Max HP Training increases the selected hero's runtime max/current HP after hero base stats are applied.
+- Base Damage Training adds to the selected hero's autoattack and active ability damage values at run start.
+- Damage Reduction Training reduces incoming player damage and is capped at 50% total reduction for safety.
+- Equipment and set bonuses remain shared globally and continue to stack separately from per-character Training.
+- Training purchases still use only the existing Training/progression currency; Gold and equipment materials are not used.
+- Active-ability-specific Training, passive Training, respec/reset, and a full Training UI rework remain future patches.
+
 ### Gameplay Validation / Debug Pass
 
 A debug toolset has been added to help verify all gameplay systems quickly without waiting for natural game time:

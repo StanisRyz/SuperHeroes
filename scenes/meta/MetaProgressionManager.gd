@@ -20,6 +20,7 @@ const DEFAULT_STAGE_IDS: Array[String] = ["city_rooftop", "neon_lab", "wasteland
 const EQUIPMENT_SLOT_IDS: Array[String] = ["core", "suit", "emblem", "gauntlets", "boots", "artifact"]
 const STARTER_PACK_ID := "starter_pack_v1"
 const INVENTORY_CAPACITY := 60
+const TRAINING_DAMAGE_REDUCTION_CAP := 0.50
 
 const _RARITY_GOLD_BASE := {
 	"common": 5,
@@ -343,6 +344,30 @@ func get_training_effect_modifiers_for_hero(hero_id: String) -> Dictionary:
 			continue
 		var total := float(node.get("effect_per_level", 0.0)) * float(level)
 		result[effect_type] = float(result.get(effect_type, 0.0)) + total
+	if result.has("damage_reduction"):
+		result["damage_reduction"] = clampf(float(result.get("damage_reduction", 0.0)), 0.0, TRAINING_DAMAGE_REDUCTION_CAP)
+	return result
+
+
+func get_training_stat_modifiers_for_hero(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var result := {
+		"max_health": 0.0,
+		"base_damage": 0.0,
+		"damage_reduction": 0.0,
+	}
+	for node in get_training_definitions_for_hero(resolved_hero_id):
+		if str(node.get("target", "")) != "hero_stats":
+			continue
+		var effect_type := str(node.get("effect_type", ""))
+		if not result.has(effect_type):
+			continue
+		var level := get_training_level(resolved_hero_id, str(node.get("id", "")))
+		if level <= 0:
+			continue
+		result[effect_type] = float(result.get(effect_type, 0.0)) + float(node.get("effect_per_level", 0.0)) * float(level)
+	result["damage_reduction"] = clampf(float(result.get("damage_reduction", 0.0)), 0.0, TRAINING_DAMAGE_REDUCTION_CAP)
 	return result
 
 
@@ -373,6 +398,12 @@ func get_training_effect_summary_for_hero(hero_id: String) -> Array[Dictionary]:
 		entry["node_ids"] = node_ids
 		grouped[key] = entry
 
+	for key in grouped:
+		var entry: Dictionary = grouped.get(key, {})
+		if str(entry.get("effect_type", "")) == "damage_reduction":
+			entry["total"] = clampf(float(entry.get("total", 0.0)), 0.0, TRAINING_DAMAGE_REDUCTION_CAP)
+			grouped[key] = entry
+
 	var result: Array[Dictionary] = []
 	for key in grouped:
 		result.append(grouped.get(key, {}).duplicate(true))
@@ -384,6 +415,40 @@ func get_training_effect_summary_for_hero(hero_id: String) -> Array[Dictionary]:
 		return at < bt
 	)
 	return result
+
+
+func format_training_modifier(effect_type: String, value: float) -> String:
+	match effect_type:
+		"max_health":
+			return "+%d Max HP" % int(round(value))
+		"base_damage":
+			return "+%d Base Damage" % int(round(value))
+		"damage_reduction":
+			return "-%d%% Damage Taken" % int(round(value * 100.0))
+		"autoattack_damage":
+			return "+%d Autoattack Damage" % int(round(value))
+		"ability_damage":
+			return "+%d Ability Damage" % int(round(value))
+		"passive_gain":
+			return "+%s Passive Gain" % _format_training_number(value)
+		"rage_gain":
+			return "+%s Rage Gain" % _format_training_number(value)
+		"mark_damage":
+			return "+%d Mark Damage" % int(round(value))
+		"slow_strength":
+			return "+%d%% Slow Strength" % int(round(value * 100.0))
+		"knockback_power":
+			return "+%d%% Knockback Power" % int(round(value * 100.0))
+		_:
+			return "+%s %s" % [_format_training_number(value), effect_type.replace("_", " ").capitalize()]
+
+
+func format_training_node_effect(node_id: String, level: int = 1) -> String:
+	var node: Dictionary = get_meta_upgrade_definition(node_id)
+	if node.is_empty():
+		return ""
+	var amount := float(node.get("effect_per_level", 0.0)) * float(maxi(level, 0))
+	return format_training_modifier(str(node.get("effect_type", "")), amount)
 
 
 func get_equipment_definitions(hero_id: String = "") -> Array[Dictionary]:
@@ -786,6 +851,41 @@ func debug_get_character_training_summary() -> Dictionary:
 	for hero_id in DEFAULT_HERO_IDS:
 		provider_summary["effect_modifiers_by_hero"][hero_id] = get_training_effect_modifiers_for_hero(hero_id)
 	return provider_summary
+
+
+func debug_get_training_modifier_summary(hero_id: String) -> Dictionary:
+	var resolved_hero_id := _resolve_hero_id(hero_id)
+	ensure_training_data_for_hero(resolved_hero_id)
+	var purchased: Array[Dictionary] = []
+	var ignored_invalid: Array[String] = []
+	var training_by_hero: Dictionary = _data.get("training_by_hero", {})
+	var hero_training: Dictionary = training_by_hero.get(resolved_hero_id, {}) if training_by_hero.get(resolved_hero_id, {}) is Dictionary else {}
+	for node_id in hero_training:
+		var key := str(node_id)
+		var level := int(hero_training.get(node_id, 0))
+		if level <= 0:
+			continue
+		var node := get_training_definition(resolved_hero_id, key)
+		if node.is_empty():
+			ignored_invalid.append(key)
+			continue
+		purchased.append({
+			"id": key,
+			"name": str(node.get("name", key)),
+			"category": str(node.get("category", "")),
+			"target": str(node.get("target", "")),
+			"effect_type": str(node.get("effect_type", "")),
+			"level": level,
+			"total": float(node.get("effect_per_level", 0.0)) * float(level),
+			"display": format_training_modifier(str(node.get("effect_type", "")), float(node.get("effect_per_level", 0.0)) * float(level)),
+		})
+	return {
+		"hero_id": resolved_hero_id,
+		"purchased_training_nodes": purchased,
+		"aggregated_modifiers": get_training_stat_modifiers_for_hero(resolved_hero_id),
+		"all_effect_modifiers": get_training_effect_modifiers_for_hero(resolved_hero_id),
+		"ignored_invalid_nodes": ignored_invalid,
+	}
 
 
 func can_purchase_training_upgrade(hero_id: String, upgrade_id: String) -> bool:
@@ -2243,6 +2343,12 @@ func _calculate_upgrade_cost(def: Dictionary, level: int) -> int:
 
 func _resolve_hero_id(hero_id: String) -> String:
 	return hero_id if not hero_id.is_empty() else DEFAULT_HERO_ID
+
+
+func _format_training_number(value: float) -> String:
+	if is_equal_approx(value, roundf(value)):
+		return str(int(round(value)))
+	return "%.2f" % value
 
 
 func _is_training_node_for_hero(node_id: String, hero_id: String) -> bool:
