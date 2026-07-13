@@ -37,26 +37,41 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manag
 
 
 func get_upgrade_options(count: int) -> Array[Dictionary]:
-	var available: Array[String] = []
+	var available_by_category := {"attack": [], "active": [], "passive": []}
 	for upgrade_id: String in UPGRADES:
 		if int(_levels.get(upgrade_id, 0)) < int(UPGRADES[upgrade_id]["max_level"]):
-			available.append(upgrade_id)
-	available.shuffle()
+			available_by_category[_category_for(upgrade_id)].append(upgrade_id)
+	for category: String in available_by_category:
+		available_by_category[category].shuffle()
 	var options: Array[Dictionary] = []
-	for upgrade_id: String in available.slice(0, mini(count, available.size())):
-		var definition: Dictionary = UPGRADES[upgrade_id]
-		options.append({"id": upgrade_id, "title": definition["title"], "description": definition["description"], "rarity": definition["rarity"], "level": int(_levels.get(upgrade_id, 0)), "max_level": int(definition["max_level"]), "slot_category": str(definition.get("category", "attack" if upgrade_id.begins_with("sword") else "passive"))})
+	if count >= 3:
+		for category in ["attack", "active", "passive"]:
+			if not available_by_category[category].is_empty():
+				options.append(_make_option(available_by_category[category].pop_back()))
+	var remaining: Array[String] = []
+	for category: String in available_by_category:
+		remaining.append_array(available_by_category[category])
+	remaining.shuffle()
+	while options.size() < count and not remaining.is_empty():
+		options.append(_make_option(remaining.pop_back()))
 	return options
 
 
+func _make_option(upgrade_id: String) -> Dictionary:
+	var definition: Dictionary = UPGRADES[upgrade_id]
+	return {"id": upgrade_id, "title": definition["title"], "description": definition["description"], "rarity": definition["rarity"], "level": int(_levels.get(upgrade_id, 0)), "max_level": int(definition["max_level"]), "slot_category": _category_for(upgrade_id)}
+
+
+func _category_for(upgrade_id: String) -> String:
+	return str(UPGRADES[upgrade_id].get("category", "attack" if upgrade_id.begins_with("sword") else "passive"))
+
+
 func apply_upgrade(upgrade_id: String) -> void:
-	if not UPGRADES.has(upgrade_id) or _player == null or _auto_attack == null:
+	if not UPGRADES.has(upgrade_id) or not _has_dependencies(upgrade_id):
 		return
 	var level := int(_levels.get(upgrade_id, 0))
 	if level >= int(UPGRADES[upgrade_id]["max_level"]):
 		return
-	_levels[upgrade_id] = level + 1
-	_history.append(upgrade_id)
 	match upgrade_id:
 		"sword_damage": _auto_attack.attack_damage += 5
 		"sword_speed": _auto_attack.attack_interval = maxf(0.18, _auto_attack.attack_interval * 0.85)
@@ -81,6 +96,16 @@ func apply_upgrade(upgrade_id: String) -> void:
 		"rage_multiplier": _ability_manager.maximum_damage_multiplier = minf(1.7, _ability_manager.maximum_damage_multiplier + 0.05)
 	if upgrade_id in ["rage_max", "rage_decay", "rage_multiplier"] and _ability_manager != null:
 		_ability_manager.refresh_rage_state()
+	_levels[upgrade_id] = level + 1
+	_history.append(upgrade_id)
+
+
+func _has_dependencies(upgrade_id: String) -> bool:
+	if _player == null:
+		return false
+	if upgrade_id.begins_with("sword"):
+		return _auto_attack != null
+	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "leap_radius", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
 
 
 func get_run_summary() -> Dictionary:

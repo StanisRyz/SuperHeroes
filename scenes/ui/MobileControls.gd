@@ -21,6 +21,7 @@ var _ability_button_labels: Dictionary = {
 	2: "A2",
 	3: "A3",
 }
+var _ability_states: Dictionary = {}
 
 @onready var joystick_touch_area: Control = get_node_or_null("Root/JoystickArea")
 @onready var joystick_base: Control = get_node_or_null("Root/JoystickArea/Base")
@@ -96,6 +97,11 @@ func setup_ability_manager(ability_manager: Node) -> void:
 
 	if ability_manager.has_signal("ability_cooldown_changed") and not ability_manager.ability_cooldown_changed.is_connected(_on_ability_cooldown_changed):
 		ability_manager.ability_cooldown_changed.connect(_on_ability_cooldown_changed)
+	if ability_manager.has_signal("ability_state_changed") and not ability_manager.ability_state_changed.is_connected(_on_ability_state_changed):
+		ability_manager.ability_state_changed.connect(_on_ability_state_changed)
+	if ability_manager.has_method("get_all_ability_states"):
+		for state: Dictionary in ability_manager.get_all_ability_states().values():
+			_on_ability_state_changed(state)
 
 
 func setup_player(player: Node) -> void:
@@ -226,19 +232,19 @@ func _get_base_center() -> Vector2:
 
 
 func _on_ability_button_pressed() -> void:
-	if _is_action_blocked():
+	if _is_action_blocked() or _is_ability_blocked(1):
 		return
 	ability_1_pressed.emit()
 
 
 func _on_beam_button_pressed() -> void:
-	if _is_action_blocked():
+	if _is_action_blocked() or _is_ability_blocked(2):
 		return
 	ability_2_pressed.emit()
 
 
 func _on_slam_button_pressed() -> void:
-	if _is_action_blocked():
+	if _is_action_blocked() or _is_ability_blocked(3):
 		return
 	ability_3_pressed.emit()
 
@@ -272,6 +278,22 @@ func _on_ability_cooldown_changed(slot: int, cooldown_remaining: float, _cooldow
 		3: _update_slam_button(cooldown_remaining)
 
 
+func _on_ability_state_changed(state: Dictionary) -> void:
+	var slot := int(state.get("slot", 0))
+	if slot < 1 or slot > 3:
+		return
+	_ability_states[slot] = state.duplicate()
+	_ability_button_labels[slot] = str(state.get("short_name", _ability_button_labels.get(slot, "Ability")))
+	match slot:
+		1: _update_ability_button(float(state.get("cooldown_remaining", 0.0)))
+		2: _update_beam_button(float(state.get("cooldown_remaining", 0.0)))
+		3: _update_slam_button(float(state.get("cooldown_remaining", 0.0)))
+
+
+func _is_ability_blocked(slot: int) -> bool:
+	return bool(_ability_states.get(slot, {}).get("is_blocked", false))
+
+
 func _on_dash_cooldown_changed(cooldown_remaining: float, _cooldown_total: float) -> void:
 	_update_dash_button(cooldown_remaining)
 
@@ -279,19 +301,28 @@ func _on_dash_cooldown_changed(cooldown_remaining: float, _cooldown_total: float
 func _update_ability_button(cooldown_remaining: float) -> void:
 	if ability_button == null:
 		return
-	ability_button.text = str(_ability_button_labels.get(1, "Nova")) if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
+	ability_button.text = _ability_button_text(1, cooldown_remaining)
 
 
 func _update_beam_button(cooldown_remaining: float) -> void:
 	if beam_button == null:
 		return
-	beam_button.text = str(_ability_button_labels.get(2, "Beam")) if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
+	beam_button.text = _ability_button_text(2, cooldown_remaining)
 
 
 func _update_slam_button(cooldown_remaining: float) -> void:
 	if slam_button == null:
 		return
-	slam_button.text = str(_ability_button_labels.get(3, "Slam")) if cooldown_remaining <= 0.0 else "%.1f" % cooldown_remaining
+	slam_button.text = _ability_button_text(3, cooldown_remaining)
+
+
+func _ability_button_text(slot: int, cooldown_remaining: float) -> String:
+	if cooldown_remaining > 0.0:
+		return "%.1f" % cooldown_remaining
+	var state: Dictionary = _ability_states.get(slot, {})
+	if bool(state.get("is_blocked", false)):
+		return str(state.get("blocked_reason", "Blocked")).capitalize()
+	return str(_ability_button_labels.get(slot, "Ability"))
 
 
 func _update_dash_button(cooldown_remaining: float) -> void:

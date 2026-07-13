@@ -5,7 +5,6 @@ extends Node
 @export var console_output := true
 @export var file_output := true
 @export var heartbeat_interval := 1.0
-@export var anomaly_detection := true
 @export var maximum_in_memory_events := 200
 
 var _controller: Node
@@ -21,6 +20,17 @@ var _file: FileAccess
 
 func setup(controller: Node, player: Node, ability: Node, auto_attack: Node, visual: Node) -> void:
 	_controller = controller; _player = player; _ability = ability; _auto_attack = auto_attack; _visual = visual
+	if not OS.is_debug_build() or OS.has_feature("web"):
+		tracing_enabled = false
+		console_output = false
+		file_output = false
+		set_process(false)
+		set_process_unhandled_input(false)
+		return
+	if not tracing_enabled:
+		set_process(false)
+		set_process_unhandled_input(false)
+		return
 	if file_output:
 		var path := "user://action_trace_%s.log" % Time.get_datetime_string_from_system().replace(":", "-")
 		_file = FileAccess.open(path, FileAccess.WRITE)
@@ -34,6 +44,8 @@ func _process(delta: float) -> void:
 		_heartbeat = 0.0; _record("Tracer", "heartbeat", _snapshot(), false)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not tracing_enabled:
+		return
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_F8: capture_snapshot()
 		elif event.keycode == KEY_F9: tracing_enabled = not tracing_enabled; print("[ACTION_TRACE] tracing=%s" % tracing_enabled)

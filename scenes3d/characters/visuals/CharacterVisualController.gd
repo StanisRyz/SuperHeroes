@@ -99,6 +99,10 @@ func is_death_visual_active() -> bool:
 	return _death_visual_active
 
 
+func get_debug_state() -> Dictionary:
+	return {"active_one_shot": _active_one_shot, "active_action_id": _active_action_id, "action_impact_emitted": _action_impact_emitted, "attack_impact_emitted": _attack_impact_emitted, "death_visual_active": _death_visual_active, "current_animation": _animation_player.current_animation if _animation_player != null else StringName()}
+
+
 func cancel_attack() -> bool:
 	if _active_one_shot != attack_animation:
 		return false

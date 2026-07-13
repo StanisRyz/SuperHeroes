@@ -45,6 +45,10 @@ func set_damage_multiplier(multiplier: float) -> void:
 	_damage_multiplier = maxf(multiplier, 0.0)
 
 
+func get_debug_state() -> Dictionary:
+	return {"suspended": _suspended, "attack_active": _attack_active, "cooldown_remaining": _cooldown_remaining, "attack_direction": _attack_direction, "damage_multiplier": _damage_multiplier, "damaged_enemy_count": _damaged_enemies.size()}
+
+
 func setup(player: Player3D, enemy_container: Node3D, knight_visual: KnightVisual) -> void:
 	_player = player
 	_enemy_container = enemy_container

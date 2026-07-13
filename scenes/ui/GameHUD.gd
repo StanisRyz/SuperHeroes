@@ -14,6 +14,7 @@ var _ability_names: Dictionary = {
 	2: "A2",
 	3: "A3",
 }
+var _ability_states: Dictionary = {}
 
 @onready var health_bar: ProgressBar = get_node_or_null("Root/HealthPanel/PlayerHealthBar")
 @onready var health_label: Label = get_node_or_null("Root/HealthPanel/PlayerHealthLabel")
@@ -158,6 +159,8 @@ func _setup_ability_manager(ability_manager: Node) -> void:
 
 	if ability_manager.has_signal("ability_cooldown_changed") and not ability_manager.ability_cooldown_changed.is_connected(_update_ability_cooldown):
 		ability_manager.ability_cooldown_changed.connect(_update_ability_cooldown)
+	if ability_manager.has_signal("ability_state_changed") and not ability_manager.ability_state_changed.is_connected(_on_ability_state_changed):
+		ability_manager.ability_state_changed.connect(_on_ability_state_changed)
 
 	if ability_manager.has_method("get_all_ability_states"):
 		var states: Dictionary = ability_manager.get_all_ability_states()
@@ -167,28 +170,42 @@ func _setup_ability_manager(ability_manager: Node) -> void:
 				_ability_names[slot] = ability_manager.get_ability_name(slot, true)
 			else:
 				_ability_names[slot] = str(state.get("short_name", state.get("display_name", _ability_names.get(slot, "Ability"))))
-			_update_ability_cooldown(slot, float(state.get("cooldown_remaining", 0.0)), float(state.get("cooldown_total", 0.0)))
+			_on_ability_state_changed(state)
+
+
+func _on_ability_state_changed(state: Dictionary) -> void:
+	var slot := int(state.get("slot", 0))
+	if slot < 1 or slot > 3:
+		return
+	_ability_states[slot] = state.duplicate()
+	_ability_names[slot] = str(state.get("short_name", _ability_names.get(slot, "Ability")))
+	_update_ability_cooldown(slot, float(state.get("cooldown_remaining", 0.0)), float(state.get("cooldown_total", 0.0)))
 
 
 func _update_ability_cooldown(slot: int, cooldown_remaining: float, _cooldown_total: float) -> void:
 	var cd_text := UIFormat.format_cooldown(cooldown_remaining)
-	var is_ready := cooldown_remaining <= 0.0
+	var state: Dictionary = _ability_states.get(slot, {})
+	var is_ready := bool(state.get("is_ready", cooldown_remaining <= 0.0))
+	var is_active := bool(state.get("is_active", false))
+	var is_blocked := bool(state.get("is_blocked", not is_ready))
+	var blocked_reason := str(state.get("blocked_reason", ""))
+	var display_value := cd_text if cooldown_remaining > 0.0 or is_active else (blocked_reason.capitalize() if is_blocked else cd_text)
 	var color := UIStateColors.ready_color() if is_ready else UIStateColors.cooldown_color()
 	match slot:
 		1:
 			if ability_cooldown_label == null:
 				return
-			ability_cooldown_label.text = "J  %s: %s" % [_get_ability_name(1, "A1"), cd_text]
+			ability_cooldown_label.text = "J  %s: %s" % [_get_ability_name(1, "A1"), display_value]
 			ability_cooldown_label.modulate = color
 		2:
 			if laser_cooldown_label == null:
 				return
-			laser_cooldown_label.text = "K  %s: %s" % [_get_ability_name(2, "A2"), cd_text]
+			laser_cooldown_label.text = "K  %s: %s" % [_get_ability_name(2, "A2"), display_value]
 			laser_cooldown_label.modulate = color
 		3:
 			if slam_cooldown_label == null:
 				return
-			slam_cooldown_label.text = "L  %s: %s" % [_get_ability_name(3, "A3"), cd_text]
+			slam_cooldown_label.text = "L  %s: %s" % [_get_ability_name(3, "A3"), display_value]
 			slam_cooldown_label.modulate = color
 
 

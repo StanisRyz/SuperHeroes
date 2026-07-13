@@ -8,6 +8,7 @@ extends Node
 enum CastState { IDLE, WINDUP, SCRIPTED_MOTION, RECOVERY, CANCELLED }
 
 signal ability_cooldown_changed(slot: int, remaining: float, total: float)
+signal ability_state_changed(state: Dictionary)
 signal ability_cast(slot: int, ability_id: String)
 signal rage_changed(current: float, maximum: float, damage_multiplier: float)
 signal hero_resource_changed(resource_name: String, current: float, maximum: float)
@@ -58,6 +59,8 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node
 	_effects = effects
 	_visual = visual
 	_action_controller = player.action_controller
+	if _action_controller != null and _action_controller.has_signal("action_state_changed") and not _action_controller.action_state_changed.is_connected(_on_action_state_changed):
+		_action_controller.action_state_changed.connect(_on_action_state_changed)
 	_player.damage_taken.connect(_on_player_damage_taken)
 	_auto_attack.attack_impact_resolved.connect(_on_auto_attack_impact)
 	_visual.action_impact.connect(_on_action_impact)
@@ -74,6 +77,7 @@ func _process(delta: float) -> void:
 	for slot: int in _cooldowns:
 		_cooldowns[slot] = maxf(float(_cooldowns[slot]) - delta, 0.0)
 		ability_cooldown_changed.emit(slot, _cooldowns[slot], _cooldown_total(slot))
+		ability_state_changed.emit(get_ability_state(slot))
 	if rage > 0.0:
 		_update_rage(-rage_decay_per_second * delta)
 	if _leap_landing_pending and not _player.is_scripted_motion_active():
@@ -95,17 +99,30 @@ func cast_ability_3() -> bool:
 	return _begin_cast(3, "crushing_leap", direction)
 
 func get_ability_state(slot: int) -> Dictionary:
-	var ability_ready := _can_cast(slot)
-	return {"slot": slot, "cooldown_remaining": float(_cooldowns.get(slot, 0.0)), "cooldown_total": _cooldown_total(slot), "display_name": get_ability_name(slot, false), "short_name": get_ability_name(slot, true), "is_ready": ability_ready, "is_active": _active_slot == slot, "is_blocked": not ability_ready, "blocked_reason": "Casting" if _cast_state != CastState.IDLE else "", "cast_state": _cast_state}
+	var blocked_reason := _get_blocked_reason(slot)
+	return {"slot": slot, "cooldown_remaining": float(_cooldowns.get(slot, 0.0)), "cooldown_total": _cooldown_total(slot), "display_name": get_ability_name(slot, false), "short_name": get_ability_name(slot, true), "is_ready": blocked_reason.is_empty(), "is_active": _active_slot == slot, "is_blocked": not blocked_reason.is_empty(), "blocked_reason": blocked_reason, "cast_state": _cast_state}
 func get_all_ability_states() -> Dictionary:
 	return {1: get_ability_state(1), 2: get_ability_state(2), 3: get_ability_state(3)}
 func get_ability_name(slot: int, prefer_short: bool = false) -> String:
 	var names := {1: ["Rage Wave", "Wave"], 2: ["Shield Bash", "Bash"], 3: ["Crushing Leap", "Leap"]}
 	return names.get(slot, ["Ability", "Ability"])[1 if prefer_short else 0]
 func stop() -> void:
-	_stopped = true; _cancel_active_ability("stopped", false)
+	_stopped = true; _cancel_active_ability("stopped", false); _publish_all_ability_states()
 func _can_cast(slot: int) -> bool:
-	return not _stopped and _active_ability_id.is_empty() and _player != null and not _player.is_dead() and not get_tree().paused and float(_cooldowns.get(slot, 0.0)) <= 0.0 and not _player.is_scripted_motion_active()
+	return _get_blocked_reason(slot).is_empty()
+
+func _get_blocked_reason(slot: int) -> String:
+	if _stopped: return "stopped"
+	if _player == null or _player.is_dead(): return "dead"
+	if get_tree().paused: return "paused"
+	if not _active_ability_id.is_empty() or _cast_state != CastState.IDLE: return "casting"
+	if float(_cooldowns.get(slot, 0.0)) > 0.0: return "cooldown"
+	if _player.is_dashing: return "dash"
+	if _player.is_scripted_motion_active(): return "scripted_motion"
+	if _action_controller != null and not _action_controller.is_idle():
+		var action_state: Dictionary = _action_controller.get_current_action_state()
+		return "dash" if str(action_state.get("action_id", "")) == "dash" else "action_busy"
+	return ""
 
 func _begin_cast(slot: int, ability_id: String, direction: Vector3) -> bool:
 	if ability_id == "crushing_leap" and (_player.is_dashing or _player.is_scripted_motion_active()): return false
@@ -120,7 +137,7 @@ func _begin_cast(slot: int, ability_id: String, direction: Vector3) -> bool:
 		_player.release_combat_facing()
 		return false
 	_active_ability_id = ability_id; _active_slot = slot; _cast_state = CastState.WINDUP; _cast_elapsed = 0.0; _cast_maximum = 2.5 + (leap_duration if ability_id == "crushing_leap" else 0.0)
-	_auto_attack.set_suspended(true); _start_cooldown(slot); ability_cast.emit(slot, ability_id)
+	_auto_attack.set_suspended(true); _start_cooldown(slot); ability_cast.emit(slot, ability_id); _publish_all_ability_states()
 	if ability_id != "rage_wave": _player.lock_combat_facing(direction)
 	return true
 
@@ -146,7 +163,7 @@ func refresh_rage_state() -> void:
 func _on_action_finished(action_id: String) -> void:
 	if action_id == _active_ability_id and action_id != "crushing_leap": _finish_active_ability()
 func _start_cooldown(slot: int) -> void:
-	_cooldowns[slot] = _cooldown_total(slot); ability_cooldown_changed.emit(slot, _cooldowns[slot], _cooldown_total(slot))
+	_cooldowns[slot] = _cooldown_total(slot); ability_cooldown_changed.emit(slot, _cooldowns[slot], _cooldown_total(slot)); ability_state_changed.emit(get_ability_state(slot))
 func _cooldown_total(slot: int) -> float:
 	return wave_cooldown if slot == 1 else (bash_cooldown if slot == 2 else leap_cooldown)
 func _target_direction() -> Vector3:
@@ -168,6 +185,7 @@ func _spawn_effect(effect_scene: PackedScene, arguments: Array) -> void:
 func _finish_active_ability() -> void:
 	_action_controller.finish_action(_action_token); _action_token = 0; _active_ability_id = ""; _active_slot = 0; _leap_landing_pending = false; _cast_state = CastState.IDLE; _cast_elapsed = 0.0; _player.release_combat_facing()
 	if not _stopped: _auto_attack.set_suspended(false)
+	_publish_all_ability_states()
 
 func _cancel_active_ability(_reason: String, refund_cooldown: bool) -> void:
 	if refund_cooldown and _active_slot > 0: _cooldowns[_active_slot] = 0.0
@@ -183,3 +201,13 @@ func _update_rage(delta: float) -> void:
 	rage = clampf(rage + delta, 0.0, maximum_rage)
 	if _auto_attack != null: _auto_attack.set_damage_multiplier(get_damage_multiplier())
 	rage_changed.emit(rage, maximum_rage, get_damage_multiplier()); hero_resource_changed.emit("Rage", rage, maximum_rage)
+
+func _on_action_state_changed(_state: Dictionary) -> void:
+	_publish_all_ability_states()
+
+func _publish_all_ability_states() -> void:
+	for slot in [1, 2, 3]:
+		ability_state_changed.emit(get_ability_state(slot))
+
+func get_debug_state() -> Dictionary:
+	return {"stopped": _stopped, "active_ability_id": _active_ability_id, "active_slot": _active_slot, "cast_state": _cast_state, "cast_elapsed": _cast_elapsed, "cast_maximum": _cast_maximum, "action_token": _action_token, "cooldowns": _cooldowns.duplicate(), "rage": rage, "maximum_rage": maximum_rage, "damage_multiplier": get_damage_multiplier(), "leap_landing_pending": _leap_landing_pending}
