@@ -6,9 +6,9 @@ signal evolution_applied(evolution_id: String, evolution_data: Dictionary)
 signal evolution_state_changed
 
 const EVOLUTIONS: Array[Dictionary] = [
-	{"id": "rage_wave_worldbreaker", "title": "Worldbreaker", "description": "Rage Wave erupts three times, with each pulse expanding farther and striking enemies again.", "target_ability_id": "rage_wave", "implementation_status": "implemented", "prerequisites": ["sword_arc", "rage_max", "wave_radius"]},
-	{"id": "shield_bash_rampage_impact", "title": "Rampage Impact", "description": "Shield Bash unleashes a wider heavy impact followed by a delayed second shockwave.", "target_ability_id": "shield_bash", "implementation_status": "implemented", "prerequisites": ["sword_knockback", "rage_multiplier", "bash_knockback"]},
-	{"id": "crushing_leap_meteor_crash", "title": "Meteor Crash", "description": "Crushing Leap crashes down with a larger stunning impact followed by a delayed crater eruption.", "target_ability_id": "crushing_leap", "implementation_status": "implemented", "prerequisites": ["sword_damage", "rage_decay", "leap_damage"]},
+	{"id": "rage_wave_worldbreaker", "title": "Worldbreaker", "description": "Rage Wave erupts three times, with each pulse expanding farther and striking enemies again.", "effect_summary": "Three expanding pulses. Total damage 2.60x. Wide-area slow.", "target_ability_id": "rage_wave", "implementation_status": "implemented", "prerequisites": ["sword_arc", "rage_max", "wave_radius"]},
+	{"id": "shield_bash_rampage_impact", "title": "Rampage Impact", "description": "Shield Bash unleashes a wider heavy impact followed by a delayed second shockwave.", "effect_summary": "Two directional impacts. Total damage 2.75x. Heavy knockback and stagger.", "target_ability_id": "shield_bash", "implementation_status": "implemented", "prerequisites": ["sword_knockback", "rage_multiplier", "bash_knockback"]},
+	{"id": "crushing_leap_meteor_crash", "title": "Meteor Crash", "description": "Crushing Leap crashes down with a larger stunning impact followed by a delayed crater eruption.", "effect_summary": "Landing impact and crater aftershock. Total damage 2.60x. Stun and slow.", "target_ability_id": "crushing_leap", "implementation_status": "implemented", "prerequisites": ["sword_damage", "rage_decay", "leap_damage"]},
 ]
 
 var _upgrade_manager: Node
@@ -52,7 +52,7 @@ func get_evolution_state(evolution_id: String) -> Dictionary:
 	var selected := is_evolution_selected(evolution_id)
 	var is_ready := completed_count == prerequisites.size() and prerequisites.size() == 3
 	var state_name := "selected" if selected else ("ready" if is_ready else ("partial" if selected_count > 0 else "locked"))
-	return {"id": evolution_id, "evolution_id": evolution_id, "title": str(definition["title"]), "description": str(definition["description"]), "target_ability_id": str(definition["target_ability_id"]), "implementation_status": str(definition.get("implementation_status", "placeholder")), "state": state_name, "selected": selected, "ready": is_ready and not selected, "selected_prerequisite_count": selected_count, "completed_prerequisite_count": completed_count, "total_prerequisite_count": prerequisites.size(), "prerequisites": prerequisites}
+	return {"id": evolution_id, "evolution_id": evolution_id, "title": str(definition["title"]), "description": str(definition["description"]), "effect_summary": str(definition.get("effect_summary", "")), "target_ability_id": str(definition["target_ability_id"]), "implementation_status": str(definition.get("implementation_status", "placeholder")), "state": state_name, "selected": selected, "ready": is_ready and not selected, "selected_prerequisite_count": selected_count, "completed_prerequisite_count": completed_count, "total_prerequisite_count": prerequisites.size(), "prerequisites": prerequisites}
 
 
 func get_all_evolution_states() -> Dictionary:

@@ -3,8 +3,6 @@ extends CanvasLayer
 signal evolution_selected(evolution_id: String)
 signal closed_without_selection
 
-const UIStateColors = preload("res://scenes/ui/UIStateColors.gd")
-
 var _option_buttons: Array[Button] = []
 var _message_label: Label
 var _continue_button: Button
@@ -22,7 +20,7 @@ func show_options(options: Array[Dictionary]) -> void:
 		button.set_meta("evolution_id", "")
 		button.modulate = Color.WHITE
 	for index in mini(options.size(), _option_buttons.size()):
-		var evolution := options[index]
+		var evolution: Dictionary = options[index]
 		var button := _option_buttons[index]
 		button.text = _format_evolution_text(evolution)
 		button.set_meta("evolution_id", evolution.get("id", ""))
@@ -31,33 +29,34 @@ func show_options(options: Array[Dictionary]) -> void:
 	if options.is_empty():
 		_message_label.text = "No evolution available at this time.\nKeep building your archetype and try again."
 	else:
-		_message_label.text = "Choose one evolution for this run."
+		_message_label.text = "Choose one evolution for this run. All listed prerequisites are complete."
 	_continue_button.visible = options.is_empty()
 	show()
 
 
 func _format_evolution_text(evolution: Dictionary) -> String:
 	var title := str(evolution.get("title", "Evolution"))
-	var archetype := str(evolution.get("archetype", ""))
 	var description := str(evolution.get("description", ""))
-
-	var header := "◆ EVOLUTION"
-	if not archetype.is_empty():
-		header = "◆ EVOLUTION  [%s]" % archetype.to_upper()
-
+	var effect_summary := str(evolution.get("effect_summary", ""))
 	var target_ability := str(evolution.get("target_ability_id", "")).replace("_", " ").capitalize()
-	var prerequisite_line := _format_prerequisites(evolution.get("prerequisites", []))
-	var details := "Target: %s" % target_ability if not target_ability.is_empty() else ""
-	if not prerequisite_line.is_empty():
-		details = "%s\nRequires: %s" % [details, prerequisite_line] if not details.is_empty() else "Requires: %s" % prerequisite_line
-	return "%s\n%s\n%s\n%s" % [header, title, description, details]
+	var prerequisite_lines := _format_prerequisites(evolution.get("prerequisites", []))
+	var lines: PackedStringArray = ["EVOLUTION", title]
+	if not target_ability.is_empty():
+		lines.append("Target: %s" % target_ability)
+	if not description.is_empty():
+		lines.append(description)
+	if not effect_summary.is_empty():
+		lines.append("Effect: %s" % effect_summary)
+	if not prerequisite_lines.is_empty():
+		lines.append("Requires:\n%s" % prerequisite_lines)
+	return "\n".join(lines)
 
 
 func _format_prerequisites(prerequisites: Array) -> String:
 	var lines: PackedStringArray = []
 	for prerequisite: Dictionary in prerequisites:
-		lines.append("%s %d/%d" % [str(prerequisite.get("title", prerequisite.get("upgrade_id", "Upgrade"))), int(prerequisite.get("current_level", 0)), int(prerequisite.get("required_level", 0))])
-	return " | ".join(lines)
+		lines.append("- %s: %d/%d" % [str(prerequisite.get("title", prerequisite.get("upgrade_id", "Upgrade"))), int(prerequisite.get("current_level", 0)), int(prerequisite.get("required_level", 0))])
+	return "\n".join(lines)
 
 
 func hide_screen() -> void:
@@ -76,21 +75,21 @@ func _build_ui() -> void:
 
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.custom_minimum_size = Vector2(620, 360)
-	panel.offset_left = -310
-	panel.offset_top = -180
-	panel.offset_right = 310
-	panel.offset_bottom = 180
+	panel.custom_minimum_size = Vector2(760, 650)
+	panel.offset_left = -380
+	panel.offset_top = -325
+	panel.offset_right = 380
+	panel.offset_bottom = 325
 	root.add_child(panel)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
+	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
 
 	var title := Label.new()
 	title.text = "Choose Evolution"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 26)
 	box.add_child(title)
 
 	_message_label = Label.new()
@@ -100,8 +99,10 @@ func _build_ui() -> void:
 
 	for index in range(3):
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(560, 68)
+		button.custom_minimum_size = Vector2(700, 150)
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.clip_text = false
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.pressed.connect(_on_option_pressed.bind(button))
 		box.add_child(button)
 		_option_buttons.append(button)

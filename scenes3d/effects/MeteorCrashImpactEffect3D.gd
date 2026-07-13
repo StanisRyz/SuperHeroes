@@ -9,7 +9,7 @@ var _material: StandardMaterial3D
 
 func setup(world_position: Vector3, radius: float, duration: float, impact_index: int) -> void:
 	global_position = world_position + Vector3.UP * 0.055
-	mesh_instance.mesh = GroundMeshBuilder.build_ring(0.46 if impact_index == 1 else 0.64, 1.0)
+	mesh_instance.mesh = GroundMeshBuilder.build_ring(0.38 if impact_index == 1 else 0.76, 1.0)
 	_material = _make_material(_impact_color(impact_index))
 	mesh_instance.material_override = _material
 	scale = Vector3(0.14, 1.0, 0.14)
@@ -21,7 +21,7 @@ func setup(world_position: Vector3, radius: float, duration: float, impact_index
 
 
 func _impact_color(impact_index: int) -> Color:
-	return Color(1.0, 0.18, 0.04, 0.96) if impact_index == 1 else Color(1.0, 0.72, 0.12, 0.82)
+	return Color(1.0, 0.14, 0.03, 0.98) if impact_index == 1 else Color(1.0, 0.70, 0.10, 0.86)
 
 
 func _make_material(color: Color) -> StandardMaterial3D:

@@ -104,13 +104,7 @@ func show_stats(stats: Dictionary) -> void:
 		upgrades_label.text = "Upgrades:  %d" % upgrade_count
 	if evolutions_label != null:
 		var titles: Array = stats.get("applied_evolution_titles", [])
-		evolutions_label.text = "Evolutions:  %d (A%d / Act%d / P%d)  %s" % [
-			int(stats.get("applied_evolution_count", titles.size())),
-			int(stats.get("attack_evolution_count", 0)),
-			int(stats.get("active_evolution_count", 0)),
-			int(stats.get("passive_evolution_count", 0)),
-			UIFormat.format_list(titles),
-		]
+		evolutions_label.text = _format_evolution_summary(stats, titles)
 
 	_append_item_rewards(stats.get("item_rewards", []))
 	show()
@@ -120,6 +114,27 @@ func show_stats(stats: Dictionary) -> void:
 
 func hide_screen() -> void:
 	hide()
+
+
+func _format_evolution_summary(stats: Dictionary, titles: Array) -> String:
+	var total := int(stats.get("applied_evolution_count", titles.size()))
+	var category_lines: PackedStringArray = []
+	var active_count := int(stats.get("active_evolution_count", 0))
+	var attack_count := int(stats.get("attack_evolution_count", 0))
+	var passive_count := int(stats.get("passive_evolution_count", 0))
+	if active_count > 0:
+		category_lines.append("Active %d" % active_count)
+	if attack_count > 0:
+		category_lines.append("Attack %d" % attack_count)
+	if passive_count > 0:
+		category_lines.append("Passive %d" % passive_count)
+	var result := "Evolutions:  %d" % total
+	if not category_lines.is_empty():
+		result += " (%s)" % ", ".join(category_lines)
+	var title_list := UIFormat.format_list(titles)
+	if not title_list.is_empty():
+		result += " - %s" % title_list
+	return result
 
 
 func _append_item_rewards(item_rewards: Array) -> void:

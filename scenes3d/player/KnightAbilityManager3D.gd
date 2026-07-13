@@ -14,12 +14,12 @@ const WORLDBREAKER_EVOLUTION_ID := "rage_wave_worldbreaker"
 const RAMPAGE_IMPACT_EVOLUTION_ID := "shield_bash_rampage_impact"
 const METEOR_CRASH_EVOLUTION_ID := "crushing_leap_meteor_crash"
 const WORLDBREAKER_PULSES := [
-	{"delay": 0.0, "radius_multiplier": 1.0, "damage_multiplier": 1.5, "knockback_force": 7.0},
-	{"delay": 0.22, "radius_multiplier": 1.45, "damage_multiplier": 1.25, "knockback_force": 8.5},
-	{"delay": 0.44, "radius_multiplier": 1.9, "damage_multiplier": 1.0, "knockback_force": 10.0},
+	{"delay": 0.0, "radius_multiplier": 1.0, "damage_multiplier": 1.25, "knockback_force": 7.0},
+	{"delay": 0.22, "radius_multiplier": 1.45, "damage_multiplier": 0.85, "knockback_force": 8.5},
+	{"delay": 0.44, "radius_multiplier": 1.9, "damage_multiplier": 0.50, "knockback_force": 10.0},
 ]
-const WORLDBREAKER_SLOW := {"movement_speed_multiplier": 0.40}
-const WORLDBREAKER_SLOW_DURATION := 2.5
+const WORLDBREAKER_SLOW := {"movement_speed_multiplier": 0.50}
+const WORLDBREAKER_SLOW_DURATION := 2.0
 const RAMPAGE_PRIMARY_DAMAGE_MULTIPLIER := 1.75
 const RAMPAGE_PRIMARY_RANGE_MULTIPLIER := 1.35
 const RAMPAGE_PRIMARY_ANGLE_MULTIPLIER := 1.35
@@ -31,18 +31,18 @@ const RAMPAGE_SECOND_DAMAGE_MULTIPLIER := 1.0
 const RAMPAGE_SECOND_KNOCKBACK_MULTIPLIER := 1.25
 const RAMPAGE_STAGGER := {"movement_speed_multiplier": 0.35}
 const RAMPAGE_STAGGER_DURATION := 1.2
-const METEOR_PRIMARY_DAMAGE_MULTIPLIER := 2.0
+const METEOR_PRIMARY_DAMAGE_MULTIPLIER := 1.75
 const METEOR_PRIMARY_RADIUS_MULTIPLIER := 1.5
 const METEOR_PRIMARY_KNOCKBACK_FORCE := 12.0
 const METEOR_PRIMARY_KNOCKBACK_DURATION := 0.30
-const METEOR_STUN_DURATION := 1.25
+const METEOR_STUN_DURATION := 1.10
 const METEOR_AFTERSHOCK_DELAY := 0.35
-const METEOR_AFTERSHOCK_DAMAGE_MULTIPLIER := 1.0
+const METEOR_AFTERSHOCK_DAMAGE_MULTIPLIER := 0.85
 const METEOR_AFTERSHOCK_RADIUS_MULTIPLIER := 0.80
 const METEOR_AFTERSHOCK_KNOCKBACK_FORCE := 8.0
 const METEOR_AFTERSHOCK_KNOCKBACK_DURATION := 0.24
-const METEOR_AFTERSHOCK_SLOW := {"movement_speed_multiplier": 0.30}
-const METEOR_AFTERSHOCK_SLOW_DURATION := 1.8
+const METEOR_AFTERSHOCK_SLOW := {"movement_speed_multiplier": 0.35}
+const METEOR_AFTERSHOCK_SLOW_DURATION := 1.6
 
 signal ability_cooldown_changed(slot: int, remaining: float, total: float)
 signal ability_state_changed(state: Dictionary)
@@ -158,6 +158,7 @@ func apply_evolution(evolution_id: String) -> bool:
 		return false
 	if evolution_id not in _active_evolutions:
 		_active_evolutions.append(evolution_id)
+		_publish_all_ability_states()
 	return true
 
 
@@ -165,6 +166,12 @@ func is_evolution_active(evolution_id: String) -> bool:
 	return evolution_id in _active_evolutions
 
 func get_ability_name(slot: int, prefer_short: bool = false) -> String:
+	if slot == 1 and is_evolution_active(WORLDBREAKER_EVOLUTION_ID):
+		return "Worldbreaker"
+	if slot == 2 and is_evolution_active(RAMPAGE_IMPACT_EVOLUTION_ID):
+		return "Rampage" if prefer_short else "Rampage Impact"
+	if slot == 3 and is_evolution_active(METEOR_CRASH_EVOLUTION_ID):
+		return "Meteor" if prefer_short else "Meteor Crash"
 	var names := {1: ["Rage Wave", "Wave"], 2: ["Shield Bash", "Bash"], 3: ["Crushing Leap", "Leap"]}
 	return names.get(slot, ["Ability", "Ability"])[1 if prefer_short else 0]
 func stop() -> void:

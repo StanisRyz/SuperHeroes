@@ -9,7 +9,7 @@ var _material: StandardMaterial3D
 
 func setup(world_position: Vector3, radius: float, duration: float, pulse_index: int) -> void:
 	global_position = world_position + Vector3.UP * 0.045
-	mesh_instance.mesh = GroundMeshBuilder.build_ring(0.66, 1.0)
+	mesh_instance.mesh = GroundMeshBuilder.build_ring(_ring_inner_radius(pulse_index), 1.0)
 	_material = _make_material(_pulse_color(pulse_index))
 	mesh_instance.material_override = _material
 	scale = Vector3(0.16, 1.0, 0.16)
@@ -22,9 +22,13 @@ func setup(world_position: Vector3, radius: float, duration: float, pulse_index:
 
 func _pulse_color(pulse_index: int) -> Color:
 	match pulse_index:
-		1: return Color(1.0, 0.28, 0.06, 0.92)
-		2: return Color(1.0, 0.42, 0.08, 0.86)
-		_: return Color(1.0, 0.68, 0.16, 0.80)
+		1: return Color(0.78, 0.12, 0.03, 0.94)
+		2: return Color(1.0, 0.36, 0.05, 0.88)
+		_: return Color(1.0, 0.62, 0.12, 0.82)
+
+
+func _ring_inner_radius(pulse_index: int) -> float:
+	return 0.62 if pulse_index == 1 else (0.70 if pulse_index == 2 else 0.78)
 
 
 func _make_material(color: Color) -> StandardMaterial3D:

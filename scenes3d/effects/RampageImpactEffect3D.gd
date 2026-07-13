@@ -14,12 +14,12 @@ func setup(world_position: Vector3, direction: Vector3, impact_range: float, ful
 	_material = _make_material(_impact_color(impact_index))
 	mesh_instance.material_override = _material
 	var tween := create_tween()
-	tween.tween_method(_set_alpha, _material.albedo_color.a, 0.0, duration if impact_index == 1 else duration * 0.75)
+	tween.tween_method(_set_alpha, _material.albedo_color.a, 0.0, duration if impact_index == 1 else duration * 0.58)
 	tween.tween_callback(queue_free)
 
 
 func _impact_color(impact_index: int) -> Color:
-	return Color(1.0, 0.24, 0.05, 0.94) if impact_index == 1 else Color(1.0, 0.72, 0.18, 0.78)
+	return Color(0.98, 0.16, 0.03, 0.98) if impact_index == 1 else Color(1.0, 0.82, 0.22, 0.90)
 
 
 func _make_material(color: Color) -> StandardMaterial3D:

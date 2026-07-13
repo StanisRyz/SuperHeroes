@@ -310,9 +310,15 @@ func _finish_run(result: String) -> void:
 func _build_run_summary(result: String) -> Dictionary:
 	var summary: Dictionary = run_manager.get_stats()
 	summary.merge(upgrade_manager.get_run_summary(), true)
-	summary["applied_evolutions"] = evolution_manager.get_applied_evolutions()
-	summary["applied_evolution_titles"] = evolution_manager.get_applied_evolution_titles()
-	summary["applied_evolution_count"] = summary["applied_evolutions"].size()
+	var applied_evolutions: Array = evolution_manager.get_applied_evolutions()
+	var applied_evolution_titles: Array = evolution_manager.get_applied_evolution_titles()
+	var applied_evolution_count: int = applied_evolutions.size()
+	summary["applied_evolutions"] = applied_evolutions
+	summary["applied_evolution_titles"] = applied_evolution_titles
+	summary["applied_evolution_count"] = applied_evolution_count
+	summary["active_evolution_count"] = applied_evolution_count
+	summary["attack_evolution_count"] = 0
+	summary["passive_evolution_count"] = 0
 	summary["result"] = result
 	summary["player_level"] = player.level
 	summary["hero_id"] = str(_selected_hero.get("id", "vanguard"))

@@ -408,14 +408,16 @@ func _update_evolution_label(evolution_manager: Node) -> void:
 		return
 	if evolution_manager == null or not evolution_manager.has_method("get_applied_evolution_titles"):
 		evolution_label.text = "Evolved: None"
+		evolution_label.tooltip_text = ""
 		return
 	var titles: Array = evolution_manager.get_applied_evolution_titles()
+	evolution_label.tooltip_text = "\n".join(PackedStringArray(titles))
 	if titles.is_empty():
 		evolution_label.text = "Evolved: None"
 	elif titles.size() == 1:
 		evolution_label.text = "Evolved: %s" % titles[0]
 	else:
-		evolution_label.text = "Evolved: %d" % titles.size()
+		evolution_label.text = "Evolved: %s +%d" % [titles[0], titles.size() - 1]
 
 
 func _setup_buff_manager(buff_manager: Node) -> void:
