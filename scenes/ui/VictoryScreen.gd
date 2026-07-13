@@ -105,6 +105,13 @@ func show_stats(stats: Dictionary) -> void:
 	if evolutions_label != null:
 		var titles: Array = stats.get("applied_evolution_titles", [])
 		evolutions_label.text = _format_evolution_summary(stats, titles)
+	var passive_titles: Array = stats.get("selected_passive_titles", [])
+	if not passive_titles.is_empty():
+		_update_extra_label("PassivesLabel", "Passives:  %s" % UIFormat.format_list(passive_titles), evolutions_label)
+	else:
+		var passive_label := get_node_or_null("Root/Panel/VBoxContainer/PassivesLabel") as Label
+		if passive_label != null:
+			passive_label.hide()
 
 	_append_item_rewards(stats.get("item_rewards", []))
 	show()
@@ -191,6 +198,7 @@ func _update_extra_label(label_name: String, text: String, after_node: Node) -> 
 		if after_node != null:
 			vbox.move_child(label, after_node.get_index() + 1)
 	label.text = text
+	label.show()
 	return label
 
 

@@ -175,3 +175,7 @@ text = "Build: Mixed"
 [node name="EvolutionLabel" type="Label" parent="Root/BuildPanel"]
 layout_mode = 2
 text = "Evolved: None"
+
+[node name="PassiveLabel" type="Label" parent="Root/BuildPanel"]
+layout_mode = 2
+text = "Passives: None"

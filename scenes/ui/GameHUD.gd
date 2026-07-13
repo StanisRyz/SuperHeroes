@@ -7,6 +7,7 @@ var player: Node
 var _run_manager: Node = null
 var _target_run_time: float = 600.0
 var _evolution_manager: Node = null
+var _passive_manager: Node = null
 var _objective_type: String = "survival"
 var _final_boss_display_name: String = ""
 var _ability_names: Dictionary = {
@@ -38,6 +39,7 @@ var _ability_states: Dictionary = {}
 @onready var build_label: Label = get_node_or_null("Root/BuildPanel/BuildLabel")
 @onready var hero_label: Label = get_node_or_null("Root/BuildPanel/HeroLabel")
 @onready var evolution_label: Label = get_node_or_null("Root/BuildPanel/EvolutionLabel")
+@onready var passive_label: Label = get_node_or_null("Root/BuildPanel/PassiveLabel")
 @onready var hero_resource_label: Label = get_node_or_null("Root/HeroResourcePanel/HeroResourceLabel")
 @onready var hero_resource_bar: ProgressBar = get_node_or_null("Root/HeroResourcePanel/HeroResourceBar")
 
@@ -393,6 +395,48 @@ func setup_evolution_manager(evolution_manager: Node) -> void:
 		evolution_manager.evolution_applied.connect(_on_evolution_applied)
 	if evolution_manager.has_signal("evolution_state_changed") and not evolution_manager.evolution_state_changed.is_connected(_on_evolution_state_changed):
 		evolution_manager.evolution_state_changed.connect(_on_evolution_state_changed)
+
+
+func setup_passive_manager(passive_manager: Node) -> void:
+	_passive_manager = passive_manager
+	_update_passive_label(passive_manager)
+	if passive_manager == null:
+		return
+	if passive_manager.has_signal("passive_changed") and not passive_manager.passive_changed.is_connected(_on_passive_changed):
+		passive_manager.passive_changed.connect(_on_passive_changed)
+	if passive_manager.has_signal("passive_state_changed") and not passive_manager.passive_state_changed.is_connected(_on_passive_state_changed):
+		passive_manager.passive_state_changed.connect(_on_passive_state_changed)
+
+
+func _on_passive_changed(_passive_id: String, _level: int) -> void:
+	_update_passive_label(_passive_manager)
+
+
+func _on_passive_state_changed() -> void:
+	_update_passive_label(_passive_manager)
+
+
+func _update_passive_label(passive_manager: Node) -> void:
+	if passive_label == null:
+		return
+	if passive_manager == null or not passive_manager.has_method("get_selected_passive_ids"):
+		passive_label.text = "Passives: None"
+		passive_label.tooltip_text = ""
+		return
+	var passive_ids: Array[String] = passive_manager.get_selected_passive_ids()
+	if passive_ids.is_empty():
+		passive_label.text = "Passives: None"
+		passive_label.tooltip_text = ""
+		return
+	var titles: Array[String] = []
+	var tooltip_lines: PackedStringArray = []
+	for passive_id: String in passive_ids:
+		var state: Dictionary = passive_manager.get_passive_state(passive_id)
+		var title := str(state.get("title", passive_id))
+		titles.append(title)
+		tooltip_lines.append("%s Lv %d" % [title, int(state.get("level", 0))])
+	passive_label.text = "Passives: %s" % titles[0] if titles.size() == 1 else "Passives: %s +%d" % [titles[0], titles.size() - 1]
+	passive_label.tooltip_text = "\n".join(tooltip_lines)
 
 
 func _on_evolution_applied(_evolution_id: String, _evolution_data: Dictionary) -> void:

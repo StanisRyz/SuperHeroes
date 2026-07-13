@@ -20,6 +20,7 @@ var _attack_direction: Vector3 = Vector3.FORWARD
 var _damaged_enemies: Array[Enemy3D] = []
 var _damage_multiplier: float = 1.0
 var _suspended: bool = false
+var _attack_speed_modifiers: Dictionary = {}
 
 
 func set_suspended(value: bool) -> void:
@@ -45,6 +46,16 @@ func set_damage_multiplier(multiplier: float) -> void:
 	_damage_multiplier = maxf(multiplier, 0.0)
 
 
+func set_temporary_attack_speed_modifier(modifier_id: String, multiplier: float, duration: float) -> void:
+	if modifier_id.is_empty():
+		return
+	_attack_speed_modifiers[modifier_id] = {"multiplier": maxf(multiplier, 0.01), "remaining": maxf(duration, 0.0)}
+
+
+func clear_temporary_attack_speed_modifier(modifier_id: String) -> void:
+	_attack_speed_modifiers.erase(modifier_id)
+
+
 func get_debug_state() -> Dictionary:
 	return {"suspended": _suspended, "attack_active": _attack_active, "cooldown_remaining": _cooldown_remaining, "attack_direction": _attack_direction, "damage_multiplier": _damage_multiplier, "damaged_enemy_count": _damaged_enemies.size()}
 
@@ -67,6 +78,7 @@ func stop_attacking() -> void:
 
 
 func _process(delta: float) -> void:
+	_process_attack_speed_modifiers(delta)
 	_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
 	if _suspended or _attack_active or _cooldown_remaining > 0.0 or _player == null or _player.is_dead() or get_tree().paused or not _player.action_controller.is_idle():
 		return
@@ -80,7 +92,7 @@ func _process(delta: float) -> void:
 	_attack_direction = _attack_direction.normalized()
 	if _knight_visual != null and _knight_visual.play_attack():
 		_attack_active = true
-		_cooldown_remaining = attack_interval
+		_cooldown_remaining = _get_effective_attack_interval()
 		_damaged_enemies.clear()
 		_player.lock_combat_facing(_attack_direction)
 
@@ -115,3 +127,20 @@ func _on_attack_finished() -> void:
 	_damaged_enemies.clear()
 	if _player != null:
 		_player.release_combat_facing()
+
+
+func _process_attack_speed_modifiers(delta: float) -> void:
+	for modifier_id: String in _attack_speed_modifiers.keys():
+		var modifier: Dictionary = _attack_speed_modifiers[modifier_id]
+		modifier["remaining"] = float(modifier["remaining"]) - delta
+		if float(modifier["remaining"]) <= 0.0:
+			_attack_speed_modifiers.erase(modifier_id)
+		else:
+			_attack_speed_modifiers[modifier_id] = modifier
+
+
+func _get_effective_attack_interval() -> float:
+	var multiplier := 1.0
+	for modifier: Dictionary in _attack_speed_modifiers.values():
+		multiplier *= float(modifier.get("multiplier", 1.0))
+	return attack_interval / maxf(multiplier, 0.01)

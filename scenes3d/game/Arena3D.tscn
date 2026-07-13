@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scenes3d/game/Arena3D.gd" id="1_arena3d"]
 [ext_resource type="PackedScene" path="res://scenes3d/player/Player3D.tscn" id="2_player3d"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/game/RunManager.tscn" id="6_run_manager"]
 [ext_resource type="Script" path="res://scenes3d/upgrades/RunUpgradeManager3D.gd" id="7_upgrades"]
 [ext_resource type="Script" path="res://scenes3d/evolution/EvolutionManager3D.gd" id="14_evolution"]
+[ext_resource type="Script" path="res://scenes3d/passives/PassiveAbilityManager3D.gd" id="16_passives"]
 [ext_resource type="PackedScene" path="res://scenes/ui/GameHUD.tscn" id="8_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/LevelUpScreen.tscn" id="9_level_up"]
 [ext_resource type="PackedScene" path="res://scenes/ui/GameOverScreen.tscn" id="10_game_over"]
@@ -78,6 +79,9 @@ position = Vector3(0, 1, 0)
 [node name="EnemySpawner3D" parent="Managers" instance=ExtResource("5_enemy_spawner")]
 
 [node name="RunManager" parent="Managers" instance=ExtResource("6_run_manager")]
+
+[node name="PassiveAbilityManager3D" type="Node" parent="Managers"]
+script = ExtResource("16_passives")
 
 [node name="RunUpgradeManager3D" type="Node" parent="Managers"]
 script = ExtResource("7_upgrades")

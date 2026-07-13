@@ -4,6 +4,7 @@ extends Node
 var _player: Player3D
 var _auto_attack: KnightMeleeAutoAttack3D
 var _ability_manager: KnightAbilityManager3D
+var _passive_manager: PassiveAbilityManager3D
 var _levels: Dictionary = {}
 var _history: Array[String] = []
 
@@ -27,13 +28,17 @@ const UPGRADES := {
 	"leap_cooldown": {"title": "Leap Rhythm", "description": "-0.65 Crushing Leap cooldown.", "rarity": "epic", "max_level": 5, "category": "active"},
 	"rage_decay": {"title": "Smoldering Rage", "description": "-0.5 Rage decay per second.", "rarity": "rare", "max_level": 5, "category": "passive"},
 	"rage_multiplier": {"title": "Furious Edge", "description": "+0.05 maximum Rage damage multiplier.", "rarity": "epic", "max_level": 5, "category": "passive"},
+	"static_field": {"title": "Static Field", "description": "Periodic electric pulse around the Knight.", "rarity": "rare", "max_level": 3, "category": "passive"},
+	"battle_focus": {"title": "Battle Focus", "description": "Periodic strike and temporary attack-speed boost.", "rarity": "rare", "max_level": 3, "category": "passive"},
+	"magnet_core": {"title": "Magnet Core", "description": "Extends nearby experience pickup attraction.", "rarity": "common", "max_level": 3, "category": "passive"},
 }
 
 
-func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manager: KnightAbilityManager3D = null) -> void:
+func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manager: KnightAbilityManager3D = null, passive_manager: PassiveAbilityManager3D = null) -> void:
 	_player = player
 	_auto_attack = auto_attack
 	_ability_manager = ability_manager
+	_passive_manager = passive_manager
 
 
 func get_upgrade_options(count: int) -> Array[Dictionary]:
@@ -42,7 +47,10 @@ func get_upgrade_options(count: int) -> Array[Dictionary]:
 		if int(_levels.get(upgrade_id, 0)) < int(UPGRADES[upgrade_id]["max_level"]):
 			available_by_category[_category_for(upgrade_id)].append(upgrade_id)
 	for category: String in available_by_category:
-		available_by_category[category].shuffle()
+		if category == "passive":
+			available_by_category[category] = _prioritize_started_passives(available_by_category[category])
+		else:
+			available_by_category[category].shuffle()
 	var options: Array[Dictionary] = []
 	if count >= 3:
 		for category in ["attack", "active", "passive"]:
@@ -71,6 +79,12 @@ func apply_upgrade(upgrade_id: String) -> void:
 		return
 	var level := int(_levels.get(upgrade_id, 0))
 	if level >= int(UPGRADES[upgrade_id]["max_level"]):
+		return
+	if upgrade_id in ["static_field", "battle_focus", "magnet_core"]:
+		if _passive_manager == null or not _passive_manager.add_or_upgrade_passive(upgrade_id):
+			return
+		_levels[upgrade_id] = level + 1
+		_history.append(upgrade_id)
 		return
 	match upgrade_id:
 		"sword_damage": _auto_attack.attack_damage += 5
@@ -105,7 +119,21 @@ func _has_dependencies(upgrade_id: String) -> bool:
 		return false
 	if upgrade_id.begins_with("sword"):
 		return _auto_attack != null
+	if upgrade_id in ["static_field", "battle_focus", "magnet_core"]:
+		return _passive_manager != null
 	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "leap_radius", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
+
+
+func _prioritize_started_passives(passive_ids: Array) -> Array:
+	var started: Array = []
+	for passive_id: String in passive_ids:
+		if int(_levels.get(passive_id, 0)) > 0:
+			started.append(passive_id)
+	if not started.is_empty():
+		started.shuffle()
+		return started
+	passive_ids.shuffle()
+	return passive_ids
 
 
 func has_upgrade(upgrade_id: String) -> bool:

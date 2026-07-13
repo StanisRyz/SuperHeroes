@@ -23,6 +23,7 @@ var _pending_level_ups: int = 0
 @onready var spawn_director: Node = $Managers/SpawnDirector
 @onready var enemy_spawner: EnemySpawner3D = $Managers/EnemySpawner3D
 @onready var run_manager: Node = $Managers/RunManager
+@onready var passive_manager: PassiveAbilityManager3D = $Managers/PassiveAbilityManager3D
 @onready var upgrade_manager: RunUpgradeManager3D = $Managers/RunUpgradeManager3D
 @onready var evolution_manager: Node = $Managers/EvolutionManager3D
 @onready var auto_attack: KnightMeleeAutoAttack3D = player.get_node("AutoAttack") as KnightMeleeAutoAttack3D
@@ -74,7 +75,8 @@ func _initialize_gameplay() -> void:
 	enemy_spawner.setup(player, self, $EnemyContainer, $PickupContainer, spawn_director, run_manager)
 	auto_attack.setup(player, $EnemyContainer, player.knight_visual)
 	ability_manager.setup(player, auto_attack, $EnemyContainer, $EffectContainer, player.knight_visual)
-	upgrade_manager.setup(player, auto_attack, ability_manager)
+	passive_manager.setup(player, auto_attack, ability_manager, $EnemyContainer, $PickupContainer, $EffectContainer)
+	upgrade_manager.setup(player, auto_attack, ability_manager, passive_manager)
 	evolution_manager.setup(upgrade_manager, ability_manager)
 
 
@@ -137,6 +139,8 @@ func _configure_optional_ui() -> void:
 		hero_label.text = "Hero: %s" % str(_selected_hero.get("display_name", "Vanguard"))
 	if game_hud != null and game_hud.has_method("setup_evolution_manager"):
 		game_hud.setup_evolution_manager(evolution_manager)
+	if game_hud != null and game_hud.has_method("setup_passive_manager"):
+		game_hud.setup_passive_manager(passive_manager)
 	if level_up_screen != null and level_up_screen.has_method("setup_audio_manager"):
 		level_up_screen.setup_audio_manager(_audio_manager)
 	if game_over_screen != null and game_over_screen.has_method("setup_audio_manager"):
@@ -291,6 +295,7 @@ func _finish_run(result: String) -> void:
 	enemy_spawner.stop_spawning()
 	auto_attack.stop_attacking()
 	ability_manager.stop()
+	passive_manager.stop()
 	_hide_evolution_reward_screen()
 	player.set_external_move_vector(Vector2.ZERO)
 	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
@@ -319,6 +324,15 @@ func _build_run_summary(result: String) -> Dictionary:
 	summary["active_evolution_count"] = applied_evolution_count
 	summary["attack_evolution_count"] = 0
 	summary["passive_evolution_count"] = 0
+	var selected_passive_ids: Array[String] = passive_manager.get_selected_passive_ids()
+	var selected_passive_titles: Array[String] = passive_manager.get_selected_passive_titles()
+	summary["selected_passive_ids"] = selected_passive_ids
+	summary["selected_passive_titles"] = selected_passive_titles
+	summary["selected_passive_count"] = selected_passive_ids.size()
+	var passive_levels: Dictionary = {}
+	for passive_id: String in selected_passive_ids:
+		passive_levels[passive_id] = passive_manager.get_passive_level(passive_id)
+	summary["passive_levels"] = passive_levels
 	summary["result"] = result
 	summary["player_level"] = player.level
 	summary["hero_id"] = str(_selected_hero.get("id", "vanguard"))
