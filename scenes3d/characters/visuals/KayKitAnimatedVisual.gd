@@ -9,6 +9,7 @@ static var _animation_library_cache: Dictionary = {}
 @export_category("Imported KayKit scenes")
 @export var movement_animation_source: PackedScene
 @export var general_animation_source: PackedScene
+@export var additional_animation_sources: Array[PackedScene] = []
 @export_category("Resolved imported nodes")
 @export var animation_player_path: NodePath
 @export var skeleton_path: NodePath
@@ -53,17 +54,20 @@ func _resolve_skeleton(model_root: Node3D) -> Skeleton3D:
 
 
 func _get_cached_animation_library() -> AnimationLibrary:
-	var cache_key: String = "%s|%s|%s|%s" % [
+	var source_paths: PackedStringArray = [
 		movement_animation_source.resource_path if movement_animation_source != null else "",
 		general_animation_source.resource_path if general_animation_source != null else "",
-		idle_animation,
-		run_animation,
 	]
+	for source: PackedScene in additional_animation_sources:
+		source_paths.append(source.resource_path if source != null else "")
+	var cache_key: String = "%s|%s|%s" % ["|".join(source_paths), idle_animation, run_animation]
 	if _animation_library_cache.has(cache_key):
 		return _animation_library_cache[cache_key] as AnimationLibrary
 	var library := AnimationLibrary.new()
 	_add_animations_from_source(library, movement_animation_source)
 	_add_animations_from_source(library, general_animation_source)
+	for source: PackedScene in additional_animation_sources:
+		_add_animations_from_source(library, source)
 	if library.get_animation_list().is_empty():
 		push_warning("KayKitAnimatedVisual: animation sources provided no clips.")
 		return null

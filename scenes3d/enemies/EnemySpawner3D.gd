@@ -14,20 +14,39 @@ var _arena: Node3D = null
 var _enemy_container: Node3D = null
 var _pickup_container: Node3D = null
 var _spawn_director: Node = null
+var _run_manager: Node = null
+var _spawning: bool = false
 
 @onready var spawn_timer: Timer = $SpawnTimer
 @onready var wave_timer: Timer = $WaveTimer
 
 
-func setup(player: Player3D, arena: Node3D, enemy_container: Node3D, pickup_container: Node3D, spawn_director: Node) -> void:
+func setup(player: Player3D, arena: Node3D, enemy_container: Node3D, pickup_container: Node3D, spawn_director: Node, run_manager: Node = null) -> void:
 	_player = player
 	_arena = arena
 	_enemy_container = enemy_container
 	_pickup_container = pickup_container
 	_spawn_director = spawn_director
+	_run_manager = run_manager
 	_refresh_timers()
+
+
+func start_spawning() -> void:
+	if _spawning:
+		return
+	_spawning = true
 	spawn_timer.start()
 	wave_timer.start()
+
+
+func stop_spawning() -> void:
+	_spawning = false
+	spawn_timer.stop()
+	wave_timer.stop()
+
+
+func is_spawning() -> bool:
+	return _spawning
 
 
 func debug_kill_nearest_enemy() -> void:
@@ -50,6 +69,8 @@ func debug_kill_nearest_enemy() -> void:
 
 
 func _on_spawn_timer_timeout() -> void:
+	if not _spawning:
+		return
 	_refresh_timers()
 	if _alive_enemy_count() >= _get_max_alive_count():
 		return
@@ -57,6 +78,8 @@ func _on_spawn_timer_timeout() -> void:
 
 
 func _on_wave_timer_timeout() -> void:
+	if not _spawning:
+		return
 	_refresh_timers()
 	if _spawn_director == null or not _spawn_director.has_method("get_wave_package"):
 		return
@@ -90,6 +113,8 @@ func _spawn_variant(variant: Dictionary) -> void:
 
 
 func _on_enemy_died(enemy: Enemy3D) -> void:
+	if _run_manager != null and _run_manager.has_method("register_enemy_kill"):
+		_run_manager.register_enemy_kill()
 	if experience_pickup_scene == null or _pickup_container == null:
 		return
 	var pickup_node := experience_pickup_scene.instantiate()
@@ -100,6 +125,7 @@ func _on_enemy_died(enemy: Enemy3D) -> void:
 	var pickup := pickup_node as ExperiencePickup3D
 	_pickup_container.add_child(pickup)
 	pickup.global_position = enemy.global_position + Vector3.UP * 0.4
+	pickup.set_world_height(pickup.global_position.y)
 	pickup.experience_value = enemy.get_experience_value()
 
 

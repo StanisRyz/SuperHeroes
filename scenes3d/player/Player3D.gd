@@ -4,8 +4,6 @@ extends CharacterBody3D
 ## Reusable 3D player controller for the isolated migration prototype.
 ## Its public health, experience, movement, and dash methods mirror Player.gd where practical.
 
-const WorldPlane = preload("res://scenes3d/utilities/WorldPlane.gd")
-
 signal health_changed(current_health: int, max_health: int)
 signal damage_taken(amount: int)
 signal experience_changed(current_xp: int, xp_to_next_level: int, level: int)
@@ -50,6 +48,8 @@ var _playable_width: float = 0.0
 var _playable_depth: float = 0.0
 var _death_emitted: bool = false
 var _was_invulnerable: bool = false
+var _combat_facing_locked: bool = false
+var _combat_facing_direction: Vector3 = Vector3.FORWARD
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var knight_visual: KnightVisual = $VisualRoot/KnightVisual
@@ -209,6 +209,19 @@ func request_attack_animation() -> bool:
 	return knight_visual != null and knight_visual.play_attack()
 
 
+func lock_combat_facing(direction: Vector3) -> void:
+	direction.y = 0.0
+	if direction.is_zero_approx():
+		return
+	_combat_facing_locked = true
+	_combat_facing_direction = direction.normalized()
+	_update_visual_facing(_combat_facing_direction, 0.2)
+
+
+func release_combat_facing() -> void:
+	_combat_facing_locked = false
+
+
 func set_playable_bounds(width: float, depth: float) -> void:
 	_playable_width = maxf(width, 0.0)
 	_playable_depth = maxf(depth, 0.0)
@@ -237,6 +250,8 @@ func _get_dash_direction() -> Vector3:
 
 
 func _update_visual_facing(direction: Vector3, delta: float) -> void:
+	if _combat_facing_locked:
+		direction = _combat_facing_direction
 	var target_yaw: float = atan2(-direction.x, -direction.z)
 	visual_root.rotation.y = lerp_angle(visual_root.rotation.y, target_yaw, 1.0 - exp(-rotation_speed * delta))
 

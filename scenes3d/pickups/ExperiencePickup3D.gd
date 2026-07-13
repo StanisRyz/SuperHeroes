@@ -12,12 +12,17 @@ var _elapsed: float = 0.0
 
 
 func _ready() -> void:
-	_base_y = position.y
+	_base_y = global_position.y
+
+
+func set_world_height(world_height: float) -> void:
+	_base_y = world_height
+	global_position.y = world_height
 
 
 func _process(delta: float) -> void:
 	_elapsed += delta
-	position.y = _base_y + sin(_elapsed * hover_speed) * hover_height
+	global_position.y = _base_y + sin(_elapsed * hover_speed) * hover_height
 	rotate_y(rotation_speed * delta)
 
 

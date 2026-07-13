@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes3d/player/visuals/KnightVisual.gd" id="1_knight_visual"]
 [ext_resource type="PackedScene" path="res://assets/kaykit/adventurers/Characters/gltf/Knight.glb" id="2_knight_model"]
@@ -6,11 +6,15 @@
 [ext_resource type="PackedScene" path="res://assets/kaykit/adventurers/Animations/gltf/Rig_Medium/Rig_Medium_General.glb" id="4_general_animations"]
 [ext_resource type="PackedScene" path="res://scenes3d/player/visuals/SwordVisual.tscn" id="5_sword_visual"]
 [ext_resource type="PackedScene" path="res://scenes3d/player/visuals/ShieldVisual.tscn" id="6_shield_visual"]
+[ext_resource type="PackedScene" path="res://assets/kaykit/animations/Animations/gltf/Rig_Medium/Rig_Medium_CombatMelee.glb" id="7_combat_animations"]
 
 [node name="KnightVisual" type="Node3D"]
 script = ExtResource("1_knight_visual")
 movement_animation_source = ExtResource("3_movement_animations")
 general_animation_source = ExtResource("4_general_animations")
+additional_animation_sources = [ExtResource("7_combat_animations")]
+attack_animation = &"kaykit/Melee_1H_Attack_Slice_Diagonal"
+attack_impact_normalized_time = 0.46
 sword_visual_scene = ExtResource("5_sword_visual")
 shield_visual_scene = ExtResource("6_shield_visual")
 

@@ -1,6 +1,7 @@
 extends Node
 
 @export var arena_scene: PackedScene
+@export var arena_3d_scene: PackedScene
 @export var main_menu_scene: PackedScene
 
 var current_run: Node
@@ -334,7 +335,8 @@ func _start_run_with_hero_and_stage(hero_id: String, stage_id: String) -> void:
 	if stage_data_provider != null and stage_data_provider.has_method("get_stage_level_preview"):
 		selected_stage["level_preview"] = stage_data_provider.get_stage_level_preview(selected_stage_id, selected_stage_level)
 
-	current_run = arena_scene.instantiate()
+	var run_scene: PackedScene = arena_3d_scene if selected_hero_id == "vanguard" and arena_3d_scene != null else arena_scene
+	current_run = run_scene.instantiate()
 	if current_run.has_method("setup"):
 		current_run.setup(settings_manager, audio_manager, selected_hero, meta_progression_manager, selected_stage)
 	add_child(current_run)

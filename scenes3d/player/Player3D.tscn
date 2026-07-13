@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes3d/player/Player3D.gd" id="1_player3d"]
 [ext_resource type="PackedScene" path="res://scenes3d/player/visuals/KnightVisual.tscn" id="2_knight_visual"]
+[ext_resource type="Script" path="res://scenes3d/player/KnightMeleeAutoAttack3D.gd" id="3_auto_attack"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.5
@@ -40,6 +41,7 @@ position = Vector3(0, 1.2, 0)
 shape = SubResource("SphereShape3D_area")
 
 [node name="AutoAttack" type="Node" parent="."]
+script = ExtResource("3_auto_attack")
 
 [node name="AbilityManager" type="Node" parent="."]
 
