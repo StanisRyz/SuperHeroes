@@ -10,6 +10,7 @@ const PICKUP_SCAN_INTERVAL := 0.25
 const PASSIVE_PULSE_EFFECT := preload("res://scenes3d/effects/PassivePulseEffect3D.tscn")
 const PASSIVE_ARC_EFFECT := preload("res://scenes3d/effects/PassiveArcEffect3D.tscn")
 const GUARDIAN_DRONE_VISUAL := preload("res://scenes3d/passives/GuardianDroneVisual3D.tscn")
+const ORBIT_SHIELD_VISUAL := preload("res://scenes3d/passives/OrbitShieldVisual3D.tscn")
 const RAGE_FIELD_EVOLUTION_ID := "mighty_clap_rampage_impact"
 const BERSERKER_FOCUS_EVOLUTION_ID := "rage_leap_blood_crater"
 const GRAVITY_RAGE_EVOLUTION_ID := "rage_leap_final_impact"
@@ -29,6 +30,7 @@ const PASSIVE_DEFINITIONS: Dictionary = {
 	"recovery_field": {"title": "Recovery Field", "max_level": 3, "heal": [4, 6, 8], "interval": [12.0, 10.5, 9.0], "radius": [80.0, 95.0, 110.0]},
 	"magnet_core": {"title": "Magnet Core", "max_level": 3, "pickup_radius_bonus": [45.0, 85.0, 125.0]},
 	"guardian_drone": {"title": "Guardian Drone", "max_level": 3, "damage": [5, 8, 11], "interval": [3.4, 3.0, 2.6], "range": 460.0},
+	"orbit_shields": {"title": "Orbit Shields", "max_level": 3, "maximum_charges": [1, 1, 2], "interval": [18.0, 14.0, 12.0]},
 }
 
 signal passive_changed(passive_id: String, level: int)
@@ -42,15 +44,17 @@ var _enemy_container: Node3D
 var _pickup_container: Node3D
 var _effect_container: Node3D
 var _levels: Dictionary = {}
-var _timers: Dictionary = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0}
+var _timers: Dictionary = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0}
 var _pickup_scan_remaining := 0.0
 var _stopped := false
 var _selected_passive_evolutions: Array[String] = []
 var _passive_evolution_targets: Dictionary = {}
 var _guardian_drone_visual: Node3D
+var _orbit_shield_visual: Node3D
 
 
 func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manager: KnightAbilityManager3D, enemy_container: Node3D, pickup_container: Node3D, effect_container: Node3D) -> void:
+	_disconnect_player_shield_signals()
 	_player = player
 	_auto_attack = auto_attack
 	_ability_manager = ability_manager
@@ -58,12 +62,17 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manag
 	_pickup_container = pickup_container
 	_effect_container = effect_container
 	reset_run_state()
+	if not _player.shield_changed.is_connected(_on_player_shield_changed):
+		_player.shield_changed.connect(_on_player_shield_changed)
+	if not _player.shield_blocked.is_connected(_on_player_shield_blocked):
+		_player.shield_blocked.connect(_on_player_shield_blocked)
 
 
 func _process(delta: float) -> void:
 	if _stopped or get_tree().paused or _player == null or not is_instance_valid(_player) or _player.is_dead():
 		if _player == null or not is_instance_valid(_player):
 			_remove_guardian_drone_visual()
+			_remove_orbit_shield_visual()
 		return
 	if has_passive("static_field"):
 		_tick_static_field(delta)
@@ -77,6 +86,8 @@ func _process(delta: float) -> void:
 			_tick_gravity_rage(delta)
 	if has_passive("guardian_drone"):
 		_tick_guardian_drone(delta)
+	if has_passive("orbit_shields"):
+		_tick_orbit_shields(delta)
 
 
 func add_or_upgrade_passive(passive_id: String) -> bool:
@@ -97,6 +108,8 @@ func add_or_upgrade_passive(passive_id: String) -> bool:
 		_spawn_pulse(_player.global_position, _world_value("recovery_field", "radius", next_level), 0.25, Color(0.24, 1.0, 0.48, 0.72), 0.68)
 	elif passive_id == "guardian_drone":
 		_ensure_guardian_drone_visual()
+	elif passive_id == "orbit_shields":
+		_configure_orbit_shields(previous_level, next_level)
 	passive_changed.emit(passive_id, next_level)
 	passive_state_changed.emit()
 	return true
@@ -129,6 +142,15 @@ func get_passive_state(passive_id: String) -> Dictionary:
 		state["effective_pickup_radius"] = _get_effective_magnet_radius(level)
 		state["attraction_speed"] = MAGNET_ATTRACTION_SPEED
 		state["gravity_rage_active"] = has_passive_evolution(GRAVITY_RAGE_EVOLUTION_ID)
+	if passive_id == "orbit_shields":
+		var current_charges := _player.get_shield_charges() if _player != null and is_instance_valid(_player) else 0
+		var maximum_charges := _player.get_maximum_shield_charges() if _player != null and is_instance_valid(_player) else 0
+		state["current_charges"] = current_charges
+		state["maximum_charges"] = maximum_charges
+		state["regeneration_interval"] = _value("orbit_shields", "interval", level)
+		state["remaining_regeneration_time"] = float(_timers.get("orbit_shields", 0.0))
+		state["is_full"] = current_charges >= maximum_charges
+		state["blocked_hit_count"] = _player.get_shield_block_count() if _player != null and is_instance_valid(_player) else 0
 	return state
 
 
@@ -202,9 +224,12 @@ func reset_run_state() -> void:
 	_levels.clear()
 	_selected_passive_evolutions.clear()
 	_passive_evolution_targets.clear()
-	_timers = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0}
+	_timers = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0}
 	_pickup_scan_remaining = 0.0
 	_remove_guardian_drone_visual()
+	_remove_orbit_shield_visual()
+	if _player != null and is_instance_valid(_player):
+		_player.clear_shield_charges()
 	_stopped = false
 	passive_state_changed.emit()
 
@@ -217,7 +242,11 @@ func stop() -> void:
 	_passive_evolution_targets.clear()
 	_timers["guardian_drone"] = 0.0
 	_timers["magnet_core"] = 0.0
+	_timers["orbit_shields"] = 0.0
 	_remove_guardian_drone_visual()
+	_remove_orbit_shield_visual()
+	if _player != null and is_instance_valid(_player):
+		_player.clear_shield_charges()
 	passive_state_changed.emit()
 
 
@@ -357,6 +386,62 @@ func _tick_guardian_drone(delta: float) -> void:
 	passive_state_changed.emit()
 
 
+func _configure_orbit_shields(previous_level: int, next_level: int) -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	var maximum_charges := int(_value("orbit_shields", "maximum_charges", next_level))
+	var refill := previous_level == 0 or next_level == 3
+	_player.configure_shield_charges(maximum_charges, refill)
+	if previous_level == 0:
+		_timers["orbit_shields"] = _value("orbit_shields", "interval", next_level)
+	elif _player.get_shield_charges() >= _player.get_maximum_shield_charges():
+		_timers["orbit_shields"] = 0.0
+	_ensure_orbit_shield_visual()
+
+
+func _tick_orbit_shields(delta: float) -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	var maximum_charges := _player.get_maximum_shield_charges()
+	if maximum_charges <= 0 or _player.get_shield_charges() >= maximum_charges:
+		_timers["orbit_shields"] = 0.0
+		return
+	if float(_timers["orbit_shields"]) <= 0.0:
+		_timers["orbit_shields"] = _value("orbit_shields", "interval", get_passive_level("orbit_shields"))
+		passive_state_changed.emit()
+		return
+	_timers["orbit_shields"] = maxf(float(_timers["orbit_shields"]) - delta, 0.0)
+	if float(_timers["orbit_shields"]) > 0.0:
+		return
+	var restored := _player.add_shield_charges(1)
+	if restored > 0:
+		passive_triggered.emit("orbit_shields", {"event": "charge_regenerated", "current_charges": _player.get_shield_charges(), "maximum_charges": maximum_charges})
+	if _player.get_shield_charges() < maximum_charges:
+		_timers["orbit_shields"] = _value("orbit_shields", "interval", get_passive_level("orbit_shields"))
+	else:
+		_timers["orbit_shields"] = 0.0
+	passive_state_changed.emit()
+
+
+func _on_player_shield_changed(current: int, maximum: int) -> void:
+	if not has_passive("orbit_shields"):
+		return
+	if current < maximum and float(_timers.get("orbit_shields", 0.0)) <= 0.0:
+		_timers["orbit_shields"] = _value("orbit_shields", "interval", get_passive_level("orbit_shields"))
+	elif current >= maximum:
+		_timers["orbit_shields"] = 0.0
+	_ensure_orbit_shield_visual()
+	passive_state_changed.emit()
+
+
+func _on_player_shield_blocked(blocked_damage: int, remaining: int, maximum: int) -> void:
+	if not has_passive("orbit_shields"):
+		return
+	_spawn_pulse(_player.global_position, 1.2, 0.18, Color(0.18, 0.90, 1.0, 0.86), 0.66)
+	passive_triggered.emit("orbit_shields", {"event": "blocked", "blocked_damage": blocked_damage, "remaining_charges": remaining, "maximum_charges": maximum})
+	passive_state_changed.emit()
+
+
 func _tick_gravity_rage(delta: float) -> void:
 	_timers["magnet_core"] = maxf(float(_timers["magnet_core"]) - delta, 0.0)
 	if float(_timers["magnet_core"]) > 0.0:
@@ -435,6 +520,23 @@ func _remove_guardian_drone_visual() -> void:
 	_guardian_drone_visual = null
 
 
+func _ensure_orbit_shield_visual() -> void:
+	if _orbit_shield_visual != null and is_instance_valid(_orbit_shield_visual):
+		return
+	if _effect_container == null or _player == null or not is_instance_valid(_player):
+		return
+	_orbit_shield_visual = ORBIT_SHIELD_VISUAL.instantiate()
+	_effect_container.add_child(_orbit_shield_visual)
+	if _orbit_shield_visual.has_method("setup"):
+		_orbit_shield_visual.call("setup", _player)
+
+
+func _remove_orbit_shield_visual() -> void:
+	if _orbit_shield_visual != null and is_instance_valid(_orbit_shield_visual):
+		_orbit_shield_visual.queue_free()
+	_orbit_shield_visual = null
+
+
 func _spawn_pulse(position: Vector3, radius: float, duration: float, color: Color, inner_radius_ratio: float) -> void:
 	if _effect_container == null:
 		return
@@ -453,3 +555,15 @@ func _spawn_arc(start_position: Vector3, end_position: Vector3, duration: float,
 
 func _exit_tree() -> void:
 	_remove_guardian_drone_visual()
+	_remove_orbit_shield_visual()
+	if _player != null and is_instance_valid(_player):
+		_player.clear_shield_charges()
+	_disconnect_player_shield_signals()
+
+
+func _disconnect_player_shield_signals() -> void:
+	if _player != null and is_instance_valid(_player):
+		if _player.shield_changed.is_connected(_on_player_shield_changed):
+			_player.shield_changed.disconnect(_on_player_shield_changed)
+		if _player.shield_blocked.is_connected(_on_player_shield_blocked):
+			_player.shield_blocked.disconnect(_on_player_shield_blocked)

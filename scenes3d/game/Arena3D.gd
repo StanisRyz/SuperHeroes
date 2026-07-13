@@ -8,7 +8,7 @@ signal run_result_ready(summary: Dictionary)
 
 @export_range(8.0, 200.0, 1.0) var arena_width: float = 40.0
 @export_range(8.0, 200.0, 1.0) var arena_depth: float = 40.0
-@export_range(60.0, 90.0, 1.0) var prototype_run_seconds: float = 75.0
+@export_range(60.0, 600.0, 1.0) var prototype_run_seconds: float = 300.0
 
 var _settings_manager: Node
 var _audio_manager: Node
@@ -130,7 +130,7 @@ func _configure_optional_ui() -> void:
 		push_warning("Arena3D: GameHUD is unavailable; continuing without optional HUD setup.")
 	else:
 		game_hud.setup(player, run_manager, ability_manager)
-	for path: String in ["Root/BuffPanel"]:
+	for path: String in ["Root/BuffPanel/MoveSpeedLabel", "Root/BuffPanel/AttackSpeedLabel"]:
 		var unsupported_node := game_hud.get_node_or_null(path) if game_hud != null else null
 		if unsupported_node is CanvasItem:
 			(unsupported_node as CanvasItem).hide()
@@ -334,6 +334,9 @@ func _build_run_summary(result: String) -> Dictionary:
 	for passive_id: String in selected_passive_ids:
 		passive_levels[passive_id] = passive_manager.get_passive_level(passive_id)
 	summary["passive_levels"] = passive_levels
+	summary["shield_charges"] = player.get_shield_charges()
+	summary["shield_maximum_charges"] = player.get_maximum_shield_charges()
+	summary["shield_blocks"] = player.get_shield_block_count()
 	summary["result"] = result
 	summary["player_level"] = player.level
 	summary["hero_id"] = str(_selected_hero.get("id", "vanguard"))

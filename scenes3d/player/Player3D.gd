@@ -15,6 +15,8 @@ signal dash_cooldown_changed(cooldown_remaining: float, cooldown_total: float)
 signal dash_started
 signal dash_finished
 signal invulnerability_changed(is_invulnerable: bool)
+signal shield_changed(current: int, maximum: int)
+signal shield_blocked(blocked_damage: int, remaining: int, maximum: int)
 
 @export_category("Movement")
 @export var movement_speed: float = 6.0
@@ -43,6 +45,9 @@ var dash_time_remaining: float = 0.0
 var dash_cooldown_remaining: float = 0.0
 var invulnerability_time_remaining: float = 0.0
 var last_aim_direction: Vector2 = Vector2(0.0, -1.0)
+var _shield_charges := 0
+var _maximum_shield_charges := 0
+var _shield_block_count := 0
 
 var _last_move_direction: Vector3 = Vector3.FORWARD
 var _has_playable_bounds: bool = false
@@ -134,6 +139,10 @@ func _unhandled_input(event: InputEvent) -> void:
 func take_damage(amount: int) -> void:
 	if amount <= 0 or is_dead() or is_invulnerable():
 		return
+	if consume_shield_charge():
+		_shield_block_count += 1
+		shield_blocked.emit(amount, _shield_charges, _maximum_shield_charges)
+		return
 
 	var previous_health: int = current_health
 	current_health = clampi(current_health - amount, 0, max_health)
@@ -156,6 +165,57 @@ func heal(amount: int) -> void:
 	current_health = clampi(current_health + amount, 0, max_health)
 	if current_health != previous_health:
 		health_changed.emit(current_health, max_health)
+
+
+func configure_shield_charges(maximum: int, refill: bool = false) -> void:
+	maximum = maxi(maximum, 0)
+	var previous_current := _shield_charges
+	var previous_maximum := _maximum_shield_charges
+	_maximum_shield_charges = maximum
+	_shield_charges = _maximum_shield_charges if refill else mini(_shield_charges, _maximum_shield_charges)
+	if _shield_charges != previous_current or _maximum_shield_charges != previous_maximum:
+		shield_changed.emit(_shield_charges, _maximum_shield_charges)
+
+
+func add_shield_charges(amount: int) -> int:
+	if amount <= 0 or _maximum_shield_charges <= 0:
+		return 0
+	var previous_current := _shield_charges
+	_shield_charges = clampi(_shield_charges + amount, 0, _maximum_shield_charges)
+	var added := _shield_charges - previous_current
+	if added > 0:
+		shield_changed.emit(_shield_charges, _maximum_shield_charges)
+	return added
+
+
+func consume_shield_charge() -> bool:
+	if _shield_charges <= 0:
+		return false
+	_shield_charges -= 1
+	shield_changed.emit(_shield_charges, _maximum_shield_charges)
+	return true
+
+
+func get_shield_charges() -> int:
+	return _shield_charges
+
+
+func get_maximum_shield_charges() -> int:
+	return _maximum_shield_charges
+
+
+func get_shield_block_count() -> int:
+	return _shield_block_count
+
+
+func clear_shield_charges() -> void:
+	var previous_current := _shield_charges
+	var previous_maximum := _maximum_shield_charges
+	_shield_charges = 0
+	_maximum_shield_charges = 0
+	_shield_block_count = 0
+	if previous_current != 0 or previous_maximum != 0:
+		shield_changed.emit(0, 0)
 
 
 func add_experience(amount: int) -> void:

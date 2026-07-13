@@ -10,6 +10,7 @@ var _orbit_angle := 0.0
 
 func setup(player: Node3D) -> void:
 	_player = player
+	_update_orbit_position()
 
 
 func _process(delta: float) -> void:
@@ -17,4 +18,10 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 	_orbit_angle += ORBIT_SPEED * delta
+	_update_orbit_position()
+
+
+func _update_orbit_position() -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
 	global_position = _player.global_position + Vector3(cos(_orbit_angle) * ORBIT_RADIUS, 0.72, sin(_orbit_angle) * ORBIT_RADIUS)

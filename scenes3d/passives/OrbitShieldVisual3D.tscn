@@ -1,0 +1,24 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes3d/passives/OrbitShieldVisual3D.gd" id="1_shield"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shield"]
+albedo_color = Color(0.18, 0.9, 1, 0.9)
+metallic = 0.25
+roughness = 0.22
+
+[sub_resource type="SphereMesh" id="SphereMesh_shield"]
+material = SubResource("StandardMaterial3D_shield")
+radius = 0.1
+height = 0.2
+radial_segments = 8
+rings = 4
+
+[node name="OrbitShieldVisual3D" type="Node3D"]
+script = ExtResource("1_shield")
+
+[node name="MarkerOne" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_shield")
+
+[node name="MarkerTwo" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_shield")

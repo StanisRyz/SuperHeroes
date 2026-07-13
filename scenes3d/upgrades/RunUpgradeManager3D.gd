@@ -38,6 +38,7 @@ const UPGRADES := {
 	"battle_focus": {"title": "Battle Focus", "description": "Periodic strike and temporary attack-speed boost.", "rarity": "rare", "max_level": 3, "category": "passive"},
 	"magnet_core": {"title": "Magnet Core", "description": "Extends nearby experience pickup attraction.", "rarity": "common", "max_level": 3, "category": "passive"},
 	"guardian_drone": {"title": "Guardian Drone", "description": "Orbiting drone periodically strikes the nearest enemy.", "rarity": "rare", "max_level": 3, "category": "passive"},
+	"orbit_shields": {"title": "Orbit Shields", "description": "Orbiting charges completely block incoming hits.", "rarity": "epic", "max_level": 3, "category": "passive"},
 	"recovery_field": {"title": "Recovery Field", "description": "Periodically restore health.", "rarity": "common", "max_level": 3, "category": "passive"},
 }
 
@@ -85,7 +86,7 @@ func apply_upgrade(upgrade_id: String) -> void:
 	var level := int(_levels.get(upgrade_id, 0))
 	if level >= int(UPGRADES[upgrade_id]["max_level"]):
 		return
-	if upgrade_id in ["static_field", "battle_focus", "magnet_core", "guardian_drone"]:
+	if upgrade_id in ["static_field", "battle_focus", "magnet_core", "guardian_drone", "orbit_shields"]:
 		if _passive_manager == null or not _passive_manager.add_or_upgrade_passive(upgrade_id):
 			return
 		_levels[upgrade_id] = level + 1
@@ -168,7 +169,7 @@ func _has_dependencies(upgrade_id: String) -> bool:
 		return _auto_attack != null
 	if upgrade_id in ["splash_melee_combo", "splash_melee_lifesteal", "splash_melee_execute"]:
 		return _auto_attack != null
-	if upgrade_id in ["static_field", "battle_focus", "magnet_core", "guardian_drone", "recovery_field"]:
+	if upgrade_id in ["static_field", "battle_focus", "magnet_core", "guardian_drone", "orbit_shields", "recovery_field"]:
 		return _passive_manager != null
 	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "mighty_clap_shockwave", "leap_radius", "rage_leap_radius", "rage_leap_cooldown", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
 

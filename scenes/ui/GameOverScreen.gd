@@ -101,6 +101,8 @@ func show_stats(stats: Dictionary) -> void:
 		var passive_label := get_node_or_null("Root/Panel/VBoxContainer/PassivesLabel") as Label
 		if passive_label != null:
 			passive_label.hide()
+	if int(stats.get("shield_blocks", 0)) > 0:
+		_update_extra_label("ShieldBlocksLabel", "Shield blocks:  %d" % int(stats.get("shield_blocks", 0)), evolutions_label)
 
 	_append_item_rewards(stats.get("item_rewards", []))
 	show()

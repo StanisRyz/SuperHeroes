@@ -81,6 +81,7 @@ func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = n
 	_setup_run_manager(run_manager)
 	_setup_ability_manager(ability_manager)
 	_setup_buff_manager(buff_manager)
+	_setup_player_shield(player)
 
 
 func _on_hero_resource_changed(resource_name: String, current: float, maximum: float) -> void:
@@ -435,6 +436,8 @@ func _update_passive_label(passive_manager: Node) -> void:
 		var title := str(state.get("title", passive_id))
 		titles.append(title)
 		tooltip_lines.append("%s Lv %d" % [title, int(state.get("level", 0))])
+		if passive_id == "orbit_shields":
+			_update_orbit_shield_label(int(state.get("current_charges", 0)), int(state.get("maximum_charges", 0)), float(state.get("remaining_regeneration_time", 0.0)))
 	passive_label.text = "Passives: %s" % titles[0] if titles.size() == 1 else "Passives: %s +%d" % [titles[0], titles.size() - 1]
 	passive_label.tooltip_text = "\n".join(tooltip_lines)
 
@@ -483,6 +486,33 @@ func _setup_buff_manager(buff_manager: Node) -> void:
 		buff_manager.buff_finished.connect(_on_buff_finished)
 	if buff_manager.has_signal("shield_changed") and not buff_manager.shield_changed.is_connected(_on_shield_changed):
 		buff_manager.shield_changed.connect(_on_shield_changed)
+
+
+func _setup_player_shield(shield_player: Node) -> void:
+	if shield_player == null or not shield_player.has_signal("shield_changed") or not shield_player.has_method("get_shield_charges"):
+		return
+	if not shield_player.shield_changed.is_connected(_on_player_shield_changed):
+		shield_player.shield_changed.connect(_on_player_shield_changed)
+	_on_player_shield_changed(int(shield_player.get_shield_charges()), int(shield_player.get_maximum_shield_charges()))
+
+
+func _on_player_shield_changed(current: int, maximum: int) -> void:
+	_update_orbit_shield_label(current, maximum, 0.0)
+
+
+func _update_orbit_shield_label(current: int, maximum: int, remaining_time: float) -> void:
+	if shield_label == null:
+		return
+	if maximum <= 0:
+		shield_label.text = "Shield: None"
+		shield_label.tooltip_text = ""
+		shield_label.modulate = Color.WHITE
+		shield_label.visible = true
+		return
+	shield_label.text = "Shield: %d / %d" % [current, maximum]
+	shield_label.tooltip_text = "Next charge: %.1fs" % remaining_time if current < maximum and remaining_time > 0.0 else ""
+	shield_label.modulate = UIStateColors.positive_color() if current > 0 else UIStateColors.warning_color()
+	shield_label.visible = true
 
 
 func _on_buff_started(buff_id: String, duration: float) -> void:
