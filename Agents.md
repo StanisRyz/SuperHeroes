@@ -53,6 +53,8 @@ Arena3D startup order is world, gameplay, critical run/input signal wiring, inpu
 
 Arena3D uses always-processing only for global Pause input; gameplay nodes remain pausable. Escape and the mobile Pause button use the same toggle, reset the joystick/mobile vector, and open PauseMenu above normal run UI. Canvas layer order is HUD, mobile controls, pause, level-up, then terminal screens. Decorative full-screen controls must use `MOUSE_FILTER_IGNORE`; hidden overlays must not intercept input. Main must unpause and close hidden menu overlays before showing MainMenu, and connect a newly instantiated arena's result/restart/menu signals before adding it to the tree.
 
+Stage 1.6 uses `KnightAbilityManager3D`, not the 2D AbilityManager, for Rage and active ability cooldowns. It owns Rage signals, casting guards, Rage Wave area slow, Shield Bash cone/knockback, and Crushing Leap landing logic. Player3D scripted motion must move through CharacterBody3D physics, honor bounds/collision, and cancel at terminal state. Enemy3D temporary modifiers refresh by ID and recalculate effective speed/contact damage without mutating base variant values. The generic HUD resource panel consumes `hero_resource_changed`; MobileControls emits intent only. Ability lines are active upgrades, Rage lines are passive, and evolutions remain deferred to stage 1.7.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. They coexist with the unchanged 2D layer names. Player3D is on Player and collides with Environment/Obstacles; its PickupArea detects Pickups. Arena3D's ground is Environment and detects Player. Always use `Main.tscn` for normal-game validation.
 
 ## Ownership map

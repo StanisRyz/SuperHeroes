@@ -37,10 +37,14 @@ var _ability_names: Dictionary = {
 @onready var build_label: Label = get_node_or_null("Root/BuildPanel/BuildLabel")
 @onready var hero_label: Label = get_node_or_null("Root/BuildPanel/HeroLabel")
 @onready var evolution_label: Label = get_node_or_null("Root/BuildPanel/EvolutionLabel")
+@onready var hero_resource_label: Label = get_node_or_null("Root/HeroResourcePanel/HeroResourceLabel")
+@onready var hero_resource_bar: ProgressBar = get_node_or_null("Root/HeroResourcePanel/HeroResourceBar")
 
 
 func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = null, buff_manager: Node = null) -> void:
 	player = new_player
+	if ability_manager != null and ability_manager.has_signal("hero_resource_changed") and not ability_manager.hero_resource_changed.is_connected(_on_hero_resource_changed):
+		ability_manager.hero_resource_changed.connect(_on_hero_resource_changed)
 
 	if player == null:
 		push_warning("GameHUD setup called without a player.")
@@ -74,6 +78,16 @@ func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = n
 	_setup_run_manager(run_manager)
 	_setup_ability_manager(ability_manager)
 	_setup_buff_manager(buff_manager)
+
+
+func _on_hero_resource_changed(resource_name: String, current: float, maximum: float) -> void:
+	if hero_resource_label != null:
+		hero_resource_label.text = "%s: %.0f / %.0f" % [resource_name, current, maximum]
+		hero_resource_label.visible = true
+	if hero_resource_bar != null:
+		hero_resource_bar.max_value = maximum
+		hero_resource_bar.value = current
+		hero_resource_bar.visible = true
 
 
 func _update_player_health(current_health: int, max_health: int) -> void:

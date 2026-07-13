@@ -25,6 +25,7 @@ var _pending_level_ups: int = 0
 @onready var run_manager: Node = $Managers/RunManager
 @onready var upgrade_manager: RunUpgradeManager3D = $Managers/RunUpgradeManager3D
 @onready var auto_attack: KnightMeleeAutoAttack3D = player.get_node("AutoAttack") as KnightMeleeAutoAttack3D
+@onready var ability_manager: KnightAbilityManager3D = player.get_node("AbilityManager") as KnightAbilityManager3D
 @onready var game_hud: Node = $GameHUD
 @onready var level_up_screen: Node = $LevelUpScreen
 @onready var game_over_screen: Node = $GameOverScreen
@@ -64,7 +65,8 @@ func _initialize_gameplay() -> void:
 	spawn_director.setup(run_manager)
 	enemy_spawner.setup(player, self, $EnemyContainer, $PickupContainer, spawn_director, run_manager)
 	auto_attack.setup(player, $EnemyContainer, player.knight_visual)
-	upgrade_manager.setup(player, auto_attack)
+	ability_manager.setup(player, auto_attack, $EnemyContainer, $EffectContainer, player.knight_visual)
+	upgrade_manager.setup(player, auto_attack, ability_manager)
 
 
 func _initialize_input() -> void:
@@ -88,6 +90,12 @@ func _input(event: InputEvent) -> void:
 		enemy_spawner.debug_kill_nearest_enemy()
 		get_viewport().set_input_as_handled()
 		return
+	if not _run_finished and event.is_action_pressed("ability_1"):
+		ability_manager.cast_ability_1()
+	if not _run_finished and event.is_action_pressed("ability_2"):
+		ability_manager.cast_ability_2()
+	if not _run_finished and event.is_action_pressed("ability_3"):
+		ability_manager.cast_ability_3()
 
 
 func is_xz_position_inside_playable_bounds(horizontal_position: Vector2) -> bool:
@@ -110,8 +118,8 @@ func _configure_optional_ui() -> void:
 	if game_hud == null or not game_hud.has_method("setup"):
 		push_warning("Arena3D: GameHUD is unavailable; continuing without optional HUD setup.")
 	else:
-		game_hud.setup(player, run_manager)
-	for path: String in ["Root/AbilityPanel", "Root/BuffPanel", "Root/BuildPanel/EvolutionLabel"]:
+		game_hud.setup(player, run_manager, ability_manager)
+	for path: String in ["Root/BuffPanel", "Root/BuildPanel/EvolutionLabel"]:
 		var unsupported_node := game_hud.get_node_or_null(path) if game_hud != null else null
 		if unsupported_node is CanvasItem:
 			(unsupported_node as CanvasItem).hide()
@@ -126,9 +134,11 @@ func _configure_optional_ui() -> void:
 		pause_menu.setup_audio_manager(_audio_manager)
 	if mobile_controls != null and mobile_controls.has_method("setup_player"):
 		mobile_controls.setup_player(player)
+	if mobile_controls != null and mobile_controls.has_method("setup_ability_manager"):
+		mobile_controls.setup_ability_manager(ability_manager)
 	if mobile_controls != null and mobile_controls.has_method("apply_settings"):
 		mobile_controls.apply_settings(_settings_manager)
-	for path: String in ["Root/AbilityButton", "Root/BeamButton", "Root/SlamButton", "Root/BuildSlotsButton"]:
+	for path: String in ["Root/BuildSlotsButton"]:
 		var unsupported_mobile_node := mobile_controls.get_node_or_null(path) if mobile_controls != null else null
 		if unsupported_mobile_node is CanvasItem:
 			(unsupported_mobile_node as CanvasItem).hide()
@@ -163,6 +173,9 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_if_available(pause_menu, "quit_to_menu_requested", quit_to_menu_requested.emit)
 	_connect_signal_if_available(mobile_controls, "movement_changed", player.set_external_move_vector)
 	_connect_signal_if_available(mobile_controls, "dash_pressed", player.try_dash)
+	_connect_signal_if_available(mobile_controls, "ability_1_pressed", ability_manager.cast_ability_1)
+	_connect_signal_if_available(mobile_controls, "ability_2_pressed", ability_manager.cast_ability_2)
+	_connect_signal_if_available(mobile_controls, "ability_3_pressed", ability_manager.cast_ability_3)
 	_connect_signal_if_available(mobile_controls, "pause_pressed", _toggle_pause_menu)
 
 
@@ -216,6 +229,7 @@ func _finish_run(result: String) -> void:
 	_run_finished = true
 	enemy_spawner.stop_spawning()
 	auto_attack.stop_attacking()
+	ability_manager.stop()
 	player.set_external_move_vector(Vector2.ZERO)
 	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
 		mobile_controls.reset_controls()

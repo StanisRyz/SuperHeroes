@@ -1,6 +1,8 @@
 class_name KnightMeleeAutoAttack3D
 extends Node
 
+signal attack_impact_resolved(hit_count: int, total_damage: int)
+
 @export var attack_damage: int = 14
 @export var attack_interval: float = 0.8
 @export var targeting_range: float = 3.2
@@ -16,6 +18,10 @@ var _cooldown_remaining: float = 0.0
 var _attack_active: bool = false
 var _attack_direction: Vector3 = Vector3.FORWARD
 var _damaged_enemies: Array[Enemy3D] = []
+var _damage_multiplier: float = 1.0
+
+func set_damage_multiplier(multiplier: float) -> void:
+	_damage_multiplier = maxf(multiplier, 0.0)
 
 
 func setup(player: Player3D, enemy_container: Node3D, knight_visual: KnightVisual) -> void:
@@ -55,44 +61,26 @@ func _process(delta: float) -> void:
 
 
 func _find_nearest_target() -> Enemy3D:
-	if _enemy_container == null:
-		return null
-	var nearest: Enemy3D = null
-	var nearest_distance := targeting_range
-	for child: Node in _enemy_container.get_children():
-		if not child is Enemy3D:
-			continue
-		var enemy := child as Enemy3D
-		if enemy.is_dead():
-			continue
-		var offset := enemy.global_position - _player.global_position
-		offset.y = 0.0
-		var distance := offset.length()
-		if distance <= nearest_distance:
-			nearest = enemy
-			nearest_distance = distance
-	return nearest
+	return CombatQuery3D.nearest_living_enemy(_enemy_container, _player.global_position, targeting_range)
 
 
 func _on_attack_impact() -> void:
 	if not _attack_active or _player == null or _enemy_container == null:
 		return
-	var minimum_dot := cos(deg_to_rad(attack_arc * 0.5))
-	for child: Node in _enemy_container.get_children():
-		if not child is Enemy3D:
-			continue
-		var enemy := child as Enemy3D
-		if enemy.is_dead() or enemy in _damaged_enemies:
+	var hit_count := 0
+	var total_damage := 0
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemy_container, _player.global_position, _attack_direction, attack_radius, attack_arc):
+		if enemy in _damaged_enemies:
 			continue
 		var offset := enemy.global_position - _player.global_position
 		offset.y = 0.0
-		if offset.length() > attack_radius or offset.is_zero_approx():
-			continue
-		if _attack_direction.dot(offset.normalized()) < minimum_dot:
-			continue
 		_damaged_enemies.append(enemy)
-		enemy.take_damage(attack_damage)
+		var damage := maxi(roundi(attack_damage * _damage_multiplier), 1)
+		enemy.take_damage(damage)
 		enemy.apply_knockback(offset, knockback_force, knockback_duration)
+		hit_count += 1
+		total_damage += damage
+	attack_impact_resolved.emit(hit_count, total_damage)
 
 
 func _on_attack_finished() -> void:

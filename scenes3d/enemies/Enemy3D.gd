@@ -27,6 +27,9 @@ var _attack_cooldown_remaining: float = 0.0
 var _attack_damage_armed: bool = false
 var _knockback_velocity: Vector3 = Vector3.ZERO
 var _knockback_time_remaining: float = 0.0
+var _temporary_modifiers: Dictionary = {}
+var _base_movement_speed: float = 3.0
+var _base_contact_damage: int = 10
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var skeleton_visual: SkeletonWarriorVisual = $VisualRoot/SkeletonWarriorVisual
@@ -35,6 +38,8 @@ var _knockback_time_remaining: float = 0.0
 
 func _ready() -> void:
 	current_health = max_health
+	_base_movement_speed = movement_speed
+	_base_contact_damage = contact_damage
 	add_to_group("enemies3d")
 	if skeleton_visual.attack_impact.is_connected(_on_attack_impact) == false:
 		skeleton_visual.attack_impact.connect(_on_attack_impact)
@@ -47,6 +52,7 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 	_tick_attack_cooldown(delta)
+	_tick_temporary_modifiers(delta)
 	_apply_gravity(delta)
 	var horizontal_velocity: Vector3 = _get_horizontal_velocity(delta)
 	velocity.x = horizontal_velocity.x
@@ -72,6 +78,16 @@ func apply_variant(variant: Dictionary) -> void:
 	contact_damage = int(variant.get("contact_damage", contact_damage))
 	experience_value = int(variant.get("experience_value", experience_value))
 	current_health = max_health
+	_base_movement_speed = movement_speed
+	_base_contact_damage = contact_damage
+	_recalculate_temporary_modifiers()
+
+
+func apply_temporary_modifier(modifier_id: String, values: Dictionary, duration: float) -> void:
+	if is_dead() or modifier_id.is_empty():
+		return
+	_temporary_modifiers[modifier_id] = {"values": values.duplicate(), "remaining": maxf(duration, 0.0)}
+	_recalculate_temporary_modifiers()
 
 
 func apply_special_modifier(modifier: Dictionary) -> void:
@@ -104,6 +120,7 @@ func die() -> void:
 	if _dead:
 		return
 	_dead = true
+	_temporary_modifiers.clear()
 	velocity = Vector3.ZERO
 	contact_damage_area.monitoring = false
 	contact_damage_area.monitorable = false
@@ -180,6 +197,33 @@ func _on_death_animation_finished() -> void:
 
 func _tick_attack_cooldown(delta: float) -> void:
 	_attack_cooldown_remaining = maxf(_attack_cooldown_remaining - delta, 0.0)
+
+
+func _tick_temporary_modifiers(delta: float) -> void:
+	var changed := false
+	for modifier_id: String in _temporary_modifiers.keys():
+		var modifier: Dictionary = _temporary_modifiers[modifier_id]
+		modifier["remaining"] = float(modifier["remaining"]) - delta
+		if float(modifier["remaining"]) <= 0.0:
+			_temporary_modifiers.erase(modifier_id)
+		else:
+			_temporary_modifiers[modifier_id] = modifier
+		changed = true
+	if changed:
+		_recalculate_temporary_modifiers()
+
+
+func _recalculate_temporary_modifiers() -> void:
+	var speed_multiplier := 1.0
+	var damage_multiplier := 1.0
+	var stunned := false
+	for modifier: Dictionary in _temporary_modifiers.values():
+		var values: Dictionary = modifier.get("values", {})
+		speed_multiplier *= float(values.get("movement_speed_multiplier", 1.0))
+		damage_multiplier *= float(values.get("contact_damage_multiplier", 1.0))
+		stunned = stunned or bool(values.get("stun", false))
+	movement_speed = 0.0 if stunned else _base_movement_speed * speed_multiplier
+	contact_damage = maxi(roundi(_base_contact_damage * damage_multiplier), 0)
 
 
 func _apply_gravity(delta: float) -> void:

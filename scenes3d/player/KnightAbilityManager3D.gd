@@ -1,0 +1,118 @@
+class_name KnightAbilityManager3D
+extends Node
+
+signal ability_cooldown_changed(slot: int, remaining: float, total: float)
+signal ability_cast(slot: int, ability_id: String)
+signal rage_changed(current: float, maximum: float, damage_multiplier: float)
+signal hero_resource_changed(resource_name: String, current: float, maximum: float)
+
+@export var maximum_rage := 100.0
+@export var maximum_damage_multiplier := 1.45
+@export var rage_decay_per_second := 4.0
+@export var rage_per_damage_taken := 0.5
+@export var rage_per_hit := 4.0
+@export var wave_damage := 24
+@export var wave_radius := 5.0
+@export var wave_cooldown := 6.0
+@export var bash_damage := 34
+@export var bash_range := 4.5
+@export var bash_angle := 80.0
+@export var bash_cooldown := 7.0
+@export var leap_damage := 42
+@export var leap_radius := 3.5
+@export var leap_distance := 5.0
+@export var leap_duration := 0.35
+@export var leap_cooldown := 9.0
+
+var rage := 0.0
+var _player: Player3D
+var _auto_attack: KnightMeleeAutoAttack3D
+var _enemies: Node3D
+var _effects: Node3D
+var _visual: KnightVisual
+var _cooldowns := {1: 0.0, 2: 0.0, 3: 0.0}
+var _leap_landing_pending := false
+var _stopped := false
+
+func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node3D, effects: Node3D, visual: KnightVisual) -> void:
+	_player = player
+	_auto_attack = auto_attack
+	_enemies = enemies
+	_effects = effects
+	_visual = visual
+	_player.damage_taken.connect(_on_player_damage_taken)
+	_auto_attack.attack_impact_resolved.connect(_on_auto_attack_impact)
+	_update_rage(0.0)
+
+func _process(delta: float) -> void:
+	if _stopped or get_tree().paused or _player == null or _player.is_dead():
+		return
+	for slot: int in _cooldowns:
+		_cooldowns[slot] = maxf(float(_cooldowns[slot]) - delta, 0.0)
+		ability_cooldown_changed.emit(slot, _cooldowns[slot], _cooldown_total(slot))
+	if rage > 0.0:
+		_update_rage(-rage_decay_per_second * delta)
+	if _leap_landing_pending and not _player.is_scripted_motion_active():
+		_leap_landing_pending = false
+		_apply_leap_landing()
+
+func cast_ability_1() -> bool:
+	if not _can_cast(1): return false
+	_start_cooldown(1); ability_cast.emit(1, "rage_wave")
+	_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _player.global_position, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0)
+	return true
+
+func cast_ability_2() -> bool:
+	if not _can_cast(2): return false
+	var direction := _target_direction()
+	_start_cooldown(2); ability_cast.emit(2, "shield_bash")
+	_player.lock_combat_facing(direction)
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _player.global_position, direction, bash_range, bash_angle):
+		var damage := _scaled_damage(bash_damage)
+		enemy.take_damage(damage); enemy.apply_knockback(direction, 10.0, 0.28)
+		_update_rage(rage_per_hit + damage * 0.05)
+	_player.release_combat_facing()
+	return true
+
+func cast_ability_3() -> bool:
+	if not _can_cast(3): return false
+	var direction := _target_direction()
+	if not _player.start_scripted_motion(direction, leap_distance, leap_duration, leap_duration): return false
+	_start_cooldown(3); ability_cast.emit(3, "crushing_leap")
+	_player.lock_combat_facing(direction); _leap_landing_pending = true
+	return true
+
+func get_ability_state(slot: int) -> Dictionary:
+	return {"slot": slot, "cooldown_remaining": float(_cooldowns.get(slot, 0.0)), "cooldown_total": _cooldown_total(slot), "display_name": get_ability_name(slot, false), "short_name": get_ability_name(slot, true)}
+func get_all_ability_states() -> Dictionary:
+	return {1: get_ability_state(1), 2: get_ability_state(2), 3: get_ability_state(3)}
+func get_ability_name(slot: int, prefer_short: bool = false) -> String:
+	var names := {1: ["Rage Wave", "Wave"], 2: ["Shield Bash", "Bash"], 3: ["Crushing Leap", "Leap"]}
+	return names.get(slot, ["Ability", "Ability"])[1 if prefer_short else 0]
+func stop() -> void:
+	_stopped = true; _leap_landing_pending = false
+	if _player != null: _player.cancel_scripted_motion(); _player.release_combat_facing()
+func _can_cast(slot: int) -> bool:
+	return not _stopped and _player != null and not _player.is_dead() and not get_tree().paused and float(_cooldowns.get(slot, 0.0)) <= 0.0 and not _player.is_scripted_motion_active()
+func _start_cooldown(slot: int) -> void:
+	_cooldowns[slot] = _cooldown_total(slot); ability_cooldown_changed.emit(slot, _cooldowns[slot], _cooldown_total(slot))
+func _cooldown_total(slot: int) -> float:
+	return wave_cooldown if slot == 1 else (bash_cooldown if slot == 2 else leap_cooldown)
+func _target_direction() -> Vector3:
+	var target := CombatQuery3D.nearest_living_enemy(_enemies, _player.global_position, INF)
+	var direction := target.global_position - _player.global_position if target != null else WorldPlane.horizontal_to_world(_player.get_aim_direction())
+	direction.y = 0.0; return direction.normalized() if not direction.is_zero_approx() else Vector3.FORWARD
+func _apply_leap_landing() -> void:
+	_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _player.global_position, leap_radius), leap_damage, {"movement_speed_multiplier": 0.45, "stun": true}, 1.0)
+	_player.release_combat_facing()
+func _apply_area_damage(enemies: Array[Enemy3D], base_damage: int, modifier: Dictionary, duration: float) -> void:
+	for enemy: Enemy3D in enemies:
+		var damage := _scaled_damage(base_damage); enemy.take_damage(damage); enemy.apply_temporary_modifier("knight_ability", modifier, duration); enemy.apply_knockback(enemy.global_position - _player.global_position, 6.0, 0.2); _update_rage(rage_per_hit + damage * 0.05)
+func _scaled_damage(base_damage: int) -> int: return maxi(roundi(base_damage * get_damage_multiplier()), 1)
+func _on_player_damage_taken(amount: int) -> void: _update_rage(amount * rage_per_damage_taken)
+func _on_auto_attack_impact(hits: int, damage: int) -> void: _update_rage(hits * rage_per_hit + damage * 0.03)
+func get_damage_multiplier() -> float: return lerpf(1.0, maximum_damage_multiplier, rage / maxf(maximum_rage, 0.001))
+func _update_rage(delta: float) -> void:
+	rage = clampf(rage + delta, 0.0, maximum_rage)
+	if _auto_attack != null: _auto_attack.set_damage_multiplier(get_damage_multiplier())
+	rage_changed.emit(rage, maximum_rage, get_damage_multiplier()); hero_resource_changed.emit("Rage", rage, maximum_rage)

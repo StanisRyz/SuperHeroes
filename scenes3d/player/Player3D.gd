@@ -50,6 +50,11 @@ var _death_emitted: bool = false
 var _was_invulnerable: bool = false
 var _combat_facing_locked: bool = false
 var _combat_facing_direction: Vector3 = Vector3.FORWARD
+var _scripted_motion_active: bool = false
+var _scripted_motion_direction: Vector3 = Vector3.ZERO
+var _scripted_motion_time: float = 0.0
+var _scripted_motion_duration: float = 0.0
+var _scripted_motion_speed: float = 0.0
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var knight_visual: KnightVisual = $VisualRoot/KnightVisual
@@ -72,7 +77,13 @@ func _physics_process(delta: float) -> void:
 	_tick_invulnerability(delta)
 	_apply_gravity(delta)
 
-	if is_dashing:
+	if _scripted_motion_active:
+		_scripted_motion_time = maxf(_scripted_motion_time - delta, 0.0)
+		velocity.x = _scripted_motion_direction.x * _get_scripted_motion_speed()
+		velocity.z = _scripted_motion_direction.z * _get_scripted_motion_speed()
+		if _scripted_motion_time <= 0.0:
+			_scripted_motion_active = false
+	elif is_dashing:
 		dash_time_remaining = maxf(dash_time_remaining - delta, 0.0)
 		velocity.x = dash_direction.x * movement_speed * dash_speed_multiplier
 		velocity.z = dash_direction.z * movement_speed * dash_speed_multiplier
@@ -192,7 +203,34 @@ func try_dash() -> bool:
 
 
 func can_dash() -> bool:
-	return not get_tree().paused and not is_dead() and dash_cooldown_remaining <= 0.0
+	return not get_tree().paused and not is_dead() and not _scripted_motion_active and dash_cooldown_remaining <= 0.0
+
+
+func start_scripted_motion(direction: Vector3, distance: float, duration: float, invulnerability_duration: float) -> bool:
+	if is_dead() or is_dashing or _scripted_motion_active or duration <= 0.0:
+		return false
+	direction.y = 0.0
+	if direction.is_zero_approx():
+		return false
+	_scripted_motion_active = true
+	_scripted_motion_direction = direction.normalized()
+	_scripted_motion_duration = duration
+	_scripted_motion_time = duration
+	_scripted_motion_speed = maxf(distance, 0.0) / duration
+	invulnerability_time_remaining = maxf(invulnerability_time_remaining, invulnerability_duration)
+	return true
+
+
+func is_scripted_motion_active() -> bool:
+	return _scripted_motion_active
+
+
+func cancel_scripted_motion() -> void:
+	_scripted_motion_active = false
+
+
+func _get_scripted_motion_speed() -> float:
+	return _scripted_motion_speed
 
 
 func is_invulnerable() -> bool:

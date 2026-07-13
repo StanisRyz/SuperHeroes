@@ -154,6 +154,8 @@ Arena3D initializes world and gameplay state first, connects mandatory run/input
 
 Canvas layers keep HUD below mobile controls, then pause and level-up modals, with victory/defeat screens highest. Decorative full-screen controls ignore pointer input; hidden overlays must be closed or hidden before another screen becomes interactive. Main connects an arena's result/restart/menu signals before adding it to the tree, and unpauses/closes menu overlays before showing MainMenu.
 
+Stage 1.6 adds the run-local `KnightAbilityManager3D`, independent of the legacy 2D AbilityManager. Rage starts at 0/100, gains from accepted damage plus successful melee/ability hits, decays while active, and continuously scales Knight damage from 1.0 to 1.45. Rage Wave is a 5-unit area slow, Shield Bash is a forward cone with knockback, and Crushing Leap uses Player3D scripted collision-aware movement then lands with an area slow/impact. The reused HUD displays a generic hero-resource bar, and the three mobile ability buttons use Wave, Bash, and Leap. Ability upgrades are active lines; Rage upgrades are passive. Evolutions remain deferred to stage 1.7.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. These are separate from and preserve the existing 2D physics layers.
 
 The configured Web export preset writes to `export/index.html`. Use Godot's Export dialog or an equivalent CLI invocation with the checked-in `Web` preset; no custom export template or external build dependency is configured in the repository.
