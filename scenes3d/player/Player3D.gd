@@ -1,6 +1,8 @@
 class_name Player3D
 extends CharacterBody3D
 
+const ActionControllerScript = preload("res://scenes3d/player/PlayerActionController3D.gd")
+
 ## Reusable 3D player controller for the isolated migration prototype.
 ## Its public health, experience, movement, and dash methods mirror Player.gd where practical.
 
@@ -58,7 +60,7 @@ var _scripted_motion_speed: float = 0.0
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var knight_visual: KnightVisual = $VisualRoot/KnightVisual
-@onready var action_controller: PlayerActionController3D = $ActionController
+@onready var action_controller: Node = $ActionController
 
 
 func _ready() -> void:
@@ -188,7 +190,7 @@ func is_dead() -> bool:
 func try_dash() -> bool:
 	if not can_dash():
 		return false
-	var action_token := action_controller.try_begin_dash()
+	var action_token: int = int(action_controller.try_begin_dash())
 	if action_token == 0:
 		return false
 
@@ -211,7 +213,7 @@ func can_dash() -> bool:
 
 
 func start_scripted_motion(owner_token: int, direction: Vector3, distance: float, duration: float, invulnerability_duration: float) -> bool:
-	if is_dead() or is_dashing or not action_controller.is_action_active(PlayerActionController3D.ActionType.ABILITY) or owner_token != int(action_controller.get_current_action_state().get("token", 0)) or _scripted_motion_active or duration <= 0.0:
+	if is_dead() or is_dashing or not action_controller.is_action_active(ActionControllerScript.ActionType.ABILITY) or owner_token != int(action_controller.get_current_action_state().get("token", 0)) or _scripted_motion_active or duration <= 0.0:
 		return false
 	direction.y = 0.0
 	if direction.is_zero_approx():

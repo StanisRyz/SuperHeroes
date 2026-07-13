@@ -43,7 +43,7 @@ var _cast_state := CastState.IDLE
 var _cast_elapsed := 0.0
 var _cast_maximum := 0.0
 var _action_token := 0
-var _action_controller: PlayerActionController3D
+var _action_controller: Node
 
 func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node3D, effects: Node3D, visual: KnightVisual) -> void:
 	_player = player
