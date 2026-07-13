@@ -6,11 +6,13 @@ extends Node
 @export var shield_bash_effect_scene: PackedScene = preload("res://scenes3d/effects/ShieldBashEffect3D.tscn")
 @export var rampage_impact_effect_scene: PackedScene = preload("res://scenes3d/effects/RampageImpactEffect3D.tscn")
 @export var crushing_leap_effect_scene: PackedScene = preload("res://scenes3d/effects/CrushingLeapImpactEffect3D.tscn")
+@export var meteor_crash_impact_effect_scene: PackedScene = preload("res://scenes3d/effects/MeteorCrashImpactEffect3D.tscn")
 
 enum CastState { IDLE, WINDUP, SCRIPTED_MOTION, RECOVERY, CANCELLED }
 
 const WORLDBREAKER_EVOLUTION_ID := "rage_wave_worldbreaker"
 const RAMPAGE_IMPACT_EVOLUTION_ID := "shield_bash_rampage_impact"
+const METEOR_CRASH_EVOLUTION_ID := "crushing_leap_meteor_crash"
 const WORLDBREAKER_PULSES := [
 	{"delay": 0.0, "radius_multiplier": 1.0, "damage_multiplier": 1.5, "knockback_force": 7.0},
 	{"delay": 0.22, "radius_multiplier": 1.45, "damage_multiplier": 1.25, "knockback_force": 8.5},
@@ -29,6 +31,18 @@ const RAMPAGE_SECOND_DAMAGE_MULTIPLIER := 1.0
 const RAMPAGE_SECOND_KNOCKBACK_MULTIPLIER := 1.25
 const RAMPAGE_STAGGER := {"movement_speed_multiplier": 0.35}
 const RAMPAGE_STAGGER_DURATION := 1.2
+const METEOR_PRIMARY_DAMAGE_MULTIPLIER := 2.0
+const METEOR_PRIMARY_RADIUS_MULTIPLIER := 1.5
+const METEOR_PRIMARY_KNOCKBACK_FORCE := 12.0
+const METEOR_PRIMARY_KNOCKBACK_DURATION := 0.30
+const METEOR_STUN_DURATION := 1.25
+const METEOR_AFTERSHOCK_DELAY := 0.35
+const METEOR_AFTERSHOCK_DAMAGE_MULTIPLIER := 1.0
+const METEOR_AFTERSHOCK_RADIUS_MULTIPLIER := 0.80
+const METEOR_AFTERSHOCK_KNOCKBACK_FORCE := 8.0
+const METEOR_AFTERSHOCK_KNOCKBACK_DURATION := 0.24
+const METEOR_AFTERSHOCK_SLOW := {"movement_speed_multiplier": 0.30}
+const METEOR_AFTERSHOCK_SLOW_DURATION := 1.8
 
 signal ability_cooldown_changed(slot: int, remaining: float, total: float)
 signal ability_state_changed(state: Dictionary)
@@ -136,7 +150,7 @@ func refresh_ability_states() -> void:
 
 
 func can_apply_evolution(evolution_id: String) -> bool:
-	return evolution_id == WORLDBREAKER_EVOLUTION_ID or evolution_id == RAMPAGE_IMPACT_EVOLUTION_ID
+	return evolution_id == WORLDBREAKER_EVOLUTION_ID or evolution_id == RAMPAGE_IMPACT_EVOLUTION_ID or evolution_id == METEOR_CRASH_EVOLUTION_ID
 
 
 func apply_evolution(evolution_id: String) -> bool:
@@ -224,8 +238,11 @@ func _target_direction() -> Vector3:
 	var direction := target.global_position - _player.global_position if target != null else WorldPlane.horizontal_to_world(_player.get_aim_direction())
 	direction.y = 0.0; return direction.normalized() if not direction.is_zero_approx() else Vector3.FORWARD
 func _apply_leap_landing() -> void:
-	_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _player.global_position, leap_radius), leap_damage, {"movement_speed_multiplier": 0.45, "stun": true}, 1.0, "crushing_leap_stun")
-	_spawn_effect(crushing_leap_effect_scene, [_player.global_position, leap_radius, 0.4])
+	if is_evolution_active(METEOR_CRASH_EVOLUTION_ID):
+		_start_meteor_crash(_player.global_position)
+	else:
+		_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _player.global_position, leap_radius), leap_damage, {"movement_speed_multiplier": 0.45, "stun": true}, 1.0, "crushing_leap_stun")
+		_spawn_effect(crushing_leap_effect_scene, [_player.global_position, leap_radius, 0.4])
 	_finish_active_ability()
 
 func _spawn_effect(effect_scene: PackedScene, arguments: Array) -> void:
@@ -276,6 +293,7 @@ func _process_evolution_impacts(delta: float) -> void:
 		match str(impact["kind"]):
 			"worldbreaker_pulse": _resolve_worldbreaker_pulse(payload)
 			"rampage_second_impact": _resolve_rampage_impact(payload)
+			"meteor_aftershock": _resolve_meteor_impact(payload)
 
 
 func _resolve_worldbreaker_pulse(pulse: Dictionary) -> void:
@@ -321,6 +339,34 @@ func _resolve_rampage_impact(impact: Dictionary) -> void:
 		enemy.apply_knockback(direction, knockback_force, bash_knockback_duration)
 		_update_rage(rage_per_hit + damage * 0.05)
 	_spawn_effect(rampage_impact_effect_scene, [origin, direction, impact_range, full_angle, 0.24, int(impact["impact_index"])])
+
+
+func _start_meteor_crash(landing_position: Vector3) -> void:
+	var primary_radius := leap_radius * METEOR_PRIMARY_RADIUS_MULTIPLIER
+	_resolve_meteor_impact({"origin": landing_position, "radius": primary_radius, "base_damage": roundi(leap_damage * METEOR_PRIMARY_DAMAGE_MULTIPLIER), "knockback_force": METEOR_PRIMARY_KNOCKBACK_FORCE, "knockback_duration": METEOR_PRIMARY_KNOCKBACK_DURATION, "modifier_id": "meteor_crash_stun", "modifier": {"stun": true}, "modifier_duration": METEOR_STUN_DURATION, "impact_index": 1})
+	_queue_evolution_impact("meteor_aftershock", METEOR_AFTERSHOCK_DELAY, {"origin": landing_position, "radius": primary_radius * METEOR_AFTERSHOCK_RADIUS_MULTIPLIER, "base_damage": roundi(leap_damage * METEOR_AFTERSHOCK_DAMAGE_MULTIPLIER), "knockback_force": METEOR_AFTERSHOCK_KNOCKBACK_FORCE, "knockback_duration": METEOR_AFTERSHOCK_KNOCKBACK_DURATION, "modifier_id": "meteor_crash_slow", "modifier": METEOR_AFTERSHOCK_SLOW, "modifier_duration": METEOR_AFTERSHOCK_SLOW_DURATION, "impact_index": 2})
+
+
+func _resolve_meteor_impact(impact: Dictionary) -> void:
+	if _stopped or _enemies == null:
+		return
+	var origin: Vector3 = impact["origin"]
+	var radius := float(impact["radius"])
+	var base_damage := int(impact["base_damage"])
+	var knockback_force := float(impact["knockback_force"])
+	var knockback_duration := float(impact["knockback_duration"])
+	var modifier_id := str(impact["modifier_id"])
+	var modifier: Dictionary = impact["modifier"]
+	var modifier_duration := float(impact["modifier_duration"])
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_radius(_enemies, origin, radius):
+		if not is_instance_valid(enemy):
+			continue
+		var damage := _scaled_damage(base_damage)
+		enemy.take_damage(damage)
+		enemy.apply_temporary_modifier(modifier_id, modifier, modifier_duration)
+		enemy.apply_knockback(enemy.global_position - origin, knockback_force, knockback_duration)
+		_update_rage(rage_per_hit + damage * 0.05)
+	_spawn_effect(meteor_crash_impact_effect_scene, [origin, radius, 0.38, int(impact["impact_index"])])
 
 
 func _exit_tree() -> void:
