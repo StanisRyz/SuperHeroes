@@ -34,6 +34,7 @@ const PASSIVE_DEFINITIONS: Dictionary = {
 	"orbit_shields": {"title": "Orbit Shields", "max_level": 3, "maximum_charges": [1, 1, 2], "interval": [18.0, 14.0, 12.0]},
 	"storm_relay": {"title": "Storm Relay", "max_level": 3, "damage": [8, 12, 16], "interval": [5.5, 4.8, 4.2], "range": 520.0},
 	"chain_lightning": {"title": "Chain Lightning", "max_level": 3, "damage": [6, 9, 12], "interval": [6.6, 5.8, 5.0], "initial_range": 500.0, "bounce_range": [210.0, 240.0, 270.0], "maximum_targets": [2, 3, 4]},
+	"time_dilator": {"title": "Time Dilator", "max_level": 3, "interval": [8.5, 7.5, 6.5], "radius": [190.0, 220.0, 250.0], "movement_speed_multiplier": [0.72, 0.64, 0.56], "duration": [2.5, 3.0, 3.5]},
 }
 
 signal passive_changed(passive_id: String, level: int)
@@ -47,7 +48,7 @@ var _enemy_container: Node3D
 var _pickup_container: Node3D
 var _effect_container: Node3D
 var _levels: Dictionary = {}
-var _timers: Dictionary = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0, "storm_relay": 0.0, "chain_lightning": 0.0}
+var _timers: Dictionary = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0, "storm_relay": 0.0, "chain_lightning": 0.0, "time_dilator": 0.0}
 var _pickup_scan_remaining := 0.0
 var _orbit_shield_ui_refresh_remaining := 0.0
 var _stopped := false
@@ -97,6 +98,8 @@ func _process(delta: float) -> void:
 		_tick_storm_relay(delta)
 	if has_passive("chain_lightning"):
 		_tick_chain_lightning(delta)
+	if has_passive("time_dilator"):
+		_tick_time_dilator(delta)
 
 
 func add_or_upgrade_passive(passive_id: String) -> bool:
@@ -170,6 +173,11 @@ func get_passive_state(passive_id: String) -> Dictionary:
 		state["initial_range"] = _world_value("chain_lightning", "initial_range", level)
 		state["bounce_range"] = _world_value("chain_lightning", "bounce_range", level)
 		state["maximum_targets"] = int(_value("chain_lightning", "maximum_targets", level))
+	if passive_id == "time_dilator":
+		state["interval"] = _value("time_dilator", "interval", level)
+		state["radius"] = _world_value("time_dilator", "radius", level)
+		state["movement_speed_multiplier"] = _value("time_dilator", "movement_speed_multiplier", level)
+		state["duration"] = _value("time_dilator", "duration", level)
 	return state
 
 
@@ -243,7 +251,7 @@ func reset_run_state() -> void:
 	_levels.clear()
 	_selected_passive_evolutions.clear()
 	_passive_evolution_targets.clear()
-	_timers = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0, "storm_relay": 0.0, "chain_lightning": 0.0}
+	_timers = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0, "storm_relay": 0.0, "chain_lightning": 0.0, "time_dilator": 0.0}
 	_pickup_scan_remaining = 0.0
 	_orbit_shield_ui_refresh_remaining = 0.0
 	_remove_guardian_drone_visual()
@@ -265,6 +273,7 @@ func stop() -> void:
 	_timers["orbit_shields"] = 0.0
 	_timers["storm_relay"] = 0.0
 	_timers["chain_lightning"] = 0.0
+	_timers["time_dilator"] = 0.0
 	_orbit_shield_ui_refresh_remaining = 0.0
 	_remove_guardian_drone_visual()
 	_remove_orbit_shield_visual()
@@ -406,6 +415,26 @@ func _tick_guardian_drone(delta: float) -> void:
 	var interval := _value("guardian_drone", "interval", level)
 	_timers["guardian_drone"] = interval
 	passive_triggered.emit("guardian_drone", {"damage": damage, "range": _world_value("guardian_drone", "range", level), "target_id": target.get_instance_id(), "interval": interval})
+	passive_state_changed.emit()
+
+
+func _tick_time_dilator(delta: float) -> void:
+	_timers["time_dilator"] = maxf(float(_timers["time_dilator"]) - delta, 0.0)
+	if float(_timers["time_dilator"]) > 0.0:
+		return
+	var level := get_passive_level("time_dilator")
+	var radius := _world_value("time_dilator", "radius", level)
+	var movement_speed_multiplier := _value("time_dilator", "movement_speed_multiplier", level)
+	var duration := _value("time_dilator", "duration", level)
+	var interval := _value("time_dilator", "interval", level)
+	var targets: Array[Enemy3D] = CombatQuery3D.enemies_in_radius(_enemy_container, _player.global_position, radius)
+	var affected_target_ids: Array[int] = []
+	for enemy: Enemy3D in targets:
+		affected_target_ids.append(enemy.get_instance_id())
+		enemy.apply_temporary_modifier("time_dilator", {"movement_speed_multiplier": movement_speed_multiplier}, duration)
+	_spawn_pulse(_player.global_position, radius, 0.34, Color(0.56, 0.56, 1.0, 0.76), 0.64)
+	_timers["time_dilator"] = interval
+	passive_triggered.emit("time_dilator", {"level": level, "radius": radius, "movement_speed_multiplier": movement_speed_multiplier, "duration": duration, "interval": interval, "target_count": affected_target_ids.size(), "affected_target_ids": affected_target_ids})
 	passive_state_changed.emit()
 
 
