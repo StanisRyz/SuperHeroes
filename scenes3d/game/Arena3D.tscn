@@ -1,8 +1,10 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scenes3d/game/Arena3D.gd" id="1_arena3d"]
 [ext_resource type="PackedScene" path="res://scenes3d/player/Player3D.tscn" id="2_player3d"]
 [ext_resource type="PackedScene" path="res://scenes3d/player/CameraRig3D.tscn" id="3_camera_rig"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/SpawnDirector.tscn" id="4_spawn_director"]
+[ext_resource type="PackedScene" path="res://scenes3d/enemies/EnemySpawner3D.tscn" id="5_enemy_spawner"]
 
 [sub_resource type="Environment" id="Environment_arena3d"]
 background_mode = 1
@@ -60,6 +62,10 @@ position = Vector3(0, 1, 0)
 [node name="EffectContainer" type="Node3D" parent="."]
 
 [node name="Managers" type="Node" parent="."]
+
+[node name="SpawnDirector" parent="Managers" instance=ExtResource("4_spawn_director")]
+
+[node name="EnemySpawner3D" parent="Managers" instance=ExtResource("5_enemy_spawner")]
 
 [node name="Interface" type="CanvasLayer" parent="."]
 

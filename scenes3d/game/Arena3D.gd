@@ -11,6 +11,8 @@ const WorldPlane = preload("res://scenes3d/utilities/WorldPlane.gd")
 @onready var player: Player3D = $PlayerContainer/Player3D
 @onready var player_spawn: Marker3D = $PlayerSpawn
 @onready var camera_rig: CameraRig3D = $CameraRig3D
+@onready var spawn_director: Node = $Managers/SpawnDirector
+@onready var enemy_spawner: EnemySpawner3D = $Managers/EnemySpawner3D
 
 
 func _ready() -> void:
@@ -18,6 +20,13 @@ func _ready() -> void:
 	player.global_position = player_spawn.global_position
 	player.set_playable_bounds(arena_width, arena_depth)
 	camera_rig.setup(player)
+	enemy_spawner.setup(player, self, $EnemyContainer, $PickupContainer, spawn_director)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if player.prototype_debug_enabled and event.is_action_pressed("debug_kill_nearby_enemies"):
+		enemy_spawner.debug_kill_nearest_enemy()
+		get_viewport().set_input_as_handled()
 
 
 func is_xz_position_inside_playable_bounds(horizontal_position: Vector2) -> bool:

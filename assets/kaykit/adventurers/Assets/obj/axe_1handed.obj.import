@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://b8lydpki5tsr5"
+path="res://.godot/imported/axe_1handed.obj-1e9446c4f6497053e320ceed3636822b.mesh"
+
+[deps]
+
+files=["res://.godot/imported/axe_1handed.obj-1e9446c4f6497053e320ceed3636822b.mesh"]
+
+source_file="res://assets/kaykit/adventurers/Assets/obj/axe_1handed.obj"
+dest_files=["res://.godot/imported/axe_1handed.obj-1e9446c4f6497053e320ceed3636822b.mesh", "res://.godot/imported/axe_1handed.obj-1e9446c4f6497053e320ceed3636822b.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false
