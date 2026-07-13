@@ -4,11 +4,13 @@ extends Node
 @export var rage_wave_effect_scene: PackedScene = preload("res://scenes3d/effects/RageWaveEffect3D.tscn")
 @export var worldbreaker_pulse_effect_scene: PackedScene = preload("res://scenes3d/effects/WorldbreakerPulseEffect3D.tscn")
 @export var shield_bash_effect_scene: PackedScene = preload("res://scenes3d/effects/ShieldBashEffect3D.tscn")
+@export var rampage_impact_effect_scene: PackedScene = preload("res://scenes3d/effects/RampageImpactEffect3D.tscn")
 @export var crushing_leap_effect_scene: PackedScene = preload("res://scenes3d/effects/CrushingLeapImpactEffect3D.tscn")
 
 enum CastState { IDLE, WINDUP, SCRIPTED_MOTION, RECOVERY, CANCELLED }
 
 const WORLDBREAKER_EVOLUTION_ID := "rage_wave_worldbreaker"
+const RAMPAGE_IMPACT_EVOLUTION_ID := "shield_bash_rampage_impact"
 const WORLDBREAKER_PULSES := [
 	{"delay": 0.0, "radius_multiplier": 1.0, "damage_multiplier": 1.5, "knockback_force": 7.0},
 	{"delay": 0.22, "radius_multiplier": 1.45, "damage_multiplier": 1.25, "knockback_force": 8.5},
@@ -16,6 +18,17 @@ const WORLDBREAKER_PULSES := [
 ]
 const WORLDBREAKER_SLOW := {"movement_speed_multiplier": 0.40}
 const WORLDBREAKER_SLOW_DURATION := 2.5
+const RAMPAGE_PRIMARY_DAMAGE_MULTIPLIER := 1.75
+const RAMPAGE_PRIMARY_RANGE_MULTIPLIER := 1.35
+const RAMPAGE_PRIMARY_ANGLE_MULTIPLIER := 1.35
+const RAMPAGE_MAX_ANGLE := 120.0
+const RAMPAGE_PRIMARY_KNOCKBACK_MULTIPLIER := 1.80
+const RAMPAGE_SECOND_DELAY := 0.28
+const RAMPAGE_SECOND_RANGE_MULTIPLIER := 0.85
+const RAMPAGE_SECOND_DAMAGE_MULTIPLIER := 1.0
+const RAMPAGE_SECOND_KNOCKBACK_MULTIPLIER := 1.25
+const RAMPAGE_STAGGER := {"movement_speed_multiplier": 0.35}
+const RAMPAGE_STAGGER_DURATION := 1.2
 
 signal ability_cooldown_changed(slot: int, remaining: float, total: float)
 signal ability_state_changed(state: Dictionary)
@@ -62,7 +75,8 @@ var _cast_maximum := 0.0
 var _action_token := 0
 var _action_controller: Node
 var _active_evolutions: Array[String] = []
-var _pending_worldbreaker_pulses: Array[Dictionary] = []
+var _pending_evolution_impacts: Array[Dictionary] = []
+var _next_evolution_impact_sequence := 0
 
 func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node3D, effects: Node3D, visual: KnightVisual) -> void:
 	_player = player
@@ -82,7 +96,7 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node
 func _process(delta: float) -> void:
 	if _stopped or get_tree().paused or _player == null or _player.is_dead():
 		return
-	_process_worldbreaker_pulses(delta)
+	_process_evolution_impacts(delta)
 	if _cast_state != CastState.IDLE:
 		_cast_elapsed += delta
 		if _cast_elapsed > _cast_maximum:
@@ -122,7 +136,7 @@ func refresh_ability_states() -> void:
 
 
 func can_apply_evolution(evolution_id: String) -> bool:
-	return evolution_id == WORLDBREAKER_EVOLUTION_ID
+	return evolution_id == WORLDBREAKER_EVOLUTION_ID or evolution_id == RAMPAGE_IMPACT_EVOLUTION_ID
 
 
 func apply_evolution(evolution_id: String) -> bool:
@@ -140,7 +154,7 @@ func get_ability_name(slot: int, prefer_short: bool = false) -> String:
 	var names := {1: ["Rage Wave", "Wave"], 2: ["Shield Bash", "Bash"], 3: ["Crushing Leap", "Leap"]}
 	return names.get(slot, ["Ability", "Ability"])[1 if prefer_short else 0]
 func stop() -> void:
-	_stopped = true; _pending_worldbreaker_pulses.clear(); _cancel_active_ability("stopped", false); _publish_all_ability_states()
+	_stopped = true; _pending_evolution_impacts.clear(); _cancel_active_ability("stopped", false); _publish_all_ability_states()
 func _can_cast(slot: int) -> bool:
 	return _get_blocked_reason(slot).is_empty()
 
@@ -183,9 +197,12 @@ func _on_action_impact(action_id: String) -> void:
 			_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
 			_spawn_effect(rage_wave_effect_scene, [_cast_origin, wave_radius, 0.35])
 	elif action_id == "shield_bash":
-		for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _cast_origin, _cast_direction, bash_range, bash_angle):
-			var damage := _scaled_damage(bash_damage); enemy.take_damage(damage); enemy.apply_knockback(_cast_direction, bash_knockback_force, bash_knockback_duration); _update_rage(rage_per_hit + damage * 0.05)
-		_spawn_effect(shield_bash_effect_scene, [_cast_origin, _cast_direction, bash_range, bash_angle, 0.22])
+		if is_evolution_active(RAMPAGE_IMPACT_EVOLUTION_ID):
+			_start_rampage_impact(_cast_origin, _cast_direction)
+		else:
+			for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _cast_origin, _cast_direction, bash_range, bash_angle):
+				var damage := _scaled_damage(bash_damage); enemy.take_damage(damage); enemy.apply_knockback(_cast_direction, bash_knockback_force, bash_knockback_duration); _update_rage(rage_per_hit + damage * 0.05)
+			_spawn_effect(shield_bash_effect_scene, [_cast_origin, _cast_direction, bash_range, bash_angle, 0.22])
 	elif action_id == "crushing_leap" and not _leap_landing_pending:
 		if _player.start_scripted_motion(_action_token, _cast_direction, leap_distance, leap_duration, leap_duration):
 			_leap_landing_pending = true; _cast_state = CastState.SCRIPTED_MOTION
@@ -234,22 +251,31 @@ func _apply_area_damage(enemies: Array[Enemy3D], base_damage: int, modifier: Dic
 func _queue_worldbreaker_pulses(origin: Vector3) -> void:
 	for index in WORLDBREAKER_PULSES.size():
 		var tuning: Dictionary = WORLDBREAKER_PULSES[index]
-		var pulse := {"remaining_delay": float(tuning["delay"]), "origin": origin, "radius": wave_radius * float(tuning["radius_multiplier"]), "base_damage": roundi(wave_damage * float(tuning["damage_multiplier"])), "knockback_force": float(tuning["knockback_force"]), "pulse_index": index + 1}
-		if float(pulse["remaining_delay"]) <= 0.0:
-			_resolve_worldbreaker_pulse(pulse)
-		else:
-			_pending_worldbreaker_pulses.append(pulse)
+		_queue_evolution_impact("worldbreaker_pulse", float(tuning["delay"]), {"origin": origin, "radius": wave_radius * float(tuning["radius_multiplier"]), "base_damage": roundi(wave_damage * float(tuning["damage_multiplier"])), "knockback_force": float(tuning["knockback_force"]), "pulse_index": index + 1})
+	_process_evolution_impacts(0.0)
 
 
-func _process_worldbreaker_pulses(delta: float) -> void:
-	for index in range(_pending_worldbreaker_pulses.size() - 1, -1, -1):
-		var pulse: Dictionary = _pending_worldbreaker_pulses[index]
-		pulse["remaining_delay"] = float(pulse["remaining_delay"]) - delta
-		if float(pulse["remaining_delay"]) <= 0.0:
-			_pending_worldbreaker_pulses.remove_at(index)
-			_resolve_worldbreaker_pulse(pulse)
+func _queue_evolution_impact(kind: String, delay: float, payload: Dictionary) -> void:
+	_next_evolution_impact_sequence += 1
+	_pending_evolution_impacts.append({"kind": kind, "remaining_delay": delay, "sequence": _next_evolution_impact_sequence, "payload": payload})
+
+
+func _process_evolution_impacts(delta: float) -> void:
+	var ready_impacts: Array[Dictionary] = []
+	for index in range(_pending_evolution_impacts.size() - 1, -1, -1):
+		var impact: Dictionary = _pending_evolution_impacts[index]
+		impact["remaining_delay"] = float(impact["remaining_delay"]) - delta
+		if float(impact["remaining_delay"]) <= 0.0:
+			_pending_evolution_impacts.remove_at(index)
+			ready_impacts.append(impact)
 		else:
-			_pending_worldbreaker_pulses[index] = pulse
+			_pending_evolution_impacts[index] = impact
+	ready_impacts.sort_custom(func(left: Dictionary, right: Dictionary) -> bool: return int(left["sequence"]) < int(right["sequence"]))
+	for impact: Dictionary in ready_impacts:
+		var payload: Dictionary = impact["payload"]
+		match str(impact["kind"]):
+			"worldbreaker_pulse": _resolve_worldbreaker_pulse(payload)
+			"rampage_second_impact": _resolve_rampage_impact(payload)
 
 
 func _resolve_worldbreaker_pulse(pulse: Dictionary) -> void:
@@ -270,8 +296,35 @@ func _resolve_worldbreaker_pulse(pulse: Dictionary) -> void:
 	_spawn_effect(worldbreaker_pulse_effect_scene, [origin, radius, 0.34, int(pulse["pulse_index"])])
 
 
+func _start_rampage_impact(origin: Vector3, direction: Vector3) -> void:
+	var evolved_range := bash_range * RAMPAGE_PRIMARY_RANGE_MULTIPLIER
+	var evolved_angle := minf(bash_angle * RAMPAGE_PRIMARY_ANGLE_MULTIPLIER, RAMPAGE_MAX_ANGLE)
+	_resolve_rampage_impact({"origin": origin, "direction": direction.normalized(), "range": evolved_range, "full_angle": evolved_angle, "base_damage": roundi(bash_damage * RAMPAGE_PRIMARY_DAMAGE_MULTIPLIER), "knockback_force": bash_knockback_force * RAMPAGE_PRIMARY_KNOCKBACK_MULTIPLIER, "impact_index": 1})
+	_queue_evolution_impact("rampage_second_impact", RAMPAGE_SECOND_DELAY, {"origin": origin, "direction": direction.normalized(), "range": evolved_range * RAMPAGE_SECOND_RANGE_MULTIPLIER, "full_angle": evolved_angle, "base_damage": roundi(bash_damage * RAMPAGE_SECOND_DAMAGE_MULTIPLIER), "knockback_force": bash_knockback_force * RAMPAGE_SECOND_KNOCKBACK_MULTIPLIER, "impact_index": 2})
+
+
+func _resolve_rampage_impact(impact: Dictionary) -> void:
+	if _stopped or _enemies == null:
+		return
+	var origin: Vector3 = impact["origin"]
+	var direction: Vector3 = impact["direction"]
+	var impact_range := float(impact["range"])
+	var full_angle := float(impact["full_angle"])
+	var base_damage := int(impact["base_damage"])
+	var knockback_force := float(impact["knockback_force"])
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, origin, direction, impact_range, full_angle):
+		if not is_instance_valid(enemy):
+			continue
+		var damage := _scaled_damage(base_damage)
+		enemy.take_damage(damage)
+		enemy.apply_temporary_modifier("rampage_impact_stagger", RAMPAGE_STAGGER, RAMPAGE_STAGGER_DURATION)
+		enemy.apply_knockback(direction, knockback_force, bash_knockback_duration)
+		_update_rage(rage_per_hit + damage * 0.05)
+	_spawn_effect(rampage_impact_effect_scene, [origin, direction, impact_range, full_angle, 0.24, int(impact["impact_index"])])
+
+
 func _exit_tree() -> void:
-	_pending_worldbreaker_pulses.clear()
+	_pending_evolution_impacts.clear()
 
 func _scaled_damage(base_damage: int) -> int: return maxi(roundi(base_damage * get_damage_multiplier()), 1)
 func _on_player_damage_taken(amount: int) -> void: _update_rage(amount * rage_per_damage_taken)

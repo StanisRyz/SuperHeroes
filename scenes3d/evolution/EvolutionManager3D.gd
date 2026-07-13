@@ -7,7 +7,7 @@ signal evolution_state_changed
 
 const EVOLUTIONS: Array[Dictionary] = [
 	{"id": "rage_wave_worldbreaker", "title": "Worldbreaker", "description": "Rage Wave erupts three times, with each pulse expanding farther and striking enemies again.", "target_ability_id": "rage_wave", "implementation_status": "implemented", "prerequisites": ["sword_arc", "rage_max", "wave_radius"]},
-	{"id": "shield_bash_rampage_impact", "title": "Rampage Impact", "description": "Shield Bash evolution. Gameplay effect deferred to Stage 1.7.3.", "target_ability_id": "shield_bash", "implementation_status": "placeholder", "prerequisites": ["sword_knockback", "rage_multiplier", "bash_knockback"]},
+	{"id": "shield_bash_rampage_impact", "title": "Rampage Impact", "description": "Shield Bash unleashes a wider heavy impact followed by a delayed second shockwave.", "target_ability_id": "shield_bash", "implementation_status": "implemented", "prerequisites": ["sword_knockback", "rage_multiplier", "bash_knockback"]},
 	{"id": "crushing_leap_meteor_crash", "title": "Meteor Crash", "description": "Crushing Leap evolution. Gameplay effect deferred to Stage 1.7.4.", "target_ability_id": "crushing_leap", "implementation_status": "placeholder", "prerequisites": ["sword_damage", "rage_decay", "leap_damage"]},
 ]
 
