@@ -19,6 +19,22 @@ var _attack_active: bool = false
 var _attack_direction: Vector3 = Vector3.FORWARD
 var _damaged_enemies: Array[Enemy3D] = []
 var _damage_multiplier: float = 1.0
+var _suspended: bool = false
+
+
+func set_suspended(value: bool) -> void:
+	_suspended = value
+
+
+func is_suspended() -> bool:
+	return _suspended
+
+
+func cancel_current_attack() -> void:
+	_attack_active = false
+	_damaged_enemies.clear()
+	if _player != null:
+		_player.release_combat_facing()
 
 func set_damage_multiplier(multiplier: float) -> void:
 	_damage_multiplier = maxf(multiplier, 0.0)
@@ -43,7 +59,7 @@ func stop_attacking() -> void:
 
 func _process(delta: float) -> void:
 	_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
-	if _attack_active or _cooldown_remaining > 0.0 or _player == null or _player.is_dead() or get_tree().paused:
+	if _suspended or _attack_active or _cooldown_remaining > 0.0 or _player == null or _player.is_dead() or get_tree().paused:
 		return
 	var target: Enemy3D = _find_nearest_target()
 	if target == null:

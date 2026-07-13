@@ -55,6 +55,7 @@ var _scripted_motion_direction: Vector3 = Vector3.ZERO
 var _scripted_motion_time: float = 0.0
 var _scripted_motion_duration: float = 0.0
 var _scripted_motion_speed: float = 0.0
+var _ability_action_locked: bool = false
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var knight_visual: KnightVisual = $VisualRoot/KnightVisual
@@ -203,11 +204,11 @@ func try_dash() -> bool:
 
 
 func can_dash() -> bool:
-	return not get_tree().paused and not is_dead() and not _scripted_motion_active and dash_cooldown_remaining <= 0.0
+	return not get_tree().paused and not is_dead() and not _ability_action_locked and not _scripted_motion_active and dash_cooldown_remaining <= 0.0
 
 
 func start_scripted_motion(direction: Vector3, distance: float, duration: float, invulnerability_duration: float) -> bool:
-	if is_dead() or is_dashing or _scripted_motion_active or duration <= 0.0:
+	if is_dead() or is_dashing or _ability_action_locked or _scripted_motion_active or duration <= 0.0:
 		return false
 	direction.y = 0.0
 	if direction.is_zero_approx():
@@ -227,6 +228,14 @@ func is_scripted_motion_active() -> bool:
 
 func cancel_scripted_motion() -> void:
 	_scripted_motion_active = false
+
+
+func set_ability_action_locked(value: bool) -> void:
+	_ability_action_locked = value
+
+
+func is_ability_action_locked() -> bool:
+	return _ability_action_locked
 
 
 func _get_scripted_motion_speed() -> float:
