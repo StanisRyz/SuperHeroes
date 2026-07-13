@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scenes3d/game/Arena3D.gd" id="1_arena3d"]
 [ext_resource type="PackedScene" path="res://scenes3d/player/Player3D.tscn" id="2_player3d"]
@@ -7,12 +7,14 @@
 [ext_resource type="PackedScene" path="res://scenes3d/enemies/EnemySpawner3D.tscn" id="5_enemy_spawner"]
 [ext_resource type="PackedScene" path="res://scenes/game/RunManager.tscn" id="6_run_manager"]
 [ext_resource type="Script" path="res://scenes3d/upgrades/RunUpgradeManager3D.gd" id="7_upgrades"]
+[ext_resource type="Script" path="res://scenes3d/evolution/EvolutionManager3D.gd" id="14_evolution"]
 [ext_resource type="PackedScene" path="res://scenes/ui/GameHUD.tscn" id="8_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/LevelUpScreen.tscn" id="9_level_up"]
 [ext_resource type="PackedScene" path="res://scenes/ui/GameOverScreen.tscn" id="10_game_over"]
 [ext_resource type="PackedScene" path="res://scenes/ui/VictoryScreen.tscn" id="11_victory"]
 [ext_resource type="PackedScene" path="res://scenes/ui/PauseMenu.tscn" id="12_pause"]
 [ext_resource type="PackedScene" path="res://scenes/ui/MobileControls.tscn" id="13_mobile"]
+[ext_resource type="PackedScene" path="res://scenes/ui/EvolutionRewardScreen.tscn" id="15_evolution_reward"]
 
 [sub_resource type="Environment" id="Environment_arena3d"]
 background_mode = 1
@@ -80,11 +82,16 @@ position = Vector3(0, 1, 0)
 [node name="RunUpgradeManager3D" type="Node" parent="Managers"]
 script = ExtResource("7_upgrades")
 
+[node name="EvolutionManager3D" type="Node" parent="Managers"]
+script = ExtResource("14_evolution")
+
 [node name="Interface" type="CanvasLayer" parent="."]
 
 [node name="GameHUD" parent="." instance=ExtResource("8_hud")]
 
 [node name="LevelUpScreen" parent="." instance=ExtResource("9_level_up")]
+
+[node name="EvolutionRewardScreen" parent="." instance=ExtResource("15_evolution_reward")]
 
 [node name="GameOverScreen" parent="." instance=ExtResource("10_game_over")]
 

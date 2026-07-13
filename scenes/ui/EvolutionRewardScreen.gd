@@ -45,7 +45,19 @@ func _format_evolution_text(evolution: Dictionary) -> String:
 	if not archetype.is_empty():
 		header = "◆ EVOLUTION  [%s]" % archetype.to_upper()
 
-	return "%s\n%s\n%s" % [header, title, description]
+	var target_ability := str(evolution.get("target_ability_id", "")).replace("_", " ").capitalize()
+	var prerequisite_line := _format_prerequisites(evolution.get("prerequisites", []))
+	var details := "Target: %s" % target_ability if not target_ability.is_empty() else ""
+	if not prerequisite_line.is_empty():
+		details = "%s\nRequires: %s" % [details, prerequisite_line] if not details.is_empty() else "Requires: %s" % prerequisite_line
+	return "%s\n%s\n%s\n%s" % [header, title, description, details]
+
+
+func _format_prerequisites(prerequisites: Array) -> String:
+	var lines: PackedStringArray = []
+	for prerequisite: Dictionary in prerequisites:
+		lines.append("%s %d/%d" % [str(prerequisite.get("title", prerequisite.get("upgrade_id", "Upgrade"))), int(prerequisite.get("current_level", 0)), int(prerequisite.get("required_level", 0))])
+	return " | ".join(lines)
 
 
 func hide_screen() -> void:

@@ -108,6 +108,34 @@ func _has_dependencies(upgrade_id: String) -> bool:
 	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "leap_radius", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
 
 
+func has_upgrade(upgrade_id: String) -> bool:
+	return UPGRADES.has(upgrade_id)
+
+
+func get_upgrade_level(upgrade_id: String) -> int:
+	return int(_levels.get(upgrade_id, 0))
+
+
+func get_upgrade_max_level(upgrade_id: String) -> int:
+	return int(UPGRADES.get(upgrade_id, {}).get("max_level", 0))
+
+
+func is_upgrade_maxed(upgrade_id: String) -> bool:
+	var maximum := get_upgrade_max_level(upgrade_id)
+	return maximum > 0 and get_upgrade_level(upgrade_id) >= maximum
+
+
+func get_upgrade_definition(upgrade_id: String) -> Dictionary:
+	if not UPGRADES.has(upgrade_id):
+		return {}
+	var definition: Dictionary = UPGRADES[upgrade_id].duplicate()
+	definition["id"] = upgrade_id
+	definition["category"] = _category_for(upgrade_id)
+	definition["level"] = get_upgrade_level(upgrade_id)
+	definition["max_level"] = get_upgrade_max_level(upgrade_id)
+	return definition
+
+
 func get_run_summary() -> Dictionary:
 	var attack_count := 0
 	var passive_count := 0

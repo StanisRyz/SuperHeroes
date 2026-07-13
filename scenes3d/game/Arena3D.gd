@@ -24,10 +24,12 @@ var _pending_level_ups: int = 0
 @onready var enemy_spawner: EnemySpawner3D = $Managers/EnemySpawner3D
 @onready var run_manager: Node = $Managers/RunManager
 @onready var upgrade_manager: RunUpgradeManager3D = $Managers/RunUpgradeManager3D
+@onready var evolution_manager: Node = $Managers/EvolutionManager3D
 @onready var auto_attack: KnightMeleeAutoAttack3D = player.get_node("AutoAttack") as KnightMeleeAutoAttack3D
 @onready var ability_manager: KnightAbilityManager3D = player.get_node("AbilityManager") as KnightAbilityManager3D
 @onready var game_hud: Node = $GameHUD
 @onready var level_up_screen: Node = $LevelUpScreen
+@onready var evolution_reward_screen: Node = $EvolutionRewardScreen
 @onready var game_over_screen: Node = $GameOverScreen
 @onready var victory_screen: Node = $VictoryScreen
 @onready var pause_menu: Node = $PauseMenu
@@ -73,6 +75,7 @@ func _initialize_gameplay() -> void:
 	auto_attack.setup(player, $EnemyContainer, player.knight_visual)
 	ability_manager.setup(player, auto_attack, $EnemyContainer, $EffectContainer, player.knight_visual)
 	upgrade_manager.setup(player, auto_attack, ability_manager)
+	evolution_manager.setup(upgrade_manager, ability_manager)
 
 
 func _initialize_input() -> void:
@@ -125,13 +128,15 @@ func _configure_optional_ui() -> void:
 		push_warning("Arena3D: GameHUD is unavailable; continuing without optional HUD setup.")
 	else:
 		game_hud.setup(player, run_manager, ability_manager)
-	for path: String in ["Root/BuffPanel", "Root/BuildPanel/EvolutionLabel"]:
+	for path: String in ["Root/BuffPanel"]:
 		var unsupported_node := game_hud.get_node_or_null(path) if game_hud != null else null
 		if unsupported_node is CanvasItem:
 			(unsupported_node as CanvasItem).hide()
 	var hero_label := game_hud.get_node_or_null("Root/BuildPanel/HeroLabel") as Label
 	if hero_label != null:
 		hero_label.text = "Hero: %s" % str(_selected_hero.get("display_name", "Vanguard"))
+	if game_hud != null and game_hud.has_method("setup_evolution_manager"):
+		game_hud.setup_evolution_manager(evolution_manager)
 	if level_up_screen != null and level_up_screen.has_method("setup_audio_manager"):
 		level_up_screen.setup_audio_manager(_audio_manager)
 	if game_over_screen != null and game_over_screen.has_method("setup_audio_manager"):
@@ -155,6 +160,7 @@ func _configure_canvas_layers() -> void:
 	_set_canvas_layer(mobile_controls, 2)
 	_set_canvas_layer(pause_menu, 10)
 	_set_canvas_layer(level_up_screen, 11)
+	_set_canvas_layer(evolution_reward_screen, 12)
 	_set_canvas_layer(game_over_screen, 20)
 	_set_canvas_layer(victory_screen, 20)
 
@@ -170,13 +176,15 @@ func _connect_runtime_signals() -> void:
 	run_manager.victory_reached.connect(_on_victory_reached)
 	run_manager.run_ended.connect(_on_run_ended)
 	_connect_signal_if_available(level_up_screen, "upgrade_selected", _on_upgrade_selected)
-	_connect_signal_if_available(game_over_screen, "restart_requested", restart_run_requested.emit)
-	_connect_signal_if_available(game_over_screen, "quit_to_menu_requested", quit_to_menu_requested.emit)
-	_connect_signal_if_available(victory_screen, "restart_requested", restart_run_requested.emit)
-	_connect_signal_if_available(victory_screen, "quit_to_menu_requested", quit_to_menu_requested.emit)
+	_connect_signal_if_available(evolution_reward_screen, "evolution_selected", _on_evolution_selected)
+	_connect_signal_if_available(evolution_reward_screen, "closed_without_selection", _on_evolution_reward_closed_without_selection)
+	_connect_signal_if_available(game_over_screen, "restart_requested", _request_restart)
+	_connect_signal_if_available(game_over_screen, "quit_to_menu_requested", _request_quit_to_menu)
+	_connect_signal_if_available(victory_screen, "restart_requested", _request_restart)
+	_connect_signal_if_available(victory_screen, "quit_to_menu_requested", _request_quit_to_menu)
 	_connect_signal_if_available(pause_menu, "resume_requested", _resume_run)
-	_connect_signal_if_available(pause_menu, "restart_requested", restart_run_requested.emit)
-	_connect_signal_if_available(pause_menu, "quit_to_menu_requested", quit_to_menu_requested.emit)
+	_connect_signal_if_available(pause_menu, "restart_requested", _request_restart)
+	_connect_signal_if_available(pause_menu, "quit_to_menu_requested", _request_quit_to_menu)
 	_connect_signal_if_available(mobile_controls, "movement_changed", player.set_external_move_vector)
 	_connect_signal_if_available(mobile_controls, "dash_pressed", player.try_dash)
 	_connect_signal_if_available(mobile_controls, "ability_1_pressed", ability_manager.cast_ability_1)
@@ -214,9 +222,54 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 		return
 	upgrade_manager.apply_upgrade(upgrade_id)
 	_pending_level_ups = maxi(_pending_level_ups - 1, 0)
-	get_tree().paused = false
+	evolution_manager.refresh_evolution_states()
+	if _open_evolution_reward_if_ready():
+		return
+	_continue_after_evolution_reward()
+
+
+func _open_evolution_reward_if_ready() -> bool:
+	if _run_finished or evolution_reward_screen == null or evolution_reward_screen.visible:
+		return false
+	var options := evolution_manager.get_available_evolutions()
+	if options.is_empty():
+		return false
+	get_tree().paused = true
+	player.set_external_move_vector(Vector2.ZERO)
+	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
+		mobile_controls.reset_controls()
+	evolution_reward_screen.show_options(options.slice(0, 3))
 	ability_manager.refresh_ability_states()
-	_open_next_level_up()
+	return true
+
+
+func _on_evolution_selected(evolution_id: String) -> void:
+	if _run_finished or not evolution_manager.apply_evolution(evolution_id):
+		return
+	_hide_evolution_reward_screen()
+	_continue_after_evolution_reward()
+
+
+func _on_evolution_reward_closed_without_selection() -> void:
+	if _run_finished:
+		return
+	_hide_evolution_reward_screen()
+	_continue_after_evolution_reward()
+
+
+func _continue_after_evolution_reward() -> void:
+	if _run_finished:
+		return
+	if _pending_level_ups > 0:
+		_open_next_level_up()
+	else:
+		get_tree().paused = false
+		ability_manager.refresh_ability_states()
+
+
+func _hide_evolution_reward_screen() -> void:
+	if evolution_reward_screen != null and evolution_reward_screen.has_method("hide_screen"):
+		evolution_reward_screen.hide_screen()
 
 
 func _on_player_died() -> void:
@@ -238,6 +291,7 @@ func _finish_run(result: String) -> void:
 	enemy_spawner.stop_spawning()
 	auto_attack.stop_attacking()
 	ability_manager.stop()
+	_hide_evolution_reward_screen()
 	player.set_external_move_vector(Vector2.ZERO)
 	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
 		mobile_controls.reset_controls()
@@ -256,6 +310,9 @@ func _finish_run(result: String) -> void:
 func _build_run_summary(result: String) -> Dictionary:
 	var summary: Dictionary = run_manager.get_stats()
 	summary.merge(upgrade_manager.get_run_summary(), true)
+	summary["applied_evolutions"] = evolution_manager.get_applied_evolutions()
+	summary["applied_evolution_titles"] = evolution_manager.get_applied_evolution_titles()
+	summary["applied_evolution_count"] = summary["applied_evolutions"].size()
 	summary["result"] = result
 	summary["player_level"] = player.level
 	summary["hero_id"] = str(_selected_hero.get("id", "vanguard"))
@@ -269,7 +326,7 @@ func _build_run_summary(result: String) -> Dictionary:
 
 
 func _toggle_pause_menu() -> void:
-	if _run_finished:
+	if _run_finished or (level_up_screen != null and level_up_screen.visible) or (evolution_reward_screen != null and evolution_reward_screen.visible):
 		return
 	if pause_menu != null and pause_menu.visible:
 		_resume_run()
@@ -281,6 +338,16 @@ func _toggle_pause_menu() -> void:
 		if pause_menu != null and pause_menu.has_method("open"):
 			pause_menu.open()
 		ability_manager.refresh_ability_states()
+
+
+func _request_restart() -> void:
+	_hide_evolution_reward_screen()
+	restart_run_requested.emit()
+
+
+func _request_quit_to_menu() -> void:
+	_hide_evolution_reward_screen()
+	quit_to_menu_requested.emit()
 
 
 func _resume_run() -> void:
