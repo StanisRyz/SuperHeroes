@@ -14,6 +14,7 @@ const UPGRADES := {
 	"sword_radius": {"title": "Sword Reach", "description": "+0.25 melee radius.", "rarity": "rare", "max_level": 5},
 	"sword_arc": {"title": "Sword Arc", "description": "+12 degrees attack arc.", "rarity": "rare", "max_level": 5},
 	"sword_knockback": {"title": "Sword Knockback", "description": "+1.5 knockback force.", "rarity": "rare", "max_level": 5},
+	"splash_melee_combo": {"title": "Fury Combo", "description": "+0.06 damage bonus per combo stack.", "rarity": "rare", "max_level": 3, "category": "attack"},
 	"move_speed": {"title": "Swift Step", "description": "+0.55 movement speed.", "rarity": "common", "max_level": 5},
 	"max_health": {"title": "Knight's Resolve", "description": "+20 maximum health and heal 20.", "rarity": "epic", "max_level": 5},
 	"wave_damage": {"title": "Wave Force", "description": "+8 Rage Wave damage.", "rarity": "rare", "max_level": 5, "category": "active"},
@@ -24,6 +25,7 @@ const UPGRADES := {
 	"wave_cooldown": {"title": "Wave Rhythm", "description": "-0.45 Rage Wave cooldown.", "rarity": "rare", "max_level": 5, "category": "active"},
 	"bash_range": {"title": "Long Bash", "description": "+0.4 Shield Bash range.", "rarity": "rare", "max_level": 5, "category": "active"},
 	"bash_knockback": {"title": "Heavy Bash", "description": "+1.5 Shield Bash knockback.", "rarity": "rare", "max_level": 5, "category": "active"},
+	"mighty_clap_shockwave": {"title": "Impact Wave", "description": "+1.5 Shield Bash knockback and -0.7s cooldown.", "rarity": "epic", "max_level": 3, "category": "active"},
 	"leap_radius": {"title": "Wide Landing", "description": "+0.4 Crushing Leap radius.", "rarity": "rare", "max_level": 5, "category": "active"},
 	"leap_cooldown": {"title": "Leap Rhythm", "description": "-0.65 Crushing Leap cooldown.", "rarity": "epic", "max_level": 5, "category": "active"},
 	"rage_decay": {"title": "Smoldering Rage", "description": "-0.5 Rage decay per second.", "rarity": "rare", "max_level": 5, "category": "passive"},
@@ -47,10 +49,7 @@ func get_upgrade_options(count: int) -> Array[Dictionary]:
 		if int(_levels.get(upgrade_id, 0)) < int(UPGRADES[upgrade_id]["max_level"]):
 			available_by_category[_category_for(upgrade_id)].append(upgrade_id)
 	for category: String in available_by_category:
-		if category == "passive":
-			available_by_category[category] = _prioritize_started_passives(available_by_category[category])
-		else:
-			available_by_category[category].shuffle()
+		available_by_category[category] = _prioritize_started_lines(available_by_category[category])
 	var options: Array[Dictionary] = []
 	if count >= 3:
 		for category in ["attack", "active", "passive"]:
@@ -82,6 +81,18 @@ func apply_upgrade(upgrade_id: String) -> void:
 		return
 	if upgrade_id in ["static_field", "battle_focus", "magnet_core"]:
 		if _passive_manager == null or not _passive_manager.add_or_upgrade_passive(upgrade_id):
+			return
+		_levels[upgrade_id] = level + 1
+		_history.append(upgrade_id)
+		return
+	if upgrade_id == "splash_melee_combo":
+		if _auto_attack == null or not _auto_attack.upgrade_fury_combo(0.06):
+			return
+		_levels[upgrade_id] = level + 1
+		_history.append(upgrade_id)
+		return
+	if upgrade_id == "mighty_clap_shockwave":
+		if _ability_manager == null or not _ability_manager.upgrade_impact_wave(1.5, 0.7):
 			return
 		_levels[upgrade_id] = level + 1
 		_history.append(upgrade_id)
@@ -119,21 +130,24 @@ func _has_dependencies(upgrade_id: String) -> bool:
 		return false
 	if upgrade_id.begins_with("sword"):
 		return _auto_attack != null
+	if upgrade_id == "splash_melee_combo":
+		return _auto_attack != null
 	if upgrade_id in ["static_field", "battle_focus", "magnet_core"]:
 		return _passive_manager != null
-	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "leap_radius", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
+	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "mighty_clap_shockwave", "leap_radius", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
 
 
-func _prioritize_started_passives(passive_ids: Array) -> Array:
+func _prioritize_started_lines(upgrade_ids: Array) -> Array:
 	var started: Array = []
-	for passive_id: String in passive_ids:
-		if int(_levels.get(passive_id, 0)) > 0:
-			started.append(passive_id)
+	for upgrade_id: String in upgrade_ids:
+		var current_level := int(_levels.get(upgrade_id, 0))
+		if current_level > 0 and current_level < int(UPGRADES[upgrade_id]["max_level"]):
+			started.append(upgrade_id)
 	if not started.is_empty():
 		started.shuffle()
 		return started
-	passive_ids.shuffle()
-	return passive_ids
+	upgrade_ids.shuffle()
+	return upgrade_ids
 
 
 func has_upgrade(upgrade_id: String) -> bool:

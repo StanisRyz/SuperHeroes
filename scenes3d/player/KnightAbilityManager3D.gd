@@ -234,6 +234,14 @@ func refresh_rage_state() -> void:
 	rage = clampf(rage, 0.0, maximum_rage)
 	_update_rage(0.0)
 
+
+func upgrade_impact_wave(knockback_bonus: float, cooldown_reduction: float) -> bool:
+	if knockback_bonus <= 0.0 or cooldown_reduction <= 0.0:
+		return false
+	bash_knockback_force += knockback_bonus
+	bash_cooldown = maxf(3.0, bash_cooldown - cooldown_reduction)
+	return true
+
 func _on_action_finished(action_id: String) -> void:
 	if action_id == _active_ability_id and action_id != "crushing_leap": _finish_active_ability()
 func _start_cooldown(slot: int) -> void:
@@ -383,6 +391,7 @@ func _scaled_damage(base_damage: int) -> int: return maxi(roundi(base_damage * g
 func _on_player_damage_taken(amount: int) -> void: _update_rage(amount * rage_per_damage_taken)
 func _on_auto_attack_impact(hits: int, damage: int) -> void: _update_rage(hits * rage_per_hit + damage * 0.03)
 func get_damage_multiplier() -> float: return lerpf(1.0, maximum_damage_multiplier, rage / maxf(maximum_rage, 0.001))
+func get_rage_ratio() -> float: return clampf(rage / maxf(maximum_rage, 0.001), 0.0, 1.0)
 func _update_rage(delta: float) -> void:
 	rage = clampf(rage + delta, 0.0, maximum_rage)
 	if _auto_attack != null: _auto_attack.set_damage_multiplier(get_damage_multiplier())

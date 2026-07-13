@@ -77,7 +77,7 @@ func _initialize_gameplay() -> void:
 	ability_manager.setup(player, auto_attack, $EnemyContainer, $EffectContainer, player.knight_visual)
 	passive_manager.setup(player, auto_attack, ability_manager, $EnemyContainer, $PickupContainer, $EffectContainer)
 	upgrade_manager.setup(player, auto_attack, ability_manager, passive_manager)
-	evolution_manager.setup(upgrade_manager, ability_manager)
+	evolution_manager.setup(upgrade_manager, ability_manager, passive_manager)
 
 
 func _initialize_input() -> void:
@@ -295,7 +295,6 @@ func _finish_run(result: String) -> void:
 	enemy_spawner.stop_spawning()
 	auto_attack.stop_attacking()
 	ability_manager.stop()
-	passive_manager.stop()
 	_hide_evolution_reward_screen()
 	player.set_external_move_vector(Vector2.ZERO)
 	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
@@ -303,6 +302,7 @@ func _finish_run(result: String) -> void:
 	if run_manager.is_run_active:
 		run_manager.end_run()
 	var summary := _build_run_summary(result)
+	passive_manager.stop()
 	run_result_ready.emit(summary)
 	get_tree().paused = true
 	ability_manager.refresh_ability_states()
@@ -321,9 +321,10 @@ func _build_run_summary(result: String) -> Dictionary:
 	summary["applied_evolutions"] = applied_evolutions
 	summary["applied_evolution_titles"] = applied_evolution_titles
 	summary["applied_evolution_count"] = applied_evolution_count
-	summary["active_evolution_count"] = applied_evolution_count
-	summary["attack_evolution_count"] = 0
-	summary["passive_evolution_count"] = 0
+	var evolution_type_counts: Dictionary = evolution_manager.get_applied_evolution_type_counts()
+	summary["active_evolution_count"] = int(evolution_type_counts.get("active", 0))
+	summary["attack_evolution_count"] = int(evolution_type_counts.get("attack", 0))
+	summary["passive_evolution_count"] = int(evolution_type_counts.get("passive", 0))
 	var selected_passive_ids: Array[String] = passive_manager.get_selected_passive_ids()
 	var selected_passive_titles: Array[String] = passive_manager.get_selected_passive_titles()
 	summary["selected_passive_ids"] = selected_passive_ids
