@@ -103,6 +103,8 @@ Main
 | `scenes/heroes/`, `scenes/stages/`, `scenes/training/`, `scenes/equipment/` | Static game data and application helpers |
 | `scenes/meta/`, `scenes/preferences/`, `scenes/settings/`, `scenes/audio/` | Separate persistent services |
 | `scenes/ui/`, `scenes/feedback/`, `scenes/effects/` | Presentation, menus, overlays, visual feedback |
+| `scenes3d/` | Isolated early 3D-migration prototype structure; it is not connected to the 2D run flow |
+| `assets/kaykit/` | Reserved import locations for future KayKit adventurer, skeleton, animation, and forest assets |
 | `docs/` | Focused project documentation and manual validation |
 | `export/` | Web export output location (not a source-of-truth configuration) |
 
@@ -131,6 +133,14 @@ For a parse/editor smoke check:
 ```sh
 godot --headless --editor --quit
 ```
+
+### Isolated 3D migration prototype
+
+`res://scenes3d/game/Arena3D.tscn` is an empty 3D foundation for migration stage 1.1, not a replacement for `scenes/game/Arena.tscn` or the project entry scene. It has no links to the current 2D managers, run flow, persistence, or combat. The 2D game remains the only normal runtime path.
+
+The 3D foundation uses `Vector3.x` and `Vector3.z` as the horizontal plane; [`WorldPlane.gd`](scenes3d/utilities/WorldPlane.gd) converts this XZ convention to and from a 2D horizontal `Vector2`. Its independent test scene can be viewed by opening `Arena3D.tscn` in Godot and choosing **Run Current Scene** (F6). It contains temporary built-in ground, lighting, and a fixed prototype camera only.
+
+The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. These are separate from and preserve the existing 2D physics layers.
 
 The configured Web export preset writes to `export/index.html`. Use Godot's Export dialog or an equivalent CLI invocation with the checked-in `Web` preset; no custom export template or external build dependency is configured in the repository.
 

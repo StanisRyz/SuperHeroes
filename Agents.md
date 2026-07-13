@@ -31,6 +31,14 @@ Main.tscn / Main.gd
 
 There are no autoloads in `project.godot`.
 
+## Parallel 3D migration foundation
+
+`scenes3d/` is an isolated source tree for the staged 2D-to-3D migration. In stage 1.1, `scenes3d/game/Arena3D.tscn` is a standalone visual prototype only: it does not replace `scenes/game/Arena.tscn`, change `run/main_scene`, or connect to 2D gameplay managers, saves, progression, or run flow. Keep the existing 2D game playable throughout early migration stages.
+
+The 3D horizontal-plane convention is XZ: `Vector3.x` and `Vector3.z` map to the game-facing `Vector2.x` and `Vector2.y`. Use `scenes3d/utilities/WorldPlane.gd` for typed conversions rather than duplicating coordinate mapping. `Arena3D.tscn` supplies only temporary built-in ground, lighting, camera, containers, and an empty `Managers` node; future 3D systems must be added deliberately without duplicating current services.
+
+The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. They coexist with the unchanged 2D layer names. To inspect the prototype, open `Arena3D.tscn` and use Run Current Scene (F6); always use `Main.tscn` for normal-game validation.
+
 ## Ownership map
 
 | Area | Owner | Do not move into |

@@ -134,6 +134,13 @@ debug_open_evolution_reward={
 2d_physics/layer_3="PlayerProjectiles"
 2d_physics/layer_4="Pickups"
 2d_physics/layer_5="EnemyProjectiles"
+3d_physics/layer_1="Player"
+3d_physics/layer_2="Enemies"
+3d_physics/layer_3="PlayerProjectiles"
+3d_physics/layer_4="Pickups"
+3d_physics/layer_5="EnemyProjectiles"
+3d_physics/layer_6="Environment"
+3d_physics/layer_7="Obstacles"
 
 [rendering]
 

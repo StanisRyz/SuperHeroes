@@ -1,0 +1,59 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scenes3d/game/Arena3D.gd" id="1_arena3d"]
+
+[sub_resource type="Environment" id="Environment_arena3d"]
+background_mode = 1
+background_color = Color(0.06, 0.09, 0.13, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.55, 0.64, 0.76, 1)
+ambient_light_energy = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial_ground"]
+albedo_color = Color(0.13, 0.25, 0.18, 1)
+roughness = 0.9
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+material = SubResource("StandardMaterial_ground")
+size = Vector2(40, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(40, 0.5, 40)
+
+[node name="Arena3D" type="Node3D"]
+script = ExtResource("1_arena3d")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_arena3d")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-55, -30, 0)
+light_energy = 1.2
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("PlaneMesh_ground")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+position = Vector3(0, -0.25, 0)
+shape = SubResource("BoxShape3D_ground")
+
+[node name="PlayerContainer" type="Node3D" parent="."]
+
+[node name="EnemyContainer" type="Node3D" parent="."]
+
+[node name="ProjectileContainer" type="Node3D" parent="."]
+
+[node name="PickupContainer" type="Node3D" parent="."]
+
+[node name="EffectContainer" type="Node3D" parent="."]
+
+[node name="Managers" type="Node" parent="."]
+
+[node name="Interface" type="CanvasLayer" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+current = true
+fov = 38.0
