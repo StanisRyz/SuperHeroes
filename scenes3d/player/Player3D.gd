@@ -30,8 +30,6 @@ signal invulnerability_changed(is_invulnerable: bool)
 @export var dash_duration: float = 0.16
 @export var dash_cooldown: float = 1.2
 @export var dash_invulnerability_duration: float = 0.25
-@export_category("Visual")
-@export var model_forward_correction_degrees: float = 0.0
 @export_category("Prototype debug")
 @export var prototype_debug_enabled: bool = false
 
@@ -54,12 +52,11 @@ var _death_emitted: bool = false
 var _was_invulnerable: bool = false
 
 @onready var visual_root: Node3D = $VisualRoot
-@onready var model_root: Node3D = $VisualRoot/ModelRoot
+@onready var knight_visual: KnightVisual = $VisualRoot/KnightVisual
 
 
 func _ready() -> void:
 	current_health = max_health
-	model_root.rotation.y = deg_to_rad(model_forward_correction_degrees)
 	add_to_group("player3d")
 
 
@@ -89,6 +86,8 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_direction.x * movement_speed
 		velocity.z = move_direction.z * movement_speed
 
+	if knight_visual != null:
+		knight_visual.set_locomotion_amount(Vector2(velocity.x, velocity.z).length() / maxf(movement_speed, 0.001))
 	move_and_slide()
 	_clamp_to_playable_bounds()
 
@@ -98,6 +97,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	if prototype_debug_enabled and event.is_action_pressed("debug_add_xp"):
 		debug_add_experience(xp_to_next_level)
+		get_viewport().set_input_as_handled()
+	if prototype_debug_enabled and event.is_action_pressed("ability_1"):
+		request_attack_animation()
+		get_viewport().set_input_as_handled()
+	if prototype_debug_enabled and event.is_action_pressed("ability_2"):
+		take_damage(10)
+		get_viewport().set_input_as_handled()
+	if prototype_debug_enabled and event.is_action_pressed("ability_3"):
+		take_damage(max_health)
 		get_viewport().set_input_as_handled()
 
 
@@ -112,6 +120,8 @@ func take_damage(amount: int) -> void:
 
 	damage_taken.emit(previous_health - current_health)
 	health_changed.emit(current_health, max_health)
+	if knight_visual != null:
+		knight_visual.play_hit()
 	if current_health == 0:
 		_emit_died_once()
 
@@ -195,6 +205,10 @@ func get_aim_direction() -> Vector2:
 	return last_aim_direction if not last_aim_direction.is_zero_approx() else Vector2(0.0, -1.0)
 
 
+func request_attack_animation() -> bool:
+	return knight_visual != null and knight_visual.play_attack()
+
+
 func set_playable_bounds(width: float, depth: float) -> void:
 	_playable_width = maxf(width, 0.0)
 	_playable_depth = maxf(depth, 0.0)
@@ -261,4 +275,6 @@ func _emit_died_once() -> void:
 	if _death_emitted:
 		return
 	_death_emitted = true
+	if knight_visual != null:
+		knight_visual.play_death()
 	died.emit()
