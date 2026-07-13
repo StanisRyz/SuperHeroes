@@ -33,6 +33,9 @@ var _visual: KnightVisual
 var _cooldowns := {1: 0.0, 2: 0.0, 3: 0.0}
 var _leap_landing_pending := false
 var _stopped := false
+var _active_ability_id := ""
+var _cast_direction := Vector3.FORWARD
+var _cast_origin := Vector3.ZERO
 
 func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node3D, effects: Node3D, visual: KnightVisual) -> void:
 	_player = player
@@ -42,6 +45,8 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node
 	_visual = visual
 	_player.damage_taken.connect(_on_player_damage_taken)
 	_auto_attack.attack_impact_resolved.connect(_on_auto_attack_impact)
+	_visual.action_impact.connect(_on_action_impact)
+	_visual.action_finished.connect(_on_action_finished)
 	_update_rage(0.0)
 
 func _process(delta: float) -> void:
@@ -58,29 +63,17 @@ func _process(delta: float) -> void:
 
 func cast_ability_1() -> bool:
 	if not _can_cast(1): return false
-	_start_cooldown(1); ability_cast.emit(1, "rage_wave")
-	_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _player.global_position, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0)
-	return true
+	return _begin_cast(1, "rage_wave", Vector3.FORWARD)
 
 func cast_ability_2() -> bool:
 	if not _can_cast(2): return false
 	var direction := _target_direction()
-	_start_cooldown(2); ability_cast.emit(2, "shield_bash")
-	_player.lock_combat_facing(direction)
-	for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _player.global_position, direction, bash_range, bash_angle):
-		var damage := _scaled_damage(bash_damage)
-		enemy.take_damage(damage); enemy.apply_knockback(direction, 10.0, 0.28)
-		_update_rage(rage_per_hit + damage * 0.05)
-	_player.release_combat_facing()
-	return true
+	return _begin_cast(2, "shield_bash", direction)
 
 func cast_ability_3() -> bool:
 	if not _can_cast(3): return false
 	var direction := _target_direction()
-	if not _player.start_scripted_motion(direction, leap_distance, leap_duration, leap_duration): return false
-	_start_cooldown(3); ability_cast.emit(3, "crushing_leap")
-	_player.lock_combat_facing(direction); _leap_landing_pending = true
-	return true
+	return _begin_cast(3, "crushing_leap", direction)
 
 func get_ability_state(slot: int) -> Dictionary:
 	return {"slot": slot, "cooldown_remaining": float(_cooldowns.get(slot, 0.0)), "cooldown_total": _cooldown_total(slot), "display_name": get_ability_name(slot, false), "short_name": get_ability_name(slot, true)}
@@ -90,10 +83,29 @@ func get_ability_name(slot: int, prefer_short: bool = false) -> String:
 	var names := {1: ["Rage Wave", "Wave"], 2: ["Shield Bash", "Bash"], 3: ["Crushing Leap", "Leap"]}
 	return names.get(slot, ["Ability", "Ability"])[1 if prefer_short else 0]
 func stop() -> void:
-	_stopped = true; _leap_landing_pending = false
+	_stopped = true; _leap_landing_pending = false; _active_ability_id = ""
 	if _player != null: _player.cancel_scripted_motion(); _player.release_combat_facing()
 func _can_cast(slot: int) -> bool:
-	return not _stopped and _player != null and not _player.is_dead() and not get_tree().paused and float(_cooldowns.get(slot, 0.0)) <= 0.0 and not _player.is_scripted_motion_active()
+	return not _stopped and _active_ability_id.is_empty() and _player != null and not _player.is_dead() and not get_tree().paused and float(_cooldowns.get(slot, 0.0)) <= 0.0 and not _player.is_scripted_motion_active()
+
+func _begin_cast(slot: int, ability_id: String, direction: Vector3) -> bool:
+	_cast_direction = direction; _cast_origin = _player.global_position
+	if not _visual.play_ability(ability_id): return false
+	_active_ability_id = ability_id; _start_cooldown(slot); ability_cast.emit(slot, ability_id)
+	if ability_id != "rage_wave": _player.lock_combat_facing(direction)
+	return true
+
+func _on_action_impact(action_id: String) -> void:
+	if action_id != _active_ability_id: return
+	if action_id == "rage_wave": _apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
+	elif action_id == "shield_bash":
+		for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _cast_origin, _cast_direction, bash_range, bash_angle):
+			var damage := _scaled_damage(bash_damage); enemy.take_damage(damage); enemy.apply_knockback(_cast_direction, 10.0, 0.28); _update_rage(rage_per_hit + damage * 0.05)
+	elif action_id == "crushing_leap" and not _leap_landing_pending:
+		if _player.start_scripted_motion(_cast_direction, leap_distance, leap_duration, leap_duration): _leap_landing_pending = true
+
+func _on_action_finished(action_id: String) -> void:
+	if action_id == _active_ability_id and action_id != "crushing_leap": _active_ability_id = ""; _player.release_combat_facing()
 func _start_cooldown(slot: int) -> void:
 	_cooldowns[slot] = _cooldown_total(slot); ability_cooldown_changed.emit(slot, _cooldowns[slot], _cooldown_total(slot))
 func _cooldown_total(slot: int) -> float:
@@ -103,11 +115,11 @@ func _target_direction() -> Vector3:
 	var direction := target.global_position - _player.global_position if target != null else WorldPlane.horizontal_to_world(_player.get_aim_direction())
 	direction.y = 0.0; return direction.normalized() if not direction.is_zero_approx() else Vector3.FORWARD
 func _apply_leap_landing() -> void:
-	_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _player.global_position, leap_radius), leap_damage, {"movement_speed_multiplier": 0.45, "stun": true}, 1.0)
-	_player.release_combat_facing()
-func _apply_area_damage(enemies: Array[Enemy3D], base_damage: int, modifier: Dictionary, duration: float) -> void:
+	_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _player.global_position, leap_radius), leap_damage, {"movement_speed_multiplier": 0.45, "stun": true}, 1.0, "crushing_leap_stun")
+	_player.release_combat_facing(); _active_ability_id = ""
+func _apply_area_damage(enemies: Array[Enemy3D], base_damage: int, modifier: Dictionary, duration: float, modifier_id: String = "knight_ability") -> void:
 	for enemy: Enemy3D in enemies:
-		var damage := _scaled_damage(base_damage); enemy.take_damage(damage); enemy.apply_temporary_modifier("knight_ability", modifier, duration); enemy.apply_knockback(enemy.global_position - _player.global_position, 6.0, 0.2); _update_rage(rage_per_hit + damage * 0.05)
+		var damage := _scaled_damage(base_damage); enemy.take_damage(damage); enemy.apply_temporary_modifier(modifier_id, modifier, duration); enemy.apply_knockback(enemy.global_position - _player.global_position, 6.0, 0.2); _update_rage(rage_per_hit + damage * 0.05)
 func _scaled_damage(base_damage: int) -> int: return maxi(roundi(base_damage * get_damage_multiplier()), 1)
 func _on_player_damage_taken(amount: int) -> void: _update_rage(amount * rage_per_damage_taken)
 func _on_auto_attack_impact(hits: int, damage: int) -> void: _update_rage(hits * rage_per_hit + damage * 0.03)

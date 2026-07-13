@@ -7,6 +7,9 @@ signal attack_started
 signal attack_impact
 signal attack_finished
 signal death_animation_finished
+signal action_started(action_id: String)
+signal action_impact(action_id: String)
+signal action_finished(action_id: String)
 
 @export_category("Animation mapping")
 @export var idle_animation: StringName = &"kaykit/Idle_A"
@@ -22,6 +25,9 @@ var _active_one_shot: StringName = &""
 var _attack_impact_emitted: bool = false
 var _death_visual_active: bool = false
 var _death_animation_finished_emitted: bool = false
+var _active_action_id := ""
+var _active_action_impact := 0.5
+var _action_impact_emitted := false
 
 
 func configure_animation_player(animation_player: AnimationPlayer) -> void:
@@ -46,6 +52,18 @@ func play_attack() -> bool:
 	_attack_impact_emitted = false
 	_animation_player.play(attack_animation)
 	attack_started.emit()
+	return true
+
+
+func play_action(action_id: String, animation_name: StringName, impact_normalized_time: float) -> bool:
+	if _death_visual_active or _active_one_shot != &"" or not _has_animation(animation_name):
+		return false
+	_active_one_shot = animation_name
+	_active_action_id = action_id
+	_active_action_impact = clampf(impact_normalized_time, 0.0, 1.0)
+	_action_impact_emitted = false
+	_animation_player.play(animation_name)
+	action_started.emit(action_id)
 	return true
 
 
@@ -82,6 +100,11 @@ func is_death_visual_active() -> bool:
 
 
 func _process(_delta: float) -> void:
+	if not _active_action_id.is_empty() and not _action_impact_emitted and _animation_player != null:
+		var action_animation := _animation_player.get_animation(_active_one_shot)
+		if action_animation != null and _animation_player.current_animation_position >= action_animation.length * _active_action_impact:
+			_action_impact_emitted = true
+			action_impact.emit(_active_action_id)
 	if _active_one_shot != attack_animation or _attack_impact_emitted or _animation_player == null:
 		return
 	var animation: Animation = _animation_player.get_animation(attack_animation)
@@ -105,6 +128,16 @@ func _has_animation(animation_name: StringName) -> bool:
 
 
 func _on_animation_finished(animation_name: StringName) -> void:
+	if not _active_action_id.is_empty() and animation_name == _active_one_shot:
+		if not _action_impact_emitted:
+			_action_impact_emitted = true
+			action_impact.emit(_active_action_id)
+		var finished_action := _active_action_id
+		_active_action_id = ""
+		_active_one_shot = &""
+		action_finished.emit(finished_action)
+		_play_locomotion()
+		return
 	if animation_name == attack_animation and _active_one_shot == attack_animation:
 		if not _attack_impact_emitted:
 			_attack_impact_emitted = true
