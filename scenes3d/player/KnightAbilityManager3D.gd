@@ -249,6 +249,14 @@ func upgrade_legacy_leap_radius(radius_bonus: float) -> bool:
 	leap_radius += radius_bonus
 	return true
 
+
+func upgrade_legacy_leap_ready(cooldown_reduction: float, distance_bonus: float) -> bool:
+	if cooldown_reduction <= 0.0 or distance_bonus <= 0.0:
+		return false
+	leap_cooldown = maxf(3.5, leap_cooldown - cooldown_reduction)
+	leap_distance += distance_bonus
+	return true
+
 func _on_action_finished(action_id: String) -> void:
 	if action_id == _active_ability_id and action_id != "crushing_leap": _finish_active_ability()
 func _start_cooldown(slot: int) -> void:

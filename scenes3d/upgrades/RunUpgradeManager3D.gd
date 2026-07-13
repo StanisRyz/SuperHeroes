@@ -16,6 +16,7 @@ const UPGRADES := {
 	"sword_knockback": {"title": "Sword Knockback", "description": "+1.5 knockback force.", "rarity": "rare", "max_level": 5},
 	"splash_melee_combo": {"title": "Fury Combo", "description": "+0.06 damage bonus per combo stack.", "rarity": "rare", "max_level": 3, "category": "attack"},
 	"splash_melee_lifesteal": {"title": "Blood Frenzy", "description": "+2 HP per enemy hit.", "rarity": "rare", "max_level": 3, "category": "attack"},
+	"splash_melee_execute": {"title": "Finishing Blow", "description": "+0.20 low-health threshold; deal 1.45x melee damage at or below it.", "rarity": "epic", "max_level": 3, "category": "attack"},
 	"move_speed": {"title": "Swift Step", "description": "+0.55 movement speed.", "rarity": "common", "max_level": 5},
 	"max_health": {"title": "Knight's Resolve", "description": "+20 maximum health and heal 20.", "rarity": "epic", "max_level": 5},
 	"wave_damage": {"title": "Wave Force", "description": "+8 Rage Wave damage.", "rarity": "rare", "max_level": 5, "category": "active"},
@@ -29,12 +30,14 @@ const UPGRADES := {
 	"mighty_clap_shockwave": {"title": "Impact Wave", "description": "+1.5 Shield Bash knockback and -0.7s cooldown.", "rarity": "epic", "max_level": 3, "category": "active"},
 	"leap_radius": {"title": "Wide Landing", "description": "+0.4 Crushing Leap radius.", "rarity": "rare", "max_level": 5, "category": "active"},
 	"rage_leap_radius": {"title": "Wide Landing", "description": "+0.55 Crushing Leap radius.", "rarity": "rare", "max_level": 3, "category": "active"},
+	"rage_leap_cooldown": {"title": "Leap Ready", "description": "-1.2s Crushing Leap cooldown and +0.5 Leap distance.", "rarity": "epic", "max_level": 3, "category": "active"},
 	"leap_cooldown": {"title": "Leap Rhythm", "description": "-0.65 Crushing Leap cooldown.", "rarity": "epic", "max_level": 5, "category": "active"},
 	"rage_decay": {"title": "Smoldering Rage", "description": "-0.5 Rage decay per second.", "rarity": "rare", "max_level": 5, "category": "passive"},
 	"rage_multiplier": {"title": "Furious Edge", "description": "+0.05 maximum Rage damage multiplier.", "rarity": "epic", "max_level": 5, "category": "passive"},
 	"static_field": {"title": "Static Field", "description": "Periodic electric pulse around the Knight.", "rarity": "rare", "max_level": 3, "category": "passive"},
 	"battle_focus": {"title": "Battle Focus", "description": "Periodic strike and temporary attack-speed boost.", "rarity": "rare", "max_level": 3, "category": "passive"},
 	"magnet_core": {"title": "Magnet Core", "description": "Extends nearby experience pickup attraction.", "rarity": "common", "max_level": 3, "category": "passive"},
+	"guardian_drone": {"title": "Guardian Drone", "description": "Orbiting drone periodically strikes the nearest enemy.", "rarity": "rare", "max_level": 3, "category": "passive"},
 	"recovery_field": {"title": "Recovery Field", "description": "Periodically restore health.", "rarity": "common", "max_level": 3, "category": "passive"},
 }
 
@@ -82,7 +85,7 @@ func apply_upgrade(upgrade_id: String) -> void:
 	var level := int(_levels.get(upgrade_id, 0))
 	if level >= int(UPGRADES[upgrade_id]["max_level"]):
 		return
-	if upgrade_id in ["static_field", "battle_focus", "magnet_core"]:
+	if upgrade_id in ["static_field", "battle_focus", "magnet_core", "guardian_drone"]:
 		if _passive_manager == null or not _passive_manager.add_or_upgrade_passive(upgrade_id):
 			return
 		_levels[upgrade_id] = level + 1
@@ -100,6 +103,12 @@ func apply_upgrade(upgrade_id: String) -> void:
 		_levels[upgrade_id] = level + 1
 		_history.append(upgrade_id)
 		return
+	if upgrade_id == "splash_melee_execute":
+		if _auto_attack == null or not _auto_attack.upgrade_finishing_blow(0.20):
+			return
+		_levels[upgrade_id] = level + 1
+		_history.append(upgrade_id)
+		return
 	if upgrade_id == "mighty_clap_shockwave":
 		if _ability_manager == null or not _ability_manager.upgrade_impact_wave(1.5, 0.7):
 			return
@@ -108,6 +117,12 @@ func apply_upgrade(upgrade_id: String) -> void:
 		return
 	if upgrade_id == "rage_leap_radius":
 		if _ability_manager == null or not _ability_manager.upgrade_legacy_leap_radius(0.55):
+			return
+		_levels[upgrade_id] = level + 1
+		_history.append(upgrade_id)
+		return
+	if upgrade_id == "rage_leap_cooldown":
+		if _ability_manager == null or not _ability_manager.upgrade_legacy_leap_ready(1.2, 0.5):
 			return
 		_levels[upgrade_id] = level + 1
 		_history.append(upgrade_id)
@@ -151,11 +166,11 @@ func _has_dependencies(upgrade_id: String) -> bool:
 		return false
 	if upgrade_id.begins_with("sword"):
 		return _auto_attack != null
-	if upgrade_id in ["splash_melee_combo", "splash_melee_lifesteal"]:
+	if upgrade_id in ["splash_melee_combo", "splash_melee_lifesteal", "splash_melee_execute"]:
 		return _auto_attack != null
-	if upgrade_id in ["static_field", "battle_focus", "magnet_core", "recovery_field"]:
+	if upgrade_id in ["static_field", "battle_focus", "magnet_core", "guardian_drone", "recovery_field"]:
 		return _passive_manager != null
-	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "mighty_clap_shockwave", "leap_radius", "rage_leap_radius", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
+	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "mighty_clap_shockwave", "leap_radius", "rage_leap_radius", "rage_leap_cooldown", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
 
 
 func _prioritize_started_lines(upgrade_ids: Array) -> Array:

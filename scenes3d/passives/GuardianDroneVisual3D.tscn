@@ -1,0 +1,21 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes3d/passives/GuardianDroneVisual3D.gd" id="1_drone"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_drone"]
+albedo_color = Color(1, 0.78, 0.16, 1)
+metallic = 0.35
+roughness = 0.38
+
+[sub_resource type="SphereMesh" id="SphereMesh_drone"]
+material = SubResource("StandardMaterial3D_drone")
+radius = 0.22
+height = 0.44
+radial_segments = 8
+rings = 4
+
+[node name="GuardianDroneVisual3D" type="Node3D"]
+script = ExtResource("1_drone")
+
+[node name="DroneMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_drone")

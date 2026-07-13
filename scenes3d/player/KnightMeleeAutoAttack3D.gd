@@ -27,9 +27,13 @@ var _fury_combo_stacks := 0
 var _fury_combo_decay_remaining := 0.0
 var _blood_frenzy_enabled := false
 var _blood_frenzy_healing_per_enemy := 0
+var _finishing_blow_enabled := false
+var _finishing_blow_threshold := 0.0
 
 const FURY_COMBO_MAX_STACKS := 5
 const FURY_COMBO_DECAY_DURATION := 3.0
+const FINISHING_BLOW_THRESHOLD_CAP := 0.60
+const FINISHING_BLOW_DAMAGE_MULTIPLIER := 1.45
 
 
 func set_suspended(value: bool) -> void:
@@ -78,6 +82,14 @@ func upgrade_blood_frenzy(heal_per_enemy: float) -> bool:
 		return false
 	_blood_frenzy_enabled = true
 	_blood_frenzy_healing_per_enemy += roundi(heal_per_enemy)
+	return true
+
+
+func upgrade_finishing_blow(threshold_bonus: float) -> bool:
+	if threshold_bonus <= 0.0:
+		return false
+	_finishing_blow_enabled = true
+	_finishing_blow_threshold = minf(_finishing_blow_threshold + threshold_bonus, FINISHING_BLOW_THRESHOLD_CAP)
 	return true
 
 
@@ -141,6 +153,9 @@ func _on_attack_impact() -> void:
 		offset.y = 0.0
 		_damaged_enemies.append(enemy)
 		var damage := maxi(roundi(attack_damage * _damage_multiplier * _get_fury_combo_multiplier()), 1)
+		var health_ratio := float(enemy.current_health) / maxf(float(enemy.max_health), 1.0)
+		if _finishing_blow_enabled and health_ratio <= _finishing_blow_threshold:
+			damage = maxi(roundi(float(damage) * FINISHING_BLOW_DAMAGE_MULTIPLIER), 1)
 		enemy.take_damage(damage)
 		enemy.apply_knockback(offset, knockback_force, knockback_duration)
 		hit_count += 1
@@ -205,6 +220,8 @@ func _reset_fury_combo(clear_upgrade: bool = false) -> void:
 		_fury_combo_bonus_per_stack = 0.0
 		_blood_frenzy_enabled = false
 		_blood_frenzy_healing_per_enemy = 0
+		_finishing_blow_enabled = false
+		_finishing_blow_threshold = 0.0
 
 
 func _exit_tree() -> void:

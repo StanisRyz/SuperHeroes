@@ -9,16 +9,26 @@ const MAGNET_ATTRACTION_SPEED := LEGACY_MAGNET_SPEED_PIXELS_PER_SECOND / PIXELS_
 const PICKUP_SCAN_INTERVAL := 0.25
 const PASSIVE_PULSE_EFFECT := preload("res://scenes3d/effects/PassivePulseEffect3D.tscn")
 const PASSIVE_ARC_EFFECT := preload("res://scenes3d/effects/PassiveArcEffect3D.tscn")
+const GUARDIAN_DRONE_VISUAL := preload("res://scenes3d/passives/GuardianDroneVisual3D.tscn")
 const RAGE_FIELD_EVOLUTION_ID := "mighty_clap_rampage_impact"
 const BERSERKER_FOCUS_EVOLUTION_ID := "rage_leap_blood_crater"
+const GRAVITY_RAGE_EVOLUTION_ID := "rage_leap_final_impact"
 const RAGE_FIELD_SLOW := {"movement_speed_multiplier": 0.55}
 const RAGE_FIELD_SLOW_DURATION := 0.75
 const RAGE_FIELD_MIN_INTERVAL := 0.85
+const GUARDIAN_DRONE_NO_TARGET_RETRY := 0.35
+const GRAVITY_RAGE_INTERVAL := 3.2
+const GRAVITY_RAGE_PULL_FORCE := 3.0
+const GRAVITY_RAGE_PULL_DURATION := 0.22
+const GRAVITY_RAGE_SLOW_DURATION := 0.8
+const GRAVITY_RAGE_BONUS_MULTIPLIER := 2.6
+const GRAVITY_RAGE_SLOW := {"movement_speed_multiplier": 0.55}
 const PASSIVE_DEFINITIONS: Dictionary = {
 	"static_field": {"title": "Static Field", "max_level": 3, "damage": [5, 7, 9], "interval": [4.8, 4.2, 3.6], "radius": [150.0, 175.0, 200.0]},
 	"battle_focus": {"title": "Battle Focus", "max_level": 3, "damage": [4, 6, 8], "interval": [7.5, 6.5, 5.5], "range": 420.0, "attack_speed_multiplier": [1.12, 1.18, 1.24], "duration": [3.0, 3.5, 4.0]},
 	"recovery_field": {"title": "Recovery Field", "max_level": 3, "heal": [4, 6, 8], "interval": [12.0, 10.5, 9.0], "radius": [80.0, 95.0, 110.0]},
 	"magnet_core": {"title": "Magnet Core", "max_level": 3, "pickup_radius_bonus": [45.0, 85.0, 125.0]},
+	"guardian_drone": {"title": "Guardian Drone", "max_level": 3, "damage": [5, 8, 11], "interval": [3.4, 3.0, 2.6], "range": 460.0},
 }
 
 signal passive_changed(passive_id: String, level: int)
@@ -32,11 +42,12 @@ var _enemy_container: Node3D
 var _pickup_container: Node3D
 var _effect_container: Node3D
 var _levels: Dictionary = {}
-var _timers: Dictionary = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0}
+var _timers: Dictionary = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0}
 var _pickup_scan_remaining := 0.0
 var _stopped := false
 var _selected_passive_evolutions: Array[String] = []
 var _passive_evolution_targets: Dictionary = {}
+var _guardian_drone_visual: Node3D
 
 
 func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manager: KnightAbilityManager3D, enemy_container: Node3D, pickup_container: Node3D, effect_container: Node3D) -> void:
@@ -50,7 +61,9 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manag
 
 
 func _process(delta: float) -> void:
-	if _stopped or get_tree().paused or _player == null or _player.is_dead():
+	if _stopped or get_tree().paused or _player == null or not is_instance_valid(_player) or _player.is_dead():
+		if _player == null or not is_instance_valid(_player):
+			_remove_guardian_drone_visual()
 		return
 	if has_passive("static_field"):
 		_tick_static_field(delta)
@@ -60,6 +73,10 @@ func _process(delta: float) -> void:
 		_tick_recovery_field(delta)
 	if has_passive("magnet_core"):
 		_tick_magnet_core(delta)
+		if has_passive_evolution(GRAVITY_RAGE_EVOLUTION_ID):
+			_tick_gravity_rage(delta)
+	if has_passive("guardian_drone"):
+		_tick_guardian_drone(delta)
 
 
 func add_or_upgrade_passive(passive_id: String) -> bool:
@@ -78,6 +95,8 @@ func add_or_upgrade_passive(passive_id: String) -> bool:
 		_spawn_pulse(_player.global_position, _world_value("static_field", "radius", next_level), 0.24, Color(0.25, 0.95, 1.0, 0.72), 0.70)
 	elif passive_id == "recovery_field":
 		_spawn_pulse(_player.global_position, _world_value("recovery_field", "radius", next_level), 0.25, Color(0.24, 1.0, 0.48, 0.72), 0.68)
+	elif passive_id == "guardian_drone":
+		_ensure_guardian_drone_visual()
 	passive_changed.emit(passive_id, next_level)
 	passive_state_changed.emit()
 	return true
@@ -103,9 +122,13 @@ func get_passive_state(passive_id: String) -> Dictionary:
 	var state := {"id": passive_id, "title": _get_passive_display_title(passive_id), "level": level, "max_level": get_passive_max_level(passive_id), "selected": has_passive(passive_id), "timer_remaining": float(_timers.get(passive_id, 0.0)), "selected_passive_evolution_ids": get_selected_passive_evolution_ids(), "selected_passive_evolution_titles": get_selected_passive_evolution_titles()}
 	if passive_id == "magnet_core":
 		state["pickup_radius_bonus_pixels"] = _get_magnet_bonus_pixels(level)
+		state["original_level_bonus_pixels"] = _get_magnet_bonus_pixels(level)
+		state["evolved_bonus_multiplier"] = _get_magnet_bonus_multiplier()
+		state["effective_bonus_pixels"] = _get_effective_magnet_bonus_pixels(level)
 		state["base_magnet_radius_pixels"] = LEGACY_BASE_MAGNET_RADIUS_PIXELS
 		state["effective_pickup_radius"] = _get_effective_magnet_radius(level)
 		state["attraction_speed"] = MAGNET_ATTRACTION_SPEED
+		state["gravity_rage_active"] = has_passive_evolution(GRAVITY_RAGE_EVOLUTION_ID)
 	return state
 
 
@@ -132,7 +155,7 @@ func get_selected_passive_titles() -> Array[String]:
 
 
 func can_apply_passive_evolution(evolution_id: String, target_passive_id: String) -> bool:
-	return (evolution_id == RAGE_FIELD_EVOLUTION_ID and target_passive_id == "static_field" and has_passive("static_field")) or (evolution_id == BERSERKER_FOCUS_EVOLUTION_ID and target_passive_id == "battle_focus" and has_passive("battle_focus"))
+	return (evolution_id == RAGE_FIELD_EVOLUTION_ID and target_passive_id == "static_field" and has_passive("static_field")) or (evolution_id == BERSERKER_FOCUS_EVOLUTION_ID and target_passive_id == "battle_focus" and has_passive("battle_focus")) or (evolution_id == GRAVITY_RAGE_EVOLUTION_ID and target_passive_id == "magnet_core" and has_passive("magnet_core"))
 
 
 func apply_passive_evolution(evolution_id: String, target_passive_id: String) -> bool:
@@ -144,8 +167,11 @@ func apply_passive_evolution(evolution_id: String, target_passive_id: String) ->
 	_passive_evolution_targets[evolution_id] = target_passive_id
 	if evolution_id == RAGE_FIELD_EVOLUTION_ID:
 		_spawn_pulse(_player.global_position, _world_value("static_field", "radius", get_passive_level("static_field")) * 1.35, 0.28, Color(1.0, 0.24, 0.05, 0.76), 0.52)
-	else:
+	elif evolution_id == BERSERKER_FOCUS_EVOLUTION_ID:
 		_spawn_pulse(_player.global_position, 1.3, 0.22, Color(1.0, 0.16, 0.04, 0.78), 0.55)
+	else:
+		_timers["magnet_core"] = 0.2
+		_spawn_pulse(_player.global_position, _get_effective_magnet_radius(get_passive_level("magnet_core")), 0.18, Color(0.72, 0.34, 1.0, 0.88), 0.35)
 	passive_state_changed.emit()
 	return true
 
@@ -165,6 +191,8 @@ func get_selected_passive_evolution_titles() -> Array[String]:
 			titles.append("Rage Field")
 		elif evolution_id == BERSERKER_FOCUS_EVOLUTION_ID:
 			titles.append("Berserker Focus")
+		elif evolution_id == GRAVITY_RAGE_EVOLUTION_ID:
+			titles.append("Gravity Rage")
 	return titles
 
 
@@ -174,8 +202,9 @@ func reset_run_state() -> void:
 	_levels.clear()
 	_selected_passive_evolutions.clear()
 	_passive_evolution_targets.clear()
-	_timers = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0}
+	_timers = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0}
 	_pickup_scan_remaining = 0.0
+	_remove_guardian_drone_visual()
 	_stopped = false
 	passive_state_changed.emit()
 
@@ -186,6 +215,9 @@ func stop() -> void:
 		_auto_attack.clear_temporary_attack_speed_modifier("battle_focus")
 	_selected_passive_evolutions.clear()
 	_passive_evolution_targets.clear()
+	_timers["guardian_drone"] = 0.0
+	_timers["magnet_core"] = 0.0
+	_remove_guardian_drone_visual()
 	passive_state_changed.emit()
 
 
@@ -305,6 +337,45 @@ func _tick_magnet_core(delta: float) -> void:
 		passive_triggered.emit("magnet_core", {"radius": radius, "pickup_count": attracted_count})
 
 
+func _tick_guardian_drone(delta: float) -> void:
+	_timers["guardian_drone"] = maxf(float(_timers["guardian_drone"]) - delta, 0.0)
+	if float(_timers["guardian_drone"]) > 0.0:
+		return
+	_ensure_guardian_drone_visual()
+	var level := get_passive_level("guardian_drone")
+	var target: Enemy3D = CombatQuery3D.nearest_living_enemy(_enemy_container, _player.global_position, _world_value("guardian_drone", "range", level))
+	if target == null:
+		_timers["guardian_drone"] = GUARDIAN_DRONE_NO_TARGET_RETRY
+		return
+	var damage := int(_value("guardian_drone", "damage", level))
+	target.take_damage(damage)
+	var origin: Vector3 = _guardian_drone_visual.global_position if _guardian_drone_visual != null and is_instance_valid(_guardian_drone_visual) else _player.global_position
+	_spawn_arc(origin, target.global_position, 0.16, Color(1.0, 0.80, 0.18, 0.94), 0.055)
+	var interval := _value("guardian_drone", "interval", level)
+	_timers["guardian_drone"] = interval
+	passive_triggered.emit("guardian_drone", {"damage": damage, "range": _world_value("guardian_drone", "range", level), "target_id": target.get_instance_id(), "interval": interval})
+	passive_state_changed.emit()
+
+
+func _tick_gravity_rage(delta: float) -> void:
+	_timers["magnet_core"] = maxf(float(_timers["magnet_core"]) - delta, 0.0)
+	if float(_timers["magnet_core"]) > 0.0:
+		return
+	var level := get_passive_level("magnet_core")
+	var radius := _get_gravity_rage_radius(level)
+	var targets: Array[Enemy3D] = CombatQuery3D.enemies_in_radius(_enemy_container, _player.global_position, radius)
+	for enemy: Enemy3D in targets:
+		var direction := _player.global_position - enemy.global_position
+		direction.y = 0.0
+		if not direction.is_zero_approx():
+			enemy.apply_knockback(direction.normalized(), GRAVITY_RAGE_PULL_FORCE, GRAVITY_RAGE_PULL_DURATION)
+		enemy.apply_temporary_modifier("gravity_rage_pull", GRAVITY_RAGE_SLOW, GRAVITY_RAGE_SLOW_DURATION)
+	_spawn_pulse(_player.global_position, radius, 0.26, Color(0.70, 0.30, 1.0, 0.90), 0.72)
+	_timers["magnet_core"] = GRAVITY_RAGE_INTERVAL
+	passive_triggered.emit("magnet_core", {"title": "Gravity Rage", "radius": radius, "target_count": targets.size(), "pull_force": GRAVITY_RAGE_PULL_FORCE, "pull_duration": GRAVITY_RAGE_PULL_DURATION, "slow_multiplier": 0.55, "slow_duration": GRAVITY_RAGE_SLOW_DURATION, "interval": GRAVITY_RAGE_INTERVAL})
+	passive_state_changed.emit()
+
+
 func _value(passive_id: String, key: String, level: int) -> float:
 	var value: Variant = PASSIVE_DEFINITIONS[passive_id].get(key, 0.0)
 	if value is Array:
@@ -318,11 +389,23 @@ func _world_value(passive_id: String, key: String, level: int) -> float:
 
 
 func _get_effective_magnet_radius(level: int) -> float:
-	return (LEGACY_BASE_MAGNET_RADIUS_PIXELS + _get_magnet_bonus_pixels(level)) / PIXELS_PER_WORLD_UNIT
+	return (LEGACY_BASE_MAGNET_RADIUS_PIXELS + _get_effective_magnet_bonus_pixels(level)) / PIXELS_PER_WORLD_UNIT
 
 
 func _get_magnet_bonus_pixels(level: int) -> float:
 	return _value("magnet_core", "pickup_radius_bonus", level) if level > 0 else 0.0
+
+
+func _get_effective_magnet_bonus_pixels(level: int) -> float:
+	return _get_magnet_bonus_pixels(level) * _get_magnet_bonus_multiplier()
+
+
+func _get_magnet_bonus_multiplier() -> float:
+	return GRAVITY_RAGE_BONUS_MULTIPLIER if has_passive_evolution(GRAVITY_RAGE_EVOLUTION_ID) else 1.0
+
+
+func _get_gravity_rage_radius(level: int) -> float:
+	return (220.0 + _get_effective_magnet_bonus_pixels(level)) / PIXELS_PER_WORLD_UNIT
 
 
 func _get_passive_display_title(passive_id: String) -> String:
@@ -330,7 +413,26 @@ func _get_passive_display_title(passive_id: String) -> String:
 		return "Rage Field"
 	if passive_id == "battle_focus" and has_passive_evolution(BERSERKER_FOCUS_EVOLUTION_ID):
 		return "Berserker Focus"
+	if passive_id == "magnet_core" and has_passive_evolution(GRAVITY_RAGE_EVOLUTION_ID):
+		return "Gravity Rage"
 	return str(PASSIVE_DEFINITIONS.get(passive_id, {}).get("title", passive_id))
+
+
+func _ensure_guardian_drone_visual() -> void:
+	if _guardian_drone_visual != null and is_instance_valid(_guardian_drone_visual):
+		return
+	if _effect_container == null or _player == null or not is_instance_valid(_player):
+		return
+	_guardian_drone_visual = GUARDIAN_DRONE_VISUAL.instantiate()
+	_effect_container.add_child(_guardian_drone_visual)
+	if _guardian_drone_visual.has_method("setup"):
+		_guardian_drone_visual.call("setup", _player)
+
+
+func _remove_guardian_drone_visual() -> void:
+	if _guardian_drone_visual != null and is_instance_valid(_guardian_drone_visual):
+		_guardian_drone_visual.queue_free()
+	_guardian_drone_visual = null
 
 
 func _spawn_pulse(position: Vector3, radius: float, duration: float, color: Color, inner_radius_ratio: float) -> void:
@@ -347,3 +449,7 @@ func _spawn_arc(start_position: Vector3, end_position: Vector3, duration: float,
 	var effect := PASSIVE_ARC_EFFECT.instantiate()
 	_effect_container.add_child(effect)
 	effect.setup(start_position, end_position, duration, color, thickness)
+
+
+func _exit_tree() -> void:
+	_remove_guardian_drone_visual()

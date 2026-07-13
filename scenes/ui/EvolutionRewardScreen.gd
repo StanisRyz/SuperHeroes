@@ -17,25 +17,38 @@ func _ready() -> void:
 func show_options(options: Array[Dictionary]) -> void:
 	for button in _option_buttons:
 		button.hide()
-		if button.has_focus():
-			button.release_focus()
+		button.release_focus()
+		button.disabled = true
 		button.set_meta("evolution_id", "")
 		button.modulate = Color.WHITE
+	_continue_button.release_focus()
 	for index in mini(options.size(), _option_buttons.size()):
 		var evolution: Dictionary = options[index]
 		var button := _option_buttons[index]
 		button.text = _format_evolution_text(evolution)
 		button.set_meta("evolution_id", evolution.get("id", ""))
 		button.modulate = Color(1.0, 0.9, 0.5, 1.0)
+		button.disabled = false
 		button.show()
 	if options.is_empty():
 		_message_label.text = "No evolution available at this time.\nKeep building your archetype and try again."
 	else:
 		_message_label.text = "Choose one evolution for this run. All listed prerequisites are complete."
-		if not _option_buttons.is_empty() and _option_buttons[0].visible:
-			_option_buttons[0].grab_focus()
 	_continue_button.visible = options.is_empty()
+	_continue_button.disabled = not options.is_empty()
 	show()
+	call_deferred("_focus_visible_choice", options.is_empty())
+
+
+func _focus_visible_choice(use_continue: bool) -> void:
+	if use_continue:
+		if _continue_button.visible and not _continue_button.disabled:
+			_continue_button.grab_focus()
+		return
+	for button in _option_buttons:
+		if button.visible and not button.disabled:
+			button.grab_focus()
+			return
 
 
 func _format_evolution_text(evolution: Dictionary) -> String:
