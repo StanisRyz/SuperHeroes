@@ -1,58 +1,25 @@
-# Codex Rules
+# Codex rules
 
-This is a Godot 4.x GDScript project.
+SuperHeroes is a Godot 4.5 GDScript survivors-like targeting Web export and landscape browser layouts.
 
-SuperHeroes is a Web/Yandex Games survivors-like with an original superhero theme.
+## Working rules
 
-## General Rules
+- Inspect the relevant current scene, script, and data provider before editing.
+- Prefer a focused extension of an existing system over a duplicate subsystem or broad rewrite.
+- Keep configuration/data, runtime state, UI presentation, and persistence separated.
+- Do not introduce copyrighted superhero names, brands, logos, or existing characters.
+- Do not add monetization, cloud/Yandex storage, online services, or new persistence without an explicit request.
+- Keep desktop and mobile landscape use, including 16:9 and wide layouts, in scope.
 
-- Always inspect the current project before changing files.
-- If logic already exists, do not duplicate it.
-- If logic is partially implemented, extend it with the smallest safe patch.
-- Keep patches small and focused.
-- Do not add unrelated systems.
-- Do not rewrite broad architecture unless explicitly requested.
-- Do not add ads, payments, monetization, leaderboards, saves, or meta-progression unless explicitly requested.
-- Keep desktop browser and mobile landscape browser in mind.
-- Keep 16:9 and 20:9 support in mind.
-- Avoid copyrighted superhero IP; use original superhero concepts only.
+## Ownership boundaries
 
-## Architecture Separation
+- `Main` coordinates front-end and run transitions; `Arena` coordinates an active run.
+- Providers own static hero, stage, Training, and equipment definitions. Managers own runtime or saved state.
+- UI emits intent and displays state; it must not apply combat, rewards, save writes, or scene changes directly.
+- `MetaProgressionManager` is the only owner of persistent progression; `SettingsManager` and `UserPreferencesManager` own their separate files.
+- `FeedbackManager` is presentation-only and never applies gameplay effects.
 
-Keep these systems separated as the project grows:
+## Required follow-up
 
-- Player movement
-- Enemy spawn
-- Enemy AI
-- Damage system
-- XP drops
-- Level-up upgrade system
-- Active abilities
-- UI
-- Run state
-- Yandex SDK wrapper
-- Save/config data
-
-Do not mix:
-
-- Runtime state
-- Config data
-- UI
-- Yandex SDK calls
-- Gameplay formulas
-
-## Validation
-
-At minimum, run or document:
-
-```sh
-godot --headless --editor --quit
-```
-
-## Future Final Summary Format
-
-1. What was already correct and left unchanged.
-2. What was changed.
-3. Files changed.
-4. Validation commands run and results.
-5. Manual checks still required.
+- Update [README.md](README.md), [Agents.md](Agents.md), and the relevant manual checks in [docs/validation/gameplay_validation.md](docs/validation/gameplay_validation.md) whenever an implemented behavior or contract changes.
+- Run `godot --headless --editor --quit` after code/scene/configuration changes. Documentation-only work should instead verify Markdown links, referenced paths, and the final Git diff.
