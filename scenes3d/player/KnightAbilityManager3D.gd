@@ -107,7 +107,12 @@ func _begin_cast(slot: int, ability_id: String, direction: Vector3) -> bool:
 	_action_token = _action_controller.try_begin_ability(ability_id)
 	if _action_token == 0: return false
 	_auto_attack.interrupt_attack()
-	if not _visual.play_ability(ability_id): return false
+	if not _visual.play_ability(ability_id):
+		_action_controller.cancel_action(_action_token, "visual_rejected")
+		_action_token = 0
+		_auto_attack.set_suspended(false)
+		_player.release_combat_facing()
+		return false
 	_active_ability_id = ability_id; _active_slot = slot; _cast_state = CastState.WINDUP; _cast_elapsed = 0.0; _cast_maximum = 2.5 + (leap_duration if ability_id == "crushing_leap" else 0.0)
 	_auto_attack.set_suspended(true); _start_cooldown(slot); ability_cast.emit(slot, ability_id)
 	if ability_id != "rage_wave": _player.lock_combat_facing(direction)

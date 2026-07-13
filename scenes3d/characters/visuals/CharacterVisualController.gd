@@ -99,6 +99,17 @@ func is_death_visual_active() -> bool:
 	return _death_visual_active
 
 
+func cancel_attack() -> bool:
+	if _active_one_shot != attack_animation:
+		return false
+	_active_one_shot = &""
+	_attack_impact_emitted = false
+	if _animation_player != null:
+		_animation_player.stop()
+	_play_locomotion()
+	return true
+
+
 func _process(_delta: float) -> void:
 	if not _active_action_id.is_empty() and not _action_impact_emitted and _animation_player != null:
 		var action_animation := _animation_player.get_animation(_active_one_shot)

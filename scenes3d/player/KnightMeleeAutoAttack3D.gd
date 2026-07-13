@@ -37,6 +37,8 @@ func cancel_current_attack() -> void:
 		_player.release_combat_facing()
 
 func interrupt_attack() -> void:
+	if _knight_visual != null:
+		_knight_visual.cancel_attack()
 	cancel_current_attack()
 
 func set_damage_multiplier(multiplier: float) -> void:
@@ -62,7 +64,7 @@ func stop_attacking() -> void:
 
 func _process(delta: float) -> void:
 	_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
-	if _suspended or _attack_active or _cooldown_remaining > 0.0 or _player == null or _player.is_dead() or get_tree().paused:
+	if _suspended or _attack_active or _cooldown_remaining > 0.0 or _player == null or _player.is_dead() or get_tree().paused or not _player.action_controller.is_idle():
 		return
 	var target: Enemy3D = _find_nearest_target()
 	if target == null:

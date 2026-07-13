@@ -57,10 +57,12 @@ var _scripted_motion_direction: Vector3 = Vector3.ZERO
 var _scripted_motion_time: float = 0.0
 var _scripted_motion_duration: float = 0.0
 var _scripted_motion_speed: float = 0.0
+var _dash_action_token: int = 0
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var knight_visual: KnightVisual = $VisualRoot/KnightVisual
 @onready var action_controller: Node = $ActionController
+@onready var action_debug_tracer: Node = $ActionDebugTracer
 
 
 func _ready() -> void:
@@ -68,12 +70,17 @@ func _ready() -> void:
 	current_health = max_health
 	set_external_move_vector(Vector2.ZERO)
 	add_to_group("player3d")
+	if action_debug_tracer != null and action_debug_tracer.has_method("setup"):
+		action_debug_tracer.setup(action_controller, self, get_node_or_null("AbilityManager"), get_node_or_null("AutoAttack"), knight_visual)
+
+func get_debug_state() -> Dictionary:
+	return {"dead": is_dead(), "dashing": is_dashing, "dash_remaining": dash_time_remaining, "dash_cooldown": dash_cooldown_remaining, "scripted_motion": _scripted_motion_active, "scripted_remaining": _scripted_motion_time, "velocity": velocity, "invulnerable": is_invulnerable(), "action": action_controller.get_current_action_state()}
 
 
 func _physics_process(delta: float) -> void:
 	if is_dead():
 		velocity = Vector3.ZERO
-		is_dashing = false
+		cancel_dash("death")
 		return
 
 	_tick_dash_cooldown(delta)
@@ -91,8 +98,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = dash_direction.x * movement_speed * dash_speed_multiplier
 		velocity.z = dash_direction.z * movement_speed * dash_speed_multiplier
 		if dash_time_remaining <= 0.0:
-			is_dashing = false
-			dash_finished.emit()
+			_finish_dash()
 	else:
 		var move_direction: Vector3 = _get_current_move_direction()
 		if not move_direction.is_zero_approx():
@@ -193,6 +199,7 @@ func try_dash() -> bool:
 	var action_token: int = int(action_controller.try_begin_dash())
 	if action_token == 0:
 		return false
+	_dash_action_token = action_token
 
 	dash_direction = _get_dash_direction()
 	_last_move_direction = dash_direction
@@ -210,6 +217,21 @@ func try_dash() -> bool:
 
 func can_dash() -> bool:
 	return not get_tree().paused and not is_dead() and not _scripted_motion_active and dash_cooldown_remaining <= 0.0
+
+func _finish_dash() -> void:
+	is_dashing = false
+	dash_time_remaining = 0.0
+	if _dash_action_token != 0:
+		action_controller.finish_action(_dash_action_token)
+		_dash_action_token = 0
+	dash_finished.emit()
+
+func cancel_dash(reason: String = "") -> void:
+	is_dashing = false
+	dash_time_remaining = 0.0
+	if _dash_action_token != 0:
+		action_controller.cancel_action(_dash_action_token, reason)
+		_dash_action_token = 0
 
 
 func start_scripted_motion(owner_token: int, direction: Vector3, distance: float, duration: float, invulnerability_duration: float) -> bool:
