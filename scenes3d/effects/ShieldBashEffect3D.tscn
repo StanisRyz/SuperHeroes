@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://scenes3d/effects/ShieldBashEffect3D.gd" id="1"]
+[sub_resource type="BoxMesh" id="1"]
+size = Vector3(0.45, 0.45, 1)
+[node name="ShieldBashEffect3D" type="Node3D"]
+script = ExtResource("1")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0, -0.5)
+mesh = SubResource("1")

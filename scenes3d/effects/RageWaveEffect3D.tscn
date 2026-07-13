@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://scenes3d/effects/RageWaveEffect3D.gd" id="1"]
+[sub_resource type="CylinderMesh" id="1"]
+top_radius = 1.0
+bottom_radius = 1.0
+height = 0.04
+[node name="RageWaveEffect3D" type="Node3D"]
+script = ExtResource("1")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("1")

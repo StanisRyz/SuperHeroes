@@ -1,6 +1,10 @@
 class_name KnightAbilityManager3D
 extends Node
 
+@export var rage_wave_effect_scene: PackedScene = preload("res://scenes3d/effects/RageWaveEffect3D.tscn")
+@export var shield_bash_effect_scene: PackedScene = preload("res://scenes3d/effects/ShieldBashEffect3D.tscn")
+@export var crushing_leap_effect_scene: PackedScene = preload("res://scenes3d/effects/CrushingLeapImpactEffect3D.tscn")
+
 enum CastState { IDLE, WINDUP, SCRIPTED_MOTION, RECOVERY, CANCELLED }
 
 signal ability_cooldown_changed(slot: int, remaining: float, total: float)
@@ -120,10 +124,13 @@ func _begin_cast(slot: int, ability_id: String, direction: Vector3) -> bool:
 
 func _on_action_impact(action_id: String) -> void:
 	if action_id != _active_ability_id: return
-	if action_id == "rage_wave": _apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
+	if action_id == "rage_wave":
+		_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
+		_spawn_effect(rage_wave_effect_scene, [_cast_origin, wave_radius, 0.35])
 	elif action_id == "shield_bash":
 		for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _cast_origin, _cast_direction, bash_range, bash_angle):
 			var damage := _scaled_damage(bash_damage); enemy.take_damage(damage); enemy.apply_knockback(_cast_direction, 10.0, 0.28); _update_rage(rage_per_hit + damage * 0.05)
+		_spawn_effect(shield_bash_effect_scene, [_cast_origin, _cast_direction, bash_range, bash_angle, 0.22])
 	elif action_id == "crushing_leap" and not _leap_landing_pending:
 		if _player.start_scripted_motion(_action_token, _cast_direction, leap_distance, leap_duration, leap_duration):
 			_leap_landing_pending = true; _cast_state = CastState.SCRIPTED_MOTION
@@ -142,7 +149,15 @@ func _target_direction() -> Vector3:
 	direction.y = 0.0; return direction.normalized() if not direction.is_zero_approx() else Vector3.FORWARD
 func _apply_leap_landing() -> void:
 	_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _player.global_position, leap_radius), leap_damage, {"movement_speed_multiplier": 0.45, "stun": true}, 1.0, "crushing_leap_stun")
+	_spawn_effect(crushing_leap_effect_scene, [_player.global_position, leap_radius, 0.4])
 	_finish_active_ability()
+
+func _spawn_effect(effect_scene: PackedScene, arguments: Array) -> void:
+	if effect_scene == null or _effects == null: return
+	var effect := effect_scene.instantiate()
+	_effects.add_child(effect)
+	if effect.has_method("setup"):
+		effect.callv("setup", arguments)
 
 func _finish_active_ability() -> void:
 	_action_controller.finish_action(_action_token); _action_token = 0; _active_ability_id = ""; _active_slot = 0; _leap_landing_pending = false; _cast_state = CastState.IDLE; _cast_elapsed = 0.0; _player.release_combat_facing()

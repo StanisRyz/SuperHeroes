@@ -100,7 +100,7 @@ func _physics_process(delta: float) -> void:
 		if dash_time_remaining <= 0.0:
 			_finish_dash()
 	else:
-		var move_direction: Vector3 = _get_current_move_direction()
+		var move_direction: Vector3 = Vector3.ZERO if _is_normal_movement_blocked() else _get_current_move_direction()
 		if not move_direction.is_zero_approx():
 			_last_move_direction = move_direction
 			last_aim_direction = WorldPlane.world_to_horizontal(move_direction)
@@ -310,6 +310,10 @@ func _get_current_move_direction() -> Vector3:
 	var keyboard_direction: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var horizontal_direction: Vector2 = keyboard_direction if not keyboard_direction.is_zero_approx() else external_move_vector
 	return WorldPlane.horizontal_to_world(horizontal_direction.limit_length(1.0)).normalized()
+
+
+func _is_normal_movement_blocked() -> bool:
+	return action_controller != null and action_controller.is_action_active(ActionControllerScript.ActionType.ABILITY)
 
 
 func _get_dash_direction() -> Vector3:
