@@ -231,7 +231,7 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 func _open_evolution_reward_if_ready() -> bool:
 	if _run_finished or evolution_reward_screen == null or evolution_reward_screen.visible:
 		return false
-	var options := evolution_manager.get_available_evolutions()
+	var options: Array = evolution_manager.get_available_evolutions()
 	if options.is_empty():
 		return false
 	get_tree().paused = true

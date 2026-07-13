@@ -2,10 +2,20 @@ class_name KnightAbilityManager3D
 extends Node
 
 @export var rage_wave_effect_scene: PackedScene = preload("res://scenes3d/effects/RageWaveEffect3D.tscn")
+@export var worldbreaker_pulse_effect_scene: PackedScene = preload("res://scenes3d/effects/WorldbreakerPulseEffect3D.tscn")
 @export var shield_bash_effect_scene: PackedScene = preload("res://scenes3d/effects/ShieldBashEffect3D.tscn")
 @export var crushing_leap_effect_scene: PackedScene = preload("res://scenes3d/effects/CrushingLeapImpactEffect3D.tscn")
 
 enum CastState { IDLE, WINDUP, SCRIPTED_MOTION, RECOVERY, CANCELLED }
+
+const WORLDBREAKER_EVOLUTION_ID := "rage_wave_worldbreaker"
+const WORLDBREAKER_PULSES := [
+	{"delay": 0.0, "radius_multiplier": 1.0, "damage_multiplier": 1.5, "knockback_force": 7.0},
+	{"delay": 0.22, "radius_multiplier": 1.45, "damage_multiplier": 1.25, "knockback_force": 8.5},
+	{"delay": 0.44, "radius_multiplier": 1.9, "damage_multiplier": 1.0, "knockback_force": 10.0},
+]
+const WORLDBREAKER_SLOW := {"movement_speed_multiplier": 0.40}
+const WORLDBREAKER_SLOW_DURATION := 2.5
 
 signal ability_cooldown_changed(slot: int, remaining: float, total: float)
 signal ability_state_changed(state: Dictionary)
@@ -51,6 +61,8 @@ var _cast_elapsed := 0.0
 var _cast_maximum := 0.0
 var _action_token := 0
 var _action_controller: Node
+var _active_evolutions: Array[String] = []
+var _pending_worldbreaker_pulses: Array[Dictionary] = []
 
 func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node3D, effects: Node3D, visual: KnightVisual) -> void:
 	_player = player
@@ -70,6 +82,7 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node
 func _process(delta: float) -> void:
 	if _stopped or get_tree().paused or _player == null or _player.is_dead():
 		return
+	_process_worldbreaker_pulses(delta)
 	if _cast_state != CastState.IDLE:
 		_cast_elapsed += delta
 		if _cast_elapsed > _cast_maximum:
@@ -107,11 +120,27 @@ func get_all_ability_states() -> Dictionary:
 func refresh_ability_states() -> void:
 	_publish_all_ability_states()
 
+
+func can_apply_evolution(evolution_id: String) -> bool:
+	return evolution_id == WORLDBREAKER_EVOLUTION_ID
+
+
+func apply_evolution(evolution_id: String) -> bool:
+	if not can_apply_evolution(evolution_id):
+		return false
+	if evolution_id not in _active_evolutions:
+		_active_evolutions.append(evolution_id)
+	return true
+
+
+func is_evolution_active(evolution_id: String) -> bool:
+	return evolution_id in _active_evolutions
+
 func get_ability_name(slot: int, prefer_short: bool = false) -> String:
 	var names := {1: ["Rage Wave", "Wave"], 2: ["Shield Bash", "Bash"], 3: ["Crushing Leap", "Leap"]}
 	return names.get(slot, ["Ability", "Ability"])[1 if prefer_short else 0]
 func stop() -> void:
-	_stopped = true; _cancel_active_ability("stopped", false); _publish_all_ability_states()
+	_stopped = true; _pending_worldbreaker_pulses.clear(); _cancel_active_ability("stopped", false); _publish_all_ability_states()
 func _can_cast(slot: int) -> bool:
 	return _get_blocked_reason(slot).is_empty()
 
@@ -148,8 +177,11 @@ func _begin_cast(slot: int, ability_id: String, direction: Vector3) -> bool:
 func _on_action_impact(action_id: String) -> void:
 	if action_id != _active_ability_id: return
 	if action_id == "rage_wave":
-		_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
-		_spawn_effect(rage_wave_effect_scene, [_cast_origin, wave_radius, 0.35])
+		if is_evolution_active(WORLDBREAKER_EVOLUTION_ID):
+			_queue_worldbreaker_pulses(_cast_origin)
+		else:
+			_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
+			_spawn_effect(rage_wave_effect_scene, [_cast_origin, wave_radius, 0.35])
 	elif action_id == "shield_bash":
 		for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _cast_origin, _cast_direction, bash_range, bash_angle):
 			var damage := _scaled_damage(bash_damage); enemy.take_damage(damage); enemy.apply_knockback(_cast_direction, bash_knockback_force, bash_knockback_duration); _update_rage(rage_per_hit + damage * 0.05)
@@ -197,6 +229,50 @@ func _cancel_active_ability(_reason: String, refund_cooldown: bool) -> void:
 func _apply_area_damage(enemies: Array[Enemy3D], base_damage: int, modifier: Dictionary, duration: float, modifier_id: String = "knight_ability") -> void:
 	for enemy: Enemy3D in enemies:
 		var damage := _scaled_damage(base_damage); enemy.take_damage(damage); enemy.apply_temporary_modifier(modifier_id, modifier, duration); enemy.apply_knockback(enemy.global_position - _player.global_position, 6.0, 0.2); _update_rage(rage_per_hit + damage * 0.05)
+
+
+func _queue_worldbreaker_pulses(origin: Vector3) -> void:
+	for index in WORLDBREAKER_PULSES.size():
+		var tuning: Dictionary = WORLDBREAKER_PULSES[index]
+		var pulse := {"remaining_delay": float(tuning["delay"]), "origin": origin, "radius": wave_radius * float(tuning["radius_multiplier"]), "base_damage": roundi(wave_damage * float(tuning["damage_multiplier"])), "knockback_force": float(tuning["knockback_force"]), "pulse_index": index + 1}
+		if float(pulse["remaining_delay"]) <= 0.0:
+			_resolve_worldbreaker_pulse(pulse)
+		else:
+			_pending_worldbreaker_pulses.append(pulse)
+
+
+func _process_worldbreaker_pulses(delta: float) -> void:
+	for index in range(_pending_worldbreaker_pulses.size() - 1, -1, -1):
+		var pulse: Dictionary = _pending_worldbreaker_pulses[index]
+		pulse["remaining_delay"] = float(pulse["remaining_delay"]) - delta
+		if float(pulse["remaining_delay"]) <= 0.0:
+			_pending_worldbreaker_pulses.remove_at(index)
+			_resolve_worldbreaker_pulse(pulse)
+		else:
+			_pending_worldbreaker_pulses[index] = pulse
+
+
+func _resolve_worldbreaker_pulse(pulse: Dictionary) -> void:
+	if _stopped or _enemies == null:
+		return
+	var origin: Vector3 = pulse["origin"]
+	var radius := float(pulse["radius"])
+	var base_damage := int(pulse["base_damage"])
+	var knockback_force := float(pulse["knockback_force"])
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_radius(_enemies, origin, radius):
+		if not is_instance_valid(enemy):
+			continue
+		var damage := _scaled_damage(base_damage)
+		enemy.take_damage(damage)
+		enemy.apply_temporary_modifier("worldbreaker_slow", WORLDBREAKER_SLOW, WORLDBREAKER_SLOW_DURATION)
+		enemy.apply_knockback(enemy.global_position - origin, knockback_force, 0.24)
+		_update_rage(rage_per_hit + damage * 0.05)
+	_spawn_effect(worldbreaker_pulse_effect_scene, [origin, radius, 0.34, int(pulse["pulse_index"])])
+
+
+func _exit_tree() -> void:
+	_pending_worldbreaker_pulses.clear()
+
 func _scaled_damage(base_damage: int) -> int: return maxi(roundi(base_damage * get_damage_multiplier()), 1)
 func _on_player_damage_taken(amount: int) -> void: _update_rage(amount * rage_per_damage_taken)
 func _on_auto_attack_impact(hits: int, damage: int) -> void: _update_rage(hits * rage_per_hit + damage * 0.03)

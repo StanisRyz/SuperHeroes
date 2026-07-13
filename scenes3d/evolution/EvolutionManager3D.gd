@@ -6,9 +6,9 @@ signal evolution_applied(evolution_id: String, evolution_data: Dictionary)
 signal evolution_state_changed
 
 const EVOLUTIONS: Array[Dictionary] = [
-	{"id": "rage_wave_worldbreaker", "title": "Worldbreaker", "description": "Rage Wave evolution. Gameplay effect deferred to Stage 1.7.2.", "target_ability_id": "rage_wave", "prerequisites": ["sword_arc", "rage_max", "wave_radius"]},
-	{"id": "shield_bash_rampage_impact", "title": "Rampage Impact", "description": "Shield Bash evolution. Gameplay effect deferred to Stage 1.7.3.", "target_ability_id": "shield_bash", "prerequisites": ["sword_knockback", "rage_multiplier", "bash_knockback"]},
-	{"id": "crushing_leap_meteor_crash", "title": "Meteor Crash", "description": "Crushing Leap evolution. Gameplay effect deferred to Stage 1.7.4.", "target_ability_id": "crushing_leap", "prerequisites": ["sword_damage", "rage_decay", "leap_damage"]},
+	{"id": "rage_wave_worldbreaker", "title": "Worldbreaker", "description": "Rage Wave erupts three times, with each pulse expanding farther and striking enemies again.", "target_ability_id": "rage_wave", "implementation_status": "implemented", "prerequisites": ["sword_arc", "rage_max", "wave_radius"]},
+	{"id": "shield_bash_rampage_impact", "title": "Rampage Impact", "description": "Shield Bash evolution. Gameplay effect deferred to Stage 1.7.3.", "target_ability_id": "shield_bash", "implementation_status": "placeholder", "prerequisites": ["sword_knockback", "rage_multiplier", "bash_knockback"]},
+	{"id": "crushing_leap_meteor_crash", "title": "Meteor Crash", "description": "Crushing Leap evolution. Gameplay effect deferred to Stage 1.7.4.", "target_ability_id": "crushing_leap", "implementation_status": "placeholder", "prerequisites": ["sword_damage", "rage_decay", "leap_damage"]},
 ]
 
 var _upgrade_manager: Node
@@ -26,7 +26,7 @@ func get_available_evolutions() -> Array[Dictionary]:
 	var available: Array[Dictionary] = []
 	for definition: Dictionary in EVOLUTIONS:
 		var state := get_evolution_state(str(definition["id"]))
-		if bool(state.get("ready", false)) and not bool(state.get("selected", false)):
+		if bool(state.get("ready", false)) and not bool(state.get("selected", false)) and str(state.get("implementation_status", "placeholder")) == "implemented" and _can_activate_evolution(str(definition["id"])):
 			available.append(state)
 			evolution_available.emit(state)
 	return available
@@ -40,7 +40,7 @@ func get_evolution_state(evolution_id: String) -> Dictionary:
 	var selected_count := 0
 	var completed_count := 0
 	for upgrade_id: String in definition["prerequisites"]:
-		var upgrade := _upgrade_manager.get_upgrade_definition(upgrade_id) if _upgrade_manager != null and _upgrade_manager.has_method("get_upgrade_definition") else {}
+		var upgrade: Dictionary = _upgrade_manager.get_upgrade_definition(upgrade_id) if _upgrade_manager != null and _upgrade_manager.has_method("get_upgrade_definition") else {}
 		var current_level := int(upgrade.get("level", 0))
 		var required_level := int(upgrade.get("required_level", upgrade.get("max_level", 0)))
 		var completed := required_level > 0 and current_level >= required_level
@@ -50,9 +50,9 @@ func get_evolution_state(evolution_id: String) -> Dictionary:
 			completed_count += 1
 		prerequisites.append({"upgrade_id": upgrade_id, "title": str(upgrade.get("title", upgrade_id)), "category": str(upgrade.get("category", "")), "current_level": current_level, "required_level": required_level, "maximum_level": int(upgrade.get("max_level", 0)), "completed": completed})
 	var selected := is_evolution_selected(evolution_id)
-	var ready := completed_count == prerequisites.size() and prerequisites.size() == 3
-	var state_name := "selected" if selected else ("ready" if ready else ("partial" if selected_count > 0 else "locked"))
-	return {"id": evolution_id, "evolution_id": evolution_id, "title": str(definition["title"]), "description": str(definition["description"]), "target_ability_id": str(definition["target_ability_id"]), "state": state_name, "selected": selected, "ready": ready and not selected, "selected_prerequisite_count": selected_count, "completed_prerequisite_count": completed_count, "total_prerequisite_count": prerequisites.size(), "prerequisites": prerequisites}
+	var is_ready := completed_count == prerequisites.size() and prerequisites.size() == 3
+	var state_name := "selected" if selected else ("ready" if is_ready else ("partial" if selected_count > 0 else "locked"))
+	return {"id": evolution_id, "evolution_id": evolution_id, "title": str(definition["title"]), "description": str(definition["description"]), "target_ability_id": str(definition["target_ability_id"]), "implementation_status": str(definition.get("implementation_status", "placeholder")), "state": state_name, "selected": selected, "ready": is_ready and not selected, "selected_prerequisite_count": selected_count, "completed_prerequisite_count": completed_count, "total_prerequisite_count": prerequisites.size(), "prerequisites": prerequisites}
 
 
 func get_all_evolution_states() -> Dictionary:
@@ -68,6 +68,10 @@ func apply_evolution(evolution_id: String) -> bool:
 		return false
 	var state := get_evolution_state(evolution_id)
 	if state.is_empty() or not bool(state.get("ready", false)):
+		return false
+	if str(state.get("implementation_status", "placeholder")) != "implemented" or _ability_manager == null or not _ability_manager.has_method("apply_evolution"):
+		return false
+	if not bool(_ability_manager.apply_evolution(evolution_id)):
 		return false
 	_selected_evolutions.append(evolution_id)
 	var selected_state := get_evolution_state(evolution_id)
@@ -106,3 +110,7 @@ func _get_definition(evolution_id: String) -> Dictionary:
 		if str(definition["id"]) == evolution_id:
 			return definition
 	return {}
+
+
+func _can_activate_evolution(evolution_id: String) -> bool:
+	return _ability_manager != null and _ability_manager.has_method("can_apply_evolution") and bool(_ability_manager.can_apply_evolution(evolution_id))
