@@ -4,7 +4,9 @@ extends Node
 signal attack_impact_resolved(hit_count: int, total_damage: int)
 
 const EARTHSPLITTER_EVOLUTION_ID := "rage_wave_earthsplitter"
+const CRUSHING_STORM_EVOLUTION_ID := "rage_wave_crushing_storm"
 const EARTHSPLITTER_EFFECT := preload("res://scenes3d/effects/EarthsplitterEffect3D.tscn")
+const CRUSHING_STORM_EFFECT := preload("res://scenes3d/effects/CrushingStormEffect3D.tscn")
 const EARTHSPLITTER_RANGE := 6.5
 const EARTHSPLITTER_WIDTH := 1.3325
 const EARTHSPLITTER_DAMAGE_MULTIPLIER := 0.75
@@ -26,6 +28,7 @@ var _attack_active: bool = false
 var _attack_direction: Vector3 = Vector3.FORWARD
 var _damaged_enemies: Array[Enemy3D] = []
 var _damage_multiplier: float = 1.0
+var _rage_ratio := 0.0
 var _suspended: bool = false
 var _attack_speed_modifiers: Dictionary = {}
 var _fury_combo_enabled := false
@@ -65,6 +68,10 @@ func interrupt_attack() -> void:
 
 func set_damage_multiplier(multiplier: float) -> void:
 	_damage_multiplier = maxf(multiplier, 0.0)
+
+
+func set_rage_ratio(value: float) -> void:
+	_rage_ratio = clampf(value, 0.0, 1.0)
 
 
 func set_temporary_attack_speed_modifier(modifier_id: String, multiplier: float, duration: float) -> void:
@@ -156,7 +163,8 @@ func _on_attack_impact() -> void:
 		return
 	var hit_count := 0
 	var total_damage := 0
-	var base_swing_damage := maxi(roundi(attack_damage * _damage_multiplier * _get_fury_combo_multiplier()), 1)
+	var effective_rage_multiplier := _damage_multiplier + (_rage_ratio * 1.35 if is_attack_evolution_active(CRUSHING_STORM_EVOLUTION_ID) else 0.0)
+	var base_swing_damage := maxi(roundi(attack_damage * effective_rage_multiplier * _get_fury_combo_multiplier()), 1)
 	for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemy_container, _player.global_position, _attack_direction, attack_radius, attack_arc):
 		if enemy in _damaged_enemies:
 			continue
@@ -177,11 +185,19 @@ func _on_attack_impact() -> void:
 			_player.heal(_blood_frenzy_healing_per_enemy * hit_count)
 		if is_attack_evolution_active(EARTHSPLITTER_EVOLUTION_ID):
 			_apply_earthsplitter(_player.global_position, _attack_direction, base_swing_damage)
+		if is_attack_evolution_active(CRUSHING_STORM_EVOLUTION_ID):
+			_apply_crushing_storm(_player.global_position, base_swing_damage)
 	attack_impact_resolved.emit(hit_count, total_damage)
 
 
 func can_apply_attack_evolution(evolution_id: String, target_attack_id: String) -> bool:
-	return evolution_id == EARTHSPLITTER_EVOLUTION_ID and target_attack_id == "splash_melee" and not is_attack_evolution_active(evolution_id)
+	if target_attack_id != "splash_melee" or is_attack_evolution_active(evolution_id):
+		return false
+	match evolution_id:
+		EARTHSPLITTER_EVOLUTION_ID, CRUSHING_STORM_EVOLUTION_ID:
+			return true
+		_:
+			return false
 
 
 func apply_attack_evolution(evolution_id: String, target_attack_id: String) -> bool:
@@ -200,7 +216,12 @@ func get_selected_attack_evolution_ids() -> Array[String]:
 
 
 func get_primary_attack_display_name() -> String:
-	return "Earthsplitter" if is_attack_evolution_active(EARTHSPLITTER_EVOLUTION_ID) else "Fury Strike"
+	if _selected_attack_evolutions.is_empty():
+		return "Fury Strike"
+	match _selected_attack_evolutions.back():
+		EARTHSPLITTER_EVOLUTION_ID: return "Earthsplitter"
+		CRUSHING_STORM_EVOLUTION_ID: return "Crushing Storm"
+		_: return "Fury Strike"
 
 
 func reset_attack_evolution_state() -> void:
@@ -223,6 +244,21 @@ func _apply_earthsplitter(origin: Vector3, direction: Vector3, base_swing_damage
 	var effect := EARTHSPLITTER_EFFECT.instantiate()
 	_effect_container.add_child(effect)
 	effect.setup(origin, direction, EARTHSPLITTER_RANGE, EARTHSPLITTER_WIDTH, 0.22)
+
+
+func _apply_crushing_storm(origin: Vector3, base_swing_damage: int) -> void:
+	var radius := attack_radius * lerpf(1.55, 2.45, _rage_ratio)
+	var damage := maxi(roundi(float(base_swing_damage) * lerpf(0.55, 1.15, _rage_ratio)), 1)
+	var slow_multiplier := lerpf(0.62, 0.28, _rage_ratio)
+	var slow_duration := 1.25 + _rage_ratio
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_radius(_enemy_container, origin, radius):
+		enemy.take_damage(damage)
+		enemy.apply_temporary_modifier("crushing_storm_pressure", {"movement_speed_multiplier": slow_multiplier}, slow_duration)
+	if _effect_container == null:
+		return
+	var effect := CRUSHING_STORM_EFFECT.instantiate()
+	_effect_container.add_child(effect)
+	effect.setup(origin, radius, 0.24)
 
 
 func _on_attack_finished() -> void:

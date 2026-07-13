@@ -18,6 +18,7 @@ const UPGRADES := {
 	"splash_melee_lifesteal": {"title": "Blood Frenzy", "description": "+2 HP per enemy hit.", "rarity": "rare", "max_level": 3, "category": "attack"},
 	"splash_melee_execute": {"title": "Finishing Blow", "description": "+0.20 low-health threshold; deal 1.45x melee damage at or below it.", "rarity": "epic", "max_level": 3, "category": "attack"},
 	"splash_melee_radius": {"title": "Wide Fury", "description": "+0.35 Fury Strike radius.", "rarity": "rare", "max_level": 4, "category": "attack"},
+	"splash_melee_frenzy": {"title": "Berserker Frenzy", "description": "+0.10 maximum Rage damage multiplier.", "rarity": "epic", "max_level": 3, "category": "attack"},
 	"move_speed": {"title": "Swift Step", "description": "+0.55 movement speed.", "rarity": "common", "max_level": 5},
 	"max_health": {"title": "Knight's Resolve", "description": "+20 maximum health and heal 20.", "rarity": "epic", "max_level": 5},
 	"wave_damage": {"title": "Wave Force", "description": "+8 Rage Wave damage.", "rarity": "rare", "max_level": 5, "category": "active"},
@@ -26,6 +27,7 @@ const UPGRADES := {
 	"rage_max": {"title": "Burning Rage", "description": "+20 Rage maximum.", "rarity": "rare", "max_level": 4, "category": "passive"},
 	"wave_radius": {"title": "Wide Wave", "description": "+0.5 Rage Wave radius.", "rarity": "rare", "max_level": 5, "category": "active"},
 	"rage_wave_radius": {"title": "Wave Reach", "description": "+0.75 Rage Wave radius and +0.04 Rage radius scaling.", "rarity": "rare", "max_level": 3, "category": "active"},
+	"rage_wave_deep_slow": {"title": "Crushing Current", "description": "+0.8s slow, -0.06 speed, -0.5s cooldown, +0.04 Rage radius scaling.", "rarity": "epic", "max_level": 3, "category": "active"},
 	"wave_cooldown": {"title": "Wave Rhythm", "description": "-0.45 Rage Wave cooldown.", "rarity": "rare", "max_level": 5, "category": "active"},
 	"bash_range": {"title": "Long Bash", "description": "+0.4 Shield Bash range.", "rarity": "rare", "max_level": 5, "category": "active"},
 	"bash_knockback": {"title": "Heavy Bash", "description": "+1.5 Shield Bash knockback.", "rarity": "rare", "max_level": 5, "category": "active"},
@@ -121,8 +123,20 @@ func apply_upgrade(upgrade_id: String) -> void:
 		_levels[upgrade_id] = level + 1
 		_history.append(upgrade_id)
 		return
+	if upgrade_id == "splash_melee_frenzy":
+		if _ability_manager == null or not _ability_manager.upgrade_legacy_berserker_frenzy(0.10):
+			return
+		_levels[upgrade_id] = level + 1
+		_history.append(upgrade_id)
+		return
 	if upgrade_id == "rage_wave_radius":
 		if _ability_manager == null or not _ability_manager.upgrade_legacy_wave_reach(0.75, 0.04):
+			return
+		_levels[upgrade_id] = level + 1
+		_history.append(upgrade_id)
+		return
+	if upgrade_id == "rage_wave_deep_slow":
+		if _ability_manager == null or not _ability_manager.upgrade_legacy_crushing_current():
 			return
 		_levels[upgrade_id] = level + 1
 		_history.append(upgrade_id)
@@ -172,7 +186,9 @@ func apply_upgrade(upgrade_id: String) -> void:
 		"leap_radius": _ability_manager.leap_radius += 0.4
 		"leap_cooldown": _ability_manager.leap_cooldown = maxf(3.0, _ability_manager.leap_cooldown - 0.65)
 		"rage_decay": _ability_manager.rage_decay_per_second = maxf(0.0, _ability_manager.rage_decay_per_second - 0.5)
-		"rage_multiplier": _ability_manager.maximum_damage_multiplier = minf(1.7, _ability_manager.maximum_damage_multiplier + 0.05)
+		"rage_multiplier":
+			if _ability_manager.maximum_damage_multiplier < 1.7:
+				_ability_manager.maximum_damage_multiplier = minf(1.7, _ability_manager.maximum_damage_multiplier + 0.05)
 	if upgrade_id in ["rage_max", "rage_decay", "rage_multiplier"] and _ability_manager != null:
 		_ability_manager.refresh_rage_state()
 	_levels[upgrade_id] = level + 1
@@ -184,11 +200,11 @@ func _has_dependencies(upgrade_id: String) -> bool:
 		return false
 	if upgrade_id.begins_with("sword"):
 		return _auto_attack != null
-	if upgrade_id in ["splash_melee_combo", "splash_melee_lifesteal", "splash_melee_execute", "splash_melee_radius"]:
+	if upgrade_id in ["splash_melee_combo", "splash_melee_lifesteal", "splash_melee_execute", "splash_melee_radius", "splash_melee_frenzy"]:
 		return _auto_attack != null
 	if upgrade_id in ["static_field", "battle_focus", "magnet_core", "guardian_drone", "orbit_shields", "storm_relay", "chain_lightning", "time_dilator", "recovery_field"]:
 		return _passive_manager != null
-	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "rage_wave_radius", "wave_cooldown", "bash_range", "bash_knockback", "mighty_clap_shockwave", "leap_radius", "rage_leap_radius", "rage_leap_cooldown", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
+	return _ability_manager != null if upgrade_id in ["wave_damage", "bash_damage", "leap_damage", "rage_max", "wave_radius", "rage_wave_radius", "rage_wave_deep_slow", "wave_cooldown", "bash_range", "bash_knockback", "mighty_clap_shockwave", "leap_radius", "rage_leap_radius", "rage_leap_cooldown", "leap_cooldown", "rage_decay", "rage_multiplier"] else true
 
 
 func _prioritize_started_lines(upgrade_ids: Array) -> Array:

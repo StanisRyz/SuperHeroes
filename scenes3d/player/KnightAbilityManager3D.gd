@@ -58,6 +58,8 @@ signal hero_resource_changed(resource_name: String, current: float, maximum: flo
 @export var wave_damage := 24
 @export var wave_radius := 5.0
 @export var rage_wave_radius_rage_bonus := 0.0
+@export var rage_wave_slow_multiplier := 0.55
+@export var rage_wave_slow_duration := 2.0
 @export var wave_cooldown := 6.0
 @export var bash_damage := 34
 @export var bash_range := 4.5
@@ -217,7 +219,7 @@ func _on_action_impact(action_id: String) -> void:
 			_queue_worldbreaker_pulses(_cast_origin)
 		else:
 			var effective_radius := get_effective_rage_wave_radius()
-			_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, effective_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
+			_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, effective_radius), wave_damage, {"movement_speed_multiplier": rage_wave_slow_multiplier}, rage_wave_slow_duration, "rage_wave_slow")
 			_spawn_effect(rage_wave_effect_scene, [_cast_origin, effective_radius, 0.35])
 	elif action_id == "shield_bash":
 		if is_evolution_active(RAMPAGE_IMPACT_EVOLUTION_ID):
@@ -265,6 +267,25 @@ func upgrade_legacy_wave_reach(radius_bonus: float, rage_radius_bonus: float) ->
 		return false
 	wave_radius += radius_bonus
 	rage_wave_radius_rage_bonus += rage_radius_bonus
+	return true
+
+
+func upgrade_legacy_berserker_frenzy(multiplier_bonus: float) -> bool:
+	if multiplier_bonus <= 0.0:
+		return false
+	if maximum_damage_multiplier < 1.95:
+		maximum_damage_multiplier = minf(maximum_damage_multiplier + multiplier_bonus, 1.95)
+	refresh_rage_state()
+	return true
+
+
+func upgrade_legacy_crushing_current() -> bool:
+	rage_wave_slow_duration += 0.8
+	if rage_wave_slow_multiplier > 0.20:
+		rage_wave_slow_multiplier = maxf(rage_wave_slow_multiplier - 0.06, 0.20)
+	if wave_cooldown > 2.5:
+		wave_cooldown = maxf(wave_cooldown - 0.5, 2.5)
+	rage_wave_radius_rage_bonus += 0.04
 	return true
 
 
@@ -423,7 +444,9 @@ func get_damage_multiplier() -> float: return lerpf(1.0, maximum_damage_multipli
 func get_rage_ratio() -> float: return clampf(rage / maxf(maximum_rage, 0.001), 0.0, 1.0)
 func _update_rage(delta: float) -> void:
 	rage = clampf(rage + delta, 0.0, maximum_rage)
-	if _auto_attack != null: _auto_attack.set_damage_multiplier(get_damage_multiplier())
+	if _auto_attack != null:
+		_auto_attack.set_damage_multiplier(get_damage_multiplier())
+		_auto_attack.set_rage_ratio(get_rage_ratio())
 	rage_changed.emit(rage, maximum_rage, get_damage_multiplier()); hero_resource_changed.emit("Rage", rage, maximum_rage)
 
 func _on_action_state_changed(_state: Dictionary) -> void:
