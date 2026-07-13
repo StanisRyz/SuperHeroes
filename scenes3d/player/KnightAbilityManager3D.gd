@@ -242,6 +242,13 @@ func upgrade_impact_wave(knockback_bonus: float, cooldown_reduction: float) -> b
 	bash_cooldown = maxf(3.0, bash_cooldown - cooldown_reduction)
 	return true
 
+
+func upgrade_legacy_leap_radius(radius_bonus: float) -> bool:
+	if radius_bonus <= 0.0:
+		return false
+	leap_radius += radius_bonus
+	return true
+
 func _on_action_finished(action_id: String) -> void:
 	if action_id == _active_ability_id and action_id != "crushing_leap": _finish_active_ability()
 func _start_cooldown(slot: int) -> void:

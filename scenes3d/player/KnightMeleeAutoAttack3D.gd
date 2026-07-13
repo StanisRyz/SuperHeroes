@@ -25,6 +25,8 @@ var _fury_combo_enabled := false
 var _fury_combo_bonus_per_stack := 0.0
 var _fury_combo_stacks := 0
 var _fury_combo_decay_remaining := 0.0
+var _blood_frenzy_enabled := false
+var _blood_frenzy_healing_per_enemy := 0
 
 const FURY_COMBO_MAX_STACKS := 5
 const FURY_COMBO_DECAY_DURATION := 3.0
@@ -68,6 +70,14 @@ func upgrade_fury_combo(bonus_per_level: float) -> bool:
 		return false
 	_fury_combo_enabled = true
 	_fury_combo_bonus_per_stack += bonus_per_level
+	return true
+
+
+func upgrade_blood_frenzy(heal_per_enemy: float) -> bool:
+	if heal_per_enemy <= 0.0:
+		return false
+	_blood_frenzy_enabled = true
+	_blood_frenzy_healing_per_enemy += roundi(heal_per_enemy)
 	return true
 
 
@@ -137,6 +147,8 @@ func _on_attack_impact() -> void:
 		total_damage += damage
 	if hit_count > 0:
 		_add_fury_combo_stack()
+		if _blood_frenzy_enabled and _player != null:
+			_player.heal(_blood_frenzy_healing_per_enemy * hit_count)
 	attack_impact_resolved.emit(hit_count, total_damage)
 
 
@@ -191,6 +203,8 @@ func _reset_fury_combo(clear_upgrade: bool = false) -> void:
 	if clear_upgrade:
 		_fury_combo_enabled = false
 		_fury_combo_bonus_per_stack = 0.0
+		_blood_frenzy_enabled = false
+		_blood_frenzy_healing_per_enemy = 0
 
 
 func _exit_tree() -> void:

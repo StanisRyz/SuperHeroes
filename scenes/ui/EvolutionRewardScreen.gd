@@ -17,6 +17,8 @@ func _ready() -> void:
 func show_options(options: Array[Dictionary]) -> void:
 	for button in _option_buttons:
 		button.hide()
+		if button.has_focus():
+			button.release_focus()
 		button.set_meta("evolution_id", "")
 		button.modulate = Color.WHITE
 	for index in mini(options.size(), _option_buttons.size()):
@@ -30,6 +32,8 @@ func show_options(options: Array[Dictionary]) -> void:
 		_message_label.text = "No evolution available at this time.\nKeep building your archetype and try again."
 	else:
 		_message_label.text = "Choose one evolution for this run. All listed prerequisites are complete."
+		if not _option_buttons.is_empty() and _option_buttons[0].visible:
+			_option_buttons[0].grab_focus()
 	_continue_button.visible = options.is_empty()
 	show()
 
@@ -38,7 +42,10 @@ func _format_evolution_text(evolution: Dictionary) -> String:
 	var title := str(evolution.get("title", "Evolution"))
 	var description := str(evolution.get("description", ""))
 	var effect_summary := str(evolution.get("effect_summary", ""))
-	var target_ability := str(evolution.get("target_ability_id", "")).replace("_", " ").capitalize()
+	var target_ability := str(evolution.get("target_ability_id", ""))
+	if target_ability.is_empty():
+		target_ability = str(evolution.get("target_passive_id", ""))
+	target_ability = target_ability.replace("_", " ").capitalize()
 	var prerequisite_lines := _format_prerequisites(evolution.get("prerequisites", []))
 	var lines: PackedStringArray = ["EVOLUTION", title]
 	if not target_ability.is_empty():
