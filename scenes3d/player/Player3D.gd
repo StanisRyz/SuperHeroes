@@ -56,7 +56,9 @@ var _combat_facing_direction: Vector3 = Vector3.FORWARD
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	current_health = max_health
+	set_external_move_vector(Vector2.ZERO)
 	add_to_group("player3d")
 
 
@@ -238,7 +240,7 @@ func _apply_gravity(delta: float) -> void:
 
 func _get_current_move_direction() -> Vector3:
 	var keyboard_direction: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	var horizontal_direction: Vector2 = external_move_vector if not external_move_vector.is_zero_approx() else keyboard_direction
+	var horizontal_direction: Vector2 = keyboard_direction if not keyboard_direction.is_zero_approx() else external_move_vector
 	return WorldPlane.horizontal_to_world(horizontal_direction.limit_length(1.0)).normalized()
 
 

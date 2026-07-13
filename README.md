@@ -150,6 +150,10 @@ The isolated prototype now includes `Enemy3D` and `SkeletonWarriorVisual`. Enemy
 
 The first Knight run is a 75-second survival prototype with no final boss. It reuses `GameHUD`, `LevelUpScreen`, `GameOverScreen`, `VictoryScreen`, `PauseMenu`, and `MobileControls`; unsupported active-ability, evolution, buff, and mobile ability controls are hidden. `RunUpgradeManager3D` is intentionally limited to sword damage, attack speed, radius, arc, knockback, movement speed, and maximum health with healing. It supplies the existing level-up UI with up to three compatible options and stores only run-local selection history for the final summary.
 
+Arena3D initializes world and gameplay state first, connects mandatory run/input signals, resets external movement, then configures optional reused UI before spawning begins. Keyboard `move_left/right/up/down` is read every Player3D physics frame and takes priority over the mobile external vector. Arena3D itself always processes the global Pause action so Escape and the MobileControls Pause signal can open or close PauseMenu while gameplay remains paused. Opening, resuming, and ending a run reset mobile movement/joystick state.
+
+Canvas layers keep HUD below mobile controls, then pause and level-up modals, with victory/defeat screens highest. Decorative full-screen controls ignore pointer input; hidden overlays must be closed or hidden before another screen becomes interactive. Main connects an arena's result/restart/menu signals before adding it to the tree, and unpauses/closes menu overlays before showing MainMenu.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. These are separate from and preserve the existing 2D physics layers.
 
 The configured Web export preset writes to `export/index.html`. Use Godot's Export dialog or an equivalent CLI invocation with the checked-in `Web` preset; no custom export template or external build dependency is configured in the repository.

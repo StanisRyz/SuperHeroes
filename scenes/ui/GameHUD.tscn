@@ -6,6 +6,7 @@
 script = ExtResource("1_game_hud_script")
 
 [node name="Root" type="Control" parent="."]
+mouse_filter = 2
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0

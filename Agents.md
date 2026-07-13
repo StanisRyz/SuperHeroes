@@ -49,6 +49,10 @@ KnightVisual maps Idle_A and Running_A as looping locomotion clips and Hit_A/Dea
 
 The 3D run is a 75-second no-boss survival slice. Arena3D owns its wired `GameHUD`, `LevelUpScreen`, `GameOverScreen`, `VictoryScreen`, `PauseMenu`, and `MobileControls`; these remain display/input intent surfaces. Hide unavailable active abilities, evolutions, buffs, and mobile ability/build controls. `RunUpgradeManager3D` is run-local and intentionally limited to sword damage/speed/radius/arc/knockback, movement speed, and maximum-health healing. Do not port the 2D upgrade grid, abilities, evolutions, bosses, or other hero paths until explicitly scoped.
 
+Arena3D startup order is world, gameplay, critical run/input signal wiring, input reset, optional UI configuration, then spawning. Optional UI setup must be guarded with node/method/signal checks and must never prevent player movement, dash, pause, or run lifecycle signals. Player3D reads keyboard movement each physics frame; keyboard has priority, and the external MobileControls vector is only the fallback. Reset external/mobile movement when the arena starts, pauses, resumes, and ends.
+
+Arena3D uses always-processing only for global Pause input; gameplay nodes remain pausable. Escape and the mobile Pause button use the same toggle, reset the joystick/mobile vector, and open PauseMenu above normal run UI. Canvas layer order is HUD, mobile controls, pause, level-up, then terminal screens. Decorative full-screen controls must use `MOUSE_FILTER_IGNORE`; hidden overlays must not intercept input. Main must unpause and close hidden menu overlays before showing MainMenu, and connect a newly instantiated arena's result/restart/menu signals before adding it to the tree.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. They coexist with the unchanged 2D layer names. Player3D is on Player and collides with Environment/Obstacles; its PickupArea detects Pickups. Arena3D's ground is Environment and detects Player. Always use `Main.tscn` for normal-game validation.
 
 ## Ownership map

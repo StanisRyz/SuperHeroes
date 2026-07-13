@@ -41,10 +41,23 @@ func setup(settings_manager: Node = null, audio_manager: Node = null, selected_h
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_initialize_world()
+	_initialize_gameplay()
+	_connect_runtime_signals()
+	_initialize_input()
+	_configure_optional_ui()
+	_start_run()
+
+
+func _initialize_world() -> void:
 	_update_ground_size()
 	player.global_position = player_spawn.global_position
 	player.set_playable_bounds(arena_width, arena_depth)
 	camera_rig.setup(player)
+
+
+func _initialize_gameplay() -> void:
 	run_manager.apply_run_tuning(prototype_run_seconds, prototype_run_seconds)
 	run_manager.final_boss_required = false
 	run_manager.final_boss_required_changed.emit(false)
@@ -52,19 +65,29 @@ func _ready() -> void:
 	enemy_spawner.setup(player, self, $EnemyContainer, $PickupContainer, spawn_director, run_manager)
 	auto_attack.setup(player, $EnemyContainer, player.knight_visual)
 	upgrade_manager.setup(player, auto_attack)
-	_configure_ui()
-	_connect_runtime_signals()
+
+
+func _initialize_input() -> void:
+	player.set_external_move_vector(Vector2.ZERO)
+	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
+		mobile_controls.reset_controls()
+
+
+func _start_run() -> void:
 	enemy_spawner.start_spawning()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if player.prototype_debug_enabled and event.is_action_pressed("debug_kill_nearby_enemies"):
-		enemy_spawner.debug_kill_nearest_enemy()
-		get_viewport().set_input_as_handled()
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.echo:
 		return
 	if not _run_finished and event.is_action_pressed("pause"):
 		_toggle_pause_menu()
 		get_viewport().set_input_as_handled()
+		return
+	if player.prototype_debug_enabled and event.is_action_pressed("debug_kill_nearby_enemies"):
+		enemy_spawner.debug_kill_nearest_enemy()
+		get_viewport().set_input_as_handled()
+		return
 
 
 func is_xz_position_inside_playable_bounds(horizontal_position: Vector2) -> bool:
@@ -82,24 +105,47 @@ func clamp_world_position_to_playable_bounds(world_position: Vector3) -> Vector3
 	return WorldPlane.horizontal_to_world(horizontal_position, world_position.y)
 
 
-func _configure_ui() -> void:
-	game_hud.setup(player, run_manager)
+func _configure_optional_ui() -> void:
+	_configure_canvas_layers()
+	if game_hud == null or not game_hud.has_method("setup"):
+		push_warning("Arena3D: GameHUD is unavailable; continuing without optional HUD setup.")
+	else:
+		game_hud.setup(player, run_manager)
 	for path: String in ["Root/AbilityPanel", "Root/BuffPanel", "Root/BuildPanel/EvolutionLabel"]:
-		var unsupported_node := game_hud.get_node_or_null(path)
+		var unsupported_node := game_hud.get_node_or_null(path) if game_hud != null else null
 		if unsupported_node is CanvasItem:
 			(unsupported_node as CanvasItem).hide()
 	var hero_label := game_hud.get_node_or_null("Root/BuildPanel/HeroLabel") as Label
 	if hero_label != null:
 		hero_label.text = "Hero: %s" % str(_selected_hero.get("display_name", "Vanguard"))
-	level_up_screen.setup_audio_manager(_audio_manager)
-	game_over_screen.setup_audio_manager(_audio_manager)
-	pause_menu.setup_audio_manager(_audio_manager)
-	mobile_controls.setup_player(player)
-	mobile_controls.apply_settings(_settings_manager)
+	if level_up_screen != null and level_up_screen.has_method("setup_audio_manager"):
+		level_up_screen.setup_audio_manager(_audio_manager)
+	if game_over_screen != null and game_over_screen.has_method("setup_audio_manager"):
+		game_over_screen.setup_audio_manager(_audio_manager)
+	if pause_menu != null and pause_menu.has_method("setup_audio_manager"):
+		pause_menu.setup_audio_manager(_audio_manager)
+	if mobile_controls != null and mobile_controls.has_method("setup_player"):
+		mobile_controls.setup_player(player)
+	if mobile_controls != null and mobile_controls.has_method("apply_settings"):
+		mobile_controls.apply_settings(_settings_manager)
 	for path: String in ["Root/AbilityButton", "Root/BeamButton", "Root/SlamButton", "Root/BuildSlotsButton"]:
-		var unsupported_mobile_node := mobile_controls.get_node_or_null(path)
+		var unsupported_mobile_node := mobile_controls.get_node_or_null(path) if mobile_controls != null else null
 		if unsupported_mobile_node is CanvasItem:
 			(unsupported_mobile_node as CanvasItem).hide()
+
+
+func _configure_canvas_layers() -> void:
+	_set_canvas_layer(game_hud, 1)
+	_set_canvas_layer(mobile_controls, 2)
+	_set_canvas_layer(pause_menu, 10)
+	_set_canvas_layer(level_up_screen, 11)
+	_set_canvas_layer(game_over_screen, 20)
+	_set_canvas_layer(victory_screen, 20)
+
+
+func _set_canvas_layer(node: Node, layer: int) -> void:
+	if node is CanvasLayer:
+		(node as CanvasLayer).layer = layer
 
 
 func _connect_runtime_signals() -> void:
@@ -107,17 +153,22 @@ func _connect_runtime_signals() -> void:
 	player.level_up_available.connect(_on_player_level_up_available)
 	run_manager.victory_reached.connect(_on_victory_reached)
 	run_manager.run_ended.connect(_on_run_ended)
-	level_up_screen.upgrade_selected.connect(_on_upgrade_selected)
-	game_over_screen.restart_requested.connect(restart_run_requested.emit)
-	game_over_screen.quit_to_menu_requested.connect(quit_to_menu_requested.emit)
-	victory_screen.restart_requested.connect(restart_run_requested.emit)
-	victory_screen.quit_to_menu_requested.connect(quit_to_menu_requested.emit)
-	pause_menu.resume_requested.connect(_resume_run)
-	pause_menu.restart_requested.connect(restart_run_requested.emit)
-	pause_menu.quit_to_menu_requested.connect(quit_to_menu_requested.emit)
-	mobile_controls.movement_changed.connect(player.set_external_move_vector)
-	mobile_controls.dash_pressed.connect(player.try_dash)
-	mobile_controls.pause_pressed.connect(_toggle_pause_menu)
+	_connect_signal_if_available(level_up_screen, "upgrade_selected", _on_upgrade_selected)
+	_connect_signal_if_available(game_over_screen, "restart_requested", restart_run_requested.emit)
+	_connect_signal_if_available(game_over_screen, "quit_to_menu_requested", quit_to_menu_requested.emit)
+	_connect_signal_if_available(victory_screen, "restart_requested", restart_run_requested.emit)
+	_connect_signal_if_available(victory_screen, "quit_to_menu_requested", quit_to_menu_requested.emit)
+	_connect_signal_if_available(pause_menu, "resume_requested", _resume_run)
+	_connect_signal_if_available(pause_menu, "restart_requested", restart_run_requested.emit)
+	_connect_signal_if_available(pause_menu, "quit_to_menu_requested", quit_to_menu_requested.emit)
+	_connect_signal_if_available(mobile_controls, "movement_changed", player.set_external_move_vector)
+	_connect_signal_if_available(mobile_controls, "dash_pressed", player.try_dash)
+	_connect_signal_if_available(mobile_controls, "pause_pressed", _toggle_pause_menu)
+
+
+func _connect_signal_if_available(node: Node, signal_name: StringName, callback: Callable) -> void:
+	if node != null and node.has_signal(signal_name) and not node.is_connected(signal_name, callback):
+		node.connect(signal_name, callback)
 
 
 func _on_player_level_up_available(_level: int) -> void:
@@ -128,7 +179,7 @@ func _on_player_level_up_available(_level: int) -> void:
 
 
 func _open_next_level_up() -> void:
-	if _run_finished or _pending_level_ups <= 0 or level_up_screen.visible:
+	if _run_finished or _pending_level_ups <= 0 or level_up_screen == null or level_up_screen.visible:
 		return
 	var options := upgrade_manager.get_upgrade_options(3)
 	if options.is_empty():
@@ -166,6 +217,8 @@ func _finish_run(result: String) -> void:
 	enemy_spawner.stop_spawning()
 	auto_attack.stop_attacking()
 	player.set_external_move_vector(Vector2.ZERO)
+	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
+		mobile_controls.reset_controls()
 	if run_manager.is_run_active:
 		run_manager.end_run()
 	var summary := _build_run_summary(result)
@@ -195,15 +248,23 @@ func _build_run_summary(result: String) -> Dictionary:
 func _toggle_pause_menu() -> void:
 	if _run_finished:
 		return
-	if pause_menu.visible:
+	if pause_menu != null and pause_menu.visible:
 		_resume_run()
 	else:
+		player.set_external_move_vector(Vector2.ZERO)
+		if mobile_controls != null and mobile_controls.has_method("reset_controls"):
+			mobile_controls.reset_controls()
 		get_tree().paused = true
-		pause_menu.open()
+		if pause_menu != null and pause_menu.has_method("open"):
+			pause_menu.open()
 
 
 func _resume_run() -> void:
-	pause_menu.close()
+	player.set_external_move_vector(Vector2.ZERO)
+	if mobile_controls != null and mobile_controls.has_method("reset_controls"):
+		mobile_controls.reset_controls()
+	if pause_menu != null and pause_menu.has_method("close"):
+		pause_menu.close()
 	if not _run_finished:
 		get_tree().paused = false
 

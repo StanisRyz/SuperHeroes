@@ -152,6 +152,7 @@ func _init_hero_collection_screen() -> void:
 
 
 func _show_main_menu() -> void:
+	get_tree().paused = false
 	_selection_transition_in_progress = false
 	_clear_current_run()
 	_clear_main_menu()
@@ -161,6 +162,7 @@ func _show_main_menu() -> void:
 		stage_select.close()
 	if run_briefing_screen != null and run_briefing_screen.has_method("close"):
 		run_briefing_screen.close()
+	_close_hidden_menu_overlays()
 
 	if main_menu_scene == null:
 		push_warning("Main is missing main_menu_scene.")
@@ -187,6 +189,18 @@ func _show_main_menu() -> void:
 		main_menu.collection_requested.connect(_open_hero_collection)
 	if main_menu.has_signal("help_requested") and not main_menu.help_requested.is_connected(_open_controls_help):
 		main_menu.help_requested.connect(_open_controls_help)
+
+
+func _close_hidden_menu_overlays() -> void:
+	for overlay: Node in [settings_menu, controls_help_overlay, post_run_rewards_screen, meta_upgrade_shop, hero_collection_screen]:
+		if overlay == null:
+			continue
+		if overlay.has_method("close"):
+			overlay.close()
+		elif overlay.has_method("hide_screen"):
+			overlay.hide_screen()
+		else:
+			overlay.hide()
 
 
 func _input(event: InputEvent) -> void:
@@ -339,14 +353,13 @@ func _start_run_with_hero_and_stage(hero_id: String, stage_id: String) -> void:
 	current_run = run_scene.instantiate()
 	if current_run.has_method("setup"):
 		current_run.setup(settings_manager, audio_manager, selected_hero, meta_progression_manager, selected_stage)
-	add_child(current_run)
-
 	if current_run.has_signal("run_result_ready") and not current_run.run_result_ready.is_connected(_on_run_result_ready):
 		current_run.run_result_ready.connect(_on_run_result_ready)
 	if current_run.has_signal("restart_run_requested") and not current_run.restart_run_requested.is_connected(_restart_run):
 		current_run.restart_run_requested.connect(_restart_run)
 	if current_run.has_signal("quit_to_menu_requested") and not current_run.quit_to_menu_requested.is_connected(_quit_to_menu):
 		current_run.quit_to_menu_requested.connect(_quit_to_menu)
+	add_child(current_run)
 	_selection_transition_in_progress = false
 
 
