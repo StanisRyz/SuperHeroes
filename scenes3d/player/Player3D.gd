@@ -55,10 +55,10 @@ var _scripted_motion_direction: Vector3 = Vector3.ZERO
 var _scripted_motion_time: float = 0.0
 var _scripted_motion_duration: float = 0.0
 var _scripted_motion_speed: float = 0.0
-var _ability_action_locked: bool = false
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var knight_visual: KnightVisual = $VisualRoot/KnightVisual
+@onready var action_controller: PlayerActionController3D = $ActionController
 
 
 func _ready() -> void:
@@ -188,6 +188,9 @@ func is_dead() -> bool:
 func try_dash() -> bool:
 	if not can_dash():
 		return false
+	var action_token := action_controller.try_begin_dash()
+	if action_token == 0:
+		return false
 
 	dash_direction = _get_dash_direction()
 	_last_move_direction = dash_direction
@@ -204,11 +207,11 @@ func try_dash() -> bool:
 
 
 func can_dash() -> bool:
-	return not get_tree().paused and not is_dead() and not _ability_action_locked and not _scripted_motion_active and dash_cooldown_remaining <= 0.0
+	return not get_tree().paused and not is_dead() and not _scripted_motion_active and dash_cooldown_remaining <= 0.0
 
 
-func start_scripted_motion(direction: Vector3, distance: float, duration: float, invulnerability_duration: float) -> bool:
-	if is_dead() or is_dashing or _ability_action_locked or _scripted_motion_active or duration <= 0.0:
+func start_scripted_motion(owner_token: int, direction: Vector3, distance: float, duration: float, invulnerability_duration: float) -> bool:
+	if is_dead() or is_dashing or not action_controller.is_action_active(PlayerActionController3D.ActionType.ABILITY) or owner_token != int(action_controller.get_current_action_state().get("token", 0)) or _scripted_motion_active or duration <= 0.0:
 		return false
 	direction.y = 0.0
 	if direction.is_zero_approx():
@@ -230,12 +233,6 @@ func cancel_scripted_motion() -> void:
 	_scripted_motion_active = false
 
 
-func set_ability_action_locked(value: bool) -> void:
-	_ability_action_locked = value
-
-
-func is_ability_action_locked() -> bool:
-	return _ability_action_locked
 
 
 func _get_scripted_motion_speed() -> float:

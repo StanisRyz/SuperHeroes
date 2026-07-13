@@ -1,9 +1,10 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes3d/player/Player3D.gd" id="1_player3d"]
 [ext_resource type="PackedScene" path="res://scenes3d/player/visuals/KnightVisual.tscn" id="2_knight_visual"]
 [ext_resource type="Script" path="res://scenes3d/player/KnightMeleeAutoAttack3D.gd" id="3_auto_attack"]
 [ext_resource type="Script" path="res://scenes3d/player/KnightAbilityManager3D.gd" id="4_ability_manager"]
+[ext_resource type="Script" path="res://scenes3d/player/PlayerActionController3D.gd" id="5_action_controller"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.5
@@ -46,5 +47,8 @@ script = ExtResource("3_auto_attack")
 
 [node name="AbilityManager" type="Node" parent="."]
 script = ExtResource("4_ability_manager")
+
+[node name="ActionController" type="Node" parent="."]
+script = ExtResource("5_action_controller")
 
 [node name="PlayerBuffManager" type="Node" parent="."]

@@ -36,6 +36,9 @@ func cancel_current_attack() -> void:
 	if _player != null:
 		_player.release_combat_facing()
 
+func interrupt_attack() -> void:
+	cancel_current_attack()
+
 func set_damage_multiplier(multiplier: float) -> void:
 	_damage_multiplier = maxf(multiplier, 0.0)
 

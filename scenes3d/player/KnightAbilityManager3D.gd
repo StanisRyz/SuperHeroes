@@ -42,6 +42,8 @@ var _active_slot := 0
 var _cast_state := CastState.IDLE
 var _cast_elapsed := 0.0
 var _cast_maximum := 0.0
+var _action_token := 0
+var _action_controller: PlayerActionController3D
 
 func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node3D, effects: Node3D, visual: KnightVisual) -> void:
 	_player = player
@@ -49,6 +51,7 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, enemies: Node
 	_enemies = enemies
 	_effects = effects
 	_visual = visual
+	_action_controller = player.action_controller
 	_player.damage_taken.connect(_on_player_damage_taken)
 	_auto_attack.attack_impact_resolved.connect(_on_auto_attack_impact)
 	_visual.action_impact.connect(_on_action_impact)
@@ -99,11 +102,14 @@ func _can_cast(slot: int) -> bool:
 	return not _stopped and _active_ability_id.is_empty() and _player != null and not _player.is_dead() and not get_tree().paused and float(_cooldowns.get(slot, 0.0)) <= 0.0 and not _player.is_scripted_motion_active()
 
 func _begin_cast(slot: int, ability_id: String, direction: Vector3) -> bool:
-	if ability_id == "crushing_leap" and (_player.is_dashing or _player.is_scripted_motion_active() or _player.is_ability_action_locked()): return false
+	if ability_id == "crushing_leap" and (_player.is_dashing or _player.is_scripted_motion_active()): return false
 	_cast_direction = direction; _cast_origin = _player.global_position
+	_action_token = _action_controller.try_begin_ability(ability_id)
+	if _action_token == 0: return false
+	_auto_attack.interrupt_attack()
 	if not _visual.play_ability(ability_id): return false
 	_active_ability_id = ability_id; _active_slot = slot; _cast_state = CastState.WINDUP; _cast_elapsed = 0.0; _cast_maximum = 2.5 + (leap_duration if ability_id == "crushing_leap" else 0.0)
-	_auto_attack.set_suspended(true); _auto_attack.cancel_current_attack(); _player.set_ability_action_locked(true); _start_cooldown(slot); ability_cast.emit(slot, ability_id)
+	_auto_attack.set_suspended(true); _start_cooldown(slot); ability_cast.emit(slot, ability_id)
 	if ability_id != "rage_wave": _player.lock_combat_facing(direction)
 	return true
 
@@ -114,7 +120,7 @@ func _on_action_impact(action_id: String) -> void:
 		for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _cast_origin, _cast_direction, bash_range, bash_angle):
 			var damage := _scaled_damage(bash_damage); enemy.take_damage(damage); enemy.apply_knockback(_cast_direction, 10.0, 0.28); _update_rage(rage_per_hit + damage * 0.05)
 	elif action_id == "crushing_leap" and not _leap_landing_pending:
-		if _player.start_scripted_motion(_cast_direction, leap_distance, leap_duration, leap_duration):
+		if _player.start_scripted_motion(_action_token, _cast_direction, leap_distance, leap_duration, leap_duration):
 			_leap_landing_pending = true; _cast_state = CastState.SCRIPTED_MOTION
 		else:
 			_cancel_active_ability("leap_motion_failed", true)
@@ -134,7 +140,7 @@ func _apply_leap_landing() -> void:
 	_finish_active_ability()
 
 func _finish_active_ability() -> void:
-	_active_ability_id = ""; _active_slot = 0; _leap_landing_pending = false; _cast_state = CastState.IDLE; _cast_elapsed = 0.0; _player.set_ability_action_locked(false); _player.release_combat_facing()
+	_action_controller.finish_action(_action_token); _action_token = 0; _active_ability_id = ""; _active_slot = 0; _leap_landing_pending = false; _cast_state = CastState.IDLE; _cast_elapsed = 0.0; _player.release_combat_facing()
 	if not _stopped: _auto_attack.set_suspended(false)
 
 func _cancel_active_ability(_reason: String, refund_cooldown: bool) -> void:
