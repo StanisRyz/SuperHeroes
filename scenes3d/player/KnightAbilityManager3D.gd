@@ -24,6 +24,8 @@ signal hero_resource_changed(resource_name: String, current: float, maximum: flo
 @export var bash_range := 4.5
 @export var bash_angle := 80.0
 @export var bash_cooldown := 7.0
+@export var bash_knockback_force := 10.0
+@export var bash_knockback_duration := 0.28
 @export var leap_damage := 42
 @export var leap_radius := 3.5
 @export var leap_distance := 5.0
@@ -129,13 +131,17 @@ func _on_action_impact(action_id: String) -> void:
 		_spawn_effect(rage_wave_effect_scene, [_cast_origin, wave_radius, 0.35])
 	elif action_id == "shield_bash":
 		for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemies, _cast_origin, _cast_direction, bash_range, bash_angle):
-			var damage := _scaled_damage(bash_damage); enemy.take_damage(damage); enemy.apply_knockback(_cast_direction, 10.0, 0.28); _update_rage(rage_per_hit + damage * 0.05)
+			var damage := _scaled_damage(bash_damage); enemy.take_damage(damage); enemy.apply_knockback(_cast_direction, bash_knockback_force, bash_knockback_duration); _update_rage(rage_per_hit + damage * 0.05)
 		_spawn_effect(shield_bash_effect_scene, [_cast_origin, _cast_direction, bash_range, bash_angle, 0.22])
 	elif action_id == "crushing_leap" and not _leap_landing_pending:
 		if _player.start_scripted_motion(_action_token, _cast_direction, leap_distance, leap_duration, leap_duration):
 			_leap_landing_pending = true; _cast_state = CastState.SCRIPTED_MOTION
 		else:
 			_cancel_active_ability("leap_motion_failed", true)
+
+func refresh_rage_state() -> void:
+	rage = clampf(rage, 0.0, maximum_rage)
+	_update_rage(0.0)
 
 func _on_action_finished(action_id: String) -> void:
 	if action_id == _active_ability_id and action_id != "crushing_leap": _finish_active_ability()

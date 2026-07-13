@@ -19,6 +19,14 @@ const UPGRADES := {
 	"bash_damage": {"title": "Bash Force", "description": "+10 Shield Bash damage.", "rarity": "rare", "max_level": 5, "category": "active"},
 	"leap_damage": {"title": "Leap Force", "description": "+12 Crushing Leap damage.", "rarity": "epic", "max_level": 5, "category": "active"},
 	"rage_max": {"title": "Burning Rage", "description": "+20 Rage maximum.", "rarity": "rare", "max_level": 4, "category": "passive"},
+	"wave_radius": {"title": "Wide Wave", "description": "+0.5 Rage Wave radius.", "rarity": "rare", "max_level": 5, "category": "active"},
+	"wave_cooldown": {"title": "Wave Rhythm", "description": "-0.45 Rage Wave cooldown.", "rarity": "rare", "max_level": 5, "category": "active"},
+	"bash_range": {"title": "Long Bash", "description": "+0.4 Shield Bash range.", "rarity": "rare", "max_level": 5, "category": "active"},
+	"bash_knockback": {"title": "Heavy Bash", "description": "+1.5 Shield Bash knockback.", "rarity": "rare", "max_level": 5, "category": "active"},
+	"leap_radius": {"title": "Wide Landing", "description": "+0.4 Crushing Leap radius.", "rarity": "rare", "max_level": 5, "category": "active"},
+	"leap_cooldown": {"title": "Leap Rhythm", "description": "-0.65 Crushing Leap cooldown.", "rarity": "epic", "max_level": 5, "category": "active"},
+	"rage_decay": {"title": "Smoldering Rage", "description": "-0.5 Rage decay per second.", "rarity": "rare", "max_level": 5, "category": "passive"},
+	"rage_multiplier": {"title": "Furious Edge", "description": "+0.05 maximum Rage damage multiplier.", "rarity": "epic", "max_level": 5, "category": "passive"},
 }
 
 
@@ -63,6 +71,16 @@ func apply_upgrade(upgrade_id: String) -> void:
 		"bash_damage": _ability_manager.bash_damage += 10
 		"leap_damage": _ability_manager.leap_damage += 12
 		"rage_max": _ability_manager.maximum_rage += 20.0
+		"wave_radius": _ability_manager.wave_radius += 0.5
+		"wave_cooldown": _ability_manager.wave_cooldown = maxf(2.0, _ability_manager.wave_cooldown - 0.45)
+		"bash_range": _ability_manager.bash_range += 0.4
+		"bash_knockback": _ability_manager.bash_knockback_force += 1.5
+		"leap_radius": _ability_manager.leap_radius += 0.4
+		"leap_cooldown": _ability_manager.leap_cooldown = maxf(3.0, _ability_manager.leap_cooldown - 0.65)
+		"rage_decay": _ability_manager.rage_decay_per_second = maxf(0.0, _ability_manager.rage_decay_per_second - 0.5)
+		"rage_multiplier": _ability_manager.maximum_damage_multiplier = minf(1.7, _ability_manager.maximum_damage_multiplier + 0.05)
+	if upgrade_id in ["rage_max", "rage_decay", "rage_multiplier"] and _ability_manager != null:
+		_ability_manager.refresh_rage_state()
 
 
 func get_run_summary() -> Dictionary:
