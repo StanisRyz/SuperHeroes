@@ -12,6 +12,21 @@ static func nearest_living_enemy(container: Node3D, origin: Vector3, maximum_ran
 			result = enemy
 	return result
 
+
+static func nearest_living_enemy_excluding(container: Node3D, origin: Vector3, maximum_range: float, excluded_instance_ids: Dictionary) -> Enemy3D:
+	var result: Enemy3D = null
+	var best_distance := maximum_range
+	for enemy: Enemy3D in _living_enemies(container):
+		if excluded_instance_ids.has(enemy.get_instance_id()):
+			continue
+		var offset := enemy.global_position - origin
+		offset.y = 0.0
+		var distance := offset.length()
+		if distance <= best_distance:
+			best_distance = distance
+			result = enemy
+	return result
+
 static func enemies_in_radius(container: Node3D, origin: Vector3, radius: float) -> Array[Enemy3D]:
 	var result: Array[Enemy3D] = []
 	for enemy: Enemy3D in _living_enemies(container):

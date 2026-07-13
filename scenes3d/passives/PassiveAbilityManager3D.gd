@@ -24,6 +24,7 @@ const GRAVITY_RAGE_PULL_DURATION := 0.22
 const GRAVITY_RAGE_SLOW_DURATION := 0.8
 const GRAVITY_RAGE_BONUS_MULTIPLIER := 2.6
 const GRAVITY_RAGE_SLOW := {"movement_speed_multiplier": 0.55}
+const ORBIT_SHIELD_UI_REFRESH_INTERVAL := 0.25
 const PASSIVE_DEFINITIONS: Dictionary = {
 	"static_field": {"title": "Static Field", "max_level": 3, "damage": [5, 7, 9], "interval": [4.8, 4.2, 3.6], "radius": [150.0, 175.0, 200.0]},
 	"battle_focus": {"title": "Battle Focus", "max_level": 3, "damage": [4, 6, 8], "interval": [7.5, 6.5, 5.5], "range": 420.0, "attack_speed_multiplier": [1.12, 1.18, 1.24], "duration": [3.0, 3.5, 4.0]},
@@ -31,6 +32,8 @@ const PASSIVE_DEFINITIONS: Dictionary = {
 	"magnet_core": {"title": "Magnet Core", "max_level": 3, "pickup_radius_bonus": [45.0, 85.0, 125.0]},
 	"guardian_drone": {"title": "Guardian Drone", "max_level": 3, "damage": [5, 8, 11], "interval": [3.4, 3.0, 2.6], "range": 460.0},
 	"orbit_shields": {"title": "Orbit Shields", "max_level": 3, "maximum_charges": [1, 1, 2], "interval": [18.0, 14.0, 12.0]},
+	"storm_relay": {"title": "Storm Relay", "max_level": 3, "damage": [8, 12, 16], "interval": [5.5, 4.8, 4.2], "range": 520.0},
+	"chain_lightning": {"title": "Chain Lightning", "max_level": 3, "damage": [6, 9, 12], "interval": [6.6, 5.8, 5.0], "initial_range": 500.0, "bounce_range": [210.0, 240.0, 270.0], "maximum_targets": [2, 3, 4]},
 }
 
 signal passive_changed(passive_id: String, level: int)
@@ -44,8 +47,9 @@ var _enemy_container: Node3D
 var _pickup_container: Node3D
 var _effect_container: Node3D
 var _levels: Dictionary = {}
-var _timers: Dictionary = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0}
+var _timers: Dictionary = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0, "storm_relay": 0.0, "chain_lightning": 0.0}
 var _pickup_scan_remaining := 0.0
+var _orbit_shield_ui_refresh_remaining := 0.0
 var _stopped := false
 var _selected_passive_evolutions: Array[String] = []
 var _passive_evolution_targets: Dictionary = {}
@@ -88,6 +92,11 @@ func _process(delta: float) -> void:
 		_tick_guardian_drone(delta)
 	if has_passive("orbit_shields"):
 		_tick_orbit_shields(delta)
+		_tick_orbit_shield_ui_refresh(delta)
+	if has_passive("storm_relay"):
+		_tick_storm_relay(delta)
+	if has_passive("chain_lightning"):
+		_tick_chain_lightning(delta)
 
 
 func add_or_upgrade_passive(passive_id: String) -> bool:
@@ -151,6 +160,16 @@ func get_passive_state(passive_id: String) -> Dictionary:
 		state["remaining_regeneration_time"] = float(_timers.get("orbit_shields", 0.0))
 		state["is_full"] = current_charges >= maximum_charges
 		state["blocked_hit_count"] = _player.get_shield_block_count() if _player != null and is_instance_valid(_player) else 0
+	if passive_id == "storm_relay":
+		state["damage"] = int(_value("storm_relay", "damage", level))
+		state["interval"] = _value("storm_relay", "interval", level)
+		state["range"] = _world_value("storm_relay", "range", level)
+	if passive_id == "chain_lightning":
+		state["damage"] = int(_value("chain_lightning", "damage", level))
+		state["interval"] = _value("chain_lightning", "interval", level)
+		state["initial_range"] = _world_value("chain_lightning", "initial_range", level)
+		state["bounce_range"] = _world_value("chain_lightning", "bounce_range", level)
+		state["maximum_targets"] = int(_value("chain_lightning", "maximum_targets", level))
 	return state
 
 
@@ -224,8 +243,9 @@ func reset_run_state() -> void:
 	_levels.clear()
 	_selected_passive_evolutions.clear()
 	_passive_evolution_targets.clear()
-	_timers = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0}
+	_timers = {"static_field": 0.0, "battle_focus": 0.0, "recovery_field": 0.0, "guardian_drone": 0.0, "magnet_core": 0.0, "orbit_shields": 0.0, "storm_relay": 0.0, "chain_lightning": 0.0}
 	_pickup_scan_remaining = 0.0
+	_orbit_shield_ui_refresh_remaining = 0.0
 	_remove_guardian_drone_visual()
 	_remove_orbit_shield_visual()
 	if _player != null and is_instance_valid(_player):
@@ -243,6 +263,9 @@ func stop() -> void:
 	_timers["guardian_drone"] = 0.0
 	_timers["magnet_core"] = 0.0
 	_timers["orbit_shields"] = 0.0
+	_timers["storm_relay"] = 0.0
+	_timers["chain_lightning"] = 0.0
+	_orbit_shield_ui_refresh_remaining = 0.0
 	_remove_guardian_drone_visual()
 	_remove_orbit_shield_visual()
 	if _player != null and is_instance_valid(_player):
@@ -386,6 +409,60 @@ func _tick_guardian_drone(delta: float) -> void:
 	passive_state_changed.emit()
 
 
+func _tick_storm_relay(delta: float) -> void:
+	_timers["storm_relay"] = maxf(float(_timers["storm_relay"]) - delta, 0.0)
+	if float(_timers["storm_relay"]) > 0.0:
+		return
+	var level := get_passive_level("storm_relay")
+	var range_ := _world_value("storm_relay", "range", level)
+	var target: Enemy3D = CombatQuery3D.nearest_living_enemy(_enemy_container, _player.global_position, range_)
+	if target == null:
+		_timers["storm_relay"] = 0.35
+		return
+	var target_id := target.get_instance_id()
+	var target_position := target.global_position
+	var damage := int(_value("storm_relay", "damage", level))
+	target.take_damage(damage)
+	_spawn_arc(_player.global_position, target_position, 0.16, Color(0.22, 0.86, 1.0, 0.94), 0.075)
+	var interval := _value("storm_relay", "interval", level)
+	_timers["storm_relay"] = interval
+	passive_triggered.emit("storm_relay", {"damage": damage, "range": range_, "target_id": target_id, "interval": interval})
+	passive_state_changed.emit()
+
+
+func _tick_chain_lightning(delta: float) -> void:
+	_timers["chain_lightning"] = maxf(float(_timers["chain_lightning"]) - delta, 0.0)
+	if float(_timers["chain_lightning"]) > 0.0:
+		return
+	var level := get_passive_level("chain_lightning")
+	var initial_range := _world_value("chain_lightning", "initial_range", level)
+	var bounce_range := _world_value("chain_lightning", "bounce_range", level)
+	var maximum_targets := int(_value("chain_lightning", "maximum_targets", level))
+	var target: Enemy3D = CombatQuery3D.nearest_living_enemy(_enemy_container, _player.global_position, initial_range)
+	if target == null:
+		_timers["chain_lightning"] = 0.35
+		return
+	var damage := int(_value("chain_lightning", "damage", level))
+	var excluded_instance_ids: Dictionary = {}
+	var affected_target_ids: Array[int] = []
+	var arc_origin := _player.global_position
+	while target != null and affected_target_ids.size() < maximum_targets:
+		var target_id := target.get_instance_id()
+		var target_position := target.global_position
+		target.take_damage(damage)
+		excluded_instance_ids[target_id] = true
+		affected_target_ids.append(target_id)
+		_spawn_arc(arc_origin, target_position, 0.14, Color(1.0, 0.91, 0.34, 0.96), 0.052)
+		arc_origin = target_position
+		if affected_target_ids.size() >= maximum_targets:
+			break
+		target = CombatQuery3D.nearest_living_enemy_excluding(_enemy_container, arc_origin, bounce_range, excluded_instance_ids)
+	var interval := _value("chain_lightning", "interval", level)
+	_timers["chain_lightning"] = interval
+	passive_triggered.emit("chain_lightning", {"damage_per_target": damage, "initial_range": initial_range, "bounce_range": bounce_range, "maximum_targets": maximum_targets, "target_count": affected_target_ids.size(), "affected_target_ids": affected_target_ids, "interval": interval})
+	passive_state_changed.emit()
+
+
 func _configure_orbit_shields(previous_level: int, next_level: int) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
@@ -420,6 +497,17 @@ func _tick_orbit_shields(delta: float) -> void:
 		_timers["orbit_shields"] = _value("orbit_shields", "interval", get_passive_level("orbit_shields"))
 	else:
 		_timers["orbit_shields"] = 0.0
+	passive_state_changed.emit()
+
+
+func _tick_orbit_shield_ui_refresh(delta: float) -> void:
+	if _player == null or not is_instance_valid(_player) or _player.get_shield_charges() >= _player.get_maximum_shield_charges() or float(_timers.get("orbit_shields", 0.0)) <= 0.0:
+		_orbit_shield_ui_refresh_remaining = 0.0
+		return
+	_orbit_shield_ui_refresh_remaining = maxf(_orbit_shield_ui_refresh_remaining - delta, 0.0)
+	if _orbit_shield_ui_refresh_remaining > 0.0:
+		return
+	_orbit_shield_ui_refresh_remaining = ORBIT_SHIELD_UI_REFRESH_INTERVAL
 	passive_state_changed.emit()
 
 
