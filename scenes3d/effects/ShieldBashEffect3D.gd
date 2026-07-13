@@ -13,8 +13,7 @@ func setup(world_position: Vector3, direction: Vector3, attack_range: float, ful
 	_material = _make_material(Color(0.3, 0.78, 1.0, 0.75))
 	mesh_instance.material_override = _material
 	var tween := create_tween()
-	tween.tween_property(mesh_instance, "scale", Vector3(1.08, 1.0, 1.08), duration)
-	tween.parallel().tween_method(_set_alpha, 0.75, 0.0, duration)
+	tween.tween_method(_set_alpha, 0.75, 0.0, duration)
 	tween.tween_callback(queue_free)
 
 func _make_material(color: Color) -> StandardMaterial3D:

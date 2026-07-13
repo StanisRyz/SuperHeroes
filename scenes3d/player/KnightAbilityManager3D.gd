@@ -103,6 +103,10 @@ func get_ability_state(slot: int) -> Dictionary:
 	return {"slot": slot, "cooldown_remaining": float(_cooldowns.get(slot, 0.0)), "cooldown_total": _cooldown_total(slot), "display_name": get_ability_name(slot, false), "short_name": get_ability_name(slot, true), "is_ready": blocked_reason.is_empty(), "is_active": _active_slot == slot, "is_blocked": not blocked_reason.is_empty(), "blocked_reason": blocked_reason, "cast_state": _cast_state}
 func get_all_ability_states() -> Dictionary:
 	return {1: get_ability_state(1), 2: get_ability_state(2), 3: get_ability_state(3)}
+
+func refresh_ability_states() -> void:
+	_publish_all_ability_states()
+
 func get_ability_name(slot: int, prefer_short: bool = false) -> String:
 	var names := {1: ["Rage Wave", "Wave"], 2: ["Shield Bash", "Bash"], 3: ["Crushing Leap", "Leap"]}
 	return names.get(slot, ["Ability", "Ability"])[1 if prefer_short else 0]

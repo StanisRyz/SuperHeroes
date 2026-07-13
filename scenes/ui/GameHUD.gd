@@ -165,7 +165,9 @@ func _setup_ability_manager(ability_manager: Node) -> void:
 	if ability_manager.has_method("get_all_ability_states"):
 		var states: Dictionary = ability_manager.get_all_ability_states()
 		for slot: int in states.keys():
-			var state: Dictionary = states[slot]
+			var state: Dictionary = states[slot].duplicate()
+			if not state.has("slot"):
+				state["slot"] = slot
 			if ability_manager.has_method("get_ability_name"):
 				_ability_names[slot] = ability_manager.get_ability_name(slot, true)
 			else:

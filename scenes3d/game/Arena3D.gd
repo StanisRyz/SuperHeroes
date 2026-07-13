@@ -43,12 +43,18 @@ func setup(settings_manager: Node = null, audio_manager: Node = null, selected_h
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_configure_gameplay_pause_modes()
 	_initialize_world()
 	_initialize_gameplay()
 	_connect_runtime_signals()
 	_initialize_input()
 	_configure_optional_ui()
 	_start_run()
+
+
+func _configure_gameplay_pause_modes() -> void:
+	for gameplay_node: Node in [$PlayerContainer, $CameraRig3D, $Managers, $EnemyContainer, $PickupContainer, $EffectContainer]:
+		gameplay_node.process_mode = Node.PROCESS_MODE_PAUSABLE
 
 
 func _initialize_world() -> void:
@@ -200,6 +206,7 @@ func _open_next_level_up() -> void:
 		return
 	get_tree().paused = true
 	level_up_screen.show_options(options)
+	ability_manager.refresh_ability_states()
 
 
 func _on_upgrade_selected(upgrade_id: String) -> void:
@@ -208,6 +215,7 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 	upgrade_manager.apply_upgrade(upgrade_id)
 	_pending_level_ups = maxi(_pending_level_ups - 1, 0)
 	get_tree().paused = false
+	ability_manager.refresh_ability_states()
 	_open_next_level_up()
 
 
@@ -238,6 +246,7 @@ func _finish_run(result: String) -> void:
 	var summary := _build_run_summary(result)
 	run_result_ready.emit(summary)
 	get_tree().paused = true
+	ability_manager.refresh_ability_states()
 	if result == "victory":
 		victory_screen.show_stats(summary)
 	else:
@@ -271,6 +280,7 @@ func _toggle_pause_menu() -> void:
 		get_tree().paused = true
 		if pause_menu != null and pause_menu.has_method("open"):
 			pause_menu.open()
+		ability_manager.refresh_ability_states()
 
 
 func _resume_run() -> void:
@@ -281,6 +291,7 @@ func _resume_run() -> void:
 		pause_menu.close()
 	if not _run_finished:
 		get_tree().paused = false
+		ability_manager.refresh_ability_states()
 
 
 func _update_ground_size() -> void:
