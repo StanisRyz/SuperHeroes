@@ -33,7 +33,14 @@ func clear_attraction_target() -> void:
 
 
 func is_attracted() -> bool:
-	return _attraction_target != null and is_instance_valid(_attraction_target)
+	if not _has_valid_attraction_target():
+		clear_attraction_target()
+		return false
+	return true
+
+
+func is_attracted_to(target: Node3D) -> bool:
+	return is_attracted() and _attraction_target == target
 
 
 func _process(delta: float) -> void:
@@ -44,6 +51,12 @@ func _process(delta: float) -> void:
 		global_position = global_position.move_toward(horizontal_target, _attraction_speed * delta)
 	global_position.y = _base_y + sin(_elapsed * hover_speed) * hover_height
 	rotate_y(rotation_speed * delta)
+
+
+func _has_valid_attraction_target() -> bool:
+	if _attraction_target == null or not is_instance_valid(_attraction_target) or _attraction_target.is_queued_for_deletion():
+		return false
+	return not (_attraction_target is Player3D and (_attraction_target as Player3D).is_dead())
 
 
 func _on_body_entered(body: Node3D) -> void:

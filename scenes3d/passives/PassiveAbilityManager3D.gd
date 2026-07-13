@@ -3,8 +3,12 @@ extends Node
 
 ## Legacy pixels use the established 40 pixels = 1 world-unit migration rule.
 const PIXELS_PER_WORLD_UNIT := 40.0
+const LEGACY_BASE_MAGNET_RADIUS_PIXELS := 140.0
+const LEGACY_MAGNET_SPEED_PIXELS_PER_SECOND := 420.0
+const MAGNET_ATTRACTION_SPEED := LEGACY_MAGNET_SPEED_PIXELS_PER_SECOND / PIXELS_PER_WORLD_UNIT
 const PICKUP_SCAN_INTERVAL := 0.25
 const PASSIVE_PULSE_EFFECT := preload("res://scenes3d/effects/PassivePulseEffect3D.tscn")
+const PASSIVE_ARC_EFFECT := preload("res://scenes3d/effects/PassiveArcEffect3D.tscn")
 const PASSIVE_DEFINITIONS: Dictionary = {
 	"static_field": {"title": "Static Field", "max_level": 3, "damage": [5, 7, 9], "interval": [4.8, 4.2, 3.6], "radius": [150.0, 175.0, 200.0]},
 	"battle_focus": {"title": "Battle Focus", "max_level": 3, "damage": [4, 6, 8], "interval": [7.5, 6.5, 5.5], "range": 420.0, "attack_speed_multiplier": [1.12, 1.18, 1.24], "duration": [3.0, 3.5, 4.0]},
@@ -56,10 +60,10 @@ func add_or_upgrade_passive(passive_id: String) -> bool:
 		return false
 	level += 1
 	_levels[passive_id] = level
-	if passive_id in _timers:
+	if passive_id in _timers and level == 0:
 		_timers[passive_id] = 0.0
 	if passive_id == "magnet_core":
-		_spawn_pulse(_player.global_position, _world_value("magnet_core", "pickup_radius_bonus", level), 0.28, Color(0.34, 0.95, 0.62, 0.68), 0.76)
+		_spawn_pulse(_player.global_position, _get_effective_magnet_radius(level), 0.28, Color(0.34, 0.95, 0.62, 0.68), 0.76)
 	elif passive_id == "static_field":
 		_spawn_pulse(_player.global_position, _world_value("static_field", "radius", level), 0.24, Color(0.25, 0.95, 1.0, 0.72), 0.70)
 	passive_changed.emit(passive_id, level)
@@ -83,7 +87,14 @@ func get_passive_state(passive_id: String) -> Dictionary:
 	var definition: Dictionary = PASSIVE_DEFINITIONS.get(passive_id, {})
 	if definition.is_empty():
 		return {}
-	return {"id": passive_id, "title": str(definition["title"]), "level": get_passive_level(passive_id), "max_level": get_passive_max_level(passive_id), "selected": has_passive(passive_id), "timer_remaining": float(_timers.get(passive_id, 0.0))}
+	var level := get_passive_level(passive_id)
+	var state := {"id": passive_id, "title": str(definition["title"]), "level": level, "max_level": get_passive_max_level(passive_id), "selected": has_passive(passive_id), "timer_remaining": float(_timers.get(passive_id, 0.0))}
+	if passive_id == "magnet_core":
+		state["pickup_radius_bonus_pixels"] = _get_magnet_bonus_pixels(level)
+		state["base_magnet_radius_pixels"] = LEGACY_BASE_MAGNET_RADIUS_PIXELS
+		state["effective_pickup_radius"] = _get_effective_magnet_radius(level)
+		state["attraction_speed"] = MAGNET_ATTRACTION_SPEED
+	return state
 
 
 func get_all_passive_states() -> Dictionary:
@@ -152,6 +163,7 @@ func _tick_battle_focus(delta: float) -> void:
 		return
 	var damage := int(_value("battle_focus", "damage", level))
 	target.take_damage(damage)
+	_spawn_arc(_player.global_position, target.global_position, 0.16, Color(1.0, 0.30, 0.08, 0.92), 0.06)
 	var duration := _value("battle_focus", "duration", level)
 	_auto_attack.set_temporary_attack_speed_modifier("battle_focus", _value("battle_focus", "attack_speed_multiplier", level), duration)
 	_spawn_pulse(_player.global_position, 1.2, 0.18, Color(1.0, 0.45, 0.20, 0.75), 0.60)
@@ -165,11 +177,14 @@ func _tick_magnet_core(delta: float) -> void:
 	if _pickup_scan_remaining > 0.0 or _pickup_container == null:
 		return
 	_pickup_scan_remaining = PICKUP_SCAN_INTERVAL
-	var radius := _world_value("magnet_core", "pickup_radius_bonus", get_passive_level("magnet_core"))
+	var radius := _get_effective_magnet_radius(get_passive_level("magnet_core"))
 	var attracted_count := 0
 	for child: Node in _pickup_container.get_children():
-		if child is ExperiencePickup3D and (child as ExperiencePickup3D).global_position.distance_to(_player.global_position) <= radius:
-			(child as ExperiencePickup3D).set_attraction_target(_player, 9.0)
+		if child is ExperiencePickup3D:
+			var pickup := child as ExperiencePickup3D
+			if pickup.is_attracted_to(_player) or pickup.global_position.distance_to(_player.global_position) > radius:
+				continue
+			pickup.set_attraction_target(_player, MAGNET_ATTRACTION_SPEED)
 			attracted_count += 1
 	if attracted_count > 0:
 		passive_triggered.emit("magnet_core", {"radius": radius, "pickup_count": attracted_count})
@@ -187,9 +202,25 @@ func _world_value(passive_id: String, key: String, level: int) -> float:
 	return _value(passive_id, key, level) / PIXELS_PER_WORLD_UNIT
 
 
+func _get_effective_magnet_radius(level: int) -> float:
+	return (LEGACY_BASE_MAGNET_RADIUS_PIXELS + _get_magnet_bonus_pixels(level)) / PIXELS_PER_WORLD_UNIT
+
+
+func _get_magnet_bonus_pixels(level: int) -> float:
+	return _value("magnet_core", "pickup_radius_bonus", level) if level > 0 else 0.0
+
+
 func _spawn_pulse(position: Vector3, radius: float, duration: float, color: Color, inner_radius_ratio: float) -> void:
 	if _effect_container == null:
 		return
 	var effect := PASSIVE_PULSE_EFFECT.instantiate()
 	_effect_container.add_child(effect)
 	effect.setup(position, radius, duration, color, inner_radius_ratio)
+
+
+func _spawn_arc(start_position: Vector3, end_position: Vector3, duration: float, color: Color, thickness: float) -> void:
+	if _effect_container == null:
+		return
+	var effect := PASSIVE_ARC_EFFECT.instantiate()
+	_effect_container.add_child(effect)
+	effect.setup(start_position, end_position, duration, color, thickness)
