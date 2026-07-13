@@ -136,9 +136,11 @@ godot --headless --editor --quit
 
 ### Isolated 3D migration prototype
 
-`res://scenes3d/game/Arena3D.tscn` is an empty 3D foundation for migration stage 1.1, not a replacement for `scenes/game/Arena.tscn` or the project entry scene. It has no links to the current 2D managers, run flow, persistence, or combat. The 2D game remains the only normal runtime path.
+`res://scenes3d/game/Arena3D.tscn` is an isolated 3D migration prototype, not a replacement for `scenes/game/Arena.tscn` or the project entry scene. It has no links to the current 2D managers, run flow, persistence, or combat. The 2D game remains the only normal runtime path.
 
-The 3D foundation uses `Vector3.x` and `Vector3.z` as the horizontal plane; [`WorldPlane.gd`](scenes3d/utilities/WorldPlane.gd) converts this XZ convention to and from a 2D horizontal `Vector2`. Its independent test scene can be viewed by opening `Arena3D.tscn` in Godot and choosing **Run Current Scene** (F6). It contains temporary built-in ground, lighting, and a fixed prototype camera only.
+The 3D foundation uses `Vector3.x` and `Vector3.z` as the horizontal plane; [`WorldPlane.gd`](scenes3d/utilities/WorldPlane.gd) converts this XZ convention to and from a 2D horizontal `Vector2`. World-unit movement uses 6 units/second in the 40×40 prototype arena, rather than the 2D pixel speed.
+
+`Arena3D` owns Player3D spawning, playable bounds, and camera wiring. [`Player3D.gd`](scenes3d/player/Player3D.gd) is a reusable `CharacterBody3D` controller with the familiar health, XP, input, mobile-movement, dash, and facing contract, but has no combat-manager implementation yet. Its `CameraRig3D` follows smoothly at a fixed angled view (height 18, backward distance 14, FOV 38) without rotating with the player. Run the independent test scene by opening `Arena3D.tscn` in Godot and choosing **Run Current Scene** (F6); verify movement, dash, collision with the Environment ground, arena bounds, and camera following there. For a lightweight XP check, enable `prototype_debug_enabled` on Player3D and use the existing `debug_add_xp` input action; no 2D HUD or DebugManager is attached.
 
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. These are separate from and preserve the existing 2D physics layers.
 

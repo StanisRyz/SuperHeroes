@@ -1,6 +1,8 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes3d/game/Arena3D.gd" id="1_arena3d"]
+[ext_resource type="PackedScene" path="res://scenes3d/player/Player3D.tscn" id="2_player3d"]
+[ext_resource type="PackedScene" path="res://scenes3d/player/CameraRig3D.tscn" id="3_camera_rig"]
 
 [sub_resource type="Environment" id="Environment_arena3d"]
 background_mode = 1
@@ -32,6 +34,8 @@ light_energy = 1.2
 shadow_enabled = true
 
 [node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 32
+collision_mask = 1
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
 mesh = SubResource("PlaneMesh_ground")
@@ -41,6 +45,11 @@ position = Vector3(0, -0.25, 0)
 shape = SubResource("BoxShape3D_ground")
 
 [node name="PlayerContainer" type="Node3D" parent="."]
+
+[node name="Player3D" parent="PlayerContainer" instance=ExtResource("2_player3d")]
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+position = Vector3(0, 1, 0)
 
 [node name="EnemyContainer" type="Node3D" parent="."]
 
@@ -54,6 +63,4 @@ shape = SubResource("BoxShape3D_ground")
 
 [node name="Interface" type="CanvasLayer" parent="."]
 
-[node name="Camera3D" type="Camera3D" parent="."]
-current = true
-fov = 38.0
+[node name="CameraRig3D" parent="." instance=ExtResource("3_camera_rig")]

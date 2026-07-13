@@ -7,7 +7,7 @@ Use this checklist for manual validation after a relevant gameplay, UI, persiste
 - Run `godot --headless --editor --quit` from the repository root after code, scene, or project-setting changes.
 - Start from `scenes/main/Main.tscn`; confirm the project reaches Main Menu without parser errors or missing-node warnings.
 - Confirm desktop layout at 16:9 and a wide landscape layout. Check that important UI remains reachable.
-- For the isolated 3D migration foundation, open `scenes3d/game/Arena3D.tscn` and use Run Current Scene (F6). Confirm its temporary ground, directional light, and fixed camera render, then return to `Main.tscn`; it must not replace or affect the 2D game.
+- For the isolated 3D migration prototype, open `scenes3d/game/Arena3D.tscn` and use Run Current Scene (F6). Confirm Player3D stays on the Environment ground and inside its XZ bounds; test keyboard movement, normalized diagonal speed, facing, dash direction/cooldown/invulnerability, and smooth fixed-angle CameraRig3D following. With `prototype_debug_enabled` enabled, use the existing `debug_add_xp` input action to exercise the public XP contract without a 2D HUD or DebugManager, then return to `Main.tscn`; the prototype must not replace or affect the 2D game.
 - For documentation-only work, verify referenced paths/links and the final Git diff instead of running gameplay tests.
 
 ## Front-end and selection flow
