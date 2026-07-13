@@ -3,6 +3,12 @@ extends Node
 
 signal attack_impact_resolved(hit_count: int, total_damage: int)
 
+const EARTHSPLITTER_EVOLUTION_ID := "rage_wave_earthsplitter"
+const EARTHSPLITTER_EFFECT := preload("res://scenes3d/effects/EarthsplitterEffect3D.tscn")
+const EARTHSPLITTER_RANGE := 6.5
+const EARTHSPLITTER_WIDTH := 1.3325
+const EARTHSPLITTER_DAMAGE_MULTIPLIER := 0.75
+
 @export var attack_damage: int = 14
 @export var attack_interval: float = 0.8
 @export var targeting_range: float = 3.2
@@ -14,6 +20,7 @@ signal attack_impact_resolved(hit_count: int, total_damage: int)
 var _player: Player3D
 var _enemy_container: Node3D
 var _knight_visual: KnightVisual
+var _effect_container: Node3D
 var _cooldown_remaining: float = 0.0
 var _attack_active: bool = false
 var _attack_direction: Vector3 = Vector3.FORWARD
@@ -29,6 +36,7 @@ var _blood_frenzy_enabled := false
 var _blood_frenzy_healing_per_enemy := 0
 var _finishing_blow_enabled := false
 var _finishing_blow_threshold := 0.0
+var _selected_attack_evolutions: Array[String] = []
 
 const FURY_COMBO_MAX_STACKS := 5
 const FURY_COMBO_DECAY_DURATION := 3.0
@@ -97,11 +105,13 @@ func get_debug_state() -> Dictionary:
 	return {"suspended": _suspended, "attack_active": _attack_active, "cooldown_remaining": _cooldown_remaining, "attack_direction": _attack_direction, "damage_multiplier": _damage_multiplier, "damaged_enemy_count": _damaged_enemies.size()}
 
 
-func setup(player: Player3D, enemy_container: Node3D, knight_visual: KnightVisual) -> void:
+func setup(player: Player3D, enemy_container: Node3D, knight_visual: KnightVisual, effect_container: Node3D = null) -> void:
 	_player = player
 	_enemy_container = enemy_container
 	_knight_visual = knight_visual
+	_effect_container = effect_container
 	_reset_fury_combo(true)
+	reset_attack_evolution_state()
 	if _knight_visual != null and not _knight_visual.attack_impact.is_connected(_on_attack_impact):
 		_knight_visual.attack_impact.connect(_on_attack_impact)
 	if _knight_visual != null and not _knight_visual.attack_finished.is_connected(_on_attack_finished):
@@ -113,7 +123,7 @@ func stop_attacking() -> void:
 	_damaged_enemies.clear()
 	if _player != null:
 		_player.release_combat_facing()
-	_reset_fury_combo(true)
+		_reset_fury_combo(true)
 
 
 func _process(delta: float) -> void:
@@ -146,13 +156,14 @@ func _on_attack_impact() -> void:
 		return
 	var hit_count := 0
 	var total_damage := 0
+	var base_swing_damage := maxi(roundi(attack_damage * _damage_multiplier * _get_fury_combo_multiplier()), 1)
 	for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemy_container, _player.global_position, _attack_direction, attack_radius, attack_arc):
 		if enemy in _damaged_enemies:
 			continue
 		var offset := enemy.global_position - _player.global_position
 		offset.y = 0.0
 		_damaged_enemies.append(enemy)
-		var damage := maxi(roundi(attack_damage * _damage_multiplier * _get_fury_combo_multiplier()), 1)
+		var damage := base_swing_damage
 		var health_ratio := float(enemy.current_health) / maxf(float(enemy.max_health), 1.0)
 		if _finishing_blow_enabled and health_ratio <= _finishing_blow_threshold:
 			damage = maxi(roundi(float(damage) * FINISHING_BLOW_DAMAGE_MULTIPLIER), 1)
@@ -164,7 +175,54 @@ func _on_attack_impact() -> void:
 		_add_fury_combo_stack()
 		if _blood_frenzy_enabled and _player != null:
 			_player.heal(_blood_frenzy_healing_per_enemy * hit_count)
+		if is_attack_evolution_active(EARTHSPLITTER_EVOLUTION_ID):
+			_apply_earthsplitter(_player.global_position, _attack_direction, base_swing_damage)
 	attack_impact_resolved.emit(hit_count, total_damage)
+
+
+func can_apply_attack_evolution(evolution_id: String, target_attack_id: String) -> bool:
+	return evolution_id == EARTHSPLITTER_EVOLUTION_ID and target_attack_id == "splash_melee" and not is_attack_evolution_active(evolution_id)
+
+
+func apply_attack_evolution(evolution_id: String, target_attack_id: String) -> bool:
+	if not can_apply_attack_evolution(evolution_id, target_attack_id):
+		return false
+	_selected_attack_evolutions.append(evolution_id)
+	return true
+
+
+func is_attack_evolution_active(evolution_id: String) -> bool:
+	return evolution_id in _selected_attack_evolutions
+
+
+func get_selected_attack_evolution_ids() -> Array[String]:
+	return _selected_attack_evolutions.duplicate()
+
+
+func get_primary_attack_display_name() -> String:
+	return "Earthsplitter" if is_attack_evolution_active(EARTHSPLITTER_EVOLUTION_ID) else "Fury Strike"
+
+
+func reset_attack_evolution_state() -> void:
+	_selected_attack_evolutions.clear()
+
+
+func upgrade_legacy_wide_fury(radius_bonus: float) -> bool:
+	if radius_bonus <= 0.0:
+		return false
+	attack_radius += radius_bonus
+	return true
+
+
+func _apply_earthsplitter(origin: Vector3, direction: Vector3, base_swing_damage: int) -> void:
+	var damage := maxi(roundi(float(base_swing_damage) * EARTHSPLITTER_DAMAGE_MULTIPLIER), 1)
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_line(_enemy_container, origin, direction, EARTHSPLITTER_RANGE, EARTHSPLITTER_WIDTH):
+		enemy.take_damage(damage)
+	if _effect_container == null:
+		return
+	var effect := EARTHSPLITTER_EFFECT.instantiate()
+	_effect_container.add_child(effect)
+	effect.setup(origin, direction, EARTHSPLITTER_RANGE, EARTHSPLITTER_WIDTH, 0.22)
 
 
 func _on_attack_finished() -> void:
@@ -226,3 +284,4 @@ func _reset_fury_combo(clear_upgrade: bool = false) -> void:
 
 func _exit_tree() -> void:
 	_reset_fury_combo(true)
+	reset_attack_evolution_state()

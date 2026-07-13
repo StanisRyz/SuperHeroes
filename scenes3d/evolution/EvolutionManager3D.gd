@@ -12,18 +12,21 @@ const EVOLUTIONS: Array[Dictionary] = [
 	{"id": "mighty_clap_rampage_impact", "triple_id": "vanguard_rampage_impact", "title": "Rage Field", "description": "Static Field becomes a Rage-scaling damage aura with larger and faster pulses at high Rage.", "effect_summary": "Rage-scaled area pulses with increased radius, damage, and frequency.", "target_type": "passive", "target_passive_id": "static_field", "implementation_status": "implemented", "prerequisites": ["splash_melee_combo", "battle_focus", "mighty_clap_shockwave"]},
 	{"id": "rage_leap_blood_crater", "triple_id": "vanguard_blood_crater", "title": "Berserker Focus", "description": "Battle Focus gives a much stronger Rage-scaled strike and attack-speed burst.", "effect_summary": "Rage-scaled multi-target strikes and an enhanced attack-speed burst.", "target_type": "passive", "target_passive_id": "battle_focus", "implementation_status": "implemented", "prerequisites": ["splash_melee_lifesteal", "recovery_field", "rage_leap_radius"]},
 	{"id": "rage_leap_final_impact", "triple_id": "vanguard_final_impact", "title": "Gravity Rage", "description": "Magnet Core gains much stronger pickup reach and emits periodic gravity pulses that pull and slow enemies.", "effect_summary": "Greatly increased pickup reach and periodic enemy-pulling gravity pulses.", "target_type": "passive", "target_passive_id": "magnet_core", "implementation_status": "implemented", "prerequisites": ["splash_melee_execute", "guardian_drone", "rage_leap_cooldown"]},
+	{"id": "rage_wave_earthsplitter", "triple_id": "vanguard_earthsplitter", "title": "Earthsplitter", "description": "Fury Strikes carve a forward ground crack beyond the normal melee splash.", "effect_summary": "A forward crack deals 0.75x base swing damage after a successful melee impact.", "target_type": "attack", "target_attack_id": "splash_melee", "implementation_status": "implemented", "prerequisites": ["splash_melee_radius", "static_field", "rage_wave_radius"]},
 ]
 
 var _upgrade_manager: Node
 var _ability_manager: Node
 var _passive_manager: Node
+var _auto_attack: Node
 var _selected_evolutions: Array[String] = []
 
 
-func setup(upgrade_manager: Node, ability_manager: Node, passive_manager: Node = null) -> void:
+func setup(upgrade_manager: Node, ability_manager: Node, passive_manager: Node = null, auto_attack: Node = null) -> void:
 	_upgrade_manager = upgrade_manager
 	_ability_manager = ability_manager
 	_passive_manager = passive_manager
+	_auto_attack = auto_attack
 	reset_run_state()
 
 
@@ -57,7 +60,7 @@ func get_evolution_state(evolution_id: String) -> Dictionary:
 	var selected := is_evolution_selected(evolution_id)
 	var is_ready := completed_count == prerequisites.size() and prerequisites.size() == 3
 	var state_name := "selected" if selected else ("ready" if is_ready else ("partial" if selected_count > 0 else "locked"))
-	return {"id": evolution_id, "evolution_id": evolution_id, "title": str(definition["title"]), "description": str(definition["description"]), "effect_summary": str(definition.get("effect_summary", "")), "target_type": str(definition.get("target_type", "active")), "target_ability_id": str(definition.get("target_ability_id", "")), "target_passive_id": str(definition.get("target_passive_id", "")), "implementation_status": str(definition.get("implementation_status", "placeholder")), "state": state_name, "selected": selected, "ready": is_ready and not selected, "selected_prerequisite_count": selected_count, "completed_prerequisite_count": completed_count, "total_prerequisite_count": prerequisites.size(), "prerequisites": prerequisites}
+	return {"id": evolution_id, "evolution_id": evolution_id, "triple_id": str(definition.get("triple_id", "")), "title": str(definition["title"]), "description": str(definition["description"]), "effect_summary": str(definition.get("effect_summary", "")), "target_type": str(definition.get("target_type", "active")), "target_ability_id": str(definition.get("target_ability_id", "")), "target_passive_id": str(definition.get("target_passive_id", "")), "target_attack_id": str(definition.get("target_attack_id", "")), "implementation_status": str(definition.get("implementation_status", "placeholder")), "state": state_name, "selected": selected, "ready": is_ready and not selected, "selected_prerequisite_count": selected_count, "completed_prerequisite_count": completed_count, "total_prerequisite_count": prerequisites.size(), "prerequisites": prerequisites}
 
 
 func get_all_evolution_states() -> Dictionary:
@@ -103,6 +106,8 @@ func get_applied_evolution_titles() -> Array[String]:
 
 func reset_run_state() -> void:
 	_selected_evolutions.clear()
+	if _auto_attack != null and _auto_attack.has_method("reset_attack_evolution_state"):
+		_auto_attack.reset_attack_evolution_state()
 	evolution_state_changed.emit()
 
 
@@ -119,9 +124,10 @@ func _get_definition(evolution_id: String) -> Dictionary:
 
 func _can_activate_evolution(evolution_id: String) -> bool:
 	var definition := _get_definition(evolution_id)
-	if str(definition.get("target_type", "active")) == "passive":
-		return _passive_manager != null and _passive_manager.has_method("can_apply_passive_evolution") and bool(_passive_manager.can_apply_passive_evolution(evolution_id, str(definition.get("target_passive_id", ""))))
-	return _ability_manager != null and _ability_manager.has_method("can_apply_evolution") and bool(_ability_manager.can_apply_evolution(evolution_id))
+	match str(definition.get("target_type", "active")):
+		"passive": return _passive_manager != null and _passive_manager.has_method("can_apply_passive_evolution") and bool(_passive_manager.can_apply_passive_evolution(evolution_id, str(definition.get("target_passive_id", ""))))
+		"attack": return _auto_attack != null and _auto_attack.has_method("can_apply_attack_evolution") and bool(_auto_attack.can_apply_attack_evolution(evolution_id, str(definition.get("target_attack_id", ""))))
+		_: return _ability_manager != null and _ability_manager.has_method("can_apply_evolution") and bool(_ability_manager.can_apply_evolution(evolution_id))
 
 
 func get_applied_evolution_type_counts() -> Dictionary:
@@ -134,6 +140,7 @@ func get_applied_evolution_type_counts() -> Dictionary:
 
 
 func _apply_evolution_effect(evolution_id: String, state: Dictionary) -> bool:
-	if str(state.get("target_type", "active")) == "passive":
-		return _passive_manager != null and _passive_manager.has_method("apply_passive_evolution") and bool(_passive_manager.apply_passive_evolution(evolution_id, str(state.get("target_passive_id", ""))))
-	return _ability_manager != null and _ability_manager.has_method("apply_evolution") and bool(_ability_manager.apply_evolution(evolution_id))
+	match str(state.get("target_type", "active")):
+		"passive": return _passive_manager != null and _passive_manager.has_method("apply_passive_evolution") and bool(_passive_manager.apply_passive_evolution(evolution_id, str(state.get("target_passive_id", ""))))
+		"attack": return _auto_attack != null and _auto_attack.has_method("apply_attack_evolution") and bool(_auto_attack.apply_attack_evolution(evolution_id, str(state.get("target_attack_id", ""))))
+		_: return _ability_manager != null and _ability_manager.has_method("apply_evolution") and bool(_ability_manager.apply_evolution(evolution_id))

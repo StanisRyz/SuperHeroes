@@ -49,6 +49,26 @@ static func enemies_in_cone(container: Node3D, origin: Vector3, direction: Vecto
 			result.append(enemy)
 	return result
 
+
+static func enemies_in_line(container: Node3D, origin: Vector3, direction: Vector3, maximum_range: float, width: float) -> Array[Enemy3D]:
+	var result: Array[Enemy3D] = []
+	var forward := direction
+	forward.y = 0.0
+	if forward.is_zero_approx():
+		return result
+	forward = forward.normalized()
+	var half_width := maxf(width, 0.0) * 0.5
+	for enemy: Enemy3D in _living_enemies(container):
+		var offset := enemy.global_position - origin
+		offset.y = 0.0
+		var forward_distance := offset.dot(forward)
+		if forward_distance <= 0.0 or forward_distance > maximum_range:
+			continue
+		var lateral_offset := offset - forward * forward_distance
+		if lateral_offset.length() <= half_width:
+			result.append(enemy)
+	return result
+
 static func _living_enemies(container: Node3D) -> Array[Enemy3D]:
 	var result: Array[Enemy3D] = []
 	if container == null:

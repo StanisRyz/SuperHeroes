@@ -58,6 +58,8 @@ func _format_evolution_text(evolution: Dictionary) -> String:
 	var target_ability := str(evolution.get("target_ability_id", ""))
 	if target_ability.is_empty():
 		target_ability = str(evolution.get("target_passive_id", ""))
+	if target_ability.is_empty():
+		target_ability = str(evolution.get("target_attack_id", ""))
 	target_ability = target_ability.replace("_", " ").capitalize()
 	var prerequisite_lines := _format_prerequisites(evolution.get("prerequisites", []))
 	var lines: PackedStringArray = ["EVOLUTION", title]

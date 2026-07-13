@@ -57,6 +57,7 @@ signal hero_resource_changed(resource_name: String, current: float, maximum: flo
 @export var rage_per_hit := 4.0
 @export var wave_damage := 24
 @export var wave_radius := 5.0
+@export var rage_wave_radius_rage_bonus := 0.0
 @export var wave_cooldown := 6.0
 @export var bash_damage := 34
 @export var bash_range := 4.5
@@ -215,8 +216,9 @@ func _on_action_impact(action_id: String) -> void:
 		if is_evolution_active(WORLDBREAKER_EVOLUTION_ID):
 			_queue_worldbreaker_pulses(_cast_origin)
 		else:
-			_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, wave_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
-			_spawn_effect(rage_wave_effect_scene, [_cast_origin, wave_radius, 0.35])
+			var effective_radius := get_effective_rage_wave_radius()
+			_apply_area_damage(CombatQuery3D.enemies_in_radius(_enemies, _cast_origin, effective_radius), wave_damage, {"movement_speed_multiplier": 0.55}, 2.0, "rage_wave_slow")
+			_spawn_effect(rage_wave_effect_scene, [_cast_origin, effective_radius, 0.35])
 	elif action_id == "shield_bash":
 		if is_evolution_active(RAMPAGE_IMPACT_EVOLUTION_ID):
 			_start_rampage_impact(_cast_origin, _cast_direction)
@@ -256,6 +258,18 @@ func upgrade_legacy_leap_ready(cooldown_reduction: float, distance_bonus: float)
 	leap_cooldown = maxf(3.5, leap_cooldown - cooldown_reduction)
 	leap_distance += distance_bonus
 	return true
+
+
+func upgrade_legacy_wave_reach(radius_bonus: float, rage_radius_bonus: float) -> bool:
+	if radius_bonus <= 0.0 or rage_radius_bonus <= 0.0:
+		return false
+	wave_radius += radius_bonus
+	rage_wave_radius_rage_bonus += rage_radius_bonus
+	return true
+
+
+func get_effective_rage_wave_radius() -> float:
+	return wave_radius * (1.0 + (0.18 + rage_wave_radius_rage_bonus) * get_rage_ratio())
 
 func _on_action_finished(action_id: String) -> void:
 	if action_id == _active_ability_id and action_id != "crushing_leap": _finish_active_ability()
@@ -298,7 +312,7 @@ func _apply_area_damage(enemies: Array[Enemy3D], base_damage: int, modifier: Dic
 func _queue_worldbreaker_pulses(origin: Vector3) -> void:
 	for index in WORLDBREAKER_PULSES.size():
 		var tuning: Dictionary = WORLDBREAKER_PULSES[index]
-		_queue_evolution_impact("worldbreaker_pulse", float(tuning["delay"]), {"origin": origin, "radius": wave_radius * float(tuning["radius_multiplier"]), "base_damage": roundi(wave_damage * float(tuning["damage_multiplier"])), "knockback_force": float(tuning["knockback_force"]), "pulse_index": index + 1})
+		_queue_evolution_impact("worldbreaker_pulse", float(tuning["delay"]), {"origin": origin, "radius": get_effective_rage_wave_radius() * float(tuning["radius_multiplier"]), "base_damage": roundi(wave_damage * float(tuning["damage_multiplier"])), "knockback_force": float(tuning["knockback_force"]), "pulse_index": index + 1})
 	_process_evolution_impacts(0.0)
 
 

@@ -73,11 +73,11 @@ func _initialize_gameplay() -> void:
 	run_manager.final_boss_required_changed.emit(false)
 	spawn_director.setup(run_manager)
 	enemy_spawner.setup(player, self, $EnemyContainer, $PickupContainer, spawn_director, run_manager)
-	auto_attack.setup(player, $EnemyContainer, player.knight_visual)
+	auto_attack.setup(player, $EnemyContainer, player.knight_visual, $EffectContainer)
 	ability_manager.setup(player, auto_attack, $EnemyContainer, $EffectContainer, player.knight_visual)
 	passive_manager.setup(player, auto_attack, ability_manager, $EnemyContainer, $PickupContainer, $EffectContainer)
 	upgrade_manager.setup(player, auto_attack, ability_manager, passive_manager)
-	evolution_manager.setup(upgrade_manager, ability_manager, passive_manager)
+	evolution_manager.setup(upgrade_manager, ability_manager, passive_manager, auto_attack)
 
 
 func _initialize_input() -> void:
@@ -334,6 +334,8 @@ func _build_run_summary(result: String) -> Dictionary:
 	for passive_id: String in selected_passive_ids:
 		passive_levels[passive_id] = passive_manager.get_passive_level(passive_id)
 	summary["passive_levels"] = passive_levels
+	summary["primary_attack_name"] = auto_attack.get_primary_attack_display_name()
+	summary["selected_attack_evolution_ids"] = auto_attack.get_selected_attack_evolution_ids()
 	summary["shield_charges"] = player.get_shield_charges()
 	summary["shield_maximum_charges"] = player.get_maximum_shield_charges()
 	summary["shield_blocks"] = player.get_shield_block_count()
