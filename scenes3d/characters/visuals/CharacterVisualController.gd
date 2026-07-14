@@ -18,6 +18,7 @@ signal action_finished(action_id: String)
 @export var hit_animation: StringName = &"kaykit/Hit_A"
 @export var death_animation: StringName = &"kaykit/Death_A"
 @export_range(0.0, 1.0, 0.01) var attack_impact_normalized_time: float = 0.5
+@export_range(0.1, 4.0, 0.01) var attack_playback_speed: float = 1.0
 
 var _animation_player: AnimationPlayer = null
 var _locomotion_amount: float = 0.0
@@ -50,7 +51,7 @@ func play_attack() -> bool:
 		return false
 	_active_one_shot = attack_animation
 	_attack_impact_emitted = false
-	_animation_player.play(attack_animation)
+	_animation_player.play(attack_animation, -1.0, attack_playback_speed)
 	attack_started.emit()
 	return true
 

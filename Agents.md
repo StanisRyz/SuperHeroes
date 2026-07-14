@@ -202,6 +202,8 @@ Stage 2.1 adds Crossbowman as the cosmetic 3D port of legacy `guardian` / `solar
 
 Stage 2.1.1 requires CrossbowmanPlayer3D to use Player collision layer 1/mask 96 and the matching hurtbox/pickup setup. Arena3D must abort cleanly if a configured hero player scene, AutoAttack, ActionController, or HeroVisual is invalid; never spawn enemies or wire run signals after that failure. `HeroVisual` is the stable player visual node. Guardian upgrade scope is enforced by every public manager path, including direct `apply_upgrade`. Keep unavailable Guardian ability UI fully hidden and Solar Energy named exactly `Solar Energy`; its empowered flag/time is separate state. Crossbow Shot retains the original corridor mechanics and emits a structured per-shot result. Cleanup must be idempotent across finish, restart, quit, and scene removal.
 
+Stage 2.1.2 Crossbowman presentation uses `Ranger.glb`, `Rig_Medium_CombatRanged.glb`, and `crossbow_2handed.gltf`, not Knight assets. Use actual clips `Ranged_2H_Shoot` for Crossbow Shot, `Ranged_2H_Aiming` for a future charged shot, and `Ranged_2H_Shooting` for a future volley. Ranger's `handslot.r` owns the crossbow attachment and its muzzle marker; the marker follows ranged animation and is the only Crossbow Shot bolt origin. Crossbowman extends neutral `KayKitAnimatedVisual`, never `KnightVisual`. Keep gameplay queries/values out of visual code; Stage 2.2 remains the active-ability port.
+
 - Keep changes small, local, and source-backed. Do not add unrelated systems, duplicate managers, or broad refactors.
 - Do not add persistence, monetization, cloud/Yandex services, online features, arena hazards, input remapping, audio assets, or new enemy types unless explicitly requested.
 - Avoid copyrighted superhero IP.

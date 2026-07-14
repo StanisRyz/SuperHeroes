@@ -19,9 +19,14 @@ var _active := false
 var _direction := Vector3.FORWARD
 var _attack_speed_modifiers: Dictionary = {}
 var _action_token := 0
+var _damage_resolved := false
 
 func setup(player: Player3D, enemy_container: Node3D, visual: Node, effect_container: Node3D = null, energy: SolarEnergy3D = null) -> void:
 	_player = player; _enemy_container = enemy_container; _visual = visual; _effect_container = effect_container; _energy = energy
+	if _visual != null and _visual.has_signal("attack_impact") and not _visual.attack_impact.is_connected(_on_visual_attack_impact):
+		_visual.attack_impact.connect(_on_visual_attack_impact)
+	if _visual != null and _visual.has_signal("attack_finished") and not _visual.attack_finished.is_connected(_on_visual_attack_finished):
+		_visual.attack_finished.connect(_on_visual_attack_finished)
 
 func _process(delta: float) -> void:
 	for modifier_id: String in _attack_speed_modifiers.keys():
@@ -40,11 +45,24 @@ func _process(delta: float) -> void:
 	_action_token = int(_player.action_controller.try_begin_autoattack())
 	if _action_token == 0: return
 	_active = true; _player.lock_combat_facing(_direction)
-	if _visual != null and _visual.has_method("play_attack"): _visual.play_attack()
+	_damage_resolved = false
+	if _visual == null or not _visual.has_method("play_attack") or not _visual.play_attack():
+		_resolve_attack()
+		_finish_attack()
+
+func _on_visual_attack_impact() -> void:
+	if not _active or _damage_resolved: return
 	_spawn_bolt()
 	_resolve_attack()
 
+func _on_visual_attack_finished() -> void:
+	if _active:
+		if not _damage_resolved: _resolve_attack()
+		_finish_attack()
+
 func _resolve_attack() -> void:
+	if _damage_resolved: return
+	_damage_resolved = true
 	var hits := 0; var damage_total := 0
 	var origin := _player.global_position
 	var primary_target: Enemy3D = CombatQuery3D.nearest_living_enemy(_enemy_container, origin, targeting_range)
@@ -56,12 +74,17 @@ func _resolve_attack() -> void:
 		if enemy != primary_target: additional_targets.append(enemy)
 	attack_impact_resolved.emit(hits, damage_total)
 	attack_resolved.emit({"primary_target": primary_target, "additional_targets": additional_targets, "hit_count": hits, "total_damage": damage_total, "origin": origin, "direction": _direction})
+
+func _finish_attack() -> void:
+	if not _active: return
 	_active = false; _cooldown = _effective_interval(); _player.release_combat_facing()
 	if _action_token != 0: _player.action_controller.finish_action(_action_token)
 	_action_token = 0
 
 func stop_attacking() -> void:
 	_active = false; _cooldown = 0.0
+	_damage_resolved = false
+	if _visual != null and _visual.has_method("cancel_attack"): _visual.cancel_attack()
 	if _player != null: _player.release_combat_facing()
 	if _player != null and _action_token != 0: _player.action_controller.cancel_action(_action_token, "stop")
 	_action_token = 0
@@ -82,5 +105,5 @@ func _spawn_bolt() -> void:
 	if _effect_container == null: return
 	var bolt := BOLT_EFFECT.instantiate()
 	_effect_container.add_child(bolt)
-	var muzzle := _visual.get_node_or_null("Muzzle") as Marker3D if _visual != null else null
+	var muzzle := _visual.get_muzzle() as Marker3D if _visual != null and _visual.has_method("get_muzzle") else null
 	bolt.setup(muzzle.global_position if muzzle != null else _player.global_position + Vector3.UP, _direction)
