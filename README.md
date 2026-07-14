@@ -232,4 +232,6 @@ Stage 1.9.4 adds Web-safe Knight feedback polish. Ground Shockwave now has its o
 
 The completed visual pass keeps Ground Shockwave and Crushing Storm routed to distinct effects, uses low-poly procedural crack ribbons for Earthsplitter and Seismic Fan, and adds bounded Fury Strike impact feedback. Effects remain presentation-only, short-lived, and free of collision or gameplay queries.
 
+Stage 1 is closed at 1.9.5: the stable Knight contract is one base attack, three active abilities, 27 five-level upgrades, nine 5/5/5 evolutions, uniform random offers, and neutral progression presentation. Release validation is recorded in `docs/validation/knight_stage_1_release_validation.md`; no unevidenced balance changes were made. Stage 2 begins with Crossbowman.
+
 Keep this README, [Agents.md](Agents.md), and the relevant manual checks synchronized whenever behavior, save data, scene composition, external integration, or public system contracts change. Use the implementation as the source of truth; record discovered issues as issues/debt rather than silently describing them as fixed.

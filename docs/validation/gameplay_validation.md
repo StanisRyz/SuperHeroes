@@ -90,3 +90,6 @@ Use this checklist for manual validation after a relevant gameplay, UI, persiste
 - Feedback work must not apply damage or own gameplay state.
 - Stage preview work must not claim or imply runtime scaling until scaling is implemented.
 - Changes to event scheduling must explicitly verify which implementation is active: `Arena.tscn` currently instantiates `scenes/game/EventDirector.tscn`; `scenes/events/EventDirector.gd` is only Arena's missing-node fallback.
+# Knight Stage 1 release note
+
+Follow [knight_stage_1_release_validation.md](knight_stage_1_release_validation.md) for the final Knight 3D progression, effect-lifecycle, pause, and Web checks.

@@ -196,6 +196,8 @@ Stage 1.9.4 presentation effects must be Web-safe and presentation-only: low-ver
 
 Ground Shockwave must use `GroundShockwaveEffect3D`; Crushing Storm must use `CrushingStormEffect3D`. Earthsplitter and Seismic Fan crack geometry is generated once through `GroundCrackMeshBuilder3D`; it is visual-only and must never alter their existing line/cone queries.
 
+Stage 1 closes at 1.9.5 with the 27-line/five-level, nine-evolution/5-5-5, uniformly-random and neutrally-presented Knight contract. Do not alter balance without recorded controlled-run evidence. The final manual and Web checklist is `docs/validation/knight_stage_1_release_validation.md`; Stage 2 starts with Crossbowman.
+
 - Keep changes small, local, and source-backed. Do not add unrelated systems, duplicate managers, or broad refactors.
 - Do not add persistence, monetization, cloud/Yandex services, online features, arena hazards, input remapping, audio assets, or new enemy types unless explicitly requested.
 - Avoid copyrighted superhero IP.
