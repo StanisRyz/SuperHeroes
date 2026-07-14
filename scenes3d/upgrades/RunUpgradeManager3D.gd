@@ -12,37 +12,37 @@ var _last_random_option_ids: Array[String] = []
 signal upgrade_applied(upgrade_id: String, new_level: int)
 
 const UPGRADES: Dictionary = {
-	"splash_melee_damage": {"title": "Fury Strike Power", "description": "+4 Fury Strike damage.", "rarity": "common", "max_level": 5, "category": "attack", "grid_index": 1, "evolution_id": "rage_wave_worldbreaker", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_strike_damage"},
-	"splash_melee_radius": {"title": "Wide Fury", "description": "+0.35 Fury Strike radius.", "rarity": "rare", "max_level": 4, "category": "attack", "grid_index": 2, "evolution_id": "rage_wave_earthsplitter", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_legacy_wide_fury"},
-	"splash_melee_speed": {"title": "Fury Tempo", "description": "-0.05s Fury Strike interval, to 0.30s.", "rarity": "rare", "max_level": 4, "category": "attack", "grid_index": 3, "evolution_id": "crushing_leap_meteor_crash", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_tempo"},
-	"splash_melee_impact": {"title": "Knockback Force", "description": "+2.0 Fury Strike knockback force.", "rarity": "rare", "max_level": 3, "category": "attack", "grid_index": 4, "evolution_id": "shield_bash_rampage_impact", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_strike_impact"},
-	"splash_melee_frenzy": {"title": "Berserker Frenzy", "description": "+0.10 maximum Rage damage multiplier.", "rarity": "epic", "max_level": 3, "category": "attack", "grid_index": 5, "evolution_id": "rage_wave_crushing_storm", "evolution_role": "attack", "owner": "ability_manager", "handler": "upgrade_legacy_berserker_frenzy"},
-	"splash_melee_shockwave": {"title": "Ground Shockwave", "description": "Successful Fury Strikes create a delayed 1.5x-radius shockwave for 0.5x base damage.", "rarity": "epic", "max_level": 1, "category": "attack", "grid_index": 6, "evolution_id": "mighty_clap_seismic_fan", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_legacy_ground_shockwave"},
-	"splash_melee_lifesteal": {"title": "Blood Frenzy", "description": "+2 HP per enemy hit.", "rarity": "rare", "max_level": 3, "category": "attack", "grid_index": 7, "evolution_id": "rage_leap_blood_crater", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_blood_frenzy"},
-	"splash_melee_combo": {"title": "Fury Combo", "description": "+0.06 damage bonus per combo stack.", "rarity": "rare", "max_level": 3, "category": "attack", "grid_index": 8, "evolution_id": "mighty_clap_rampage_impact", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_combo"},
-	"splash_melee_execute": {"title": "Finishing Blow", "description": "+0.20 low-health threshold; deal 1.45x melee damage at or below it.", "rarity": "epic", "max_level": 3, "category": "attack", "grid_index": 9, "evolution_id": "rage_leap_final_impact", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_finishing_blow"},
-	"orbit_shields": {"title": "Orbit Shields", "description": "Orbiting charges completely block incoming hits.", "rarity": "epic", "max_level": 3, "category": "passive", "grid_index": 1, "evolution_id": "rage_wave_worldbreaker", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"static_field": {"title": "Static Field", "description": "Periodic electric pulse around the Knight.", "rarity": "rare", "max_level": 3, "category": "passive", "grid_index": 2, "evolution_id": "rage_wave_earthsplitter", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"time_dilator": {"title": "Time Dilator", "description": "Periodically slows enemies around the Knight.", "rarity": "rare", "max_level": 3, "category": "passive", "grid_index": 3, "evolution_id": "rage_wave_crushing_storm", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"storm_relay": {"title": "Storm Relay", "description": "Periodically strike the nearest enemy with lightning.", "rarity": "rare", "max_level": 3, "category": "passive", "grid_index": 4, "evolution_id": "shield_bash_rampage_impact", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"chain_lightning": {"title": "Chain Lightning", "description": "Lightning jumps through nearby enemies without repeating targets.", "rarity": "epic", "max_level": 3, "category": "passive", "grid_index": 5, "evolution_id": "mighty_clap_seismic_fan", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"battle_focus": {"title": "Battle Focus", "description": "Periodic strike and temporary attack-speed boost.", "rarity": "rare", "max_level": 3, "category": "passive", "grid_index": 6, "evolution_id": "mighty_clap_rampage_impact", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"magnet_core": {"title": "Magnet Core", "description": "Extends nearby experience pickup attraction.", "rarity": "common", "max_level": 3, "category": "passive", "grid_index": 7, "evolution_id": "crushing_leap_meteor_crash", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"recovery_field": {"title": "Recovery Field", "description": "Periodically restore health.", "rarity": "common", "max_level": 3, "category": "passive", "grid_index": 8, "evolution_id": "rage_leap_blood_crater", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"guardian_drone": {"title": "Guardian Drone", "description": "Orbiting drone periodically strikes the nearest enemy.", "rarity": "rare", "max_level": 3, "category": "passive", "grid_index": 9, "evolution_id": "rage_leap_final_impact", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
-	"rage_wave_power": {"title": "Wave Surge", "description": "+8 Rage Wave damage.", "rarity": "rare", "max_level": 4, "category": "active", "grid_index": 1, "evolution_id": "rage_wave_worldbreaker", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_rage_wave_power"},
-	"rage_wave_radius": {"title": "Wave Reach", "description": "+0.75 Rage Wave radius and +0.04 Rage radius scaling.", "rarity": "rare", "max_level": 3, "category": "active", "grid_index": 2, "evolution_id": "rage_wave_earthsplitter", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_wave_reach"},
-	"rage_wave_deep_slow": {"title": "Crushing Current", "description": "+0.8s slow, -0.06 speed, -0.5s cooldown, +0.04 Rage radius scaling.", "rarity": "epic", "max_level": 3, "category": "active", "grid_index": 3, "evolution_id": "rage_wave_crushing_storm", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_crushing_current"},
-	"mighty_clap_power": {"title": "Clap Force", "description": "+9 Shield Bash damage.", "rarity": "common", "max_level": 4, "category": "active", "grid_index": 4, "evolution_id": "shield_bash_rampage_impact", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_mighty_clap_power"},
-	"mighty_clap_range": {"title": "Wide Clap", "description": "+0.625 Shield Bash range and +6 degrees cone angle.", "rarity": "rare", "max_level": 3, "category": "active", "grid_index": 5, "evolution_id": "mighty_clap_seismic_fan", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_wide_clap"},
-	"mighty_clap_shockwave": {"title": "Impact Wave", "description": "+1.5 Shield Bash knockback and -0.7s cooldown.", "rarity": "epic", "max_level": 3, "category": "active", "grid_index": 6, "evolution_id": "mighty_clap_rampage_impact", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_impact_wave"},
-	"rage_leap_power": {"title": "Leap Impact", "description": "+10 Crushing Leap damage.", "rarity": "epic", "max_level": 4, "category": "active", "grid_index": 7, "evolution_id": "crushing_leap_meteor_crash", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_rage_leap_power"},
-	"rage_leap_radius": {"title": "Wide Landing", "description": "+0.55 Crushing Leap radius.", "rarity": "rare", "max_level": 3, "category": "active", "grid_index": 8, "evolution_id": "rage_leap_blood_crater", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_leap_radius"},
-	"rage_leap_cooldown": {"title": "Leap Ready", "description": "-1.2s Crushing Leap cooldown and +0.5 Leap distance.", "rarity": "epic", "max_level": 3, "category": "active", "grid_index": 9, "evolution_id": "rage_leap_final_impact", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_leap_ready"},
+	"splash_melee_damage": {"title": "Fury Strike Power", "description": "+4 Fury Strike damage.", "rarity": "common", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 1, "evolution_id": "rage_wave_worldbreaker", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_strike_damage"},
+	"splash_melee_radius": {"title": "Wide Fury", "description": "+0.35 Fury Strike radius.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 2, "evolution_id": "rage_wave_earthsplitter", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_legacy_wide_fury"},
+	"splash_melee_speed": {"title": "Fury Tempo", "description": "-0.05s Fury Strike interval, to 0.30s.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 3, "evolution_id": "crushing_leap_meteor_crash", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_tempo"},
+	"splash_melee_impact": {"title": "Knockback Force", "description": "+2.0 Fury Strike knockback force.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 4, "evolution_id": "shield_bash_rampage_impact", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_strike_impact"},
+	"splash_melee_frenzy": {"title": "Berserker Frenzy", "description": "+0.10 maximum Rage damage multiplier.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 5, "evolution_id": "rage_wave_crushing_storm", "evolution_role": "attack", "owner": "ability_manager", "handler": "upgrade_legacy_berserker_frenzy"},
+	"splash_melee_shockwave": {"title": "Ground Shockwave", "description": "Successful Fury Strikes create a delayed 1.5x-radius shockwave for 0.5x base damage.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 6, "evolution_id": "mighty_clap_seismic_fan", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_ground_shockwave"},
+	"splash_melee_lifesteal": {"title": "Blood Frenzy", "description": "+2 HP per enemy hit.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 7, "evolution_id": "rage_leap_blood_crater", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_blood_frenzy"},
+	"splash_melee_combo": {"title": "Fury Combo", "description": "+0.06 damage bonus per combo stack.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 8, "evolution_id": "mighty_clap_rampage_impact", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_combo"},
+	"splash_melee_execute": {"title": "Finishing Blow", "description": "+0.20 low-health threshold; deal 1.45x melee damage at or below it.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "attack", "grid_index": 9, "evolution_id": "rage_leap_final_impact", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_finishing_blow"},
+	"orbit_shields": {"title": "Orbit Shields", "description": "Orbiting charges completely block incoming hits.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 1, "evolution_id": "rage_wave_worldbreaker", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"static_field": {"title": "Static Field", "description": "Periodic electric pulse around the Knight.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 2, "evolution_id": "rage_wave_earthsplitter", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"time_dilator": {"title": "Time Dilator", "description": "Periodically slows enemies around the Knight.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 3, "evolution_id": "rage_wave_crushing_storm", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"storm_relay": {"title": "Storm Relay", "description": "Periodically strike the nearest enemy with lightning.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 4, "evolution_id": "shield_bash_rampage_impact", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"chain_lightning": {"title": "Chain Lightning", "description": "Lightning jumps through nearby enemies without repeating targets.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 5, "evolution_id": "mighty_clap_seismic_fan", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"battle_focus": {"title": "Battle Focus", "description": "Periodic strike and temporary attack-speed boost.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 6, "evolution_id": "mighty_clap_rampage_impact", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"magnet_core": {"title": "Magnet Core", "description": "Extends nearby experience pickup attraction.", "rarity": "common", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 7, "evolution_id": "crushing_leap_meteor_crash", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"recovery_field": {"title": "Recovery Field", "description": "Periodically restore health.", "rarity": "common", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 8, "evolution_id": "rage_leap_blood_crater", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"guardian_drone": {"title": "Guardian Drone", "description": "Orbiting drone periodically strikes the nearest enemy.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "passive", "grid_index": 9, "evolution_id": "rage_leap_final_impact", "evolution_role": "passive", "owner": "passive_manager", "handler": "add_or_upgrade_passive"},
+	"rage_wave_power": {"title": "Wave Surge", "description": "+8 Rage Wave damage.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 1, "evolution_id": "rage_wave_worldbreaker", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_rage_wave_power"},
+	"rage_wave_radius": {"title": "Wave Reach", "description": "+0.75 Rage Wave radius and +0.04 Rage radius scaling.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 2, "evolution_id": "rage_wave_earthsplitter", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_wave_reach"},
+	"rage_wave_deep_slow": {"title": "Crushing Current", "description": "+0.8s slow, -0.06 speed, -0.5s cooldown, +0.04 Rage radius scaling.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 3, "evolution_id": "rage_wave_crushing_storm", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_crushing_current"},
+	"mighty_clap_power": {"title": "Clap Force", "description": "+9 Shield Bash damage.", "rarity": "common", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 4, "evolution_id": "shield_bash_rampage_impact", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_mighty_clap_power"},
+	"mighty_clap_range": {"title": "Wide Clap", "description": "+0.625 Shield Bash range and +6 degrees cone angle.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 5, "evolution_id": "mighty_clap_seismic_fan", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_wide_clap"},
+	"mighty_clap_shockwave": {"title": "Impact Wave", "description": "+1.5 Shield Bash knockback and -0.7s cooldown.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 6, "evolution_id": "mighty_clap_rampage_impact", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_impact_wave"},
+	"rage_leap_power": {"title": "Leap Impact", "description": "+10 Crushing Leap damage.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 7, "evolution_id": "crushing_leap_meteor_crash", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_rage_leap_power"},
+	"rage_leap_radius": {"title": "Wide Landing", "description": "+0.55 Crushing Leap radius.", "rarity": "rare", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 8, "evolution_id": "rage_leap_blood_crater", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_leap_radius"},
+	"rage_leap_cooldown": {"title": "Leap Ready", "description": "-1.2s Crushing Leap cooldown and +0.5 Leap distance.", "rarity": "epic", "max_level": 5, "required_level": 5, "category": "active", "grid_index": 9, "evolution_id": "rage_leap_final_impact", "evolution_role": "active", "owner": "ability_manager", "handler": "upgrade_legacy_leap_ready"},
 }
 const VALID_OWNER_HANDLERS := {
-	"auto_attack": ["upgrade_fury_strike_damage", "upgrade_legacy_wide_fury", "upgrade_fury_tempo", "upgrade_fury_strike_impact", "upgrade_legacy_ground_shockwave", "upgrade_blood_frenzy", "upgrade_fury_combo", "upgrade_finishing_blow"],
-	"ability_manager": ["upgrade_legacy_berserker_frenzy", "upgrade_rage_wave_power", "upgrade_legacy_wave_reach", "upgrade_legacy_crushing_current", "upgrade_mighty_clap_power", "upgrade_legacy_wide_clap", "upgrade_impact_wave", "upgrade_rage_leap_power", "upgrade_legacy_leap_radius", "upgrade_legacy_leap_ready"],
+	"auto_attack": ["upgrade_fury_strike_damage", "upgrade_legacy_wide_fury", "upgrade_fury_tempo", "upgrade_fury_strike_impact", "upgrade_ground_shockwave", "upgrade_blood_frenzy", "upgrade_fury_combo", "upgrade_finishing_blow"],
+	"ability_manager": ["upgrade_legacy_berserker_frenzy", "upgrade_rage_wave_power", "upgrade_legacy_wave_reach", "upgrade_crushing_current", "upgrade_mighty_clap_power", "upgrade_legacy_wide_clap", "upgrade_impact_wave", "upgrade_rage_leap_power", "upgrade_legacy_leap_radius", "upgrade_legacy_leap_ready"],
 	"passive_manager": ["add_or_upgrade_passive"],
 }
 const MAX_LEVEL := 5
@@ -63,6 +63,7 @@ func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manag
 func reset_run_state() -> void:
 	_levels.clear()
 	_history.clear()
+	_last_random_option_ids.clear()
 
 
 func get_upgrade_options(count: int) -> Array[Dictionary]:
@@ -81,7 +82,11 @@ func get_upgrade_options(count: int) -> Array[Dictionary]:
 
 
 func get_progression_debug_state() -> Dictionary:
-	return {"last_random_option_ids": _last_random_option_ids.duplicate(), "selection_mode": "uniform_eligible_random"}
+	var eligible_count := 0
+	for upgrade_id: String in UPGRADES:
+		if is_upgrade_eligible(upgrade_id):
+			eligible_count += 1
+	return {"last_random_option_ids": _last_random_option_ids.duplicate(), "selection_mode": "uniform_eligible_random", "eligible_count": eligible_count}
 
 
 func apply_upgrade(upgrade_id: String) -> bool:
@@ -123,7 +128,7 @@ func get_upgrade_level(upgrade_id: String) -> int:
 
 
 func get_upgrade_max_level(upgrade_id: String) -> int:
-	return MAX_LEVEL if UPGRADES.has(upgrade_id) else 0
+	return int(UPGRADES[upgrade_id].get("max_level", 0)) if UPGRADES.has(upgrade_id) else 0
 
 
 func is_upgrade_maxed(upgrade_id: String) -> bool:
@@ -137,9 +142,8 @@ func get_upgrade_definition(upgrade_id: String) -> Dictionary:
 	var definition: Dictionary = UPGRADES[upgrade_id].duplicate()
 	definition["id"] = upgrade_id
 	definition["level"] = get_upgrade_level(upgrade_id)
-	definition["next_level"] = mini(definition["level"] + 1, MAX_LEVEL)
-	definition["max_level"] = MAX_LEVEL
-	definition["required_level"] = MAX_LEVEL
+	definition["next_level"] = mini(definition["level"] + 1, int(definition["max_level"]))
+	definition["required_level"] = int(definition.get("required_level", definition["max_level"]))
 	definition["current_effect_summary"] = _effect_summary(upgrade_id, definition["level"])
 	definition["next_effect_summary"] = _effect_summary(upgrade_id, definition["next_level"])
 	return definition
@@ -161,7 +165,7 @@ func get_progression_matrix_validation_errors(evolution_definitions: Array[Dicti
 		if grid_index < 1 or grid_index > 9 or grid_indexes[category].has(grid_index):
 			errors.append("%s has invalid or duplicate %s grid index." % [upgrade_id, category])
 		grid_indexes[category][grid_index] = true
-		if str(definition.get("evolution_role", "")) != category or str(definition.get("evolution_id", "")).is_empty() or get_upgrade_max_level(upgrade_id) != MAX_LEVEL:
+		if str(definition.get("evolution_role", "")) != category or str(definition.get("evolution_id", "")).is_empty() or int(definition.get("max_level", 0)) != MAX_LEVEL or int(definition.get("required_level", 0)) != MAX_LEVEL:
 			errors.append("%s has invalid canonical metadata." % upgrade_id)
 		if not _has_declared_handler(definition):
 			errors.append("%s has no valid owner handler." % upgrade_id)
@@ -221,7 +225,8 @@ func _make_option(upgrade_id: String) -> Dictionary:
 	var definition: Dictionary = UPGRADES[upgrade_id]
 	var current_level := get_upgrade_level(upgrade_id)
 	var next_level := current_level + 1
-	return {"id": upgrade_id, "title": definition["title"], "description": _effect_summary(upgrade_id, next_level) if not _effect_summary(upgrade_id, next_level).is_empty() else definition["description"], "rarity": definition["rarity"], "level": current_level, "next_level": next_level, "max_level": MAX_LEVEL, "required_level": MAX_LEVEL, "current_effect_summary": _effect_summary(upgrade_id, current_level), "next_effect_summary": _effect_summary(upgrade_id, next_level), "evolution_id": definition["evolution_id"], "slot_category": definition["category"]}
+	var next_summary := _effect_summary(upgrade_id, next_level)
+	return {"id": upgrade_id, "title": definition["title"], "description": next_summary if not next_summary.is_empty() else definition["description"], "rarity": definition["rarity"], "category": definition["category"], "level": current_level, "next_level": next_level, "max_level": int(definition["max_level"]), "required_level": int(definition["required_level"]), "current_effect_summary": _effect_summary(upgrade_id, current_level), "next_effect_summary": next_summary, "effect_comparison": _effect_comparison(upgrade_id, current_level, next_level), "evolution_id": definition["evolution_id"], "is_new_line": current_level == 0}
 
 
 func _has_dependencies(upgrade_id: String) -> bool:
@@ -272,8 +277,28 @@ func _effect_summary(upgrade_id: String, level: int) -> String:
 	var values: Dictionary = LEVEL_TUNING[upgrade_id]
 	var parts: Array[String] = []
 	for key: String in values:
-		parts.append("%s %s" % [key.replace("_", " "), _tuning(upgrade_id, key, level)])
+		parts.append("%s %s" % [_friendly_tuning_name(key), _format_tuning_value(key, _tuning(upgrade_id, key, level))])
 	return ", ".join(parts)
+
+
+func _effect_comparison(upgrade_id: String, current_level: int, next_level: int) -> String:
+	if current_level <= 0:
+		return "Gain: %s" % _effect_summary(upgrade_id, next_level)
+	return "%s → %s" % [_effect_summary(upgrade_id, current_level), _effect_summary(upgrade_id, next_level)]
+
+
+func _friendly_tuning_name(key: String) -> String:
+	return {"damage": "Damage", "radius": "Radius", "interval": "Interval", "force": "Knockback", "multiplier": "Rage bonus", "damage_multiplier": "Damage", "radius_multiplier": "Radius", "delay": "Delay", "healing": "Healing", "bonus": "Combo bonus", "threshold": "Execute threshold", "rage_radius": "Rage radius", "duration": "Slow duration", "slow_reduction": "Slow strength", "cooldown": "Cooldown reduction", "range": "Range", "angle": "Cone angle", "knockback": "Knockback", "distance": "Leap distance"}.get(key, key.capitalize())
+
+
+func _format_tuning_value(key: String, value: float) -> String:
+	if key in ["interval", "delay", "duration", "cooldown"]:
+		return "%.2fs" % value
+	if key == "angle":
+		return "%.1f°" % value
+	if key in ["multiplier", "damage_multiplier", "radius_multiplier", "bonus", "threshold", "rage_radius", "slow_reduction"]:
+		return "%.2f" % value
+	return "%.2f" % value
 
 
 func _get_owner(upgrade_id: String) -> Node:
@@ -287,4 +312,3 @@ func _get_owner(upgrade_id: String) -> Node:
 func _has_declared_handler(definition: Dictionary) -> bool:
 	var owner := str(definition.get("owner", ""))
 	return VALID_OWNER_HANDLERS.has(owner) and str(definition.get("handler", "")) in VALID_OWNER_HANDLERS[owner]
-

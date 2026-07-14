@@ -222,4 +222,8 @@ Recent commits establish the current direction: zone-card stage selection and un
 
 ## Documentation maintenance
 
+## Stage 1.9.3.4 — neutral progression presentation
+
+Knight's completed 1.9.3 progression uses uniform random selection from every eligible upgrade. Evolution paths are presentation-only: the HUD and run summary report the closest unfinished path (ready paths first), without focus state, recommendations, or offer steering. Upgrade cards show readable level comparisons and physical five-level metadata; the next planned stage is 1.9.4.
+
 Keep this README, [Agents.md](Agents.md), and the relevant manual checks synchronized whenever behavior, save data, scene composition, external integration, or public system contracts change. Use the implementation as the source of truth; record discovered issues as issues/debt rather than silently describing them as fixed.

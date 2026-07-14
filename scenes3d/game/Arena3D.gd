@@ -275,9 +275,9 @@ func _validate_progression() -> void:
 
 
 func _refresh_evolution_progress_ui() -> void:
-	if game_hud == null or not evolution_manager.has_method("get_focused_evolution_path_state"):
+	if game_hud == null or not evolution_manager.has_method("get_closest_evolution_path_state"):
 		return
-	var path: Dictionary = evolution_manager.get_focused_evolution_path_state()
+	var path: Dictionary = evolution_manager.get_closest_evolution_path_state()
 	if game_hud.has_method("update_evolution_path_state"):
 		game_hud.update_evolution_path_state(path)
 
@@ -385,8 +385,10 @@ func _build_run_summary(result: String) -> Dictionary:
 		highest_progress = maxi(highest_progress, progress)
 		if str(path.get("state", "")) == "partial": partial_count += 1
 		if str(path.get("state", "")) == "ready": ready_count += 1
-	summary["focused_evolution_id"] = evolution_manager.get_focused_evolution_id()
-	summary["focused_evolution_progress"] = int(evolution_manager.get_focused_evolution_path_state().get("total_progress", 0))
+	var closest_path: Dictionary = evolution_manager.get_closest_evolution_path_state()
+	summary["closest_evolution_id"] = evolution_manager.get_closest_evolution_id()
+	summary["closest_evolution_title"] = str(closest_path.get("title", ""))
+	summary["closest_evolution_progress"] = int(closest_path.get("total_progress", 0))
 	summary["highest_evolution_progress"] = highest_progress
 	summary["partial_evolution_count"] = partial_count
 	summary["ready_evolution_count"] = ready_count
