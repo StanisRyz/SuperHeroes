@@ -230,4 +230,6 @@ Stage 1.9.3.5 completes that presentation: random offers are enriched only after
 
 Stage 1.9.4 adds Web-safe Knight feedback polish. Ground Shockwave now has its own lightweight ring/disc visual and level-up cards render real multiline text. Combat formulas, evolution routing, and uniform random progression remain unchanged; Stage 1.9.5 is next.
 
+The completed visual pass keeps Ground Shockwave and Crushing Storm routed to distinct effects, uses low-poly procedural crack ribbons for Earthsplitter and Seismic Fan, and adds bounded Fury Strike impact feedback. Effects remain presentation-only, short-lived, and free of collision or gameplay queries.
+
 Keep this README, [Agents.md](Agents.md), and the relevant manual checks synchronized whenever behavior, save data, scene composition, external integration, or public system contracts change. Use the implementation as the source of truth; record discovered issues as issues/debt rather than silently describing them as fixed.

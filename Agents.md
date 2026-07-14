@@ -194,6 +194,8 @@ Neutral presentation enriches random options after selection. Passive definition
 
 Stage 1.9.4 presentation effects must be Web-safe and presentation-only: low-vertex meshes created once per instance, short lifetimes, no collision/query logic, no global hit-stop, and guaranteed cleanup. Preserve all Knight formulas, evolution combinations, and unbiased upgrade selection; Stage 1.9.5 follows.
 
+Ground Shockwave must use `GroundShockwaveEffect3D`; Crushing Storm must use `CrushingStormEffect3D`. Earthsplitter and Seismic Fan crack geometry is generated once through `GroundCrackMeshBuilder3D`; it is visual-only and must never alter their existing line/cone queries.
+
 - Keep changes small, local, and source-backed. Do not add unrelated systems, duplicate managers, or broad refactors.
 - Do not add persistence, monetization, cloud/Yandex services, online features, arena hazards, input remapping, audio assets, or new enemy types unless explicitly requested.
 - Avoid copyrighted superhero IP.

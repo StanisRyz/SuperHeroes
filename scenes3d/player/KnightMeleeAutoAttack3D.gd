@@ -10,6 +10,7 @@ const EARTHSPLITTER_EFFECT := preload("res://scenes3d/effects/EarthsplitterEffec
 const CRUSHING_STORM_EFFECT := preload("res://scenes3d/effects/CrushingStormEffect3D.tscn")
 const SEISMIC_FAN_EFFECT := preload("res://scenes3d/effects/SeismicFanEffect3D.tscn")
 const GROUND_SHOCKWAVE_EFFECT := preload("res://scenes3d/effects/GroundShockwaveEffect3D.tscn")
+const FURY_STRIKE_IMPACT_EFFECT := preload("res://scenes3d/effects/FuryStrikeImpactEffect3D.tscn")
 const EARTHSPLITTER_RANGE := 6.5
 const EARTHSPLITTER_WIDTH := 1.3325
 const EARTHSPLITTER_DAMAGE_MULTIPLIER := 0.75
@@ -218,6 +219,7 @@ func _on_attack_impact() -> void:
 		hit_count += 1
 		total_damage += damage
 	if hit_count > 0:
+		_spawn_fury_strike_feedback(hit_count)
 		_add_fury_combo_stack()
 		if _blood_frenzy_enabled and _player != null:
 			_player.heal(_blood_frenzy_healing_per_enemy * hit_count)
@@ -230,6 +232,14 @@ func _on_attack_impact() -> void:
 		if is_attack_evolution_active(SEISMIC_FAN_EVOLUTION_ID):
 			_apply_seismic_fan(_player.global_position, _attack_direction, base_swing_damage)
 	attack_impact_resolved.emit(hit_count, total_damage)
+
+
+func _spawn_fury_strike_feedback(hit_count: int) -> void:
+	if _effect_container == null or _player == null:
+		return
+	var effect := FURY_STRIKE_IMPACT_EFFECT.instantiate()
+	_effect_container.add_child(effect)
+	effect.setup(_player.global_position, _attack_direction, 0.38 + 0.05 * mini(hit_count, 4), hit_count > 1)
 
 
 func can_apply_attack_evolution(evolution_id: String, target_attack_id: String) -> bool:
@@ -314,9 +324,9 @@ func _apply_crushing_storm(origin: Vector3, base_swing_damage: int) -> void:
 		enemy.apply_temporary_modifier("crushing_storm_pressure", {"movement_speed_multiplier": slow_multiplier}, slow_duration)
 	if _effect_container == null:
 		return
-	var effect := GROUND_SHOCKWAVE_EFFECT.instantiate()
+	var effect := CRUSHING_STORM_EFFECT.instantiate()
 	_effect_container.add_child(effect)
-	effect.setup(origin, radius, 0.24)
+	effect.setup(origin, radius, 0.24, _rage_ratio)
 
 
 func _apply_seismic_fan(origin: Vector3, direction: Vector3, base_swing_damage: int) -> void:
@@ -367,7 +377,7 @@ func _resolve_ground_shockwave(impact: Dictionary) -> void:
 		enemy.take_damage(damage)
 	if _effect_container == null:
 		return
-	var effect := CRUSHING_STORM_EFFECT.instantiate()
+	var effect := GROUND_SHOCKWAVE_EFFECT.instantiate()
 	_effect_container.add_child(effect)
 	effect.setup(origin, radius, 0.20)
 

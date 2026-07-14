@@ -1,5 +1,7 @@
 extends Node3D
 
+const GroundCrackMeshBuilder = preload("res://scenes3d/effects/GroundCrackMeshBuilder3D.gd")
+
 const SIDE_ANGLE := 34.0
 const SIDE_WIDTH := 0.697
 const CENTER_WIDTH := 0.861
@@ -21,8 +23,7 @@ func setup(world_position: Vector3, direction: Vector3, maximum_range: float, du
 
 
 func _configure_strip(strip: MeshInstance3D, angle_degrees: float, width: float, maximum_range: float, color: Color) -> void:
-	strip.mesh = PlaneMesh.new()
-	(strip.mesh as PlaneMesh).size = Vector2(width, maximum_range)
+	strip.mesh = GroundCrackMeshBuilder.build_crack(maximum_range, width, 6, width * 0.10, 0.38, hash(world_position) + roundi(angle_degrees * 10.0))
 	strip.rotation.y = deg_to_rad(angle_degrees)
 	strip.position = Vector3(sin(deg_to_rad(angle_degrees)) * maximum_range * 0.5, 0.0, -cos(deg_to_rad(angle_degrees)) * maximum_range * 0.5)
 	var material := StandardMaterial3D.new()

@@ -6,14 +6,14 @@ const GroundMeshBuilder = preload("res://scenes3d/effects/GroundEffectMeshBuilde
 var _material: StandardMaterial3D
 
 
-func setup(world_position: Vector3, radius: float, duration: float) -> void:
+func setup(world_position: Vector3, radius: float, duration: float, rage_ratio: float = 0.0) -> void:
 	global_position = world_position + Vector3.UP * 0.045
 	mesh_instance.mesh = GroundMeshBuilder.build_ring(0.58, 1.0)
 	_material = StandardMaterial3D.new()
 	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_material.albedo_color = Color(0.95, 0.28, 0.08, 0.78)
+	_material.albedo_color = Color(0.62 + rage_ratio * 0.25, 0.06, 0.08, 0.70 + rage_ratio * 0.20)
 	mesh_instance.material_override = _material
 	scale = Vector3(0.12, 1.0, 0.12)
 	var tween := create_tween()
