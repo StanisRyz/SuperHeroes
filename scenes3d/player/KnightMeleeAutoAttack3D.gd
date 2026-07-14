@@ -103,6 +103,27 @@ func upgrade_fury_combo(bonus_per_level: float) -> bool:
 	return true
 
 
+func upgrade_fury_strike_damage(damage_bonus: int) -> bool:
+	if damage_bonus <= 0:
+		return false
+	attack_damage += damage_bonus
+	return true
+
+
+func upgrade_fury_tempo(interval_reduction: float, minimum_interval: float) -> bool:
+	if interval_reduction <= 0.0 or minimum_interval <= 0.0:
+		return false
+	attack_interval = maxf(attack_interval - interval_reduction, minimum_interval)
+	return true
+
+
+func upgrade_fury_strike_impact(force_bonus: float) -> bool:
+	if force_bonus <= 0.0:
+		return false
+	knockback_force += force_bonus
+	return true
+
+
 func upgrade_blood_frenzy(heal_per_enemy: float) -> bool:
 	if heal_per_enemy <= 0.0:
 		return false

@@ -247,6 +247,27 @@ func upgrade_impact_wave(knockback_bonus: float, cooldown_reduction: float) -> b
 	return true
 
 
+func upgrade_rage_wave_power(damage_bonus: int) -> bool:
+	if damage_bonus <= 0:
+		return false
+	wave_damage += damage_bonus
+	return true
+
+
+func upgrade_mighty_clap_power(damage_bonus: int) -> bool:
+	if damage_bonus <= 0:
+		return false
+	bash_damage += damage_bonus
+	return true
+
+
+func upgrade_rage_leap_power(damage_bonus: int) -> bool:
+	if damage_bonus <= 0:
+		return false
+	leap_damage += damage_bonus
+	return true
+
+
 func upgrade_legacy_wide_clap(range_bonus: float, angle_bonus: float) -> bool:
 	if range_bonus <= 0.0 or angle_bonus <= 0.0:
 		return false

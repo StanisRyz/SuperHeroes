@@ -6,9 +6,9 @@ signal evolution_applied(evolution_id: String, evolution_data: Dictionary)
 signal evolution_state_changed
 
 const EVOLUTIONS: Array[Dictionary] = [
-	{"id": "rage_wave_worldbreaker", "title": "Worldbreaker", "description": "Rage Wave erupts three times, with each pulse expanding farther and striking enemies again.", "effect_summary": "Three expanding pulses. Total damage 2.60x. Wide-area slow.", "target_ability_id": "rage_wave", "implementation_status": "implemented", "prerequisites": ["sword_arc", "rage_max", "wave_radius"]},
-	{"id": "shield_bash_rampage_impact", "title": "Rampage Impact", "description": "Shield Bash unleashes a wider heavy impact followed by a delayed second shockwave.", "effect_summary": "Two directional impacts. Total damage 2.75x. Heavy knockback and stagger.", "target_ability_id": "shield_bash", "implementation_status": "implemented", "prerequisites": ["sword_knockback", "rage_multiplier", "bash_knockback"]},
-	{"id": "crushing_leap_meteor_crash", "title": "Meteor Crash", "description": "Crushing Leap crashes down with a larger stunning impact followed by a delayed crater eruption.", "effect_summary": "Landing impact and crater aftershock. Total damage 2.60x. Stun and slow.", "target_ability_id": "crushing_leap", "implementation_status": "implemented", "prerequisites": ["sword_damage", "rage_decay", "leap_damage"]},
+	{"id": "rage_wave_worldbreaker", "title": "Worldbreaker", "description": "Rage Wave erupts three times, with each pulse expanding farther and striking enemies again.", "effect_summary": "Three expanding pulses. Total damage 2.60x. Wide-area slow.", "target_ability_id": "rage_wave", "implementation_status": "implemented", "prerequisites": ["splash_melee_damage", "orbit_shields", "rage_wave_power"]},
+	{"id": "shield_bash_rampage_impact", "title": "Rampage Impact", "description": "Shield Bash unleashes a wider heavy impact followed by a delayed second shockwave.", "effect_summary": "Two directional impacts. Total damage 2.75x. Heavy knockback and stagger.", "target_ability_id": "shield_bash", "implementation_status": "implemented", "prerequisites": ["splash_melee_impact", "storm_relay", "mighty_clap_power"]},
+	{"id": "crushing_leap_meteor_crash", "title": "Meteor Crash", "description": "Crushing Leap crashes down with a larger stunning impact followed by a delayed crater eruption.", "effect_summary": "Landing impact and crater aftershock. Total damage 2.60x. Stun and slow.", "target_ability_id": "crushing_leap", "implementation_status": "implemented", "prerequisites": ["splash_melee_speed", "magnet_core", "rage_leap_power"]},
 	{"id": "mighty_clap_rampage_impact", "triple_id": "vanguard_rampage_impact", "title": "Rage Field", "description": "Static Field becomes a Rage-scaling damage aura with larger and faster pulses at high Rage.", "effect_summary": "Rage-scaled area pulses with increased radius, damage, and frequency.", "target_type": "passive", "target_passive_id": "static_field", "implementation_status": "implemented", "prerequisites": ["splash_melee_combo", "battle_focus", "mighty_clap_shockwave"]},
 	{"id": "rage_leap_blood_crater", "triple_id": "vanguard_blood_crater", "title": "Berserker Focus", "description": "Battle Focus gives a much stronger Rage-scaled strike and attack-speed burst.", "effect_summary": "Rage-scaled multi-target strikes and an enhanced attack-speed burst.", "target_type": "passive", "target_passive_id": "battle_focus", "implementation_status": "implemented", "prerequisites": ["splash_melee_lifesteal", "recovery_field", "rage_leap_radius"]},
 	{"id": "rage_leap_final_impact", "triple_id": "vanguard_final_impact", "title": "Gravity Rage", "description": "Magnet Core gains much stronger pickup reach and emits periodic gravity pulses that pull and slow enemies.", "effect_summary": "Greatly increased pickup reach and periodic enemy-pulling gravity pulses.", "target_type": "passive", "target_passive_id": "magnet_core", "implementation_status": "implemented", "prerequisites": ["splash_melee_execute", "guardian_drone", "rage_leap_cooldown"]},
@@ -115,6 +115,12 @@ func reset_run_state() -> void:
 
 func refresh_evolution_states() -> void:
 	evolution_state_changed.emit()
+
+
+func get_progression_matrix_validation_errors() -> Array[String]:
+	if _upgrade_manager == null or not _upgrade_manager.has_method("get_progression_matrix_validation_errors"):
+		return ["RunUpgradeManager3D validation API is unavailable."]
+	return _upgrade_manager.get_progression_matrix_validation_errors(EVOLUTIONS)
 
 
 func _get_definition(evolution_id: String) -> Dictionary:
