@@ -33,6 +33,8 @@ func setup(upgrade_manager: Node, ability_manager: Node, passive_manager: Node =
 	_passive_manager = passive_manager
 	_auto_attack = auto_attack
 	reset_run_state()
+	if _upgrade_manager != null and _upgrade_manager.has_signal("upgrade_applied") and not _upgrade_manager.upgrade_applied.is_connected(_on_upgrade_applied):
+		_upgrade_manager.upgrade_applied.connect(_on_upgrade_applied)
 
 
 func get_available_evolutions() -> Array[Dictionary]:
@@ -117,6 +119,34 @@ func get_upgrade_evolution_context(upgrade_id: String) -> Dictionary:
 	return path
 
 
+func build_upgrade_offer_plan(count: int) -> Dictionary:
+	_refresh_focus()
+	var selected_ids: Array[String] = []
+	var reasons := {}
+	var focused := _focused_evolution_id
+	if not focused.is_empty():
+		var focused_path := get_evolution_path_state(focused)
+		for line_key in ["attack_line", "passive_line", "active_line"]:
+			var line: Dictionary = focused_path.get(line_key, {})
+			var upgrade_id := str(line.get("upgrade_id", ""))
+			if _is_upgrade_available(upgrade_id):
+				selected_ids.append(upgrade_id)
+				reasons[upgrade_id] = "focused_path"
+	for definition: Dictionary in EVOLUTIONS:
+		if selected_ids.size() >= count:
+			break
+		var evolution_id := str(definition["id"])
+		if evolution_id == focused or is_evolution_selected(evolution_id):
+			continue
+		for upgrade_id: String in definition["prerequisites"]:
+			if selected_ids.size() >= count:
+				break
+			if _is_upgrade_available(upgrade_id) and upgrade_id not in selected_ids:
+				selected_ids.append(upgrade_id)
+				reasons[upgrade_id] = "continue_partial_path" if int(get_evolution_path_state(evolution_id).get("total_progress", 0)) > 0 else "new_path"
+	return {"ordered_upgrade_ids": selected_ids, "offer_reasons": reasons, "focused_evolution_id": focused}
+
+
 func get_all_evolution_states() -> Dictionary:
 	var states := {}
 	for definition: Dictionary in EVOLUTIONS:
@@ -172,6 +202,20 @@ func reset_run_state() -> void:
 func refresh_evolution_states() -> void:
 	_refresh_focus()
 	evolution_state_changed.emit()
+
+
+func _on_upgrade_applied(upgrade_id: String, _new_level: int) -> void:
+	var definition: Dictionary = _upgrade_manager.get_upgrade_definition(upgrade_id)
+	var evolution_id := str(definition.get("evolution_id", ""))
+	if not evolution_id.is_empty() and not _focus_order.has(evolution_id):
+		_focus_order[evolution_id] = _next_focus_order
+		_next_focus_order += 1
+	_refresh_focus()
+	evolution_state_changed.emit()
+
+
+func _is_upgrade_available(upgrade_id: String) -> bool:
+	return not upgrade_id.is_empty() and _upgrade_manager != null and _upgrade_manager.has_upgrade(upgrade_id) and not _upgrade_manager.is_upgrade_maxed(upgrade_id)
 
 
 func _refresh_focus() -> void:

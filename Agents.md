@@ -93,6 +93,8 @@ Stage 1.9.2 standardizes all 27 canonical Knight upgrades to five levels with ex
 
 Stage 1.9.3 adds read-only evolution-path state and a run-local deterministic focus: highest path progress, then completed lines, started lines, and first selection order. Selected paths leave the focus pool; ready paths remain focused until chosen. Arena3D enriches offers with focused/secondary/new-path context and synergy metadata, refreshes the existing HUD evolution area, validates after manager initialization, and records path progression metrics in the terminal summary. Stage 1.9.4 is next.
 
+Stage 1.9.3.1 makes EvolutionManager3D own explicit upgrade offer planning. RunUpgradeManager3D emits only after a successful level update and validates planned IDs before turning them into option dictionaries. Focused prerequisites are guaranteed first, then incomplete secondary paths and new paths fill open slots; options include projected progression and the other two line levels. Stage 1.9.4 is next.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. They coexist with the unchanged 2D layer names. Player3D is on Player and collides with Environment/Obstacles; its PickupArea detects Pickups. Arena3D's ground is Environment and detects Player. Always use `Main.tscn` for normal-game validation.
 
 ## Ownership map

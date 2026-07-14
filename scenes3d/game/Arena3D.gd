@@ -213,7 +213,8 @@ func _on_player_level_up_available(_level: int) -> void:
 func _open_next_level_up() -> void:
 	if _run_finished or _pending_level_ups <= 0 or level_up_screen == null or level_up_screen.visible:
 		return
-	var options := upgrade_manager.get_upgrade_options(3)
+	var offer_plan: Dictionary = evolution_manager.build_upgrade_offer_plan(3) if evolution_manager.has_method("build_upgrade_offer_plan") else {}
+	var options := upgrade_manager.make_upgrade_options(offer_plan.get("ordered_upgrade_ids", [])) if not offer_plan.is_empty() else upgrade_manager.get_upgrade_options(3)
 	for option: Dictionary in options:
 		if evolution_manager.has_method("get_upgrade_evolution_context"):
 			var context: Dictionary = evolution_manager.get_upgrade_evolution_context(str(option.get("id", "")))
@@ -221,8 +222,17 @@ func _open_next_level_up() -> void:
 			option["is_focused_path"] = bool(context.get("is_focused", false))
 			option["is_new_path"] = int(context.get("total_progress", 0)) == 0
 			option["is_secondary_path"] = not bool(option["is_focused_path"]) and not bool(option["is_new_path"])
-			option["offer_reason"] = "focused_path" if bool(option["is_focused_path"]) else ("continue_partial_path" if bool(option["is_secondary_path"]) else "new_path")
-			option["evolution_synergy"] = {"evolution_id": context.get("id", ""), "synergy_evolution_title": context.get("title", ""), "synergy_target_type": context.get("target_type", ""), "state": context.get("state", "locked"), "synergy_progress": "%d/15" % int(context.get("total_progress", 0)), "synergy_with": [], "synergy_missing": [], "is_focused": context.get("is_focused", false)}
+			option["offer_reason"] = offer_plan.get("offer_reasons", {}).get(option["id"], "new_path")
+			var with_lines: Array[String] = []
+			var missing_lines: Array[String] = []
+			for line_key in ["attack_line", "passive_line", "active_line"]:
+				var line: Dictionary = context.get(line_key, {})
+				if str(line.get("upgrade_id", "")) == str(option["id"]): continue
+				var line_text := "%s %d/%d" % [str(line.get("title", "")), int(line.get("current_level", 0)), int(line.get("required_level", 5))]
+				with_lines.append(line_text)
+				if not bool(line.get("completed", false)): missing_lines.append(line_text)
+			var projected_progress := int(context.get("total_progress", 0)) + 1
+			option["evolution_synergy"] = {"evolution_id": context.get("id", ""), "synergy_evolution_title": context.get("title", ""), "synergy_target_type": context.get("target_type", ""), "state": context.get("state", "locked"), "synergy_progress": "%d/15 → %d/15" % [int(context.get("total_progress", 0)), projected_progress], "synergy_with": with_lines, "synergy_missing": missing_lines, "is_focused": context.get("is_focused", false)}
 	if options.is_empty():
 		_pending_level_ups = 0
 		return

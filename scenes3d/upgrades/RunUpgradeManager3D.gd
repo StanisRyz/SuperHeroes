@@ -8,6 +8,8 @@ var _passive_manager: PassiveAbilityManager3D
 var _levels: Dictionary = {}
 var _history: Array[String] = []
 
+signal upgrade_applied(upgrade_id: String, new_level: int)
+
 const UPGRADES: Dictionary = {
 	"splash_melee_damage": {"title": "Fury Strike Power", "description": "+4 Fury Strike damage.", "rarity": "common", "max_level": 5, "category": "attack", "grid_index": 1, "evolution_id": "rage_wave_worldbreaker", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_fury_strike_damage"},
 	"splash_melee_radius": {"title": "Wide Fury", "description": "+0.35 Fury Strike radius.", "rarity": "rare", "max_level": 4, "category": "attack", "grid_index": 2, "evolution_id": "rage_wave_earthsplitter", "evolution_role": "attack", "owner": "auto_attack", "handler": "upgrade_legacy_wide_fury"},
@@ -91,7 +93,19 @@ func apply_upgrade(upgrade_id: String) -> bool:
 		return false
 	_levels[upgrade_id] = next_level
 	_history.append(upgrade_id)
+	upgrade_applied.emit(upgrade_id, next_level)
 	return true
+
+
+func make_upgrade_options(upgrade_ids: Array[String]) -> Array[Dictionary]:
+	var options: Array[Dictionary] = []
+	var seen := {}
+	for upgrade_id: String in upgrade_ids:
+		if seen.has(upgrade_id) or not UPGRADES.has(upgrade_id) or not _has_dependencies(upgrade_id) or is_upgrade_maxed(upgrade_id):
+			continue
+		seen[upgrade_id] = true
+		options.append(_make_option(upgrade_id))
+	return options
 
 
 func has_upgrade(upgrade_id: String) -> bool:

@@ -194,6 +194,8 @@ Stage 1.9.2 gives every canonical Knight line five levels and requires all three
 
 Stage 1.9.3 adds focused evolution-path UX. The most progressed incomplete path is selected deterministically, and options carry focused, secondary, or new-path context with projected evolution progress. Level-up cards display next-level data and progression context; the HUD shows the focused path, its `0–15` progress, and its three `x/5` lines (or `READY`). Arena3D validates progression after manager setup and records focused-path, partial/ready, and per-evolution progress metrics in run summaries. Stage 1.9.4 is next.
 
+Stage 1.9.3.1 completes evolution-aware offers: successful upgrades signal exact first-path selection order; focused unfinished prerequisites are planned first; and other paths supply deterministic continuation/new-path fallbacks. Options carry projected `current → next` path progress plus completed synergy line metadata without mutating run state. Stage 1.9.4 is next.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. These are separate from and preserve the existing 2D physics layers.
 
 The configured Web export preset writes to `export/index.html`. Use Godot's Export dialog or an equivalent CLI invocation with the checked-in `Web` preset; no custom export template or external build dependency is configured in the repository.
