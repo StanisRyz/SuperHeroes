@@ -97,6 +97,8 @@ Stage 1.9.3.1 makes EvolutionManager3D own explicit upgrade offer planning. RunU
 
 Stage 1.9.3.2 adds the public eligibility contract used by both planning and option creation. Evolution offer plans now use structured category entries, and projected states expose current/projected progress, line levels, completed-line counts, and completion markers without mutating the run. Stage 1.9.4 is next.
 
+Stage 1.9.3.3 makes RunUpgradeManager3D the sole owner of normal offers: it shuffles the complete eligible catalog and returns up to three unique IDs with equal probability. Arena3D attaches neutral evolution context only after the random draw; it must never ask EvolutionManager3D to shape, replace, or order normal offers. HUD wording is closest-evolution informational only. Stage 1.9.3.4 is next.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. They coexist with the unchanged 2D layer names. Player3D is on Player and collides with Environment/Obstacles; its PickupArea detects Pickups. Arena3D's ground is Environment and detects Player. Always use `Main.tscn` for normal-game validation.
 
 ## Ownership map

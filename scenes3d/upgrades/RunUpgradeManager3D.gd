@@ -7,6 +7,7 @@ var _ability_manager: KnightAbilityManager3D
 var _passive_manager: PassiveAbilityManager3D
 var _levels: Dictionary = {}
 var _history: Array[String] = []
+var _last_random_option_ids: Array[String] = []
 
 signal upgrade_applied(upgrade_id: String, new_level: int)
 
@@ -65,24 +66,22 @@ func reset_run_state() -> void:
 
 
 func get_upgrade_options(count: int) -> Array[Dictionary]:
-	var available_by_category := {"attack": [], "active": [], "passive": []}
+	var eligible_ids: Array[String] = []
 	for upgrade_id: String in UPGRADES:
-		if int(_levels.get(upgrade_id, 0)) < get_upgrade_max_level(upgrade_id):
-			available_by_category[str(UPGRADES[upgrade_id]["category"])].append(upgrade_id)
-	for category: String in available_by_category:
-		available_by_category[category] = _prioritize_started_lines(available_by_category[category])
+		if is_upgrade_eligible(upgrade_id):
+			eligible_ids.append(upgrade_id)
+	eligible_ids.shuffle()
 	var options: Array[Dictionary] = []
-	if count >= 3:
-		for category in ["attack", "active", "passive"]:
-			if not available_by_category[category].is_empty():
-				options.append(_make_option(available_by_category[category].pop_back()))
-	var remaining: Array[String] = []
-	for category: String in available_by_category:
-		remaining.append_array(available_by_category[category])
-	remaining.shuffle()
-	while options.size() < count and not remaining.is_empty():
-		options.append(_make_option(remaining.pop_back()))
+	for index in range(mini(count, eligible_ids.size())):
+		options.append(_make_option(eligible_ids[index]))
+	_last_random_option_ids = []
+	for option: Dictionary in options:
+		_last_random_option_ids.append(str(option["id"]))
 	return options
+
+
+func get_progression_debug_state() -> Dictionary:
+	return {"last_random_option_ids": _last_random_option_ids.duplicate(), "selection_mode": "uniform_eligible_random"}
 
 
 func apply_upgrade(upgrade_id: String) -> bool:
@@ -289,14 +288,3 @@ func _has_declared_handler(definition: Dictionary) -> bool:
 	var owner := str(definition.get("owner", ""))
 	return VALID_OWNER_HANDLERS.has(owner) and str(definition.get("handler", "")) in VALID_OWNER_HANDLERS[owner]
 
-
-func _prioritize_started_lines(upgrade_ids: Array) -> Array:
-	var started: Array = []
-	for upgrade_id: String in upgrade_ids:
-		if get_upgrade_level(upgrade_id) > 0 and not is_upgrade_maxed(upgrade_id):
-			started.append(upgrade_id)
-	if not started.is_empty():
-		started.shuffle()
-		return started
-	upgrade_ids.shuffle()
-	return upgrade_ids

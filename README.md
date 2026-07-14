@@ -198,6 +198,8 @@ Stage 1.9.3.1 completes evolution-aware offers: successful upgrades signal exact
 
 Stage 1.9.3.2 finalizes offer integrity with public owner/handler eligibility, structured category-slot plans, and non-mutating projected path state. Planned options retain their category and reason, and expose current/projected progress plus line/evolution completion flags. Stage 1.9.4 is next.
 
+Stage 1.9.3.3 restores uniform random level-up offers from the complete eligible catalog. There is no focused-path steering, started-line priority, category balancing, or rarity weighting; evolution progress is informational only. The HUD reports the closest evolution without implying future offers, and evolutions remain rare outcomes of randomly reaching `5/5/5`. Stage 1.9.3.4 is next.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. These are separate from and preserve the existing 2D physics layers.
 
 The configured Web export preset writes to `export/index.html`. Use Godot's Export dialog or an equivalent CLI invocation with the checked-in `Web` preset; no custom export template or external build dependency is configured in the repository.
