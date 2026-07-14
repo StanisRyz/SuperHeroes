@@ -26,15 +26,15 @@ const GRAVITY_RAGE_BONUS_MULTIPLIER := 2.6
 const GRAVITY_RAGE_SLOW := {"movement_speed_multiplier": 0.55}
 const ORBIT_SHIELD_UI_REFRESH_INTERVAL := 0.25
 const PASSIVE_DEFINITIONS: Dictionary = {
-	"static_field": {"title": "Static Field", "max_level": 3, "damage": [5, 7, 9], "interval": [4.8, 4.2, 3.6], "radius": [150.0, 175.0, 200.0]},
-	"battle_focus": {"title": "Battle Focus", "max_level": 3, "damage": [4, 6, 8], "interval": [7.5, 6.5, 5.5], "range": 420.0, "attack_speed_multiplier": [1.12, 1.18, 1.24], "duration": [3.0, 3.5, 4.0]},
-	"recovery_field": {"title": "Recovery Field", "max_level": 3, "heal": [4, 6, 8], "interval": [12.0, 10.5, 9.0], "radius": [80.0, 95.0, 110.0]},
-	"magnet_core": {"title": "Magnet Core", "max_level": 3, "pickup_radius_bonus": [45.0, 85.0, 125.0]},
-	"guardian_drone": {"title": "Guardian Drone", "max_level": 3, "damage": [5, 8, 11], "interval": [3.4, 3.0, 2.6], "range": 460.0},
-	"orbit_shields": {"title": "Orbit Shields", "max_level": 3, "maximum_charges": [1, 1, 2], "interval": [18.0, 14.0, 12.0]},
-	"storm_relay": {"title": "Storm Relay", "max_level": 3, "damage": [8, 12, 16], "interval": [5.5, 4.8, 4.2], "range": 520.0},
-	"chain_lightning": {"title": "Chain Lightning", "max_level": 3, "damage": [6, 9, 12], "interval": [6.6, 5.8, 5.0], "initial_range": 500.0, "bounce_range": [210.0, 240.0, 270.0], "maximum_targets": [2, 3, 4]},
-	"time_dilator": {"title": "Time Dilator", "max_level": 3, "interval": [8.5, 7.5, 6.5], "radius": [190.0, 220.0, 250.0], "movement_speed_multiplier": [0.72, 0.64, 0.56], "duration": [2.5, 3.0, 3.5]},
+	"static_field": {"title": "Static Field", "max_level": 5, "damage": [5, 6, 7, 8, 9], "interval": [4.8, 4.5, 4.2, 3.9, 3.6], "radius": [150.0, 162.5, 175.0, 187.5, 200.0]},
+	"battle_focus": {"title": "Battle Focus", "max_level": 5, "damage": [4, 5, 6, 7, 8], "interval": [7.5, 7.0, 6.5, 6.0, 5.5], "range": 420.0, "attack_speed_multiplier": [1.12, 1.15, 1.18, 1.21, 1.24], "duration": [3.0, 3.25, 3.5, 3.75, 4.0]},
+	"recovery_field": {"title": "Recovery Field", "max_level": 5, "heal": [4, 5, 6, 7, 8], "interval": [12.0, 11.25, 10.5, 9.75, 9.0], "radius": [80.0, 87.5, 95.0, 102.5, 110.0]},
+	"magnet_core": {"title": "Magnet Core", "max_level": 5, "pickup_radius_bonus": [45.0, 65.0, 85.0, 105.0, 125.0]},
+	"guardian_drone": {"title": "Guardian Drone", "max_level": 5, "damage": [5, 6, 8, 9, 11], "interval": [3.4, 3.2, 3.0, 2.8, 2.6], "range": 460.0},
+	"orbit_shields": {"title": "Orbit Shields", "max_level": 5, "maximum_charges": [1, 1, 1, 2, 2], "interval": [18.0, 16.5, 15.0, 13.5, 12.0]},
+	"storm_relay": {"title": "Storm Relay", "max_level": 5, "damage": [8, 10, 12, 14, 16], "interval": [5.5, 5.15, 4.8, 4.5, 4.2], "range": 520.0},
+	"chain_lightning": {"title": "Chain Lightning", "max_level": 5, "damage": [6, 7, 9, 10, 12], "interval": [6.6, 6.2, 5.8, 5.4, 5.0], "initial_range": 500.0, "bounce_range": [210.0, 225.0, 240.0, 255.0, 270.0], "maximum_targets": [2, 2, 3, 3, 4]},
+	"time_dilator": {"title": "Time Dilator", "max_level": 5, "interval": [8.5, 8.0, 7.5, 7.0, 6.5], "radius": [190.0, 205.0, 220.0, 235.0, 250.0], "movement_speed_multiplier": [0.72, 0.68, 0.64, 0.60, 0.56], "duration": [2.5, 2.75, 3.0, 3.25, 3.5]},
 }
 
 signal passive_changed(passive_id: String, level: int)
@@ -496,7 +496,8 @@ func _configure_orbit_shields(previous_level: int, next_level: int) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
 	var maximum_charges := int(_value("orbit_shields", "maximum_charges", next_level))
-	var refill := previous_level == 0 or next_level == 3
+	var previous_maximum := int(_value("orbit_shields", "maximum_charges", previous_level)) if previous_level > 0 else 0
+	var refill := previous_level == 0 or maximum_charges > previous_maximum
 	_player.configure_shield_charges(maximum_charges, refill)
 	if previous_level == 0:
 		_timers["orbit_shields"] = _value("orbit_shields", "interval", next_level)

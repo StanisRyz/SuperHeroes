@@ -42,6 +42,11 @@ const VALID_OWNER_HANDLERS := {
 	"ability_manager": ["upgrade_legacy_berserker_frenzy", "upgrade_rage_wave_power", "upgrade_legacy_wave_reach", "upgrade_legacy_crushing_current", "upgrade_mighty_clap_power", "upgrade_legacy_wide_clap", "upgrade_impact_wave", "upgrade_rage_leap_power", "upgrade_legacy_leap_radius", "upgrade_legacy_leap_ready"],
 	"passive_manager": ["add_or_upgrade_passive"],
 }
+const MAX_LEVEL := 5
+const LEVEL_TUNING := {
+	"splash_melee_damage": {"damage": [4, 8, 12, 16, 20]}, "splash_melee_radius": {"radius": [0.28, 0.56, 0.84, 1.12, 1.40]}, "splash_melee_speed": {"interval": [0.04, 0.08, 0.12, 0.16, 0.20]}, "splash_melee_impact": {"force": [1.2, 2.4, 3.6, 4.8, 6.0]}, "splash_melee_frenzy": {"multiplier": [0.06, 0.12, 0.18, 0.24, 0.30]}, "splash_melee_shockwave": {"damage_multiplier": [0.30, 0.35, 0.40, 0.45, 0.50], "radius_multiplier": [1.25, 1.32, 1.38, 1.44, 1.50], "delay": [0.26, 0.24, 0.22, 0.20, 0.18]}, "splash_melee_lifesteal": {"healing": [1, 2, 3, 4, 6]}, "splash_melee_combo": {"bonus": [0.04, 0.08, 0.11, 0.14, 0.18]}, "splash_melee_execute": {"threshold": [0.12, 0.24, 0.36, 0.48, 0.60]},
+	"rage_wave_power": {"damage": [6, 12, 18, 25, 32]}, "rage_wave_radius": {"radius": [0.45, 0.90, 1.35, 1.80, 2.25], "rage_radius": [0.024, 0.048, 0.072, 0.096, 0.120]}, "rage_wave_deep_slow": {"duration": [0.48, 0.96, 1.44, 1.92, 2.40], "slow_reduction": [0.036, 0.072, 0.108, 0.144, 0.180], "cooldown": [0.30, 0.60, 0.90, 1.20, 1.50], "rage_radius": [0.024, 0.048, 0.072, 0.096, 0.120]}, "mighty_clap_power": {"damage": [7, 14, 21, 28, 36]}, "mighty_clap_range": {"range": [0.375, 0.750, 1.125, 1.500, 1.875], "angle": [3.6, 7.2, 10.8, 14.4, 18.0]}, "mighty_clap_shockwave": {"knockback": [0.9, 1.8, 2.7, 3.6, 4.5], "cooldown": [0.42, 0.84, 1.26, 1.68, 2.10]}, "rage_leap_power": {"damage": [8, 16, 24, 32, 40]}, "rage_leap_radius": {"radius": [0.33, 0.66, 0.99, 1.32, 1.65]}, "rage_leap_cooldown": {"cooldown": [0.72, 1.44, 2.16, 2.88, 3.60], "distance": [0.30, 0.60, 0.90, 1.20, 1.50]},
+}
 
 
 func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manager: KnightAbilityManager3D = null, passive_manager: PassiveAbilityManager3D = null) -> void:
@@ -78,13 +83,15 @@ func get_upgrade_options(count: int) -> Array[Dictionary]:
 	return options
 
 
-func apply_upgrade(upgrade_id: String) -> void:
+func apply_upgrade(upgrade_id: String) -> bool:
 	if not UPGRADES.has(upgrade_id) or not _has_dependencies(upgrade_id) or is_upgrade_maxed(upgrade_id):
-		return
-	if not _apply_upgrade_handler(upgrade_id):
-		return
-	_levels[upgrade_id] = get_upgrade_level(upgrade_id) + 1
+		return false
+	var next_level := get_upgrade_level(upgrade_id) + 1
+	if not _apply_upgrade_handler(upgrade_id, next_level):
+		return false
+	_levels[upgrade_id] = next_level
 	_history.append(upgrade_id)
+	return true
 
 
 func has_upgrade(upgrade_id: String) -> bool:
@@ -96,7 +103,7 @@ func get_upgrade_level(upgrade_id: String) -> int:
 
 
 func get_upgrade_max_level(upgrade_id: String) -> int:
-	return int(UPGRADES.get(upgrade_id, {}).get("max_level", 0))
+	return MAX_LEVEL if UPGRADES.has(upgrade_id) else 0
 
 
 func is_upgrade_maxed(upgrade_id: String) -> bool:
@@ -110,6 +117,11 @@ func get_upgrade_definition(upgrade_id: String) -> Dictionary:
 	var definition: Dictionary = UPGRADES[upgrade_id].duplicate()
 	definition["id"] = upgrade_id
 	definition["level"] = get_upgrade_level(upgrade_id)
+	definition["next_level"] = mini(definition["level"] + 1, MAX_LEVEL)
+	definition["max_level"] = MAX_LEVEL
+	definition["required_level"] = MAX_LEVEL
+	definition["current_effect_summary"] = _effect_summary(upgrade_id, definition["level"])
+	definition["next_effect_summary"] = _effect_summary(upgrade_id, definition["next_level"])
 	return definition
 
 
@@ -129,7 +141,7 @@ func get_progression_matrix_validation_errors(evolution_definitions: Array[Dicti
 		if grid_index < 1 or grid_index > 9 or grid_indexes[category].has(grid_index):
 			errors.append("%s has invalid or duplicate %s grid index." % [upgrade_id, category])
 		grid_indexes[category][grid_index] = true
-		if str(definition.get("evolution_role", "")) != category or str(definition.get("evolution_id", "")).is_empty() or int(definition.get("max_level", 0)) <= 0:
+		if str(definition.get("evolution_role", "")) != category or str(definition.get("evolution_id", "")).is_empty() or get_upgrade_max_level(upgrade_id) != MAX_LEVEL:
 			errors.append("%s has invalid canonical metadata." % upgrade_id)
 		if not _has_declared_handler(definition):
 			errors.append("%s has no valid owner handler." % upgrade_id)
@@ -162,6 +174,18 @@ func get_progression_matrix_validation_errors(evolution_definitions: Array[Dicti
 	for upgrade_id: String in use_counts:
 		if int(use_counts[upgrade_id]) != 1:
 			errors.append("%s is used %d times, expected once." % [upgrade_id, use_counts[upgrade_id]])
+	for upgrade_id: String in LEVEL_TUNING:
+		for values: Array in LEVEL_TUNING[upgrade_id].values():
+			if values.size() != MAX_LEVEL:
+				errors.append("%s has invalid five-level tuning." % upgrade_id)
+	if _passive_manager != null and _passive_manager.has_method("get_passive_max_level"):
+		for upgrade_id: String in UPGRADES:
+			if str(UPGRADES[upgrade_id]["owner"]) == "passive_manager" and _passive_manager.get_passive_max_level(upgrade_id) != MAX_LEVEL:
+				errors.append("%s passive tuning is not five levels." % upgrade_id)
+	for upgrade_id: String in UPGRADES:
+		var owner := _get_owner(upgrade_id)
+		if owner != null and not owner.has_method(str(UPGRADES[upgrade_id]["handler"])):
+			errors.append("%s owner does not expose %s." % [upgrade_id, UPGRADES[upgrade_id]["handler"]])
 	return errors
 
 
@@ -175,7 +199,9 @@ func get_run_summary() -> Dictionary:
 
 func _make_option(upgrade_id: String) -> Dictionary:
 	var definition: Dictionary = UPGRADES[upgrade_id]
-	return {"id": upgrade_id, "title": definition["title"], "description": definition["description"], "rarity": definition["rarity"], "level": get_upgrade_level(upgrade_id), "max_level": get_upgrade_max_level(upgrade_id), "slot_category": definition["category"]}
+	var current_level := get_upgrade_level(upgrade_id)
+	var next_level := current_level + 1
+	return {"id": upgrade_id, "title": definition["title"], "description": _effect_summary(upgrade_id, next_level) if not _effect_summary(upgrade_id, next_level).is_empty() else definition["description"], "rarity": definition["rarity"], "level": current_level, "next_level": next_level, "max_level": MAX_LEVEL, "required_level": MAX_LEVEL, "current_effect_summary": _effect_summary(upgrade_id, current_level), "next_effect_summary": _effect_summary(upgrade_id, next_level), "evolution_id": definition["evolution_id"], "slot_category": definition["category"]}
 
 
 func _has_dependencies(upgrade_id: String) -> bool:
@@ -188,28 +214,54 @@ func _has_dependencies(upgrade_id: String) -> bool:
 		_: return false
 
 
-func _apply_upgrade_handler(upgrade_id: String) -> bool:
+func _apply_upgrade_handler(upgrade_id: String, next_level: int) -> bool:
 	match upgrade_id:
-		"splash_melee_damage": return _auto_attack.upgrade_fury_strike_damage(4)
-		"splash_melee_radius": return _auto_attack.upgrade_legacy_wide_fury(0.35)
-		"splash_melee_speed": return _auto_attack.upgrade_fury_tempo(0.05, 0.30)
-		"splash_melee_impact": return _auto_attack.upgrade_fury_strike_impact(2.0)
-		"splash_melee_frenzy": return _ability_manager.upgrade_legacy_berserker_frenzy(0.10)
-		"splash_melee_shockwave": return _auto_attack.upgrade_legacy_ground_shockwave()
-		"splash_melee_lifesteal": return _auto_attack.upgrade_blood_frenzy(2.0)
-		"splash_melee_combo": return _auto_attack.upgrade_fury_combo(0.06)
-		"splash_melee_execute": return _auto_attack.upgrade_finishing_blow(0.20)
-		"rage_wave_power": return _ability_manager.upgrade_rage_wave_power(8)
-		"rage_wave_radius": return _ability_manager.upgrade_legacy_wave_reach(0.75, 0.04)
-		"rage_wave_deep_slow": return _ability_manager.upgrade_legacy_crushing_current()
-		"mighty_clap_power": return _ability_manager.upgrade_mighty_clap_power(9)
-		"mighty_clap_range": return _ability_manager.upgrade_legacy_wide_clap(0.625, 6.0)
-		"mighty_clap_shockwave": return _ability_manager.upgrade_impact_wave(1.5, 0.7)
-		"rage_leap_power": return _ability_manager.upgrade_rage_leap_power(10)
-		"rage_leap_radius": return _ability_manager.upgrade_legacy_leap_radius(0.55)
-		"rage_leap_cooldown": return _ability_manager.upgrade_legacy_leap_ready(1.2, 0.5)
+		"splash_melee_damage": return _auto_attack.upgrade_fury_strike_damage(roundi(_delta(upgrade_id, "damage", next_level)))
+		"splash_melee_radius": return _auto_attack.upgrade_legacy_wide_fury(_delta(upgrade_id, "radius", next_level))
+		"splash_melee_speed": return _auto_attack.upgrade_fury_tempo(_delta(upgrade_id, "interval", next_level), 0.30)
+		"splash_melee_impact": return _auto_attack.upgrade_fury_strike_impact(_delta(upgrade_id, "force", next_level))
+		"splash_melee_frenzy": return _ability_manager.upgrade_legacy_berserker_frenzy(_delta(upgrade_id, "multiplier", next_level))
+		"splash_melee_shockwave": return _auto_attack.upgrade_ground_shockwave(_tuning(upgrade_id, "damage_multiplier", next_level), _tuning(upgrade_id, "radius_multiplier", next_level), _tuning(upgrade_id, "delay", next_level))
+		"splash_melee_lifesteal": return _auto_attack.upgrade_blood_frenzy(_delta(upgrade_id, "healing", next_level))
+		"splash_melee_combo": return _auto_attack.upgrade_fury_combo(_delta(upgrade_id, "bonus", next_level))
+		"splash_melee_execute": return _auto_attack.upgrade_finishing_blow(_delta(upgrade_id, "threshold", next_level))
+		"rage_wave_power": return _ability_manager.upgrade_rage_wave_power(roundi(_delta(upgrade_id, "damage", next_level)))
+		"rage_wave_radius": return _ability_manager.upgrade_legacy_wave_reach(_delta(upgrade_id, "radius", next_level), _delta(upgrade_id, "rage_radius", next_level))
+		"rage_wave_deep_slow": return _ability_manager.upgrade_crushing_current(_delta(upgrade_id, "duration", next_level), _delta(upgrade_id, "slow_reduction", next_level), _delta(upgrade_id, "cooldown", next_level), _delta(upgrade_id, "rage_radius", next_level))
+		"mighty_clap_power": return _ability_manager.upgrade_mighty_clap_power(roundi(_delta(upgrade_id, "damage", next_level)))
+		"mighty_clap_range": return _ability_manager.upgrade_legacy_wide_clap(_delta(upgrade_id, "range", next_level), _delta(upgrade_id, "angle", next_level))
+		"mighty_clap_shockwave": return _ability_manager.upgrade_impact_wave(_delta(upgrade_id, "knockback", next_level), _delta(upgrade_id, "cooldown", next_level))
+		"rage_leap_power": return _ability_manager.upgrade_rage_leap_power(roundi(_delta(upgrade_id, "damage", next_level)))
+		"rage_leap_radius": return _ability_manager.upgrade_legacy_leap_radius(_delta(upgrade_id, "radius", next_level))
+		"rage_leap_cooldown": return _ability_manager.upgrade_legacy_leap_ready(_delta(upgrade_id, "cooldown", next_level), _delta(upgrade_id, "distance", next_level))
 		_:
 			return _passive_manager.add_or_upgrade_passive(upgrade_id) if str(UPGRADES[upgrade_id]["owner"]) == "passive_manager" else false
+
+
+func _tuning(upgrade_id: String, key: String, level: int) -> float:
+	return float(LEVEL_TUNING[upgrade_id][key][level - 1])
+
+
+func _delta(upgrade_id: String, key: String, next_level: int) -> float:
+	return _tuning(upgrade_id, key, next_level) - (_tuning(upgrade_id, key, next_level - 1) if next_level > 1 else 0.0)
+
+
+func _effect_summary(upgrade_id: String, level: int) -> String:
+	if level <= 0 or not LEVEL_TUNING.has(upgrade_id):
+		return ""
+	var values: Dictionary = LEVEL_TUNING[upgrade_id]
+	var parts: Array[String] = []
+	for key: String in values:
+		parts.append("%s %s" % [key.replace("_", " "), _tuning(upgrade_id, key, level)])
+	return ", ".join(parts)
+
+
+func _get_owner(upgrade_id: String) -> Node:
+	match str(UPGRADES[upgrade_id]["owner"]):
+		"auto_attack": return _auto_attack
+		"ability_manager": return _ability_manager
+		"passive_manager": return _passive_manager
+		_: return null
 
 
 func _has_declared_handler(definition: Dictionary) -> bool:

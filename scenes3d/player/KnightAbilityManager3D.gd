@@ -318,6 +318,16 @@ func upgrade_legacy_crushing_current() -> bool:
 	return true
 
 
+func upgrade_crushing_current(duration_bonus: float, slow_reduction: float, cooldown_reduction: float, rage_radius_bonus: float) -> bool:
+	if duration_bonus <= 0.0 or slow_reduction <= 0.0 or cooldown_reduction <= 0.0 or rage_radius_bonus <= 0.0:
+		return false
+	rage_wave_slow_duration += duration_bonus
+	rage_wave_slow_multiplier = maxf(rage_wave_slow_multiplier - slow_reduction, 0.20)
+	wave_cooldown = maxf(wave_cooldown - cooldown_reduction, 2.5)
+	rage_wave_radius_rage_bonus += rage_radius_bonus
+	return true
+
+
 func get_effective_rage_wave_radius() -> float:
 	return wave_radius * (1.0 + (0.18 + rage_wave_radius_rage_bonus) * get_rage_ratio())
 

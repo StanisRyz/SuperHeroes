@@ -224,7 +224,9 @@ func _open_next_level_up() -> void:
 func _on_upgrade_selected(upgrade_id: String) -> void:
 	if _run_finished:
 		return
-	upgrade_manager.apply_upgrade(upgrade_id)
+	if not upgrade_manager.apply_upgrade(upgrade_id):
+		_open_next_level_up()
+		return
 	_pending_level_ups = maxi(_pending_level_ups - 1, 0)
 	evolution_manager.refresh_evolution_states()
 	if _open_evolution_reward_if_ready():

@@ -49,6 +49,9 @@ var _finishing_blow_enabled := false
 var _finishing_blow_threshold := 0.0
 var _selected_attack_evolutions: Array[String] = []
 var _ground_shockwave_enabled := false
+var _ground_shockwave_damage_multiplier := 0.0
+var _ground_shockwave_radius_multiplier := 0.0
+var _ground_shockwave_delay := 0.0
 var _pending_impacts: Array[Dictionary] = []
 var _next_pending_impact_sequence := 0
 
@@ -269,9 +272,16 @@ func reset_attack_evolution_state() -> void:
 
 
 func upgrade_legacy_ground_shockwave() -> bool:
-	if _ground_shockwave_enabled:
+	return upgrade_ground_shockwave(GROUND_SHOCKWAVE_DAMAGE_MULTIPLIER, GROUND_SHOCKWAVE_RADIUS_MULTIPLIER, GROUND_SHOCKWAVE_DELAY)
+
+
+func upgrade_ground_shockwave(damage_multiplier: float, radius_multiplier: float, delay: float) -> bool:
+	if damage_multiplier <= 0.0 or radius_multiplier <= 0.0 or delay <= 0.0:
 		return false
 	_ground_shockwave_enabled = true
+	_ground_shockwave_damage_multiplier = damage_multiplier
+	_ground_shockwave_radius_multiplier = radius_multiplier
+	_ground_shockwave_delay = delay
 	return true
 
 
@@ -324,11 +334,11 @@ func _queue_ground_shockwave(origin: Vector3) -> void:
 	_next_pending_impact_sequence += 1
 	_pending_impacts.append({
 		"kind": "ground_shockwave",
-		"remaining_delay": GROUND_SHOCKWAVE_DELAY,
+		"remaining_delay": _ground_shockwave_delay,
 		"sequence": _next_pending_impact_sequence,
 		"origin": origin,
-		"radius": attack_radius * GROUND_SHOCKWAVE_RADIUS_MULTIPLIER,
-		"damage": maxi(roundi(float(attack_damage) * GROUND_SHOCKWAVE_DAMAGE_MULTIPLIER), 1),
+		"radius": attack_radius * _ground_shockwave_radius_multiplier,
+		"damage": maxi(roundi(float(attack_damage) * _ground_shockwave_damage_multiplier), 1),
 	})
 
 
