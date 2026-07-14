@@ -42,8 +42,8 @@ signal passive_state_changed
 signal passive_triggered(passive_id: String, data: Dictionary)
 
 var _player: Player3D
-var _auto_attack: KnightMeleeAutoAttack3D
-var _ability_manager: KnightAbilityManager3D
+var _auto_attack: Node
+var _ability_manager: Node
 var _enemy_container: Node3D
 var _pickup_container: Node3D
 var _effect_container: Node3D
@@ -58,7 +58,7 @@ var _guardian_drone_visual: Node3D
 var _orbit_shield_visual: Node3D
 
 
-func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manager: KnightAbilityManager3D, enemy_container: Node3D, pickup_container: Node3D, effect_container: Node3D) -> void:
+func setup(player: Player3D, auto_attack: Node, ability_manager: Node, enemy_container: Node3D, pickup_container: Node3D, effect_container: Node3D) -> void:
 	_disconnect_player_shield_signals()
 	_player = player
 	_auto_attack = auto_attack

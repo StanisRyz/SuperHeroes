@@ -1,0 +1,22 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scenes3d/player/visuals/CrossbowmanVisual3D.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/kaykit/adventurers/Characters/gltf/Knight.glb" id="2"]
+[ext_resource type="PackedScene" path="res://assets/kaykit/adventurers/Animations/gltf/Rig_Medium/Rig_Medium_MovementBasic.glb" id="3"]
+[ext_resource type="PackedScene" path="res://assets/kaykit/adventurers/Animations/gltf/Rig_Medium/Rig_Medium_General.glb" id="4"]
+[ext_resource type="PackedScene" path="res://assets/kaykit/animations/Animations/gltf/Rig_Medium/Rig_Medium_CombatMelee.glb" id="5"]
+[ext_resource type="PackedScene" path="res://assets/kaykit/adventurers/Assets/gltf/crossbow_2handed.gltf" id="6"]
+
+[node name="CrossbowmanVisual3D" type="Node3D"]
+script = ExtResource("1")
+movement_animation_source = ExtResource("3")
+general_animation_source = ExtResource("4")
+additional_animation_sources = [ExtResource("5")]
+attack_animation = &"kaykit/Melee_1H_Attack_Slice_Diagonal"
+sword_visual_scene = ExtResource("6")
+
+[node name="ModelOffset" type="Node3D" parent="."]
+rotation_degrees = Vector3(0, 180, 0)
+[node name="KnightModel" parent="ModelOffset" instance=ExtResource("2")]
+[node name="Muzzle" type="Marker3D" parent="."]
+position = Vector3(0, 1.35, -0.75)

@@ -198,6 +198,8 @@ Ground Shockwave must use `GroundShockwaveEffect3D`; Crushing Storm must use `Cr
 
 Stage 1 closes at 1.9.5 with the 27-line/five-level, nine-evolution/5-5-5, uniformly-random and neutrally-presented Knight contract. Do not alter balance without recorded controlled-run evidence. The final manual and Web checklist is `docs/validation/knight_stage_1_release_validation.md`; Stage 2 starts with Crossbowman.
 
+Stage 2.1 adds Crossbowman as the cosmetic 3D port of legacy `guardian` / `solar_guardian` with the preserved `solar_ray` ID. Main chooses `Arena3D` from hero runtime data, and Arena3D instantiates the selected 3D player scene; Guardian uses CrossbowmanPlayer3D while Vanguard keeps Player3D, and Blaster remains 2D. Keep shared Arena code generic: resolve player, autoattack, optional kit/ability controller, visual, and action controller through stable nodes; Knight typing stays in Knight scripts. Solar Ray is a crossbow bolt presentation over the legacy direct corridor hit query; Solar Energy is a run-local 2/sec-to-100 resource with a 15-second 2.0x empowered state. Guardian Stage 2.1 has only the nine shared passive upgrade lines, no active abilities, hero-specific lines, or evolutions. Stage 2.2 is Solar Beam, Frost Breath, and Death Dash.
+
 - Keep changes small, local, and source-backed. Do not add unrelated systems, duplicate managers, or broad refactors.
 - Do not add persistence, monetization, cloud/Yandex services, online features, arena hazards, input remapping, audio assets, or new enemy types unless explicitly requested.
 - Avoid copyrighted superhero IP.

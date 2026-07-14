@@ -93,3 +93,11 @@ Use this checklist for manual validation after a relevant gameplay, UI, persiste
 # Knight Stage 1 release note
 
 Follow [knight_stage_1_release_validation.md](knight_stage_1_release_validation.md) for the final Knight 3D progression, effect-lifecycle, pause, and Web checks.
+
+## Stage 2.1 Crossbowman 3D flow
+
+- From `Main.tscn`, select Crossbowman (legacy `guardian`) and confirm it starts in `Arena3D`; select Fury Vanguard to confirm the existing Knight 3D run still starts there, and select Night Tactician to confirm it remains on the legacy 2D Arena.
+- In the Crossbowman run, confirm the crossbow visual follows movement/facing, Solar Ray targets nearby enemies with short-lived bolt feedback, and each corridor target takes one direct hit per attack.
+- Confirm Solar Energy begins at zero, gains 2 per second, reaches a 15-second empowered state at 100, and Solar Ray damage doubles only while empowered.
+- Gain levels and confirm offers contain only the nine shared passive lines. Guardian must show no Knight ability controls, evolution progress, or evolution reward panel; an exhausted eligible pool must resume the run rather than leave it paused.
+- Restart and quit to menu after Solar Energy has charged and after passive selection. Confirm a new Guardian run starts with zero energy, no empowered state, no prior upgrades, no bolt effects, and normal movement/pause/dash input.

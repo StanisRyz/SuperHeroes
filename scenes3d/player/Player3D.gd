@@ -65,7 +65,7 @@ var _scripted_motion_speed: float = 0.0
 var _dash_action_token: int = 0
 
 @onready var visual_root: Node3D = $VisualRoot
-@onready var knight_visual: KnightVisual = $VisualRoot/KnightVisual
+@onready var hero_visual: Node = visual_root.get_child(0) if visual_root.get_child_count() > 0 else null
 @onready var action_controller: Node = $ActionController
 @onready var action_debug_tracer: Node = $ActionDebugTracer
 
@@ -76,7 +76,7 @@ func _ready() -> void:
 	set_external_move_vector(Vector2.ZERO)
 	add_to_group("player3d")
 	if action_debug_tracer != null and action_debug_tracer.has_method("setup"):
-		action_debug_tracer.setup(action_controller, self, get_node_or_null("AbilityManager"), get_node_or_null("AutoAttack"), knight_visual)
+		action_debug_tracer.setup(action_controller, self, get_node_or_null("AbilityManager"), get_node_or_null("AutoAttack"), hero_visual)
 
 func get_debug_state() -> Dictionary:
 	return {"dead": is_dead(), "dashing": is_dashing, "dash_remaining": dash_time_remaining, "dash_cooldown": dash_cooldown_remaining, "scripted_motion": _scripted_motion_active, "scripted_remaining": _scripted_motion_time, "velocity": velocity, "invulnerable": is_invulnerable(), "action": action_controller.get_current_action_state()}
@@ -113,8 +113,8 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_direction.x * movement_speed
 		velocity.z = move_direction.z * movement_speed
 
-	if knight_visual != null:
-		knight_visual.set_locomotion_amount(Vector2(velocity.x, velocity.z).length() / maxf(movement_speed, 0.001))
+	if hero_visual != null and hero_visual.has_method("set_locomotion_amount"):
+		hero_visual.set_locomotion_amount(Vector2(velocity.x, velocity.z).length() / maxf(movement_speed, 0.001))
 	move_and_slide()
 	_clamp_to_playable_bounds()
 
@@ -151,8 +151,8 @@ func take_damage(amount: int) -> void:
 
 	damage_taken.emit(previous_health - current_health)
 	health_changed.emit(current_health, max_health)
-	if knight_visual != null:
-		knight_visual.play_hit()
+	if hero_visual != null and hero_visual.has_method("play_hit"):
+		hero_visual.play_hit()
 	if current_health == 0:
 		_emit_died_once()
 
@@ -336,7 +336,7 @@ func get_aim_direction() -> Vector2:
 
 
 func request_attack_animation() -> bool:
-	return knight_visual != null and knight_visual.play_attack()
+	return hero_visual != null and hero_visual.has_method("play_attack") and hero_visual.play_attack()
 
 
 func lock_combat_facing(direction: Vector3) -> void:
@@ -424,6 +424,6 @@ func _emit_died_once() -> void:
 	if _death_emitted:
 		return
 	_death_emitted = true
-	if knight_visual != null:
-		knight_visual.play_death()
+	if hero_visual != null and hero_visual.has_method("play_death"):
+		hero_visual.play_death()
 	died.emit()

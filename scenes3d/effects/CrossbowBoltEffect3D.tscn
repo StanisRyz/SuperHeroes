@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes3d/effects/CrossbowBoltEffect3D.gd" id="1"]
+
+[sub_resource type="CylinderMesh" id="1"]
+top_radius = 0.035
+bottom_radius = 0.035
+height = 0.65
+
+[node name="CrossbowBoltEffect3D" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Bolt" type="MeshInstance3D" parent="."]
+mesh = SubResource("1")
+rotation_degrees = Vector3(90, 0, 0)

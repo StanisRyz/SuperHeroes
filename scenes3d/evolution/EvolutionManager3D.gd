@@ -22,13 +22,15 @@ var _ability_manager: Node
 var _passive_manager: Node
 var _auto_attack: Node
 var _selected_evolutions: Array[String] = []
+var _available_definitions: Array[Dictionary] = EVOLUTIONS
 
 
-func setup(upgrade_manager: Node, ability_manager: Node, passive_manager: Node = null, auto_attack: Node = null) -> void:
+func setup(upgrade_manager: Node, ability_manager: Node, passive_manager: Node = null, auto_attack: Node = null, evolution_definitions: Array[Dictionary] = EVOLUTIONS) -> void:
 	_upgrade_manager = upgrade_manager
 	_ability_manager = ability_manager
 	_passive_manager = passive_manager
 	_auto_attack = auto_attack
+	_available_definitions = evolution_definitions
 	reset_run_state()
 	if _upgrade_manager != null and _upgrade_manager.has_signal("upgrade_applied") and not _upgrade_manager.upgrade_applied.is_connected(_on_upgrade_applied):
 		_upgrade_manager.upgrade_applied.connect(_on_upgrade_applied)
@@ -36,7 +38,7 @@ func setup(upgrade_manager: Node, ability_manager: Node, passive_manager: Node =
 
 func get_available_evolutions() -> Array[Dictionary]:
 	var available: Array[Dictionary] = []
-	for definition: Dictionary in EVOLUTIONS:
+	for definition: Dictionary in _available_definitions:
 		var state := get_evolution_state(str(definition["id"]))
 		if bool(state.get("ready", false)) and not bool(state.get("selected", false)) and str(state.get("implementation_status", "placeholder")) == "implemented" and _can_activate_evolution(str(definition["id"])):
 			available.append(state)
@@ -87,7 +89,7 @@ func get_evolution_path_state(evolution_id: String) -> Dictionary:
 
 func get_all_evolution_path_states() -> Dictionary:
 	var states := {}
-	for definition: Dictionary in EVOLUTIONS:
+	for definition: Dictionary in _available_definitions:
 		var evolution_id := str(definition["id"])
 		states[evolution_id] = get_evolution_path_state(evolution_id)
 	return states
@@ -95,7 +97,7 @@ func get_all_evolution_path_states() -> Dictionary:
 
 func get_closest_evolution_id() -> String:
 	var closest: Dictionary = {}
-	for definition: Dictionary in EVOLUTIONS:
+	for definition: Dictionary in _available_definitions:
 		var path := get_evolution_path_state(str(definition["id"]))
 		if bool(path.get("selected", false)) or int(path.get("total_progress", 0)) <= 0:
 			continue
@@ -148,7 +150,7 @@ func get_projected_evolution_path_state(upgrade_id: String) -> Dictionary:
 
 func get_all_evolution_states() -> Dictionary:
 	var states := {}
-	for definition: Dictionary in EVOLUTIONS:
+	for definition: Dictionary in _available_definitions:
 		var evolution_id := str(definition["id"])
 		states[evolution_id] = get_evolution_state(evolution_id)
 	return states
@@ -215,11 +217,11 @@ func _is_path_closer(left: Dictionary, right: Dictionary) -> bool:
 func get_progression_matrix_validation_errors() -> Array[String]:
 	if _upgrade_manager == null or not _upgrade_manager.has_method("get_progression_matrix_validation_errors"):
 		return ["RunUpgradeManager3D validation API is unavailable."]
-	return _upgrade_manager.get_progression_matrix_validation_errors(EVOLUTIONS)
+	return [] if _available_definitions.is_empty() else _upgrade_manager.get_progression_matrix_validation_errors(_available_definitions)
 
 
 func _get_definition(evolution_id: String) -> Dictionary:
-	for definition: Dictionary in EVOLUTIONS:
+	for definition: Dictionary in _available_definitions:
 		if str(definition["id"]) == evolution_id:
 			return definition
 	return {}

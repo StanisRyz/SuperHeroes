@@ -68,6 +68,8 @@ func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = n
 	player = new_player
 	if ability_manager != null and ability_manager.has_signal("hero_resource_changed") and not ability_manager.hero_resource_changed.is_connected(_on_hero_resource_changed):
 		ability_manager.hero_resource_changed.connect(_on_hero_resource_changed)
+	if ability_manager != null and ability_manager.has_signal("resource_state_changed") and not ability_manager.resource_state_changed.is_connected(_on_resource_state_changed):
+		ability_manager.resource_state_changed.connect(_on_resource_state_changed)
 
 	if player == null:
 		push_warning("GameHUD setup called without a player.")
@@ -112,6 +114,11 @@ func _on_hero_resource_changed(resource_name: String, current: float, maximum: f
 		hero_resource_bar.max_value = maximum
 		hero_resource_bar.value = current
 		hero_resource_bar.visible = true
+
+func _on_resource_state_changed(resource_name: String, current: float, maximum: float, empowered: bool) -> void:
+	_on_hero_resource_changed(resource_name, current, maximum)
+	if hero_resource_label != null and empowered:
+		hero_resource_label.text = "%s: EMPOWERED" % resource_name
 
 
 func _update_player_health(current_health: int, max_health: int) -> void:

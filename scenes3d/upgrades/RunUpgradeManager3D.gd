@@ -2,12 +2,13 @@ class_name RunUpgradeManager3D
 extends Node
 
 var _player: Player3D
-var _auto_attack: KnightMeleeAutoAttack3D
-var _ability_manager: KnightAbilityManager3D
+var _auto_attack: Node
+var _ability_manager: Node
 var _passive_manager: PassiveAbilityManager3D
 var _levels: Dictionary = {}
 var _history: Array[String] = []
 var _last_random_option_ids: Array[String] = []
+var _allowed_upgrade_ids: Dictionary = {}
 
 signal upgrade_applied(upgrade_id: String, new_level: int)
 
@@ -52,11 +53,14 @@ const LEVEL_TUNING := {
 }
 
 
-func setup(player: Player3D, auto_attack: KnightMeleeAutoAttack3D, ability_manager: KnightAbilityManager3D = null, passive_manager: PassiveAbilityManager3D = null) -> void:
+func setup(player: Player3D, auto_attack: Node, ability_manager: Node = null, passive_manager: PassiveAbilityManager3D = null, allowed_upgrade_ids: Array[String] = []) -> void:
 	_player = player
 	_auto_attack = auto_attack
 	_ability_manager = ability_manager
 	_passive_manager = passive_manager
+	_allowed_upgrade_ids.clear()
+	for upgrade_id: String in allowed_upgrade_ids:
+		_allowed_upgrade_ids[upgrade_id] = true
 	reset_run_state()
 
 
@@ -113,7 +117,7 @@ func make_upgrade_options(upgrade_ids: Array[String]) -> Array[Dictionary]:
 
 
 func is_upgrade_eligible(upgrade_id: String) -> bool:
-	if not UPGRADES.has(upgrade_id) or is_upgrade_maxed(upgrade_id) or not _has_dependencies(upgrade_id):
+	if not UPGRADES.has(upgrade_id) or (not _allowed_upgrade_ids.is_empty() and not _allowed_upgrade_ids.has(upgrade_id)) or is_upgrade_maxed(upgrade_id) or not _has_dependencies(upgrade_id):
 		return false
 	var handler_owner := _get_owner(upgrade_id)
 	return handler_owner != null and handler_owner.has_method(str(UPGRADES[upgrade_id]["handler"]))

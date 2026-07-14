@@ -234,4 +234,10 @@ The completed visual pass keeps Ground Shockwave and Crushing Storm routed to di
 
 Stage 1 is closed at 1.9.5: the stable Knight contract is one base attack, three active abilities, 27 five-level upgrades, nine 5/5/5 evolutions, uniform random offers, and neutral progression presentation. Release validation is recorded in `docs/validation/knight_stage_1_release_validation.md`; no unevidenced balance changes were made. Stage 2 begins with Crossbowman.
 
+## Stage 2.1 - Crossbowman
+
+Stage 2.1 ports the existing `guardian` / `solar_guardian` identity into the shared 3D runtime as the Crossbowman. The identifiers and legacy `solar_ray` weapon ID remain unchanged. Hero data now selects the 3D runtime and player scene, so Vanguard and Crossbowman use `Arena3D` while Blaster continues in the legacy arena. Crossbowman uses a lightweight KayKit crossbow visual and a fast bolt representation of Solar Ray's legacy corridor query: damage stays in the autoattack query, while bolts are bounded presentation effects.
+
+Solar Energy starts at zero, gains 2 per second to 100, then grants a 15-second 2.0x empowered damage state. Guardian currently receives only the nine shared five-level passive lines (Orbit Shields, Storm Relay, Guardian Drone, Magnet Core, Chain Lightning, Recovery Field, Battle Focus, Static Field, and Time Dilator); Knight attack/active lines and all Knight evolutions remain isolated. Guardian has no 3D active abilities, hero-specific upgrades, or evolutions in this stage. Stage 2.2 is planned for Solar Beam, Frost Breath, and Death Dash; the completed Knight Stage 1 contract is unchanged.
+
 Keep this README, [Agents.md](Agents.md), and the relevant manual checks synchronized whenever behavior, save data, scene composition, external integration, or public system contracts change. Use the implementation as the source of truth; record discovered issues as issues/debt rather than silently describing them as fixed.

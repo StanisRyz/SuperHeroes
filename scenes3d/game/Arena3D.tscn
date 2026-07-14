@@ -59,7 +59,6 @@ shape = SubResource("BoxShape3D_ground")
 
 [node name="PlayerContainer" type="Node3D" parent="."]
 
-[node name="Player3D" parent="PlayerContainer" instance=ExtResource("2_player3d")]
 
 [node name="PlayerSpawn" type="Marker3D" parent="."]
 position = Vector3(0, 1, 0)

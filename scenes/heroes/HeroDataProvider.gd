@@ -5,8 +5,8 @@ const DEFAULT_HERO_ID := "guardian"
 var _heroes: Array[Dictionary] = [
 	{
 		"id": "guardian",
-		"display_name": "Solar Guardian",
-		"subtitle": "Skyborne powerhouse",
+		"display_name": "Crossbowman",
+		"subtitle": "Solar crossbow specialist",
 		"description": "A radiant protector built around durability, strength, and focused solar abilities.",
 		"playstyle": "Durable / beam / impact",
 		"unlocked_by_default": true,
@@ -23,6 +23,7 @@ var _heroes: Array[Dictionary] = [
 			3: {"display_name": "Death Dash", "short_name": "Dash"},
 		},
 		"kit_id": "solar_guardian",
+		"runtime": {"scene_family": "3d", "player_scene": "res://scenes3d/player/CrossbowmanPlayer3D.tscn"},
 		"ability_kit": {
 			"passive_name": "Solar Energy",
 			"passive_description": "Gain 2 Solar Energy per second. At 100 Energy, enter a 15-second empowered state that doubles all damage.",
@@ -91,6 +92,7 @@ var _heroes: Array[Dictionary] = [
 			3: {"display_name": "Rage Leap", "short_name": "Leap"},
 		},
 		"kit_id": "fury_vanguard",
+		"runtime": {"scene_family": "3d", "player_scene": "res://scenes3d/player/Player3D.tscn"},
 		"ability_kit": {
 			"passive_name": "Rage",
 			"passive_description": "Rage builds when taking damage and when dealing damage with autoattacks or abilities. Rage decays over time. Higher Rage increases autoattack and ability damage.",

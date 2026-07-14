@@ -103,6 +103,11 @@ func setup_ability_manager(ability_manager: Node) -> void:
 		for state: Dictionary in ability_manager.get_all_ability_states().values():
 			_on_ability_state_changed(state)
 
+func set_abilities_visible(value: bool) -> void:
+	for control in [ability_button, beam_button, slam_button]:
+		if control != null:
+			control.visible = value
+
 
 func setup_player(player: Node) -> void:
 	_update_dash_button(0.0)
