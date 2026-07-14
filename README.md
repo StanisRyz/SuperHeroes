@@ -196,6 +196,8 @@ Stage 1.9.3 adds focused evolution-path UX. The most progressed incomplete path 
 
 Stage 1.9.3.1 completes evolution-aware offers: successful upgrades signal exact first-path selection order; focused unfinished prerequisites are planned first; and other paths supply deterministic continuation/new-path fallbacks. Options carry projected `current → next` path progress plus completed synergy line metadata without mutating run state. Stage 1.9.4 is next.
 
+Stage 1.9.3.2 finalizes offer integrity with public owner/handler eligibility, structured category-slot plans, and non-mutating projected path state. Planned options retain their category and reason, and expose current/projected progress plus line/evolution completion flags. Stage 1.9.4 is next.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. These are separate from and preserve the existing 2D physics layers.
 
 The configured Web export preset writes to `export/index.html`. Use Godot's Export dialog or an equivalent CLI invocation with the checked-in `Web` preset; no custom export template or external build dependency is configured in the repository.

@@ -121,8 +121,7 @@ func get_upgrade_evolution_context(upgrade_id: String) -> Dictionary:
 
 func build_upgrade_offer_plan(count: int) -> Dictionary:
 	_refresh_focus()
-	var selected_ids: Array[String] = []
-	var reasons := {}
+	var entries: Array[Dictionary] = []
 	var focused := _focused_evolution_id
 	if not focused.is_empty():
 		var focused_path := get_evolution_path_state(focused)
@@ -130,21 +129,32 @@ func build_upgrade_offer_plan(count: int) -> Dictionary:
 			var line: Dictionary = focused_path.get(line_key, {})
 			var upgrade_id := str(line.get("upgrade_id", ""))
 			if _is_upgrade_available(upgrade_id):
-				selected_ids.append(upgrade_id)
-				reasons[upgrade_id] = "focused_path"
+				entries.append({"slot_category": str(line.get("category", "")), "upgrade_id": upgrade_id, "evolution_id": focused, "offer_reason": "focused_path"})
 	for definition: Dictionary in EVOLUTIONS:
-		if selected_ids.size() >= count:
+		if entries.size() >= count:
 			break
 		var evolution_id := str(definition["id"])
 		if evolution_id == focused or is_evolution_selected(evolution_id):
 			continue
 		for upgrade_id: String in definition["prerequisites"]:
-			if selected_ids.size() >= count:
+			if entries.size() >= count:
 				break
-			if _is_upgrade_available(upgrade_id) and upgrade_id not in selected_ids:
-				selected_ids.append(upgrade_id)
-				reasons[upgrade_id] = "continue_partial_path" if int(get_evolution_path_state(evolution_id).get("total_progress", 0)) > 0 else "new_path"
-	return {"ordered_upgrade_ids": selected_ids, "offer_reasons": reasons, "focused_evolution_id": focused}
+			if _is_upgrade_available(upgrade_id) and not _plan_contains(entries, upgrade_id):
+				var upgrade: Dictionary = _upgrade_manager.get_upgrade_definition(upgrade_id)
+				entries.append({"slot_category": str(upgrade.get("category", "")), "upgrade_id": upgrade_id, "evolution_id": evolution_id, "offer_reason": "continue_partial_path" if int(get_evolution_path_state(evolution_id).get("total_progress", 0)) > 0 else "new_path"})
+	return {"entries": entries, "focused_evolution_id": focused}
+
+
+func get_projected_evolution_path_state(upgrade_id: String) -> Dictionary:
+	var context := get_upgrade_evolution_context(upgrade_id)
+	if context.is_empty() or _upgrade_manager == null:
+		return {}
+	var current_level := _upgrade_manager.get_upgrade_level(upgrade_id)
+	var required_level := _upgrade_manager.get_upgrade_max_level(upgrade_id)
+	var projected_level := mini(current_level + 1, required_level)
+	var projected_progress := int(context["total_progress"]) + (1 if projected_level > current_level else 0)
+	var projected_completed := int(context["completed_line_count"]) + (1 if projected_level == required_level and current_level < required_level else 0)
+	return {"evolution_id": context["id"], "current_progress": int(context["total_progress"]), "projected_progress": projected_progress, "current_line_level": current_level, "projected_line_level": projected_level, "current_completed_line_count": int(context["completed_line_count"]), "projected_completed_line_count": projected_completed, "current_state": context["state"], "projected_state": "ready" if projected_completed == 3 else ("partial" if projected_progress > 0 else "locked"), "completes_line": projected_level == required_level and current_level < required_level, "completes_evolution": projected_completed == 3 and not bool(context.get("selected", false))}
 
 
 func get_all_evolution_states() -> Dictionary:
@@ -215,7 +225,14 @@ func _on_upgrade_applied(upgrade_id: String, _new_level: int) -> void:
 
 
 func _is_upgrade_available(upgrade_id: String) -> bool:
-	return not upgrade_id.is_empty() and _upgrade_manager != null and _upgrade_manager.has_upgrade(upgrade_id) and not _upgrade_manager.is_upgrade_maxed(upgrade_id)
+	return not upgrade_id.is_empty() and _upgrade_manager != null and _upgrade_manager.is_upgrade_eligible(upgrade_id)
+
+
+func _plan_contains(entries: Array[Dictionary], upgrade_id: String) -> bool:
+	for entry: Dictionary in entries:
+		if str(entry.get("upgrade_id", "")) == upgrade_id:
+			return true
+	return false
 
 
 func _refresh_focus() -> void:

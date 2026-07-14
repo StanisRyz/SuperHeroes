@@ -214,7 +214,12 @@ func _open_next_level_up() -> void:
 	if _run_finished or _pending_level_ups <= 0 or level_up_screen == null or level_up_screen.visible:
 		return
 	var offer_plan: Dictionary = evolution_manager.build_upgrade_offer_plan(3) if evolution_manager.has_method("build_upgrade_offer_plan") else {}
-	var options := upgrade_manager.make_upgrade_options(offer_plan.get("ordered_upgrade_ids", [])) if not offer_plan.is_empty() else upgrade_manager.get_upgrade_options(3)
+	var planned_ids: Array[String] = []
+	var plan_reasons := {}
+	for entry: Dictionary in offer_plan.get("entries", []):
+		planned_ids.append(str(entry.get("upgrade_id", "")))
+		plan_reasons[str(entry.get("upgrade_id", ""))] = str(entry.get("offer_reason", "category_fallback"))
+	var options := upgrade_manager.make_upgrade_options(planned_ids) if not offer_plan.is_empty() else upgrade_manager.get_upgrade_options(3)
 	for option: Dictionary in options:
 		if evolution_manager.has_method("get_upgrade_evolution_context"):
 			var context: Dictionary = evolution_manager.get_upgrade_evolution_context(str(option.get("id", "")))
@@ -222,7 +227,9 @@ func _open_next_level_up() -> void:
 			option["is_focused_path"] = bool(context.get("is_focused", false))
 			option["is_new_path"] = int(context.get("total_progress", 0)) == 0
 			option["is_secondary_path"] = not bool(option["is_focused_path"]) and not bool(option["is_new_path"])
-			option["offer_reason"] = offer_plan.get("offer_reasons", {}).get(option["id"], "new_path")
+			option["offer_reason"] = plan_reasons.get(option["id"], "new_path")
+			var projection: Dictionary = evolution_manager.get_projected_evolution_path_state(str(option["id"]))
+			option.merge(projection, true)
 			var with_lines: Array[String] = []
 			var missing_lines: Array[String] = []
 			for line_key in ["attack_line", "passive_line", "active_line"]:

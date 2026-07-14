@@ -101,11 +101,18 @@ func make_upgrade_options(upgrade_ids: Array[String]) -> Array[Dictionary]:
 	var options: Array[Dictionary] = []
 	var seen := {}
 	for upgrade_id: String in upgrade_ids:
-		if seen.has(upgrade_id) or not UPGRADES.has(upgrade_id) or not _has_dependencies(upgrade_id) or is_upgrade_maxed(upgrade_id):
+		if seen.has(upgrade_id) or not is_upgrade_eligible(upgrade_id):
 			continue
 		seen[upgrade_id] = true
 		options.append(_make_option(upgrade_id))
 	return options
+
+
+func is_upgrade_eligible(upgrade_id: String) -> bool:
+	if not UPGRADES.has(upgrade_id) or is_upgrade_maxed(upgrade_id) or not _has_dependencies(upgrade_id):
+		return false
+	var owner := _get_owner(upgrade_id)
+	return owner != null and owner.has_method(str(UPGRADES[upgrade_id]["handler"]))
 
 
 func has_upgrade(upgrade_id: String) -> bool:
