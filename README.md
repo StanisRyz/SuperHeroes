@@ -228,4 +228,6 @@ Knight's completed 1.9.3 progression uses uniform random selection from every el
 
 Stage 1.9.3.5 completes that presentation: random offers are enriched only after selection, all 27 upgrades show readable comparisons (including passive summaries), level-up cards use neutral completion markers, and ready evolution rewards are processed sequentially before the run resumes.
 
+Stage 1.9.4 adds Web-safe Knight feedback polish. Ground Shockwave now has its own lightweight ring/disc visual and level-up cards render real multiline text. Combat formulas, evolution routing, and uniform random progression remain unchanged; Stage 1.9.5 is next.
+
 Keep this README, [Agents.md](Agents.md), and the relevant manual checks synchronized whenever behavior, save data, scene composition, external integration, or public system contracts change. Use the implementation as the source of truth; record discovered issues as issues/debt rather than silently describing them as fixed.

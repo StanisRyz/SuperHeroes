@@ -59,7 +59,7 @@ func _format_option_text(option: Dictionary) -> String:
 	if bool(option.get("is_new_line", false)): lines.append("NEW LINE")
 	if bool(option.get("completes_line", false)): lines.append("COMPLETES LINE")
 	if bool(option.get("completes_evolution", false)): lines.append("COMPLETES EVOLUTION")
-	return "\\n".join(lines)
+	return "\n".join(lines)
 
 
 func _get_rarity_modulate(rarity: String) -> Color:

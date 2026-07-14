@@ -9,6 +9,7 @@ const SEISMIC_FAN_EVOLUTION_ID := "mighty_clap_seismic_fan"
 const EARTHSPLITTER_EFFECT := preload("res://scenes3d/effects/EarthsplitterEffect3D.tscn")
 const CRUSHING_STORM_EFFECT := preload("res://scenes3d/effects/CrushingStormEffect3D.tscn")
 const SEISMIC_FAN_EFFECT := preload("res://scenes3d/effects/SeismicFanEffect3D.tscn")
+const GROUND_SHOCKWAVE_EFFECT := preload("res://scenes3d/effects/GroundShockwaveEffect3D.tscn")
 const EARTHSPLITTER_RANGE := 6.5
 const EARTHSPLITTER_WIDTH := 1.3325
 const EARTHSPLITTER_DAMAGE_MULTIPLIER := 0.75
@@ -313,7 +314,7 @@ func _apply_crushing_storm(origin: Vector3, base_swing_damage: int) -> void:
 		enemy.apply_temporary_modifier("crushing_storm_pressure", {"movement_speed_multiplier": slow_multiplier}, slow_duration)
 	if _effect_container == null:
 		return
-	var effect := CRUSHING_STORM_EFFECT.instantiate()
+	var effect := GROUND_SHOCKWAVE_EFFECT.instantiate()
 	_effect_container.add_child(effect)
 	effect.setup(origin, radius, 0.24)
 
