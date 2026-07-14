@@ -84,6 +84,12 @@ func get_upgrade_options(count: int) -> Array[Dictionary]:
 		_last_random_option_ids.append(str(option["id"]))
 	return options
 
+func get_shared_passive_upgrade_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for upgrade_id: String in UPGRADES:
+		if str(UPGRADES[upgrade_id].get("category", "")) == "passive": ids.append(upgrade_id)
+	return ids
+
 
 func get_progression_debug_state() -> Dictionary:
 	var eligible_count := 0
@@ -94,7 +100,7 @@ func get_progression_debug_state() -> Dictionary:
 
 
 func apply_upgrade(upgrade_id: String) -> bool:
-	if not UPGRADES.has(upgrade_id) or not _has_dependencies(upgrade_id) or is_upgrade_maxed(upgrade_id):
+	if not is_upgrade_eligible(upgrade_id):
 		return false
 	var next_level := get_upgrade_level(upgrade_id) + 1
 	if not _apply_upgrade_handler(upgrade_id, next_level):

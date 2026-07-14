@@ -16,6 +16,7 @@ var _selected_hero: Dictionary = {}
 var _selected_stage: Dictionary = {}
 var _run_finished: bool = false
 var _pending_level_ups: int = 0
+var _initialization_failed := false
 
 var player: Player3D
 @onready var player_spawn: Marker3D = $PlayerSpawn
@@ -50,7 +51,9 @@ func setup(settings_manager: Node = null, audio_manager: Node = null, selected_h
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_configure_gameplay_pause_modes()
-	_initialize_world()
+	if not _initialize_world():
+		_initialization_failed = true
+		return
 	_initialize_gameplay()
 	_connect_runtime_signals()
 	_initialize_input()
@@ -63,12 +66,14 @@ func _configure_gameplay_pause_modes() -> void:
 		gameplay_node.process_mode = Node.PROCESS_MODE_PAUSABLE
 
 
-func _initialize_world() -> void:
+func _initialize_world() -> bool:
 	_update_ground_size()
-	_instantiate_selected_player()
+	if not _instantiate_selected_player():
+		return false
 	player.global_position = player_spawn.global_position
 	player.set_playable_bounds(arena_width, arena_depth)
 	camera_rig.setup(player)
+	return true
 
 
 func _initialize_gameplay() -> void:
@@ -87,25 +92,39 @@ func _initialize_gameplay() -> void:
 	passive_manager.setup(player, auto_attack, ability_manager, $EnemyContainer, $PickupContainer, $EffectContainer)
 	var allowed_upgrades: Array[String] = []
 	if str(_selected_hero.get("kit_id", "")) == "solar_guardian":
-		for upgrade_id: String in RunUpgradeManager3D.UPGRADES:
-			if str(RunUpgradeManager3D.UPGRADES[upgrade_id].get("category", "")) == "passive": allowed_upgrades.append(upgrade_id)
+		allowed_upgrades = upgrade_manager.get_shared_passive_upgrade_ids()
 	upgrade_manager.setup(player, auto_attack, ability_manager, passive_manager, allowed_upgrades)
-	evolution_manager.setup(upgrade_manager, ability_manager, passive_manager, auto_attack, [] if str(_selected_hero.get("kit_id", "")) == "solar_guardian" else EvolutionManager3D.EVOLUTIONS)
+	var evolution_definitions: Array[Dictionary] = []
+	if str(_selected_hero.get("kit_id", "")) != "solar_guardian":
+		evolution_definitions = EvolutionManager3D.EVOLUTIONS
+	evolution_manager.setup(upgrade_manager, ability_manager, passive_manager, auto_attack, evolution_definitions)
 	if str(_selected_hero.get("kit_id", "")) != "solar_guardian": _validate_progression()
 
-func _instantiate_selected_player() -> void:
+func _instantiate_selected_player() -> bool:
 	var player_scene_path := str(_selected_hero.get("runtime", {}).get("player_scene", "res://scenes3d/player/Player3D.tscn"))
 	var player_scene := load(player_scene_path) as PackedScene
 	if player_scene == null:
-		push_error("Arena3D: missing 3D player scene %s." % player_scene_path)
-		return
-	player = player_scene.instantiate() as Player3D
+		return _report_player_initialization_failure(player_scene_path, "scene could not be loaded")
+	var instance := player_scene.instantiate()
+	if not instance is Player3D:
+		instance.queue_free()
+		return _report_player_initialization_failure(player_scene_path, "root is not Player3D")
+	player = instance as Player3D
 	$PlayerContainer.add_child(player)
 	auto_attack = player.get_node_or_null("AutoAttack")
 	ability_manager = player.get_node_or_null("AbilityManager")
 	kit_controller = player.get_node_or_null("SolarEnergy")
-	hero_visual = player.hero_visual
+	hero_visual = player.get_hero_visual()
 	action_controller = player.get_node_or_null("ActionController")
+	if auto_attack == null or action_controller == null or hero_visual == null:
+		player.queue_free()
+		player = null
+		return _report_player_initialization_failure(player_scene_path, "missing AutoAttack, ActionController, or HeroVisual")
+	return true
+
+func _report_player_initialization_failure(player_scene_path: String, reason: String) -> bool:
+	push_error("Arena3D: player initialization failed for hero '%s' at '%s': %s." % [str(_selected_hero.get("id", "")), player_scene_path, reason])
+	return false
 
 
 func _initialize_input() -> void:
@@ -115,10 +134,14 @@ func _initialize_input() -> void:
 
 
 func _start_run() -> void:
+	if _initialization_failed:
+		return
 	enemy_spawner.start_spawning()
 
 
 func _input(event: InputEvent) -> void:
+	if _initialization_failed or player == null:
+		return
 	if event is InputEventKey and event.echo:
 		return
 	if not _run_finished and event.is_action_pressed("pause"):
@@ -179,10 +202,10 @@ func _configure_optional_ui() -> void:
 		mobile_controls.setup_player(player)
 	if mobile_controls != null and mobile_controls.has_method("setup_ability_manager"):
 		mobile_controls.setup_ability_manager(ability_manager)
-	if mobile_controls != null and str(_selected_hero.get("kit_id", "")) == "solar_guardian" and mobile_controls.has_method("set_abilities_visible"):
-		mobile_controls.set_abilities_visible(false)
 	if mobile_controls != null and mobile_controls.has_method("apply_settings"):
 		mobile_controls.apply_settings(_settings_manager)
+	if mobile_controls != null and str(_selected_hero.get("kit_id", "")) == "solar_guardian" and mobile_controls.has_method("set_abilities_visible"):
+		mobile_controls.set_abilities_visible(false)
 	for path: String in ["Root/BuildSlotsButton"]:
 		var unsupported_mobile_node := mobile_controls.get_node_or_null(path) if mobile_controls != null else null
 		if unsupported_mobile_node is CanvasItem:
@@ -353,6 +376,7 @@ func _finish_run(result: String) -> void:
 	enemy_spawner.stop_spawning()
 	if auto_attack != null and auto_attack.has_method("stop_attacking"): auto_attack.stop_attacking()
 	if ability_manager != null and ability_manager.has_method("stop"): ability_manager.stop()
+	if kit_controller != null and kit_controller.has_method("reset_run_state"): kit_controller.reset_run_state()
 	_hide_evolution_reward_screen()
 	player.set_external_move_vector(Vector2.ZERO)
 	if mobile_controls != null and mobile_controls.has_method("reset_controls"):

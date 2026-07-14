@@ -16,6 +16,7 @@ var _ability_names: Dictionary = {
 	3: "A3",
 }
 var _ability_states: Dictionary = {}
+var _resource_provider: Node = null
 
 @onready var health_bar: ProgressBar = get_node_or_null("Root/HealthPanel/PlayerHealthBar")
 @onready var health_label: Label = get_node_or_null("Root/HealthPanel/PlayerHealthLabel")
@@ -70,6 +71,9 @@ func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = n
 		ability_manager.hero_resource_changed.connect(_on_hero_resource_changed)
 	if ability_manager != null and ability_manager.has_signal("resource_state_changed") and not ability_manager.resource_state_changed.is_connected(_on_resource_state_changed):
 		ability_manager.resource_state_changed.connect(_on_resource_state_changed)
+	if ability_manager != null and ability_manager.has_method("get_resource_state"):
+		_resource_provider = ability_manager
+		_update_resource_state(ability_manager.get_resource_state())
 
 	if player == null:
 		push_warning("GameHUD setup called without a player.")
@@ -102,6 +106,7 @@ func setup(new_player: Node, run_manager: Node = null, ability_manager: Node = n
 
 	_setup_run_manager(run_manager)
 	_setup_ability_manager(ability_manager)
+	set_abilities_visible(ability_manager != null and ability_manager.has_method("get_all_ability_states"))
 	_setup_buff_manager(buff_manager)
 	_setup_player_shield(player)
 
@@ -117,8 +122,19 @@ func _on_hero_resource_changed(resource_name: String, current: float, maximum: f
 
 func _on_resource_state_changed(resource_name: String, current: float, maximum: float, empowered: bool) -> void:
 	_on_hero_resource_changed(resource_name, current, maximum)
-	if hero_resource_label != null and empowered:
+	if _resource_provider != null and _resource_provider.has_method("get_resource_state"):
+		_update_resource_state(_resource_provider.get_resource_state())
+	elif hero_resource_label != null and empowered:
 		hero_resource_label.text = "%s: EMPOWERED" % resource_name
+
+func _update_resource_state(state: Dictionary) -> void:
+	_on_hero_resource_changed(str(state.get("resource_name", "Solar Energy")), float(state.get("current", 0.0)), float(state.get("maximum", 0.0)))
+	if hero_resource_label != null and bool(state.get("empowered", false)):
+		hero_resource_label.text = "Solar Energy: EMPOWERED %.1fs" % float(state.get("empowered_remaining", 0.0))
+
+func set_abilities_visible(value: bool) -> void:
+	var panel := get_node_or_null("Root/AbilityPanel") as CanvasItem
+	if panel != null: panel.visible = value
 
 
 func _update_player_health(current_health: int, max_health: int) -> void:

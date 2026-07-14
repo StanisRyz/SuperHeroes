@@ -7,8 +7,8 @@ var _heroes: Array[Dictionary] = [
 		"id": "guardian",
 		"display_name": "Crossbowman",
 		"subtitle": "Solar crossbow specialist",
-		"description": "A radiant protector built around durability, strength, and focused solar abilities.",
-		"playstyle": "Durable / beam / impact",
+		"description": "A durable ranged fighter who fires crossbow shots while charging Solar Energy.",
+		"playstyle": "Ranged / solar energy / corridor shots",
 		"unlocked_by_default": true,
 		"unlock_cost": 0,
 		"stats": {
@@ -30,10 +30,10 @@ var _heroes: Array[Dictionary] = [
 		},
 		"primary_weapon": {
 			"weapon_id": "solar_ray",
-			"display_name": "Solar Ray",
+			"display_name": "Crossbow Shot",
 			"direct_beam": true,
 		},
-		"starting_modifiers": {"bonus": "Focused beam autoattack, Solar Energy empowerment, and area-denial frost and dash abilities."},
+		"starting_modifiers": {"bonus": "Crossbow Shot corridor autoattack and Solar Energy empowerment. Active abilities arrive in Stage 2.2."},
 		"color": Color(1.0, 0.72, 0.22, 1.0),
 	},
 	{

@@ -3,6 +3,9 @@ extends Node3D
 var _remaining := 0.16
 var _direction := Vector3.FORWARD
 
+func _ready() -> void:
+	add_to_group("crossbow_bolt_effects")
+
 func setup(origin: Vector3, direction: Vector3) -> void:
 	global_position = origin
 	_direction = direction.normalized()

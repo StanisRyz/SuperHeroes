@@ -65,7 +65,7 @@ var _scripted_motion_speed: float = 0.0
 var _dash_action_token: int = 0
 
 @onready var visual_root: Node3D = $VisualRoot
-@onready var hero_visual: Node = visual_root.get_child(0) if visual_root.get_child_count() > 0 else null
+@onready var hero_visual: Node = get_node_or_null("VisualRoot/HeroVisual")
 @onready var action_controller: Node = $ActionController
 @onready var action_debug_tracer: Node = $ActionDebugTracer
 
@@ -77,6 +77,9 @@ func _ready() -> void:
 	add_to_group("player3d")
 	if action_debug_tracer != null and action_debug_tracer.has_method("setup"):
 		action_debug_tracer.setup(action_controller, self, get_node_or_null("AbilityManager"), get_node_or_null("AutoAttack"), hero_visual)
+
+func get_hero_visual() -> Node:
+	return hero_visual
 
 func get_debug_state() -> Dictionary:
 	return {"dead": is_dead(), "dashing": is_dashing, "dash_remaining": dash_time_remaining, "dash_cooldown": dash_cooldown_remaining, "scripted_motion": _scripted_motion_active, "scripted_remaining": _scripted_motion_time, "velocity": velocity, "invulnerable": is_invulnerable(), "action": action_controller.get_current_action_state()}

@@ -101,3 +101,5 @@ Follow [knight_stage_1_release_validation.md](knight_stage_1_release_validation.
 - Confirm Solar Energy begins at zero, gains 2 per second, reaches a 15-second empowered state at 100, and Solar Ray damage doubles only while empowered.
 - Gain levels and confirm offers contain only the nine shared passive lines. Guardian must show no Knight ability controls, evolution progress, or evolution reward panel; an exhausted eligible pool must resume the run rather than leave it paused.
 - Restart and quit to menu after Solar Energy has charged and after passive selection. Confirm a new Guardian run starts with zero energy, no empowered state, no prior upgrades, no bolt effects, and normal movement/pause/dash input.
+
+- Stage 2.1.1: confirm Crossbowman collides with the arena ground, takes contact damage, collects XP, and remains bounded. Verify unavailable ability HUD/mobile controls are absent, Solar Energy retains its name while empowered state shows remaining time, and direct attempts to apply Knight-only upgrades during a Guardian run are rejected without changing state.

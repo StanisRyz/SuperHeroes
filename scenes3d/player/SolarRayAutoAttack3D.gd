@@ -2,6 +2,7 @@ class_name SolarRayAutoAttack3D
 extends Node
 
 signal attack_impact_resolved(hit_count: int, total_damage: int)
+signal attack_resolved(result: Dictionary)
 const BOLT_EFFECT := preload("res://scenes3d/effects/CrossbowBoltEffect3D.tscn")
 
 @export var attack_damage := 7
@@ -45,11 +46,16 @@ func _process(delta: float) -> void:
 
 func _resolve_attack() -> void:
 	var hits := 0; var damage_total := 0
+	var origin := _player.global_position
+	var primary_target: Enemy3D = CombatQuery3D.nearest_living_enemy(_enemy_container, origin, targeting_range)
+	var additional_targets: Array[Enemy3D] = []
 	var multiplier := _energy.get_damage_multiplier() if _energy != null else 1.0
 	for enemy: Enemy3D in CombatQuery3D.enemies_in_line(_enemy_container, _player.global_position, _direction, targeting_range, corridor_width):
 		var damage := maxi(roundi(float(attack_damage) * multiplier), 1)
 		enemy.take_damage(damage); hits += 1; damage_total += damage
+		if enemy != primary_target: additional_targets.append(enemy)
 	attack_impact_resolved.emit(hits, damage_total)
+	attack_resolved.emit({"primary_target": primary_target, "additional_targets": additional_targets, "hit_count": hits, "total_damage": damage_total, "origin": origin, "direction": _direction})
 	_active = false; _cooldown = _effective_interval(); _player.release_combat_facing()
 	if _action_token != 0: _player.action_controller.finish_action(_action_token)
 	_action_token = 0
@@ -59,8 +65,11 @@ func stop_attacking() -> void:
 	if _player != null: _player.release_combat_facing()
 	if _player != null and _action_token != 0: _player.action_controller.cancel_action(_action_token, "stop")
 	_action_token = 0
+	_attack_speed_modifiers.clear()
+	for effect: Node in get_tree().get_nodes_in_group("crossbow_bolt_effects"):
+		if is_instance_valid(effect): effect.queue_free()
 
-func get_primary_attack_display_name() -> String: return "Solar Ray"
+func get_primary_attack_display_name() -> String: return "Crossbow Shot"
 func get_selected_attack_evolution_ids() -> Array[String]: return []
 func set_temporary_attack_speed_modifier(modifier_id: String, multiplier: float, duration: float) -> void: _attack_speed_modifiers[modifier_id] = {"multiplier": maxf(multiplier, 0.01), "remaining": maxf(duration, 0.0)}
 func clear_temporary_attack_speed_modifier(modifier_id: String) -> void: _attack_speed_modifiers.erase(modifier_id)

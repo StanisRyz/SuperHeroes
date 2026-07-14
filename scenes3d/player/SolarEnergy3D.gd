@@ -38,4 +38,4 @@ func reset_run_state() -> void:
 	publish_state()
 
 func publish_state() -> void:
-	resource_state_changed.emit("Solar Energy" if empowered_remaining <= 0.0 else "Solar Energy (Empowered)", energy if empowered_remaining <= 0.0 else MAX_ENERGY, MAX_ENERGY, empowered_remaining > 0.0)
+	resource_state_changed.emit("Solar Energy", energy, MAX_ENERGY, empowered_remaining > 0.0)
