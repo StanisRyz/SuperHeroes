@@ -115,8 +115,8 @@ func make_upgrade_options(upgrade_ids: Array[String]) -> Array[Dictionary]:
 func is_upgrade_eligible(upgrade_id: String) -> bool:
 	if not UPGRADES.has(upgrade_id) or is_upgrade_maxed(upgrade_id) or not _has_dependencies(upgrade_id):
 		return false
-	var owner := _get_owner(upgrade_id)
-	return owner != null and owner.has_method(str(UPGRADES[upgrade_id]["handler"]))
+	var handler_owner := _get_owner(upgrade_id)
+	return handler_owner != null and handler_owner.has_method(str(UPGRADES[upgrade_id]["handler"]))
 
 
 func has_upgrade(upgrade_id: String) -> bool:
@@ -210,8 +210,8 @@ func get_progression_matrix_validation_errors(evolution_definitions: Array[Dicti
 		for passive_error: String in _passive_manager.get_passive_definition_validation_errors():
 			errors.append("Passive definition: %s" % passive_error)
 	for upgrade_id: String in UPGRADES:
-		var owner := _get_owner(upgrade_id)
-		if owner != null and not owner.has_method(str(UPGRADES[upgrade_id]["handler"])):
+		var handler_owner := _get_owner(upgrade_id)
+		if handler_owner != null and not handler_owner.has_method(str(UPGRADES[upgrade_id]["handler"])):
 			errors.append("%s owner does not expose %s." % [upgrade_id, UPGRADES[upgrade_id]["handler"]])
 	return errors
 
@@ -325,5 +325,5 @@ func _get_owner(upgrade_id: String) -> Node:
 
 
 func _has_declared_handler(definition: Dictionary) -> bool:
-	var owner := str(definition.get("owner", ""))
-	return VALID_OWNER_HANDLERS.has(owner) and str(definition.get("handler", "")) in VALID_OWNER_HANDLERS[owner]
+	var handler_owner := str(definition.get("owner", ""))
+	return VALID_OWNER_HANDLERS.has(handler_owner) and str(definition.get("handler", "")) in VALID_OWNER_HANDLERS[handler_owner]

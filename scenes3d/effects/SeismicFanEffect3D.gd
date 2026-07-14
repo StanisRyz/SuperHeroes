@@ -23,7 +23,7 @@ func setup(world_position: Vector3, direction: Vector3, maximum_range: float, du
 
 
 func _configure_strip(strip: MeshInstance3D, angle_degrees: float, width: float, maximum_range: float, color: Color) -> void:
-	strip.mesh = GroundCrackMeshBuilder.build_crack(maximum_range, width, 6, width * 0.10, 0.38, hash(world_position) + roundi(angle_degrees * 10.0))
+	strip.mesh = GroundCrackMeshBuilder.build_crack(maximum_range, width, 6, width * 0.10, 0.38, hash(global_position) + roundi(angle_degrees * 10.0))
 	strip.rotation.y = deg_to_rad(angle_degrees)
 	# Crack geometry begins at the Knight and already spans its full local -Z range.
 	strip.position = Vector3.ZERO

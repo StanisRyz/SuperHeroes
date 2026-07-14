@@ -1,10 +1,10 @@
 class_name GroundCrackMeshBuilder3D
 extends RefCounted
 
-static func build_crack(length: float, base_width: float, segments: int, lateral_variation: float, taper: float, seed: int) -> ArrayMesh:
+static func build_crack(length: float, base_width: float, segments: int, lateral_variation: float, taper: float, visual_seed: int) -> ArrayMesh:
 	var count := clampi(segments, 4, 8)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = visual_seed
 	var vertices := PackedVector3Array()
 	var indices := PackedInt32Array()
 	var lateral := 0.0
