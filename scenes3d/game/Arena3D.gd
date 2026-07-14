@@ -214,23 +214,8 @@ func _open_next_level_up() -> void:
 	if _run_finished or _pending_level_ups <= 0 or level_up_screen == null or level_up_screen.visible:
 		return
 	var options := upgrade_manager.get_upgrade_options(3)
-	for option: Dictionary in options:
-		if evolution_manager.has_method("get_upgrade_evolution_context"):
-			var context: Dictionary = evolution_manager.get_upgrade_evolution_context(str(option.get("id", "")))
-			option["evolution_context"] = context
-			option["is_new_line"] = int(context.get("total_progress", 0)) == 0
-			var projection: Dictionary = evolution_manager.get_projected_evolution_path_state(str(option["id"]))
-			option.merge(projection, true)
-			var with_lines: Array[String] = []
-			var missing_lines: Array[String] = []
-			for line_key in ["attack_line", "passive_line", "active_line"]:
-				var line: Dictionary = context.get(line_key, {})
-				if str(line.get("upgrade_id", "")) == str(option["id"]): continue
-				var line_text := "%s %d/%d" % [str(line.get("title", "")), int(line.get("current_level", 0)), int(line.get("required_level", 5))]
-				with_lines.append(line_text)
-				if not bool(line.get("completed", false)): missing_lines.append(line_text)
-			var projected_progress := int(context.get("total_progress", 0)) + 1
-			option["evolution_synergy"] = {"evolution_id": context.get("id", ""), "synergy_evolution_title": context.get("title", ""), "synergy_target_type": context.get("target_type", ""), "state": context.get("state", "locked"), "synergy_progress": "%d/15 → %d/15" % [int(context.get("total_progress", 0)), projected_progress], "synergy_with": with_lines, "synergy_missing": missing_lines}
+	if evolution_manager != null and evolution_manager.has_method("enrich_upgrade_options"):
+		options = evolution_manager.enrich_upgrade_options(options)
 	if options.is_empty():
 		_pending_level_ups = 0
 		return
@@ -279,7 +264,11 @@ func _refresh_evolution_progress_ui() -> void:
 		return
 	var path: Dictionary = evolution_manager.get_closest_evolution_path_state()
 	if game_hud.has_method("update_evolution_path_state"):
-		game_hud.update_evolution_path_state(path)
+		var ready_count := 0
+		for state: Dictionary in evolution_manager.get_all_evolution_path_states().values():
+			if bool(state.get("ready", false)):
+				ready_count += 1
+		game_hud.update_evolution_path_state(path, ready_count)
 
 
 func _on_evolution_selected(evolution_id: String) -> void:
@@ -288,6 +277,8 @@ func _on_evolution_selected(evolution_id: String) -> void:
 	_hide_evolution_reward_screen()
 	evolution_manager.refresh_evolution_states()
 	_refresh_evolution_progress_ui()
+	if _open_evolution_reward_if_ready():
+		return
 	_continue_after_evolution_reward()
 
 

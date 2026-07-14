@@ -190,6 +190,8 @@ Training is hero-specific; equipment is shared/global. Apply progression in the 
 
 Stage 1.9.3 is complete: all Knight offers are uniformly random among eligible upgrades and evolution progress is presentation-only. Do not reintroduce focus/recommendation state or use closest-path metrics to steer offers. Keep five-level metadata physical in raw definitions, preserve readable upgrade comparisons, and treat Stage 1.9.4 as the next progression task.
 
+Neutral presentation enriches random options after selection. Passive definitions expose summary/comparison validation, level-up cards show neutral prerequisite progress and completion markers, and multiple ready evolutions must be offered sequentially before returning to pending level-ups or combat.
+
 - Keep changes small, local, and source-backed. Do not add unrelated systems, duplicate managers, or broad refactors.
 - Do not add persistence, monetization, cloud/Yandex services, online features, arena hazards, input remapping, audio assets, or new enemy types unless explicitly requested.
 - Avoid copyrighted superhero IP.

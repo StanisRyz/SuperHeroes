@@ -138,8 +138,8 @@ func get_projected_evolution_path_state(upgrade_id: String) -> Dictionary:
 	var context := get_upgrade_evolution_context(upgrade_id)
 	if context.is_empty() or _upgrade_manager == null:
 		return {}
-	var current_level := _upgrade_manager.get_upgrade_level(upgrade_id)
-	var required_level := _upgrade_manager.get_upgrade_max_level(upgrade_id)
+	var current_level: int = int(_upgrade_manager.get_upgrade_level(upgrade_id))
+	var required_level: int = int(_upgrade_manager.get_upgrade_max_level(upgrade_id))
 	var projected_level := mini(current_level + 1, required_level)
 	var projected_progress := int(context["total_progress"]) + (1 if projected_level > current_level else 0)
 	var projected_completed := int(context["completed_line_count"]) + (1 if projected_level == required_level and current_level < required_level else 0)
@@ -200,17 +200,6 @@ func refresh_evolution_states() -> void:
 
 func _on_upgrade_applied(_upgrade_id: String, _new_level: int) -> void:
 	evolution_state_changed.emit()
-
-
-func _is_upgrade_available(upgrade_id: String) -> bool:
-	return not upgrade_id.is_empty() and _upgrade_manager != null and _upgrade_manager.is_upgrade_eligible(upgrade_id)
-
-
-func _plan_contains(entries: Array[Dictionary], upgrade_id: String) -> bool:
-	for entry: Dictionary in entries:
-		if str(entry.get("upgrade_id", "")) == upgrade_id:
-			return true
-	return false
 
 
 func _is_path_closer(left: Dictionary, right: Dictionary) -> bool:

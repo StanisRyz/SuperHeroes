@@ -42,86 +42,24 @@ func setup_audio_manager(new_audio_manager: Node) -> void:
 
 
 func _format_option_text(option: Dictionary) -> String:
-	var rarity := str(option.get("rarity", "common")).to_upper()
-	var archetype := str(option.get("archetype", ""))
-	var is_synergy := bool(option.get("is_synergy", false))
-	var is_build_defining := bool(option.get("is_build_defining", false))
-	var is_passive := bool(option.get("is_passive", false))
-	var slot_category := str(option.get("slot_category", ""))
-	var category_slots_used := int(option.get("category_slots_used", 0))
-	var category_slots_max := int(option.get("category_slots_max", 0))
-	var is_new_line := bool(option.get("is_new_line", false))
-	var title := str(option.get("title", "Upgrade"))
-	var level := int(option.get("level", 0))
-	var max_level := int(option.get("max_level", 1))
-	var description := str(option.get("description", ""))
-
-	var rarity_line := "[%s]" % rarity
-	if not archetype.is_empty():
-		rarity_line = "[%s]  [%s]" % [rarity, archetype.to_upper()]
-
-	var markers := ""
-	if is_passive:
-		markers = "  PASSIVE"
-	if is_synergy:
-		markers = "  ★ SYNERGY"
-	if is_build_defining:
-		markers = "%s  ◆ BUILD DEFINING" % markers
-
-	var level_line := "Lv %d  →  %d / %d" % [level, mini(level + 1, max_level), max_level]
-
-	var slot_line := _format_slot_line(slot_category, category_slots_used, category_slots_max, is_new_line)
-	var synergy_line := _format_evolution_synergy(option)
-	if synergy_line.is_empty():
-		return "%s\n%s%s\n%s\n%s\n%s" % [title, rarity_line, markers, slot_line, level_line, description]
-	return "%s\n%s%s\n%s\n%s\n%s\n%s" % [title, rarity_line, markers, slot_line, level_line, description, synergy_line]
-
-
-func _format_evolution_synergy(option: Dictionary) -> String:
-	var synergy: Dictionary = option.get("evolution_synergy", {})
-	if synergy.is_empty():
-		return ""
-	var title := str(synergy.get("synergy_evolution_title", ""))
-	if title.is_empty():
-		return ""
-	var target_type := str(synergy.get("synergy_target_type", "")).to_upper()
-	var progress := str(synergy.get("synergy_progress", ""))
-	var with_lines: Array = synergy.get("synergy_with", [])
-	var missing_lines: Array = synergy.get("synergy_missing", [])
-	var status := str(synergy.get("state", ""))
-	if status == "ready":
-		return "Evolution: READY %s [%s]  %s" % [title, target_type, progress]
-	if status == "selected":
-		return "Evolution: Selected %s [%s]" % [title, target_type]
-	if not missing_lines.is_empty():
-		return "Evolution: %s [%s]  %s\nNeeds: %s" % [title, target_type, progress, _format_title_list(missing_lines, 2)]
-	return "Evolution: %s [%s]  %s\nSynergy: %s" % [title, target_type, progress, _format_title_list(with_lines, 2)]
-
-
-func _format_title_list(values: Array, limit: int) -> String:
-	var parts: PackedStringArray = []
-	for index in range(mini(values.size(), limit)):
-		parts.append(str(values[index]))
-	if values.size() > limit:
-		parts.append("+%d" % (values.size() - limit))
-	return " + ".join(parts)
-
-
-func _format_slot_line(slot_category: String, used: int, max_slots: int, is_new_line: bool) -> String:
-	var label := "Upgrade"
-	match slot_category:
-		"attack":
-			label = "Attack"
-		"passive":
-			label = "Passive"
-		"active":
-			label = "Active"
-
-	if max_slots <= 0:
-		return label
-	var projected_used := mini(used + (1 if is_new_line else 0), max_slots)
-	var suffix := "new line" if is_new_line else "owned line"
-	return "%s %d/%d  %s" % [label, projected_used, max_slots, suffix]
+	var lines: PackedStringArray = []
+	lines.append(str(option.get("title", "Upgrade")).to_upper())
+	lines.append("[%s] [%s]" % [str(option.get("rarity", "common")).to_upper(), str(option.get("category", "")).to_upper()])
+	lines.append("Level %d -> %d/%d" % [int(option.get("level", 0)), int(option.get("next_level", 1)), int(option.get("max_level", 5))])
+	lines.append(str(option.get("effect_comparison", option.get("next_effect_summary", ""))))
+	var evolution_title := str(option.get("evolution_title", ""))
+	if not evolution_title.is_empty():
+		lines.append("Related evolution: %s" % evolution_title)
+		lines.append("Progress: %d/15 -> %d/15" % [int(option.get("current_progress", 0)), int(option.get("projected_progress", 0))])
+		var requirements: PackedStringArray = []
+		for line: Dictionary in option.get("related_lines", []):
+			if str(line.get("upgrade_id", "")) != str(option.get("id", "")):
+				requirements.append("%s %d/%d" % [str(line.get("title", "")), int(line.get("current_level", 0)), int(line.get("required_level", 5))])
+		if not requirements.is_empty(): lines.append("Requirements: " + " | ".join(requirements))
+	if bool(option.get("is_new_line", false)): lines.append("NEW LINE")
+	if bool(option.get("completes_line", false)): lines.append("COMPLETES LINE")
+	if bool(option.get("completes_evolution", false)): lines.append("COMPLETES EVOLUTION")
+	return "\\n".join(lines)
 
 
 func _get_rarity_modulate(rarity: String) -> Color:

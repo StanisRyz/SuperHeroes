@@ -41,13 +41,16 @@ var _ability_states: Dictionary = {}
 @onready var evolution_label: Label = get_node_or_null("Root/BuildPanel/EvolutionLabel")
 
 
-func update_evolution_path_state(path: Dictionary) -> void:
+func update_evolution_path_state(path: Dictionary, ready_count: int = 0) -> void:
 	if evolution_label == null:
 		return
 	if path.is_empty():
 		evolution_label.text = "Evolution progress: none"
 		return
 	var title := str(path.get("title", "Evolution"))
+	if ready_count > 1:
+		evolution_label.text = "READY EVOLUTIONS: %d" % ready_count
+		return
 	if str(path.get("state", "")) == "ready":
 		evolution_label.text = "READY: %s" % title
 		return

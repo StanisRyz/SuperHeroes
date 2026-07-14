@@ -226,4 +226,6 @@ Recent commits establish the current direction: zone-card stage selection and un
 
 Knight's completed 1.9.3 progression uses uniform random selection from every eligible upgrade. Evolution paths are presentation-only: the HUD and run summary report the closest unfinished path (ready paths first), without focus state, recommendations, or offer steering. Upgrade cards show readable level comparisons and physical five-level metadata; the next planned stage is 1.9.4.
 
+Stage 1.9.3.5 completes that presentation: random offers are enriched only after selection, all 27 upgrades show readable comparisons (including passive summaries), level-up cards use neutral completion markers, and ready evolution rewards are processed sequentially before the run resumes.
+
 Keep this README, [Agents.md](Agents.md), and the relevant manual checks synchronized whenever behavior, save data, scene composition, external integration, or public system contracts change. Use the implementation as the source of truth; record discovered issues as issues/debt rather than silently describing them as fixed.

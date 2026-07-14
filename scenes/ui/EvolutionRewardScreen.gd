@@ -33,7 +33,7 @@ func show_options(options: Array[Dictionary]) -> void:
 	if options.is_empty():
 		_message_label.text = "No evolution available at this time.\nKeep building your archetype and try again."
 	else:
-		_message_label.text = "Choose one evolution for this run. All listed prerequisites are complete."
+		_message_label.text = "EVOLUTION UNLOCKED\nChoose an available evolution. All listed prerequisites are complete."
 	_continue_button.visible = options.is_empty()
 	_continue_button.disabled = not options.is_empty()
 	show()
@@ -53,31 +53,21 @@ func _focus_visible_choice(use_continue: bool) -> void:
 
 func _format_evolution_text(evolution: Dictionary) -> String:
 	var title := str(evolution.get("title", "Evolution"))
-	var description := str(evolution.get("description", ""))
 	var effect_summary := str(evolution.get("effect_summary", ""))
-	var target_ability := str(evolution.get("target_ability_id", ""))
-	if target_ability.is_empty():
-		target_ability = str(evolution.get("target_passive_id", ""))
-	if target_ability.is_empty():
-		target_ability = str(evolution.get("target_attack_id", ""))
-	target_ability = target_ability.replace("_", " ").capitalize()
+	var target_type := str(evolution.get("target_type", "active")).to_upper()
 	var prerequisite_lines := _format_prerequisites(evolution.get("prerequisites", []))
-	var lines: PackedStringArray = ["EVOLUTION", title]
-	if not target_ability.is_empty():
-		lines.append("Target: %s" % target_ability)
-	if not description.is_empty():
-		lines.append(description)
-	if not effect_summary.is_empty():
-		lines.append("Effect: %s" % effect_summary)
+	var lines: PackedStringArray = ["EVOLUTION UNLOCKED", title.to_upper(), "%s EVOLUTION" % target_type]
 	if not prerequisite_lines.is_empty():
-		lines.append("Requires:\n%s" % prerequisite_lines)
+		lines.append(prerequisite_lines)
+	if not effect_summary.is_empty():
+		lines.append(effect_summary)
 	return "\n".join(lines)
 
 
 func _format_prerequisites(prerequisites: Array) -> String:
 	var lines: PackedStringArray = []
 	for prerequisite: Dictionary in prerequisites:
-		lines.append("- %s: %d/%d" % [str(prerequisite.get("title", prerequisite.get("upgrade_id", "Upgrade"))), int(prerequisite.get("current_level", 0)), int(prerequisite.get("required_level", 0))])
+		lines.append("%s       %d/%d" % [str(prerequisite.get("title", prerequisite.get("upgrade_id", "Upgrade"))), int(prerequisite.get("current_level", 0)), int(prerequisite.get("required_level", 0))])
 	return "\n".join(lines)
 
 

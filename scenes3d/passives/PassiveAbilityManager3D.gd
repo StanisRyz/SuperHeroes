@@ -135,6 +135,27 @@ func get_passive_max_level(passive_id: String) -> int:
 	return int(PASSIVE_DEFINITIONS.get(passive_id, {}).get("max_level", 0))
 
 
+func get_passive_level_summary(passive_id: String, level: int) -> String:
+	return _format_passive_values(passive_id, 0, level)
+
+
+func get_passive_level_comparison(passive_id: String, current_level: int, next_level: int) -> String:
+	return _format_passive_values(passive_id, current_level, next_level)
+
+
+func get_passive_definition_validation_errors() -> Array[String]:
+	var errors: Array[String] = []
+	for passive_id: String in PASSIVE_DEFINITIONS:
+		var definition: Dictionary = PASSIVE_DEFINITIONS[passive_id]
+		if int(definition.get("max_level", 0)) != 5:
+			errors.append("%s must have max_level 5." % passive_id)
+		for key: String in definition:
+			var value = definition[key]
+			if value is Array and value.size() != 5:
+				errors.append("%s.%s must contain five values." % [passive_id, key])
+	return errors
+
+
 func has_passive(passive_id: String) -> bool:
 	return get_passive_level(passive_id) > 0
 
@@ -577,6 +598,43 @@ func _tick_gravity_rage(delta: float) -> void:
 	_timers["magnet_core"] = GRAVITY_RAGE_INTERVAL
 	passive_triggered.emit("magnet_core", {"title": "Gravity Rage", "radius": radius, "target_count": targets.size(), "pull_force": GRAVITY_RAGE_PULL_FORCE, "pull_duration": GRAVITY_RAGE_PULL_DURATION, "slow_multiplier": 0.55, "slow_duration": GRAVITY_RAGE_SLOW_DURATION, "interval": GRAVITY_RAGE_INTERVAL})
 	passive_state_changed.emit()
+
+
+func _format_passive_values(passive_id: String, from_level: int, to_level: int) -> String:
+	var definition: Dictionary = PASSIVE_DEFINITIONS.get(passive_id, {})
+	if definition.is_empty() or to_level < 1:
+		return ""
+	var lines: PackedStringArray = []
+	for key: String in definition:
+		if key in ["title", "max_level"]:
+			continue
+		var raw = definition[key]
+		if not raw is Array:
+			continue
+		var next_value := _display_passive_value(key, _value(passive_id, key, to_level))
+		if from_level <= 0:
+			lines.append("%s: %s" % [_passive_value_label(key), next_value])
+		else:
+			var current_value := _display_passive_value(key, _value(passive_id, key, from_level))
+			if current_value != next_value:
+				lines.append("%s: %s -> %s" % [_passive_value_label(key), current_value, next_value])
+	return "\n".join(lines)
+
+
+func _passive_value_label(key: String) -> String:
+	return {"damage": "Damage", "heal": "Healing", "interval": "Interval", "radius": "Radius", "range": "Range", "pickup_radius_bonus": "Pickup radius bonus", "attack_speed_multiplier": "Attack speed bonus", "duration": "Duration", "maximum_charges": "Charges", "initial_range": "Initial range", "bounce_range": "Bounce range", "maximum_targets": "Targets", "movement_speed_multiplier": "Enemy speed"}.get(key, key.capitalize())
+
+
+func _display_passive_value(key: String, value: float) -> String:
+	if key in ["radius", "range", "pickup_radius_bonus", "initial_range", "bounce_range"]:
+		return "%.2f" % (value / PIXELS_PER_WORLD_UNIT)
+	if key in ["interval", "duration"]:
+		return "%.2fs" % value
+	if key == "attack_speed_multiplier":
+		return "+%d%%" % roundi((value - 1.0) * 100.0)
+	if key == "movement_speed_multiplier":
+		return "%d%% reduction" % roundi((1.0 - value) * 100.0)
+	return "%d" % roundi(value)
 
 
 func _value(passive_id: String, key: String, level: int) -> float:

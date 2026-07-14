@@ -144,8 +144,8 @@ func get_upgrade_definition(upgrade_id: String) -> Dictionary:
 	definition["level"] = get_upgrade_level(upgrade_id)
 	definition["next_level"] = mini(definition["level"] + 1, int(definition["max_level"]))
 	definition["required_level"] = int(definition.get("required_level", definition["max_level"]))
-	definition["current_effect_summary"] = _effect_summary(upgrade_id, definition["level"])
-	definition["next_effect_summary"] = _effect_summary(upgrade_id, definition["next_level"])
+	definition["current_effect_summary"] = _option_effect_summary(upgrade_id, definition["level"])
+	definition["next_effect_summary"] = _option_effect_summary(upgrade_id, definition["next_level"])
 	return definition
 
 
@@ -206,6 +206,9 @@ func get_progression_matrix_validation_errors(evolution_definitions: Array[Dicti
 		for upgrade_id: String in UPGRADES:
 			if str(UPGRADES[upgrade_id]["owner"]) == "passive_manager" and _passive_manager.get_passive_max_level(upgrade_id) != MAX_LEVEL:
 				errors.append("%s passive tuning is not five levels." % upgrade_id)
+	if _passive_manager != null and _passive_manager.has_method("get_passive_definition_validation_errors"):
+		for passive_error: String in _passive_manager.get_passive_definition_validation_errors():
+			errors.append("Passive definition: %s" % passive_error)
 	for upgrade_id: String in UPGRADES:
 		var owner := _get_owner(upgrade_id)
 		if owner != null and not owner.has_method(str(UPGRADES[upgrade_id]["handler"])):
@@ -225,8 +228,8 @@ func _make_option(upgrade_id: String) -> Dictionary:
 	var definition: Dictionary = UPGRADES[upgrade_id]
 	var current_level := get_upgrade_level(upgrade_id)
 	var next_level := current_level + 1
-	var next_summary := _effect_summary(upgrade_id, next_level)
-	return {"id": upgrade_id, "title": definition["title"], "description": next_summary if not next_summary.is_empty() else definition["description"], "rarity": definition["rarity"], "category": definition["category"], "level": current_level, "next_level": next_level, "max_level": int(definition["max_level"]), "required_level": int(definition["required_level"]), "current_effect_summary": _effect_summary(upgrade_id, current_level), "next_effect_summary": next_summary, "effect_comparison": _effect_comparison(upgrade_id, current_level, next_level), "evolution_id": definition["evolution_id"], "is_new_line": current_level == 0}
+	var next_summary := _option_effect_summary(upgrade_id, next_level)
+	return {"id": upgrade_id, "title": definition["title"], "description": next_summary if not next_summary.is_empty() else definition["description"], "rarity": definition["rarity"], "category": definition["category"], "level": current_level, "next_level": next_level, "max_level": int(definition["max_level"]), "required_level": int(definition["required_level"]), "current_effect_summary": _option_effect_summary(upgrade_id, current_level), "next_effect_summary": next_summary, "effect_comparison": _option_effect_comparison(upgrade_id, current_level, next_level), "evolution_id": definition["evolution_id"], "is_new_line": current_level == 0}
 
 
 func _has_dependencies(upgrade_id: String) -> bool:
@@ -285,6 +288,18 @@ func _effect_comparison(upgrade_id: String, current_level: int, next_level: int)
 	if current_level <= 0:
 		return "Gain: %s" % _effect_summary(upgrade_id, next_level)
 	return "%s → %s" % [_effect_summary(upgrade_id, current_level), _effect_summary(upgrade_id, next_level)]
+
+
+func _option_effect_summary(upgrade_id: String, level: int) -> String:
+	if str(UPGRADES[upgrade_id].get("owner", "")) == "passive_manager" and _passive_manager != null:
+		return _passive_manager.get_passive_level_summary(upgrade_id, level)
+	return _effect_summary(upgrade_id, level)
+
+
+func _option_effect_comparison(upgrade_id: String, current_level: int, next_level: int) -> String:
+	if str(UPGRADES[upgrade_id].get("owner", "")) == "passive_manager" and _passive_manager != null:
+		return _passive_manager.get_passive_level_comparison(upgrade_id, current_level, next_level)
+	return _effect_comparison(upgrade_id, current_level, next_level)
 
 
 func _friendly_tuning_name(key: String) -> String:
