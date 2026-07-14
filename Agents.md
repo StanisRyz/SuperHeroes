@@ -91,6 +91,8 @@ Stage 1.9.1 replaces the mixed Knight run-upgrade catalog with the canonical 27-
 
 Stage 1.9.2 standardizes all 27 canonical Knight upgrades to five levels with explicit `required_level = 5` UI data. Upgrade application derives each attack/active application from the next cumulative tuning target and applies only its delta; all passive definitions now have five values per level-scaled parameter. Ground Shockwave upgrades from 0.30x damage / 1.25x radius / 0.26s delay to 0.50x / 1.50x / 0.18s, capturing resolved values in its pause-safe queue. Orbit Shields refills when capacity rises, rather than at a hardcoded level. Arena3D consumes pending level-ups only after a successful application. The validator checks five-level tuning, passive tables, initialized owner handlers, and unchanged unique evolution usage. Stage 1.9.3 is the full evolution-path UI patch.
 
+Stage 1.9.3 adds read-only evolution-path state and a run-local deterministic focus: highest path progress, then completed lines, started lines, and first selection order. Selected paths leave the focus pool; ready paths remain focused until chosen. Arena3D enriches offers with focused/secondary/new-path context and synergy metadata, refreshes the existing HUD evolution area, validates after manager initialization, and records path progression metrics in the terminal summary. Stage 1.9.4 is next.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. They coexist with the unchanged 2D layer names. Player3D is on Player and collides with Environment/Obstacles; its PickupArea detects Pickups. Arena3D's ground is Environment and detects Player. Always use `Main.tscn` for normal-game validation.
 
 ## Ownership map

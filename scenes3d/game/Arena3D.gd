@@ -78,6 +78,7 @@ func _initialize_gameplay() -> void:
 	passive_manager.setup(player, auto_attack, ability_manager, $EnemyContainer, $PickupContainer, $EffectContainer)
 	upgrade_manager.setup(player, auto_attack, ability_manager, passive_manager)
 	evolution_manager.setup(upgrade_manager, ability_manager, passive_manager, auto_attack)
+	_validate_progression()
 
 
 func _initialize_input() -> void:
@@ -213,6 +214,15 @@ func _open_next_level_up() -> void:
 	if _run_finished or _pending_level_ups <= 0 or level_up_screen == null or level_up_screen.visible:
 		return
 	var options := upgrade_manager.get_upgrade_options(3)
+	for option: Dictionary in options:
+		if evolution_manager.has_method("get_upgrade_evolution_context"):
+			var context: Dictionary = evolution_manager.get_upgrade_evolution_context(str(option.get("id", "")))
+			option["evolution_context"] = context
+			option["is_focused_path"] = bool(context.get("is_focused", false))
+			option["is_new_path"] = int(context.get("total_progress", 0)) == 0
+			option["is_secondary_path"] = not bool(option["is_focused_path"]) and not bool(option["is_new_path"])
+			option["offer_reason"] = "focused_path" if bool(option["is_focused_path"]) else ("continue_partial_path" if bool(option["is_secondary_path"]) else "new_path")
+			option["evolution_synergy"] = {"evolution_id": context.get("id", ""), "synergy_evolution_title": context.get("title", ""), "synergy_target_type": context.get("target_type", ""), "state": context.get("state", "locked"), "synergy_progress": "%d/15" % int(context.get("total_progress", 0)), "synergy_with": [], "synergy_missing": [], "is_focused": context.get("is_focused", false)}
 	if options.is_empty():
 		_pending_level_ups = 0
 		return
@@ -229,6 +239,7 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 		return
 	_pending_level_ups = maxi(_pending_level_ups - 1, 0)
 	evolution_manager.refresh_evolution_states()
+	_refresh_evolution_progress_ui()
 	if _open_evolution_reward_if_ready():
 		return
 	_continue_after_evolution_reward()
@@ -249,10 +260,26 @@ func _open_evolution_reward_if_ready() -> bool:
 	return true
 
 
+func _validate_progression() -> void:
+	if evolution_manager.has_method("get_progression_matrix_validation_errors"):
+		for validation_error: String in evolution_manager.get_progression_matrix_validation_errors():
+			push_error("Arena3D progression: %s" % validation_error)
+
+
+func _refresh_evolution_progress_ui() -> void:
+	if game_hud == null or not evolution_manager.has_method("get_focused_evolution_path_state"):
+		return
+	var path: Dictionary = evolution_manager.get_focused_evolution_path_state()
+	if game_hud.has_method("update_evolution_path_state"):
+		game_hud.update_evolution_path_state(path)
+
+
 func _on_evolution_selected(evolution_id: String) -> void:
 	if _run_finished or not evolution_manager.apply_evolution(evolution_id):
 		return
 	_hide_evolution_reward_screen()
+	evolution_manager.refresh_evolution_states()
+	_refresh_evolution_progress_ui()
 	_continue_after_evolution_reward()
 
 
@@ -338,6 +365,25 @@ func _build_run_summary(result: String) -> Dictionary:
 	summary["passive_levels"] = passive_levels
 	summary["primary_attack_name"] = auto_attack.get_primary_attack_display_name()
 	summary["selected_attack_evolution_ids"] = auto_attack.get_selected_attack_evolution_ids()
+	var path_states: Dictionary = evolution_manager.get_all_evolution_path_states()
+	var highest_progress := 0
+	var partial_count := 0
+	var ready_count := 0
+	var path_levels := {}
+	for evolution_id: String in path_states:
+		var path: Dictionary = path_states[evolution_id]
+		var progress := int(path.get("total_progress", 0))
+		path_levels[evolution_id] = progress
+		highest_progress = maxi(highest_progress, progress)
+		if str(path.get("state", "")) == "partial": partial_count += 1
+		if str(path.get("state", "")) == "ready": ready_count += 1
+	summary["focused_evolution_id"] = evolution_manager.get_focused_evolution_id()
+	summary["focused_evolution_progress"] = int(evolution_manager.get_focused_evolution_path_state().get("total_progress", 0))
+	summary["highest_evolution_progress"] = highest_progress
+	summary["partial_evolution_count"] = partial_count
+	summary["ready_evolution_count"] = ready_count
+	summary["selected_evolution_count"] = applied_evolution_count
+	summary["evolution_path_levels"] = path_levels
 	summary["shield_charges"] = player.get_shield_charges()
 	summary["shield_maximum_charges"] = player.get_maximum_shield_charges()
 	summary["shield_blocks"] = player.get_shield_block_count()

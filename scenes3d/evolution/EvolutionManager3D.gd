@@ -22,6 +22,9 @@ var _ability_manager: Node
 var _passive_manager: Node
 var _auto_attack: Node
 var _selected_evolutions: Array[String] = []
+var _focused_evolution_id := ""
+var _focus_order: Dictionary = {}
+var _next_focus_order := 0
 
 
 func setup(upgrade_manager: Node, ability_manager: Node, passive_manager: Node = null, auto_attack: Node = null) -> void:
@@ -65,6 +68,55 @@ func get_evolution_state(evolution_id: String) -> Dictionary:
 	return {"id": evolution_id, "evolution_id": evolution_id, "triple_id": str(definition.get("triple_id", "")), "title": str(definition["title"]), "description": str(definition["description"]), "effect_summary": str(definition.get("effect_summary", "")), "target_type": str(definition.get("target_type", "active")), "target_ability_id": str(definition.get("target_ability_id", "")), "target_passive_id": str(definition.get("target_passive_id", "")), "target_attack_id": str(definition.get("target_attack_id", "")), "implementation_status": str(definition.get("implementation_status", "placeholder")), "state": state_name, "selected": selected, "ready": is_ready and not selected, "selected_prerequisite_count": selected_count, "completed_prerequisite_count": completed_count, "total_prerequisite_count": prerequisites.size(), "prerequisites": prerequisites}
 
 
+func get_evolution_path_state(evolution_id: String) -> Dictionary:
+	var state := get_evolution_state(evolution_id)
+	if state.is_empty():
+		return {}
+	var total_progress := 0
+	var lines := {"attack": {}, "passive": {}, "active": {}}
+	for prerequisite: Dictionary in state["prerequisites"]:
+		total_progress += int(prerequisite["current_level"])
+		lines[str(prerequisite["category"])] = prerequisite
+	state["total_progress"] = total_progress
+	state["started_line_count"] = int(state["selected_prerequisite_count"])
+	state["completed_line_count"] = int(state["completed_prerequisite_count"])
+	state["attack_line"] = lines["attack"]
+	state["passive_line"] = lines["passive"]
+	state["active_line"] = lines["active"]
+	state["focused"] = evolution_id == _focused_evolution_id
+	return state
+
+
+func get_all_evolution_path_states() -> Dictionary:
+	var states := {}
+	for definition: Dictionary in EVOLUTIONS:
+		var evolution_id := str(definition["id"])
+		states[evolution_id] = get_evolution_path_state(evolution_id)
+	return states
+
+
+func get_focused_evolution_id() -> String:
+	_refresh_focus()
+	return _focused_evolution_id
+
+
+func get_focused_evolution_path_state() -> Dictionary:
+	_refresh_focus()
+	return get_evolution_path_state(_focused_evolution_id) if not _focused_evolution_id.is_empty() else {}
+
+
+func get_upgrade_evolution_context(upgrade_id: String) -> Dictionary:
+	if _upgrade_manager == null:
+		return {}
+	var definition: Dictionary = _upgrade_manager.get_upgrade_definition(upgrade_id)
+	var evolution_id := str(definition.get("evolution_id", ""))
+	var path := get_evolution_path_state(evolution_id)
+	if path.is_empty():
+		return {}
+	path["is_focused"] = evolution_id == get_focused_evolution_id()
+	return path
+
+
 func get_all_evolution_states() -> Dictionary:
 	var states := {}
 	for definition: Dictionary in EVOLUTIONS:
@@ -84,6 +136,7 @@ func apply_evolution(evolution_id: String) -> bool:
 	if not _apply_evolution_effect(evolution_id, state):
 		return false
 	_selected_evolutions.append(evolution_id)
+	_refresh_focus()
 	var selected_state := get_evolution_state(evolution_id)
 	evolution_applied.emit(evolution_id, selected_state)
 	evolution_state_changed.emit()
@@ -108,13 +161,37 @@ func get_applied_evolution_titles() -> Array[String]:
 
 func reset_run_state() -> void:
 	_selected_evolutions.clear()
+	_focused_evolution_id = ""
+	_focus_order.clear()
+	_next_focus_order = 0
 	if _auto_attack != null and _auto_attack.has_method("reset_attack_evolution_state"):
 		_auto_attack.reset_attack_evolution_state()
 	evolution_state_changed.emit()
 
 
 func refresh_evolution_states() -> void:
+	_refresh_focus()
 	evolution_state_changed.emit()
+
+
+func _refresh_focus() -> void:
+	var candidates: Array[Dictionary] = []
+	for definition: Dictionary in EVOLUTIONS:
+		var evolution_id := str(definition["id"])
+		var path := get_evolution_path_state(evolution_id)
+		if bool(path.get("selected", false)) or int(path.get("total_progress", 0)) <= 0:
+			continue
+		if not _focus_order.has(evolution_id):
+			_focus_order[evolution_id] = _next_focus_order
+			_next_focus_order += 1
+		candidates.append(path)
+	candidates.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		if int(left["total_progress"]) != int(right["total_progress"]): return int(left["total_progress"]) > int(right["total_progress"])
+		if int(left["completed_line_count"]) != int(right["completed_line_count"]): return int(left["completed_line_count"]) > int(right["completed_line_count"])
+		if int(left["started_line_count"]) != int(right["started_line_count"]): return int(left["started_line_count"]) > int(right["started_line_count"])
+		return int(_focus_order[left["id"]]) < int(_focus_order[right["id"]])
+	)
+	_focused_evolution_id = str(candidates[0]["id"]) if not candidates.is_empty() else ""
 
 
 func get_progression_matrix_validation_errors() -> Array[String]:

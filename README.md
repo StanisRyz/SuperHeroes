@@ -192,6 +192,8 @@ Stage 1.9.1 normalizes the Knight's 3D run progression to exactly 27 canonical l
 
 Stage 1.9.2 gives every canonical Knight line five levels and requires all three evolution prerequisites to reach `5/5`; a `5/5 + 5/5 + 4/5` path remains locked. Attack and active upgrades apply only the delta to their cumulative five-level tuning target, while all nine passives expose five-level tables. Ground Shockwave now progresses from `0.30x / 1.25x / 0.26s` to `0.50x / 1.50x / 0.18s` damage/radius/delay and snapshots those values into each queued impact. Failed upgrade applications no longer consume a pending level-up. The read-only progression validator checks five-level tuning and initialized owner handlers. Stage 1.9.3 is next for the full evolution-path UI.
 
+Stage 1.9.3 adds focused evolution-path UX. The most progressed incomplete path is selected deterministically, and options carry focused, secondary, or new-path context with projected evolution progress. Level-up cards display next-level data and progression context; the HUD shows the focused path, its `0–15` progress, and its three `x/5` lines (or `READY`). Arena3D validates progression after manager setup and records focused-path, partial/ready, and per-evolution progress metrics in run summaries. Stage 1.9.4 is next.
+
 The named 3D physics layers are Player, Enemies, PlayerProjectiles, Pickups, EnemyProjectiles, Environment, and Obstacles. These are separate from and preserve the existing 2D physics layers.
 
 The configured Web export preset writes to `export/index.html`. Use Godot's Export dialog or an equivalent CLI invocation with the checked-in `Web` preset; no custom export template or external build dependency is configured in the repository.

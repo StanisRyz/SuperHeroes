@@ -39,6 +39,23 @@ var _ability_states: Dictionary = {}
 @onready var build_label: Label = get_node_or_null("Root/BuildPanel/BuildLabel")
 @onready var hero_label: Label = get_node_or_null("Root/BuildPanel/HeroLabel")
 @onready var evolution_label: Label = get_node_or_null("Root/BuildPanel/EvolutionLabel")
+
+
+func update_evolution_path_state(path: Dictionary) -> void:
+	if evolution_label == null:
+		return
+	if path.is_empty():
+		evolution_label.text = "Evolution: Choose a path"
+		return
+	var title := str(path.get("title", "Evolution"))
+	if str(path.get("state", "")) == "ready":
+		evolution_label.text = "READY: %s" % title
+		return
+	var lines: Array[String] = []
+	for key in ["attack_line", "passive_line", "active_line"]:
+		var line: Dictionary = path.get(key, {})
+		lines.append("%s %d/%d" % [str(line.get("title", "")), int(line.get("current_level", 0)), int(line.get("required_level", 5))])
+	evolution_label.text = "%s — %d/15\n%s" % [title, int(path.get("total_progress", 0)), " | ".join(lines)]
 @onready var passive_label: Label = get_node_or_null("Root/BuildPanel/PassiveLabel")
 @onready var hero_resource_label: Label = get_node_or_null("Root/HeroResourcePanel/HeroResourceLabel")
 @onready var hero_resource_bar: ProgressBar = get_node_or_null("Root/HeroResourcePanel/HeroResourceBar")
