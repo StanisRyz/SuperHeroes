@@ -247,6 +247,14 @@ func upgrade_impact_wave(knockback_bonus: float, cooldown_reduction: float) -> b
 	return true
 
 
+func upgrade_legacy_wide_clap(range_bonus: float, angle_bonus: float) -> bool:
+	if range_bonus <= 0.0 or angle_bonus <= 0.0:
+		return false
+	bash_range += range_bonus
+	bash_angle += angle_bonus
+	return true
+
+
 func upgrade_legacy_leap_radius(radius_bonus: float) -> bool:
 	if radius_bonus <= 0.0:
 		return false

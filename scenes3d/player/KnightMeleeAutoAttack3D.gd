@@ -5,11 +5,19 @@ signal attack_impact_resolved(hit_count: int, total_damage: int)
 
 const EARTHSPLITTER_EVOLUTION_ID := "rage_wave_earthsplitter"
 const CRUSHING_STORM_EVOLUTION_ID := "rage_wave_crushing_storm"
+const SEISMIC_FAN_EVOLUTION_ID := "mighty_clap_seismic_fan"
 const EARTHSPLITTER_EFFECT := preload("res://scenes3d/effects/EarthsplitterEffect3D.tscn")
 const CRUSHING_STORM_EFFECT := preload("res://scenes3d/effects/CrushingStormEffect3D.tscn")
+const SEISMIC_FAN_EFFECT := preload("res://scenes3d/effects/SeismicFanEffect3D.tscn")
 const EARTHSPLITTER_RANGE := 6.5
 const EARTHSPLITTER_WIDTH := 1.3325
 const EARTHSPLITTER_DAMAGE_MULTIPLIER := 0.75
+const GROUND_SHOCKWAVE_DELAY := 0.18
+const GROUND_SHOCKWAVE_RADIUS_MULTIPLIER := 1.5
+const GROUND_SHOCKWAVE_DAMAGE_MULTIPLIER := 0.5
+const SEISMIC_FAN_RANGE_BONUS := 4.375
+const SEISMIC_FAN_ANGLE := 68.0
+const SEISMIC_FAN_DAMAGE_MULTIPLIER := 0.85
 
 @export var attack_damage: int = 14
 @export var attack_interval: float = 0.8
@@ -40,6 +48,9 @@ var _blood_frenzy_healing_per_enemy := 0
 var _finishing_blow_enabled := false
 var _finishing_blow_threshold := 0.0
 var _selected_attack_evolutions: Array[String] = []
+var _ground_shockwave_enabled := false
+var _pending_impacts: Array[Dictionary] = []
+var _next_pending_impact_sequence := 0
 
 const FURY_COMBO_MAX_STACKS := 5
 const FURY_COMBO_DECAY_DURATION := 3.0
@@ -131,11 +142,13 @@ func stop_attacking() -> void:
 	if _player != null:
 		_player.release_combat_facing()
 		_reset_fury_combo(true)
+	_clear_pending_impacts()
 
 
 func _process(delta: float) -> void:
 	_process_attack_speed_modifiers(delta)
 	_process_fury_combo(delta)
+	_process_pending_impacts(delta)
 	_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
 	if _suspended or _attack_active or _cooldown_remaining > 0.0 or _player == null or _player.is_dead() or get_tree().paused or not _player.action_controller.is_idle():
 		return
@@ -183,10 +196,14 @@ func _on_attack_impact() -> void:
 		_add_fury_combo_stack()
 		if _blood_frenzy_enabled and _player != null:
 			_player.heal(_blood_frenzy_healing_per_enemy * hit_count)
+		if _ground_shockwave_enabled:
+			_queue_ground_shockwave(_player.global_position)
 		if is_attack_evolution_active(EARTHSPLITTER_EVOLUTION_ID):
 			_apply_earthsplitter(_player.global_position, _attack_direction, base_swing_damage)
 		if is_attack_evolution_active(CRUSHING_STORM_EVOLUTION_ID):
 			_apply_crushing_storm(_player.global_position, base_swing_damage)
+		if is_attack_evolution_active(SEISMIC_FAN_EVOLUTION_ID):
+			_apply_seismic_fan(_player.global_position, _attack_direction, base_swing_damage)
 	attack_impact_resolved.emit(hit_count, total_damage)
 
 
@@ -194,7 +211,7 @@ func can_apply_attack_evolution(evolution_id: String, target_attack_id: String) 
 	if target_attack_id != "splash_melee" or is_attack_evolution_active(evolution_id):
 		return false
 	match evolution_id:
-		EARTHSPLITTER_EVOLUTION_ID, CRUSHING_STORM_EVOLUTION_ID:
+		EARTHSPLITTER_EVOLUTION_ID, CRUSHING_STORM_EVOLUTION_ID, SEISMIC_FAN_EVOLUTION_ID:
 			return true
 		_:
 			return false
@@ -221,11 +238,20 @@ func get_primary_attack_display_name() -> String:
 	match _selected_attack_evolutions.back():
 		EARTHSPLITTER_EVOLUTION_ID: return "Earthsplitter"
 		CRUSHING_STORM_EVOLUTION_ID: return "Crushing Storm"
+		SEISMIC_FAN_EVOLUTION_ID: return "Seismic Fan"
 		_: return "Fury Strike"
 
 
 func reset_attack_evolution_state() -> void:
 	_selected_attack_evolutions.clear()
+	_clear_pending_impacts()
+
+
+func upgrade_legacy_ground_shockwave() -> bool:
+	if _ground_shockwave_enabled:
+		return false
+	_ground_shockwave_enabled = true
+	return true
 
 
 func upgrade_legacy_wide_fury(radius_bonus: float) -> bool:
@@ -259,6 +285,64 @@ func _apply_crushing_storm(origin: Vector3, base_swing_damage: int) -> void:
 	var effect := CRUSHING_STORM_EFFECT.instantiate()
 	_effect_container.add_child(effect)
 	effect.setup(origin, radius, 0.24)
+
+
+func _apply_seismic_fan(origin: Vector3, direction: Vector3, base_swing_damage: int) -> void:
+	var maximum_range := attack_radius + SEISMIC_FAN_RANGE_BONUS
+	var damage := maxi(roundi(float(base_swing_damage) * SEISMIC_FAN_DAMAGE_MULTIPLIER), 1)
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_cone(_enemy_container, origin, direction, maximum_range, SEISMIC_FAN_ANGLE):
+		enemy.take_damage(damage)
+	if _effect_container == null:
+		return
+	var effect := SEISMIC_FAN_EFFECT.instantiate()
+	_effect_container.add_child(effect)
+	effect.setup(origin, direction, maximum_range, 0.20)
+
+
+func _queue_ground_shockwave(origin: Vector3) -> void:
+	_next_pending_impact_sequence += 1
+	_pending_impacts.append({
+		"kind": "ground_shockwave",
+		"remaining_delay": GROUND_SHOCKWAVE_DELAY,
+		"sequence": _next_pending_impact_sequence,
+		"origin": origin,
+		"radius": attack_radius * GROUND_SHOCKWAVE_RADIUS_MULTIPLIER,
+		"damage": maxi(roundi(float(attack_damage) * GROUND_SHOCKWAVE_DAMAGE_MULTIPLIER), 1),
+	})
+
+
+func _process_pending_impacts(delta: float) -> void:
+	var ready_impacts: Array[Dictionary] = []
+	for index in range(_pending_impacts.size() - 1, -1, -1):
+		var impact: Dictionary = _pending_impacts[index]
+		impact["remaining_delay"] = float(impact["remaining_delay"]) - delta
+		if float(impact["remaining_delay"]) <= 0.0:
+			ready_impacts.append(impact)
+			_pending_impacts.remove_at(index)
+		else:
+			_pending_impacts[index] = impact
+	ready_impacts.sort_custom(func(left: Dictionary, right: Dictionary) -> bool: return int(left["sequence"]) < int(right["sequence"]))
+	for impact: Dictionary in ready_impacts:
+		if str(impact["kind"]) == "ground_shockwave":
+			_resolve_ground_shockwave(impact)
+
+
+func _resolve_ground_shockwave(impact: Dictionary) -> void:
+	var origin: Vector3 = impact["origin"]
+	var radius := float(impact["radius"])
+	var damage := int(impact["damage"])
+	for enemy: Enemy3D in CombatQuery3D.enemies_in_radius(_enemy_container, origin, radius):
+		enemy.take_damage(damage)
+	if _effect_container == null:
+		return
+	var effect := CRUSHING_STORM_EFFECT.instantiate()
+	_effect_container.add_child(effect)
+	effect.setup(origin, radius, 0.20)
+
+
+func _clear_pending_impacts() -> void:
+	_pending_impacts.clear()
+	_next_pending_impact_sequence = 0
 
 
 func _on_attack_finished() -> void:
